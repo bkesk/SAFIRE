@@ -1,0 +1,69 @@
+.. _tutorials:
+
+Tutorials
+=========
+
+Auxiliary-field quantum Monte Carlo (AFQMC) for general interacting electron systems.
+
+AuxiliaryFields is a fast, efficient implementation of AFQMC written in C++. It uses a general interacting 2nd quantized Hamiltonian allowing it to be applied to broad classes of interacting-electron systems.
+
+.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/software_components.png
+   :width: 800px
+   :align: center
+
+AuxiliaryFields comes with the afqmctools command line interface (CLI) / Python package to assist the user in both setting up second quantized Hamiltonians and wavefunctions before running AuxiliaryFields, and in post-processing the results after running AuxiliaryFields.
+
+Typical Workflow
+----------------
+
+A typical calculation using AuxiliaryFields consists of three steps as shown in the flowchart below.
+
+.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/TopLevelFlowChart_v3.png
+   :width: 1000px
+   :align: center
+
+Running the AuxiliaryFields executable is generic and the details are largely independent of the intended application area. The most variation occurs in the first step, "Setup", since the set of possible starting points is very large. Post processing beyond simple scalar observables similarly has some dependence on the details of the application area. For example, the real-space charge density depends explicitly on the real-space representation of the underlying orbitals.
+
+Common Application Areas
+------------------------
+
+While AFQMC can handle any interacting electron system, it is most commonly applied in the following application areas. **Click on one of the boxes below to learn more.**
+
+Quantum Chemistry
+~~~~~~~~~~~~~~~~~
+
+`Quantum Chemistry Tutorial (online) <https://colab.research.google.com/drive/1jIkX2CwbH8FwUqt1sTtsuivu1k_d4OKY>`_
+
+:ref:`molecules_overview`.
+
+Molecules using standard quantum chemistry basis sets
+
+.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/molecule.png
+   :width: 500px
+   :align: center
+
+Ab initio solids
+~~~~~~~~~~~~~~~~
+
+`Ab initio solids Tutorial (online) <https://colab.research.google.com/drive/1QXT5fVZGBncWV1o0uedmx2fOFefLOjN4>`_
+
+:ref:`solids_overview`.
+
+Ab initio solids using Khon-Sham orbital basis sets
+
+.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/solid.png
+   :width: 500px
+   :align: center
+
+Lattice models
+~~~~~~~~~~~~~~
+
+`Lattice models Tutorial (online) <https://colab.research.google.com/drive/1iYHp1BzVjCs2nil8wmVO9OZtDUeHOFCc>`_
+
+:ref:`lattice_model_overview`
+
+Model Hamiltonians defined on a lattice such as the Hubbard model
+
+.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/lattice_model.png
+   :width: 500px
+   :align: center

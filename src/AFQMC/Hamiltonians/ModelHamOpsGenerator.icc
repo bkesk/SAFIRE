@@ -1,0 +1,914 @@
+/*
+ * This file is distributed under the Apache License, Version 2.0 License.
+ * See LICENSE file in top directory for details.
+ *
+ * Copyright (c) 2021-2025 The Simons Foundation, Inc.
+ *
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ */
+
+#include "Numerics/detail/utilities.hpp"
+#include "Numerics/csr_blas.hpp"
+#include "SparseMatrix/csr_matrix_construct.hpp"
+#include<unordered_map>
+
+namespace sfqmc
+{
+namespace afqmc
+{
+
+// "upgrade" tij to the appropriate format for the current walker type.
+// abort if spin is not consistent  
+// Returns a copy of the final hij (before linearization) used in Sparse1Body.
+template<class csrM>
+csrM ModelHamOpsGenerator::spin_to_walker_type(WALKER_TYPES type, 
+        std::string stype, csrM& hij)
+{
+  std::string base_error("Error in ModelHamOpsGenerator::spin_to_walker_type(...): ");
+  if(stype == "closed") {
+    if(hij.size(0) != NMO or hij.size(1) != NMO)
+      APP_ABORT(base_error + " Inconsistent matrix dimention in one_body::tij. ");
+    if(type == CLOSED) {
+      APP_ABORT(" Error: Model Hamiltonians not allowed with CLOSED walkers. ");
+    } else if(type == COLLINEAR) {
+      return csr::shm::closed_to_collinear(hij, TG.Node());
+    } else if(type == NONCOLLINEAR) {
+      return csr::shm::closed_to_noncollinear(hij, TG.Node() );
+    } else {
+      APP_ABORT(base_error + " Bad Walker Type!");
+    }
+  } else if(stype == "collinear") {
+    if(hij.size(0) != 2*NMO or hij.size(1) != NMO)
+      APP_ABORT(base_error + " Inconsistent matrix dimention in one_body::tij. ");
+    if(type == CLOSED) {
+      APP_ABORT(" Error: Model Hamiltonians not allowed with CLOSED walkers. ");
+    } else if(type == COLLINEAR) {
+      return hij;
+    } else if(type == NONCOLLINEAR) {
+      return csr::shm::collinear_to_noncollinear(hij, TG.Node() );
+    } else {
+      APP_ABORT(base_error + " Bad Walker Type!");
+    }
+  } else if(stype == "noncollinear") {
+    if(hij.size(0) != 2*NMO or hij.size(1) != 2*NMO)
+      APP_ABORT(base_error + " Inconsistent matrix dimention in one_body::tij. ");
+    if(type == CLOSED or type == COLLINEAR) {
+      APP_ABORT(base_error + " Inconsistent spin type in one_body::tij.");
+    } else if(type == NONCOLLINEAR) {
+      return hij;
+    } else {
+      APP_ABORT(base_error + " Bad Walker Type!");
+    }
+  } else {
+    APP_ABORT(base_error + " Unknown spin_type: " + stype);
+  }
+  return hij;
+}
+
+template<bool MP, bool REAL, class csrM>
+SparseEnergy<MP,REAL> ModelHamOpsGenerator::make_SparseEnergy(TaskGroup_& TGwfn, WALKER_TYPES type, csrM& hij, 
+                    csrM& U, csrM& J, ComplexType E0)
+{
+
+  using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
+  using SPValueType   = typename to_working_precision<MP,ValueType  >::type;
+
+  using Alloc = shared_allocator<SPValueType>;
+
+  size_t M = size_t(NMO);
+  size_t M2 = (type == NONCOLLINEAR) ? 2ul*M : M;
+  size_t Madd = (type == NONCOLLINEAR) ? M : 0ul;
+
+  RUNTIME_CHECK(hij.size(0) == 2*NMO, "");
+  RUNTIME_CHECK(hij.size(1) == ( type==COLLINEAR ? NMO : 2*NMO ), "");
+
+  Vector<size_t> n2IJ;
+
+  // to avoid extra logic, see below
+  int SX = (type == NONCOLLINEAR ? 0 : 1 );
+
+  /**********************************************************/
+  // create mapping  
+  /**********************************************************/
+  if( TGwfn.Global().root() ) {
+
+    std::vector<size_t> IJ;
+    IJ.reserve(20*NMO);
+    // to avoid adding too many copies
+    std::vector<bool> Idone(2*NMO, false);
+
+    // add 1-body terms to the mapping
+    if( sparse_1body )
+    {
+      size_t norb = hij.size(0);
+      for(size_t i=0; i<norb; ++i) {
+        auto cols = hij.non_zero_indices2_data(i);
+        auto nnz = hij.num_non_zero_elements(i);
+        while( (nnz--) > 0 ) {
+          size_t j = size_t(*(cols++));
+	  // maps "beta" component to [0,M*M)
+          IJ.push_back( (i%M2) * M2 + j );
+        } 
+      }
+    }
+
+    // General mapping for both COLLINEAR and NONCOLLINEAR
+    // IJ = i*M2+j               for up/up
+    //    = (i+Madd)*M2+j+Madd   for dn/dn
+    // Or in other words, i and j become i+Madd and j+Madd for dn spin   
+    // U opposite spin
+    for(size_t i=0; i<M; ++i) {
+      auto vals = U.non_zero_values_data(i);
+      auto cols = U.non_zero_indices2_data(i);
+      auto nnz = U.num_non_zero_elements(i);
+      while( (nnz--) > 0 ) {
+        auto Uij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Uij) < 1e-6 ) continue;
+        if( i > j ) continue;
+        if( i == j ) {  
+          if(not Idone[i]) {
+            Idone[i] = true;
+            IJ.push_back(i*M2+i);              // ( i up, i up)
+            IJ.push_back((i+Madd)*M2+i+Madd);  // ( i dn, i dn)
+          }
+          if(type == NONCOLLINEAR) {
+            IJ.push_back(i*M2+i+M);         // ( i up, i dn)
+            IJ.push_back((i+M)*M2+i);       // ( i dn, i up)
+          }
+        } else {
+          if(not Idone[i]) {
+            Idone[i] = true;
+            IJ.push_back(i*M2+i);              // ( i up, i up)
+            IJ.push_back((i+Madd)*M2+i+Madd);  // ( i dn, i dn)
+          }
+          if(not Idone[j]) {
+            Idone[j] = true;
+            IJ.push_back(j*M2+j);           // ( j up, j up)
+            IJ.push_back((j+Madd)*M2+j+Madd);  // ( j dn, j dn)
+          }
+          if(type == NONCOLLINEAR) {
+            IJ.push_back(i*M2+j+M);         // ( i up, j dn)
+            IJ.push_back((j+M)*M2+i);       // ( j dn, i up)
+            IJ.push_back((i+M)*M2+j);       // ( i dn, j up)
+            IJ.push_back(j*M2+i+M);         // ( j up, i dn)
+          }
+        }  
+      }
+    }
+    // U same spin
+    for(size_t i=0; i<M; ++i) {
+      auto vals = U.non_zero_values_data(i+M);
+      auto cols = U.non_zero_indices2_data(i+M);
+      auto nnz = U.num_non_zero_elements(i+M);
+      while( (nnz--) > 0 ) {
+        auto Uij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Uij) < 1e-6 ) continue;
+        if( i >= j ) continue;
+        if(not Idone[i]) {
+          Idone[i] = true;
+          IJ.push_back(i*M2+i);                // ( i up, i up)
+          IJ.push_back((i+Madd)*M2+i+Madd);    // ( i dn, i dn)
+        }
+        if(not Idone[j]) {
+          Idone[j] = true;
+          IJ.push_back(j*M2+j);              // ( j up, j up)
+          IJ.push_back((j+Madd)*M2+j+Madd);  // ( j dn, j dn)
+        }
+        IJ.push_back(i*M2+j);                // ( i up, j up)
+        IJ.push_back(j*M2+i);                // ( j up, i up)
+        IJ.push_back((i+Madd)*M2+j+Madd);    // ( i dn, j dn)
+        IJ.push_back((j+Madd)*M2+i+Madd);    // ( j dn, i dn)
+      }
+    }
+    for(size_t i=0; i<M; ++i) {
+      auto vals = J.non_zero_values_data(i);
+      auto cols = J.non_zero_indices2_data(i);
+      auto nnz = J.num_non_zero_elements(i);
+      while( (nnz--) > 0 ) {
+        auto Jij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Jij) < 1e-6 ) continue;
+        if( i >= j ) continue;
+        IJ.push_back(i*M2+j);               // ( i up, j up)
+        IJ.push_back(j*M2+i);               // ( j up, i up)
+        IJ.push_back((j+Madd)*M2+i+Madd);   // ( j dn, i dn)
+        IJ.push_back((i+Madd)*M2+j+Madd);   // ( i dn, j dn)
+        if(type == NONCOLLINEAR) {
+          IJ.push_back(i*M2+i+M);           // ( i up, i dn)
+          IJ.push_back((j+M)*M2+j);         // ( j dn, j up)
+          IJ.push_back(i*M2+j+M);           // ( i up, j dn)
+          IJ.push_back((i+M)*M2+j);         // ( i dn, j up)
+          IJ.push_back(j*M2+j+M);           // ( j up, j dn)
+          IJ.push_back((i+M)*M2+i);         // ( i dn, i up)
+          IJ.push_back(j*M2+i+M);           // ( j up, i dn)
+          IJ.push_back((j+M)*M2+i);         // ( j dn, i up)
+        }  
+      }
+    }
+
+    std::sort(IJ.begin(), IJ.end());
+    auto iend = std::unique(IJ.begin(), IJ.end());
+    int nunique = std::distance( IJ.begin(), iend );
+
+    n2IJ = Vector<size_t>(iextensions<1u>{nunique});
+    std::copy_n(IJ.begin(), nunique, n2IJ.origin());
+
+    TGwfn.Global().barrier();
+    TGwfn.Global().broadcast_value(nunique);
+    TGwfn.Global().broadcast_n(n2IJ.origin(), nunique, 0);
+
+  } else {
+
+    int nunique;
+    TGwfn.Global().barrier();
+    TGwfn.Global().broadcast_value(nunique);
+    n2IJ = Vector<size_t>(iextensions<1u>{nunique});
+    TGwfn.Global().broadcast_n(n2IJ.origin(), nunique, 0);
+    
+  }
+
+  /**********************************************************/
+  // count energy elements per row
+  /**********************************************************/
+  // COLLINEAR
+  // nnz_VJ[S][n], S: 0-up/up, 1-dn/dn, 2-dn/up
+  // nnz_VX[S][n], S: 0-up/up, 2-dn/dn 
+  // NONCOLLINEAR
+  // nnz_VJ[S][n], S: 0-everything
+  // nnz_VX[S][n], S: 0-everything
+  // 
+  // VJ[2] = VJ(beta, alpha) + Transpose( VJ(alpha,beta) )
+  // See HamiltonianOperations/ModelComponents/SparseEnergy.hpp to see how it is used.
+  Matrix<int> nnz_VJ({3,n2IJ.size()}, 0), nnz_VX({2,n2IJ.size()}, 0);
+  using map_t = std::unordered_map<size_t, int>;
+  map_t IJ2n;
+
+  if( TGwfn.Node().root() ) {
+
+    for(int n=0; n<n2IJ.size(); n++)
+      IJ2n.insert(std::make_pair(n2IJ[n], n));
+
+    // see the assembly of VJ/VX to understand this better
+    for(size_t i=0; i<M; ++i) {
+      auto vals = U.non_zero_values_data(i);
+      auto cols = U.non_zero_indices2_data(i);
+      auto nnz = U.num_non_zero_elements(i);
+      while( (nnz--) > 0 ) {
+        auto Uij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Uij) < 1e-6 ) continue;
+        if( i > j ) continue;
+        if( i == j ) {
+          if(type == COLLINEAR) {
+ 	    // T( VJ(alpha,beta)[iuiu][idid] ) += Uij;
+  	    size_t idid((i+Madd)*M2+i+Madd);  // ( i dn, i dn)
+            nnz_VJ[2][ IJ2n[idid] ] ++;  
+          } else if(type == NONCOLLINEAR) {
+            size_t iuiu(i*M2+i);           // ( i up, i up)
+            size_t iuid(i*M2+i+M);         // ( i up, i dn)
+            nnz_VJ[0][ IJ2n[iuiu] ] ++;  
+            nnz_VX[0][ IJ2n[iuid] ] ++;  
+          }
+        } else {
+          if(type == COLLINEAR) {
+	    // T( VJ(alpha,beta)[iuiu][jdjd] )
+            size_t jdjd((j+Madd)*M2+j+Madd);  // ( j dn, j dn)
+            nnz_VJ[2][ IJ2n[jdjd] ] ++;  
+	    // VJ(beta,alpha)[idid][juju]
+            size_t idid((i+Madd)*M2+i+Madd);  // ( i dn, i dn)
+            nnz_VJ[2][ IJ2n[idid] ] ++;  
+          } else if(type == NONCOLLINEAR) {
+            size_t iuiu(i*M2+i);              // ( i up, i up)
+            size_t idid((i+Madd)*M2+i+Madd);  // ( i dn, i dn)
+            nnz_VJ[0][ IJ2n[iuiu] ] ++;  
+            nnz_VJ[0][ IJ2n[idid] ] ++;  
+            size_t iujd(i*M2+j+M);         // ( i up, j dn)
+            size_t idju((i+M)*M2+j);       // ( i dn, j up)
+            nnz_VX[0][ IJ2n[iujd] ] ++;  
+            nnz_VX[0][ IJ2n[idju] ] ++;  
+          }
+        }
+      }
+    }
+    // U same spin
+    for(size_t i=0; i<M; ++i) {
+      auto vals = U.non_zero_values_data(i+M);
+      auto cols = U.non_zero_indices2_data(i+M);
+      auto nnz = U.num_non_zero_elements(i+M);
+      while( (nnz--) > 0 ) {
+        auto Uij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Uij) < 1e-6 ) continue;
+        if( i >= j ) continue;
+        size_t iuiu(i*M2+i);                // ( i up, i up)
+        size_t idid((i+Madd)*M2+i+Madd);    // ( i dn, i dn)
+        nnz_VJ[SX*0][ IJ2n[iuiu] ] ++;  
+        nnz_VJ[SX*1][ IJ2n[idid] ] ++;  
+        size_t iuju(i*M2+j);                // ( i up, j up)
+        size_t idjd((i+Madd)*M2+j+Madd);    // ( i dn, j dn)
+        nnz_VX[SX*0][ IJ2n[iuju] ] ++;  
+        nnz_VX[SX*1][ IJ2n[idjd] ] ++;  
+      }
+    }
+    for(size_t i=0; i<M; ++i) {
+      auto vals = J.non_zero_values_data(i);
+      auto cols = J.non_zero_indices2_data(i);
+      auto nnz = J.num_non_zero_elements(i);
+      while( (nnz--) > 0 ) {
+        auto Jij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Jij) < 1e-6 ) continue;
+        if( i >= j ) continue;
+        if(type == COLLINEAR) {
+	  // T( VJ(alpha,beta)[iuju][jdid] )
+	  // T( VJ(alpha,beta)[iuju][idjd] )    
+          size_t idjd( (i+Madd)*M2+j+Madd );   // ( i dn, j dn)
+          size_t jdid( (j+Madd)*M2+i+Madd );   // ( j dn, i dn)
+          nnz_VJ[2][ IJ2n[idjd] ] += 2;    
+          nnz_VJ[2][ IJ2n[jdid] ] += 2;    
+        } else if(type == NONCOLLINEAR) {
+          size_t iuju(i*M2+j);            // ( i up, j up)
+          size_t juiu(j*M2+i);            // ( j up, i up)
+          nnz_VJ[0][ IJ2n[iuju] ] += 2;    
+          nnz_VJ[0][ IJ2n[juiu] ] += 2;    
+          size_t iuid(i*M2+i+M);        // ( i up, i dn)
+          size_t iujd(i*M2+j+M);        // ( i up, j dn)
+          size_t jujd(j*M2+j+M);        // ( j up, j dn)
+          size_t juid(j*M2+i+M);        // ( j up, i dn)
+          nnz_VX[0][ IJ2n[iuid] ] ++;    
+          nnz_VX[0][ IJ2n[iujd] ] ++; 
+          nnz_VX[0][ IJ2n[jujd] ] ++; 
+          nnz_VX[0][ IJ2n[juid] ] ++; 
+        }
+      }
+    }
+  }
+  TGwfn.Node().barrier();
+
+  TGwfn.Node().broadcast_n(nnz_VJ.origin(), nnz_VJ.num_elements(), 0);
+  TGwfn.Node().broadcast_n(nnz_VX.origin(), nnz_VX.num_elements(), 0);
+
+  int nIJ = n2IJ.size();
+  std::vector<csrM> VJ, VX;
+  if(type==COLLINEAR) {
+    VJ.reserve(nnz_VJ.size());
+    VX.reserve(nnz_VX.size());
+    for(int n=0; n<nnz_VJ.size(); n++)
+      VJ.emplace_back(csrM(tp_ul_ul{nIJ,nIJ}, tp_ul_ul{0, 0}, 
+  			   nnz_VJ[n], Alloc(TGwfn.Node())));
+    for(int n=0; n<nnz_VX.size(); n++)
+      VX.emplace_back(csrM(tp_ul_ul{nIJ,nIJ}, tp_ul_ul{0, 0}, 
+  			   nnz_VX[n], Alloc(TGwfn.Node())));
+  } else if(type == NONCOLLINEAR) {
+    VJ.reserve(1);
+    VX.reserve(1);
+    VJ.emplace_back(csrM(tp_ul_ul{nIJ,nIJ}, tp_ul_ul{0, 0},
+                         nnz_VJ[0], Alloc(TGwfn.Node())));
+    VX.emplace_back(csrM(tp_ul_ul{nIJ,nIJ}, tp_ul_ul{0, 0},
+                         nnz_VX[0], Alloc(TGwfn.Node())));
+  }
+
+  /**********************************************************/
+  // assemble VJ/VX 
+  /**********************************************************/
+  if( TGwfn.Node().root() ) {
+    SPValueType minus(-1.0);
+    for(size_t i=0; i<M; ++i) {
+      auto vals = U.non_zero_values_data(i);
+      auto cols = U.non_zero_indices2_data(i);
+      auto nnz = U.num_non_zero_elements(i);
+      while( (nnz--) > 0 ) {
+        auto Uij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Uij) < 1e-6 ) continue;
+        if( i > j ) continue;
+        if( i == j ) {
+          auto iuiu= IJ2n[i*M2+i];              // ( i up, i up)
+          auto idid= IJ2n[(i+Madd)*M2+i+Madd];  // ( i dn, i dn)
+          if(type == COLLINEAR) {
+            VJ[2][idid][iuiu] += Uij;  
+          } else if(type == NONCOLLINEAR) {
+            VJ[0][iuiu][idid] += Uij;  
+            auto iuid= IJ2n[i*M2+i+M];         // ( i up, i dn)
+            auto idiu= IJ2n[(i+M)*M2+i];       // ( i dn, i up)
+            VX[0][iuid][idiu] += (minus*Uij);  
+          }
+        } else {
+          auto iuiu= IJ2n[i*M2+i];              // ( i up, i up)
+          auto idid= IJ2n[(i+Madd)*M2+i+Madd];  // ( i dn, i dn)
+          auto juju= IJ2n[j*M2+j];              // ( j up, j up)
+          auto jdjd= IJ2n[(j+Madd)*M2+j+Madd];  // ( j dn, j dn)
+          if(type == COLLINEAR) {
+            VJ[2][jdjd][iuiu] += Uij;  
+            VJ[2][idid][juju] += Uij;  
+          } else if(type == NONCOLLINEAR) {
+            auto iujd= IJ2n[i*M2+j+M];         // ( i up, j dn)
+            auto jdiu= IJ2n[(j+M)*M2+i];       // ( j dn, i up)
+            auto idju= IJ2n[(i+M)*M2+j];       // ( i dn, j up)
+            auto juid= IJ2n[j*M2+i+M];         // ( j up, i dn)
+            VJ[0][iuiu][jdjd] += Uij;  
+            VJ[0][idid][juju] += Uij;  
+            VX[0][iujd][jdiu] += (minus*Uij);  
+            VX[0][idju][juid] += (minus*Uij);  
+          }
+        }
+      }
+    }
+    // U same spin
+    for(size_t i=0; i<M; ++i) {
+      auto vals = U.non_zero_values_data(i+M);
+      auto cols = U.non_zero_indices2_data(i+M);
+      auto nnz = U.num_non_zero_elements(i+M);
+      while( (nnz--) > 0 ) {
+        auto Uij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Uij) < 1e-6 ) continue;
+        if( i >= j ) continue;
+        auto iuiu= IJ2n[i*M2+i];                // ( i up, i up)
+        auto idid= IJ2n[(i+Madd)*M2+i+Madd];    // ( i dn, i dn)
+        auto juju= IJ2n[j*M2+j];                // ( j up, j up)
+        auto jdjd= IJ2n[(j+Madd)*M2+j+Madd];    // ( j dn, j dn)
+        VJ[SX*0][iuiu][juju] += Uij;  
+        VJ[SX*1][idid][jdjd] += Uij;  
+    
+        auto iuju= IJ2n[i*M2+j];                // ( i up, j up)
+        auto juiu= IJ2n[j*M2+i];                // ( j up, i up)
+        auto idjd= IJ2n[(i+Madd)*M2+j+Madd];    // ( i dn, j dn)
+        auto jdid= IJ2n[(j+Madd)*M2+i+Madd];    // ( j dn, i dn)
+        VX[SX*0][iuju][juiu] += (minus*Uij);  
+        VX[SX*1][idjd][jdid] += (minus*Uij);  
+      }
+    }
+    for(size_t i=0; i<M; ++i) {
+      auto vals = J.non_zero_values_data(i);
+      auto cols = J.non_zero_indices2_data(i);
+      auto nnz = J.num_non_zero_elements(i);
+      while( (nnz--) > 0 ) {
+        auto Jij = *(vals++);
+        size_t j = size_t(*(cols++));
+        if( std::abs(Jij) < 1e-6 ) continue;
+        if( i >= j ) continue;
+        auto iuju= IJ2n[i*M2+j];               // ( i up, j up)
+        auto juiu= IJ2n[j*M2+i];               // ( j up, i up)
+        auto jdid= IJ2n[(j+Madd)*M2+i+Madd];   // ( j dn, i dn)
+        auto idjd= IJ2n[(i+Madd)*M2+j+Madd];   // ( i dn, j dn)
+        if(type == COLLINEAR) {
+          VJ[SX*2][jdid][iuju] += Jij;  
+          VJ[SX*2][idjd][iuju] += Jij;  
+          VJ[SX*2][idjd][juiu] += Jij;  
+          VJ[SX*2][jdid][juiu] += Jij;  
+        } else if(type == NONCOLLINEAR) {
+          auto iuid= IJ2n[i*M2+i+M];        // ( i up, i dn)
+          auto jdju= IJ2n[(j+M)*M2+j];      // ( j dn, j up)
+          auto iujd= IJ2n[i*M2+j+M];        // ( i up, j dn)
+          auto idju= IJ2n[(i+M)*M2+j];      // ( i dn, j up)
+          auto jujd= IJ2n[j*M2+j+M];        // ( j up, j dn)
+          auto idiu= IJ2n[(i+M)*M2+i];      // ( i dn, i up)
+          auto juid= IJ2n[j*M2+i+M];        // ( j up, i dn)
+          auto jdiu= IJ2n[(j+M)*M2+i];      // ( j dn, i up)
+          VJ[0][iuju][jdid] += Jij;  
+          VJ[0][iuju][idjd] += Jij;  
+          VJ[0][juiu][idjd] += Jij;  
+          VJ[0][juiu][jdid] += Jij;  
+          VX[0][iuid][jdju] += (minus*Jij);  
+          VX[0][iujd][idju] += (minus*Jij);  
+          VX[0][jujd][idiu] += (minus*Jij);  
+          VX[0][juid][jdiu] += (minus*Jij);  
+        }
+      }
+    }
+  }
+  TGwfn.Node().barrier();
+  for( auto& v : VJ ) v.remove_empty_spaces();
+  for( auto& v : VX ) v.remove_empty_spaces();
+
+  std::vector<csrM> linear_hij;
+  if(type == COLLINEAR) {
+    RUNTIME_CHECK(hij.size(0) == 2*NMO, "");
+    linear_hij.reserve(2);
+    auto hup = hij[std::array<int,2>{0,NMO}];
+    auto hdn = hij[std::array<int,2>{NMO, 2*NMO}];
+    linear_hij.emplace_back(csr::shm::linearize_matrix<csrM>(hup, TGwfn.Node()));
+    linear_hij.emplace_back(csr::shm::linearize_matrix<csrM>(hdn, TGwfn.Node()));
+    RUNTIME_CHECK(linear_hij[0].size(0) == 1, "");
+    RUNTIME_CHECK(linear_hij[1].size(0) == 1, "");
+  } else if(type == NONCOLLINEAR) {
+    RUNTIME_CHECK(hij.size(0) == 2*NMO, "");
+    linear_hij.reserve(1);
+    linear_hij.emplace_back(csr::shm::linearize_matrix<csrM>(hij, TGwfn.Node()));
+    RUNTIME_CHECK(linear_hij[0].size(0) == 1, "");
+  }
+
+  if( sparse_1body )
+  {
+    // create compact version of linear_hij
+    std::vector<csrM> compact_hij;
+    compact_hij.reserve(linear_hij.size());
+    for(int n=0; n<linear_hij.size(); ++n) 
+      compact_hij.emplace_back(csrM(tp_ul_ul{1,nIJ}, tp_ul_ul{0, 0}, nIJ, Alloc(TGwfn.Node()))); 
+    if( TGwfn.Node().root() ) {
+      for(int i=0; i<linear_hij.size(); i++) {
+        for(int n=0; n<nIJ; n++) {
+          auto IJ = n2IJ[n];
+          compact_hij[i][0][n] = linear_hij[i][0][IJ];
+        }
+      }
+    }   
+    TGwfn.Node().barrier();
+  
+    return SparseEnergy<MP,REAL>( TGwfn, type, false, 
+                         std::move(compact_hij), 
+                         std::move(VJ), 
+                         std::move(VX), 
+                         std::move(U), 
+                         std::move(J), 
+                         std::move(n2IJ), 
+                         E0);
+  } 
+  else 
+  {
+    return SparseEnergy<MP,REAL>( TGwfn, type, true, 
+                         std::move(linear_hij),
+                         std::move(VJ),
+                         std::move(VX), 
+                         std::move(U),
+                         std::move(J),
+                         std::move(n2IJ),
+                         E0);
+  }
+
+}
+
+template<class csrM>
+Vector<size_t> ModelHamOpsGenerator::find_occupied_pairs(WALKER_TYPES type, 
+                      std::vector<csrM>& U, std::vector<csrM>& J) 
+{
+
+  if(type == CLOSED) 
+    APP_ABORT(" Error: Model Hamiltonians not allowed with CLOSED walkers. ");
+
+  Vector<size_t> n2IJ;
+  if( TG.Global().root() ) {
+    std::vector<size_t> IJ;
+    IJ.reserve(20*NMO);
+    // to avoid adding too many copies
+    std::vector<bool> Idone(2*NMO, false);
+
+    size_t M = size_t(NMO);
+    size_t M2 = (type == NONCOLLINEAR) ? 2ul*M : M;
+    size_t Madd = (type == NONCOLLINEAR) ? M : 0ul;
+    // General formula for COLLINEAR and NONCOLLINEAR
+    // IJ = i*M2+j            for up/up
+    //    = (i+M)*M2+j+Madd   for dn/dn
+    for(int n=0; n<U.size(); ++n) {
+      // U opposite spin
+      for(size_t r=0; r<M; ++r) {
+        auto vals = U[n].non_zero_values_data(r);
+        auto cols = U[n].non_zero_indices2_data(r);
+        auto nnz = U[n].num_non_zero_elements(r);
+        while( (nnz--) > 0 ) {
+          auto Uij = *(vals++);
+          size_t j = size_t(*(cols++));
+          if( std::abs(Uij) < 1e-6 ) continue;
+          if( r > j ) continue;
+          if(not Idone[r]) {
+            Idone[r] = true;
+            IJ.push_back(r*M2+r);           // ( i up, i up)
+            IJ.push_back((r+M)*M2+r+Madd);  // ( i dn, i dn)
+          }
+          if(not Idone[j]) {
+            Idone[j] = true;
+            IJ.push_back(j*M2+j);           // ( j up, j up)
+            IJ.push_back((j+M)*M2+j+Madd);  // ( j dn, j dn)
+          }
+        }
+      }
+      // U same spin
+      for(size_t r=0; r<M; ++r) {
+        auto vals = U[n].non_zero_values_data(r+M);
+        auto cols = U[n].non_zero_indices2_data(r+M);
+        auto nnz = U[n].num_non_zero_elements(r+M);
+        while( (nnz--) > 0 ) {
+          auto Uij = *(vals++);
+          size_t j = size_t(*(cols++));
+          if( std::abs(Uij) < 1e-6 ) continue;
+          if( r >= j ) continue;
+          if(not Idone[r]) {
+            Idone[r] = true;
+            IJ.push_back(r*M2+r);             // ( i up, i up)
+            IJ.push_back((r+M)*M2+r+Madd);    // ( i dn, i dn)
+          }
+          if(not Idone[j]) {
+            Idone[j] = true;
+            IJ.push_back(j*M2+j);           // ( j up, j up)
+            IJ.push_back((j+M)*M2+j+Madd);  // ( j dn, j dn)
+          }
+        }
+      }
+    }
+    for(int n=0; n<J.size(); ++n) {
+      for(size_t r=0; r<M; ++r) {
+        auto vals = J[n].non_zero_values_data(r);
+        auto cols = J[n].non_zero_indices2_data(r);
+        auto nnz = J[n].num_non_zero_elements(r);
+        while( (nnz--) > 0 ) {
+          auto Jij = *(vals++);
+          size_t j = size_t(*(cols++));
+          if( std::abs(Jij) < 1e-6 ) continue;
+          if( r >= j ) continue;
+          if(not Idone[r]) {
+            Idone[r] = true;
+            IJ.push_back(r*M2+r);            // ( i up, i up)
+            IJ.push_back((r+M)*M2+r+Madd);   // ( i dn, i dn)
+          }
+          if(not Idone[j]) {
+            Idone[j] = true;
+            IJ.push_back(j*M2+j);           // ( j up, j up)
+            IJ.push_back((j+M)*M2+j+Madd);  // ( j dn, j dn)
+          }
+          IJ.push_back(r*M2+j);            // ( i up, j up)
+          IJ.push_back(j*M2+r);            // ( j up, i up)
+          IJ.push_back((r+M)*M2+j+Madd);   // ( i dn, j dn)
+          IJ.push_back((j+M)*M2+r+Madd);   // ( j dn, i dn)
+        }
+      }
+    }
+
+    std::sort(IJ.begin(), IJ.end());
+    auto iend = std::unique(IJ.begin(), IJ.end());
+    int nIJ = std::distance( IJ.begin(), iend );
+    TG.Global().broadcast_value(nIJ);
+    n2IJ = Vector<size_t>(iextensions<1u>{nIJ});
+    std::copy_n(IJ.begin(), nIJ, n2IJ.origin());
+    TG.Global().broadcast_n(n2IJ.origin(), nIJ, 0);
+
+  } else {
+
+    int nIJ;
+    TG.Global().broadcast_value(nIJ);
+    n2IJ = Vector<size_t>(iextensions<1u>{nIJ});
+    TG.Global().broadcast_n(n2IJ.origin(), nIJ, 0);
+
+  }
+
+  return n2IJ; 
+}
+
+/*
+ * Calculates HS potentials, along with constant 1-body terms.
+ * By convention, we define vHS with a factor of 'i' not included (based on the continuous
+ * transformation as the original default, so a factor of '-i' is included in vn to compensate
+ * for this. The term <vMF>*vn is included later by the Model Component class.
+ *
+ *  First (second) term for charge (spin) decomposition. 
+ *  vn = (+-) sqrt( (+-) dt * UIJ ) * ( nI (+-) nJ ), where I/J are the spinor indexes
+ *       associated with the nth term in the interaction and nI/nJ are density operators.
+ *  h0 = (+-) 0.5 * dt * Uij * (nI + nJ)  
+ *  *** the factor of (-1) coming from the propagator is not included in h0, since it is added later
+ *  All factors of dt are added by Model Component class.
+ *  
+ *  Since the discrete transformation can not be constructed yet, (we do
+ *  not yet have the mean field averages of onsite densities), we initalize
+ *  structures in the discrete with the continuouas routines. The prefactors
+ *  are fixed in the HamOps class.
+ */
+template<bool MP, bool REAL, class csrM, class IArr, class map_t>
+void ModelHamOpsGenerator::addComponent(TaskGroup_& TGwfn, WALKER_TYPES wtype, PropagatorTypes ptype, 
+     csrM& U, csrM& J, std::vector<ModelComponent<MP,REAL>>& Hams, 
+     IArr& n2IJ, map_t& IJ2n)
+{
+  using SPComplexType = typename to_working_precision<MP,ComplexType>::type;
+  using SPRealType    = typename to_working_precision<MP,RealType   >::type;
+
+  TGwfn.Node().barrier();
+  RUNTIME_CHECK(ptype == ContinuousChargePropagator or 
+	 ptype == ContinuousSpinPropagator or 
+	 ptype == DiscreteChargePropagator or 
+	 ptype == DiscreteSpinPropagator, "");
+
+  if( U.num_non_zero_elements()==0 and
+      J.num_non_zero_elements()==0 )
+    return;
+
+  bool ContinuousPropg = (ptype == ContinuousChargePropagator or
+			  ptype == ContinuousSpinPropagator);
+  bool ChargePropg = (ptype == ContinuousChargePropagator or
+		       ptype == DiscreteChargePropagator);			
+
+  SPRealType sign = (ChargePropg) ? SPRealType(1.0) : SPRealType(-1.0);
+  int nIJ = n2IJ.size();
+  int nFields = 0;
+  size_t M = size_t(NMO);
+
+  // count number of fields. +2 for (i!=j) and +1 for (i==j) terms.
+  if( TGwfn.Global().root() ) {
+    if(wtype == CLOSED) {
+      APP_ABORT(" Error: Model Hamiltonians not allowed with CLOSED walkers. ");
+    } else if( wtype == COLLINEAR or wtype == NONCOLLINEAR ) {
+      // opposite spin terms
+      for(size_t i=0; i<M; ++i) {
+        auto vals = U.non_zero_values_data(i);
+        auto cols = U.non_zero_indices2_data(i);
+        auto nnz = U.num_non_zero_elements(i);
+        while( (nnz--) > 0 ) {
+          auto Uij = *(vals++);
+          size_t j = size_t(*(cols++));
+          if( std::abs(Uij) < 1e-6 ) continue;
+          if( i > j ) continue;
+          if( i == j ) nFields++;   // 1 field for i==j 
+          else nFields+=2;         // 2 fields for i!=j
+        }
+      } 
+      // same spin terms
+      for(size_t i=0; i<M; ++i) {
+        auto vals = U.non_zero_values_data(i+M);
+        auto cols = U.non_zero_indices2_data(i+M);
+        auto nnz = U.num_non_zero_elements(i+M);
+        while( (nnz--) > 0 ) {
+          auto Uij = *(vals++);
+          size_t j = size_t(*(cols++));
+          if( std::abs(Uij) < 1e-6 ) continue;
+          if( i >= j ) continue;
+          nFields+=2;         // 2 fields for i!=j
+        }
+      }
+      for(size_t i=0; i<M; ++i) {
+        auto vals = J.non_zero_values_data(i);
+        auto cols = J.non_zero_indices2_data(i);
+        auto nnz = J.num_non_zero_elements(i);
+        while( (nnz--) > 0 ) {
+          auto Jij = *(vals++);
+          size_t j = size_t(*(cols++));
+          if( std::abs(Jij) < 1e-6 ) continue;
+          if( i >= j ) continue;   
+          nFields++;         // 1 field per rho_ij term 
+        }
+      }
+    } else {
+      APP_ABORT(" Error: Unknown walker type in ModelHamOpsGenerator::addComponent.");   
+    }
+
+    TGwfn.Global().broadcast_value(nFields);
+
+  } else {
+
+    TGwfn.Global().broadcast_value(nFields);
+
+  }
+  
+  // return if no fields are found 
+  if(nFields == 0) return; 
+
+  // Vn, VnT, and h0 are in the compact n2IJ representation 
+  // Vn(IJ, Field)
+  // VnT(Field, IJ)
+  // h0(0, IJ)  ... as a 1-row "linearized" sparse matrix   
+  using csrMatComplex = ma::sparse::csr_matrix<SPComplexType, int, int,
+                                    shared_allocator<SPComplexType>, ma::sparse::is_root>;
+  csrMatComplex VnT(tp_ul_ul{nFields, nIJ}, tp_ul_ul{0, 0}, 4, U.get_allocator());
+  Vector<SPComplexType> h0( iextensions<1u>{nIJ}, SPComplexType(0.0) );
+  nFields = 0;
+
+  if(wtype == CLOSED) 
+    APP_ABORT(" Error: Model Hamiltonians not allowed with CLOSED walkers. ");
+
+  SPComplexType minus_half(-0.5);
+  size_t M2 = (wtype == NONCOLLINEAR) ? 2ul*M : M;
+  size_t Madd = (wtype == NONCOLLINEAR) ? M : 0ul;
+  // General formula for COLLINEAR and NONCOLLINEAR
+  // IJ = i*M2+j            for up/up
+  //    = (i+M)*M2+j+Madd   for dn/dn
+  
+  if( TGwfn.Node().root() ) {
+    // opposite spin terms
+    for(size_t i=0; i<M; ++i) {
+      auto vals = U.non_zero_values_data(i);
+      auto cols = U.non_zero_indices2_data(i);
+      auto nnz = U.num_non_zero_elements(i);
+      while( (nnz--) > 0 ) {
+        SPComplexType Uij = static_cast<SPComplexType>(*(vals++));
+        size_t j = size_t(*(cols++));
+        if( std::abs(Uij) < 1e-6 ) continue;
+        if( i > j ) continue;
+        // add i up/j dn term 
+        size_t I_ = i*M2+i;           // (i up, i up)
+        auto nI = IJ2n[I_];
+        size_t J_ = (j+M)*M2+j+Madd;  // (j dn, j dn)
+        auto nJ = IJ2n[J_];
+        SPComplexType sqrtUij( std::sqrt(sign * Uij) );
+        h0[nI] += minus_half*sign*Uij;  
+        h0[nJ] += minus_half*sign*Uij;  
+        VnT[nFields][nI] += sqrtUij;
+        VnT[nFields++][nJ] += sign * sqrtUij;
+        if( i != j ) {
+          // add i dn/j up term 
+          I_ = (i+M)*M2+i+Madd;      // (i dn, i dn)
+          nI = IJ2n[I_];
+          J_ = j*M2+j;               // (j up, j up)
+          nJ = IJ2n[J_];
+          h0[nI] += minus_half*sign*Uij;  
+          h0[nJ] += minus_half*sign*Uij;  
+          VnT[nFields][nI] += sqrtUij;
+          VnT[nFields++][nJ] += sign * sqrtUij;     
+        } 
+      }
+    }
+    // same spin terms
+    for(size_t i=0; i<M; ++i) {
+      auto vals = U.non_zero_values_data(i+M);
+      auto cols = U.non_zero_indices2_data(i+M);
+      auto nnz = U.num_non_zero_elements(i+M);
+      while( (nnz--) > 0 ) {
+        SPComplexType Uij = static_cast<SPComplexType>(*(vals++));
+        size_t j = size_t(*(cols++));
+        if( std::abs(Uij) < 1e-6 ) continue;
+        if( i >= j ) continue;
+        // add up/up term 
+        size_t I_ = i*M2+i;      // (i up, i up)
+        auto nI = IJ2n[I_];
+        size_t J_ = j*M2+j;      // (j up, j up)
+        auto nJ = IJ2n[J_];
+        SPComplexType sqrtUij( std::sqrt(sign * Uij) );
+        h0[nI] += minus_half*sign*Uij;  
+        h0[nJ] += minus_half*sign*Uij;  
+        VnT[nFields][nI] += sqrtUij;
+        VnT[nFields++][nJ] += sign * sqrtUij;
+        // add dn/dn term 
+        I_ = (i+M)*M2+i+Madd;      // (i dn, i dn)
+        nI = IJ2n[I_];
+        J_ = (j+M)*M2+j+Madd;      // (j dn, j dn)
+        nJ = IJ2n[J_];
+        h0[nI] += minus_half*sign*Uij;  
+        h0[nJ] += minus_half*sign*Uij;  
+        VnT[nFields][nI] += sqrtUij;
+        VnT[nFields++][nJ] += sign * sqrtUij;
+      }
+    } 
+    for(size_t i=0; i<M; ++i) {
+      auto vals = J.non_zero_values_data(i);
+      auto cols = J.non_zero_indices2_data(i);
+      auto nnz = J.num_non_zero_elements(i);
+      while( (nnz--) > 0 ) {
+        SPComplexType Jij = static_cast<SPComplexType>(*(vals++));
+        size_t j = size_t(*(cols++));
+        if( std::abs(Jij) < 1e-6 ) continue;
+        if( i >= j ) continue;  
+        SPComplexType sqrtJij( std::sqrt(sign * Jij) );
+        size_t ii_up = i*M2+i;           // (i up, i up)
+        size_t jj_up = j*M2+j;           // (j up, j up)
+        size_t ii_dn = (i+M)*M2+i+Madd;  // (i dn, i dn)
+        size_t jj_dn = (j+M)*M2+j+Madd;  // (j dn, j dn)
+        size_t ij_up = i*M2+j;           // (i up, j up)
+        size_t ji_up = j*M2+i;           // (j up, i up)
+        size_t ij_dn = (i+M)*M2+j+Madd;  // (i dn, j dn)
+        size_t ji_dn = (j+M)*M2+i+Madd;  // (j dn, i dn)
+        auto nii_up = IJ2n[ii_up];
+        auto njj_up = IJ2n[jj_up];
+        auto nii_dn = IJ2n[ii_dn];
+        auto njj_dn = IJ2n[jj_dn];
+        auto nij_up = IJ2n[ij_up];
+        auto nji_up = IJ2n[ji_up];
+        auto nij_dn = IJ2n[ij_dn];
+        auto nji_dn = IJ2n[ji_dn];
+        h0[nii_up] += minus_half*sign*Jij;  
+        h0[njj_up] += minus_half*sign*Jij;  
+        h0[nii_dn] += minus_half*sign*Jij;  
+        h0[njj_dn] += minus_half*sign*Jij;  
+        VnT[nFields][nij_up] += sqrtJij; 
+        VnT[nFields][nji_up] += sqrtJij; 
+        VnT[nFields][nij_dn] += sign * sqrtJij;
+        VnT[nFields++][nji_dn] += sign * sqrtJij;
+      }
+    }
+  } // Node().root()
+  TGwfn.Node().barrier();
+ 
+  // make sparse matrix compact, necessary in some libraries
+  VnT.remove_empty_spaces();
+
+  // bcast h0 since it is local
+  TGwfn.Node().broadcast_n(h0.origin(), h0.num_elements(), 0); 
+
+  // if csrM is not in shared memory, this will fail
+  // change if needed
+  auto Vn = csr::shm::transpose<csrMatComplex>(VnT);
+
+  if(ContinuousPropg)
+    Hams.emplace_back( ModelComponent<MP,REAL>( 
+                       Continuous_GeneralUJ<MP>(TGwfn,wtype,ptype,
+						std::move(h0),Vn,VnT,shift_1body) ) );
+  else
+    Hams.emplace_back( ModelComponent<MP,REAL>( 
+                       Discrete_GeneralUJ<MP,REAL>(TGwfn,wtype,ptype,
+						std::move(h0),Vn,VnT,U,shift_1body) ) );
+}
+
+} // namespace afqmc
+
+} // namespace sfqmc

@@ -1,0 +1,115 @@
+div.math {
+    position: relative;
+    padding-right: 2.5em;
+}
+.eqno {
+    height: 100%;
+    position: absolute;
+    right: 0;
+    padding-left: 5px;
+    padding-bottom: 5px;
+    /* Fix for mouse over in Firefox */
+    padding-right: 1px;
+}
+.eqno:before {
+    /* Force vertical alignment of number */
+    display: inline-block;
+    height: 100%;
+    vertical-align: middle;
+    content: "";
+}
+.eqno .headerlink {
+    display: none;
+    visibility: hidden;
+    font-size: 14px;
+    padding-left: .3em;
+}
+.eqno:hover .headerlink {
+    display: inline-block;
+    visibility: hidden;
+    margin-right: -1.05em;
+}
+.eqno .headerlink:after {
+    visibility: visible;
+    content: "\f0c1";
+    font-family: FontAwesome;
+    display: inline-block;
+    margin-left: -.9em;
+}
+/* Make responsive */
+.MathJax_Display {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+/* customize color theme */
+.wy-side-nav-search, .wy-nav-top {
+    background: #845B8E;
+}
+
+/* Ensure main content area has white background */
+.wy-nav-content-wrap {
+    background: #ffffff;
+}
+
+.wy-nav-content {
+    background: #ffffff;
+}
+
+.rst-content {
+    background: #ffffff;
+}
+
+/* Also ensure the main document area is white */
+.document {
+    background: #ffffff;
+}
+
+/* Make cross-reference links bold */
+a.reference.internal {
+    font-weight: bold;
+}
+
+/* Make auto-resolved bold references bold */
+.boldref-auto a {
+    font-weight: bold !important;
+}
+
+/* Style for no-toc headings to match regular h2 styling */
+h2.no-toc {
+    font-size: 1.714em;
+    font-weight: bold;
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+    color: #000000;
+    border-bottom: 1px solid #e1e4e5;
+    padding-bottom: 0.3em;
+}
+
+/* Theme-adaptive images */
+.theme-adaptive-image {
+    text-align: center;
+    margin: 1em 0;
+}
+
+/* Default: show light mode image, hide dark mode image */
+.theme-adaptive-image .light-mode-img {
+    display: block;
+    margin: 0 auto;
+}
+
+.theme-adaptive-image .dark-mode-img {
+    display: none;
+}
+
+/* Dark mode: hide light mode image, show dark mode image */
+[data-theme="dark"] .theme-adaptive-image .light-mode-img,
+.theme--dark .theme-adaptive-image .light-mode-img {
+    display: none;
+}
+
+[data-theme="dark"] .theme-adaptive-image .dark-mode-img,
+.theme--dark .theme-adaptive-image .dark-mode-img {
+    display: block;
+    margin: 0 auto;
+}
