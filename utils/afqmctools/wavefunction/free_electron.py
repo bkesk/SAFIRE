@@ -30,7 +30,12 @@ from afqmctools.hamiltonian.converter import read_hamiltonian
 from afqmctools.systems.lattice import get_lattice
 from afqmctools.utils.io import read_input_params
 
-from autohf import lattice_hf, AutoHFHamiltonian
+try:
+    from autohf import lattice_hf, AutoHFHamiltonian
+    HAS_AUTOHF = True
+except ImportError:
+    HAS_AUTOHF = False
+    warn("AutoHF not found. Some functionality will be limited.")
 
 
 # TODO: Validate a "good" default small irrational twist angle
@@ -39,7 +44,8 @@ THETA_X = 1/np.sqrt(592560607) # 592560607 is prime
 THETA_Y = 1/np.sqrt(47603)     # 47603 is prime
 
 
-def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=None,return_autohf=False,measure_spin=True):
+def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=None,
+                  return_autohf=False,measure_spin=True,filling_strategy='aufbau',shell_tol=1e-6):
     """
     Builds a free-electron trial wavefunction based on the 'source' lattice hamiltonian.
 
@@ -48,6 +54,41 @@ def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=
     source : str | dict | Hamiltonian
         str - the name of an input file with lattice and hamiltonian blocks defined
         dict - a dict containing lattice and hamiltonian blocks
+    nelec : tuple(int,int)
+        number of spin-up and spin-down electrons
+    twist : array-like, optional
+        twist angle for the lattice (default: small irrational twist)
+    spin_symm : SpinSymm or str, optional
+        spin symmetry to use
+    use_dense : bool
+        whether to use dense matrix operations (default: True)
+    lattice : Lattice, optional
+        pre-constructed lattice object
+    return_autohf : bool
+        whether to return AutoHF results (default: False)
+    measure_spin : bool
+        whether to measure spin in AutoHF (default: True)
+    filling_strategy : str
+        strategy for filling orbitals within shells. Options:
+        - 'aufbau': fill shells from lowest to highest energy (default)
+        - 'balanced': for partially filled shells, select orbitals evenly 
+                     to balance properties like momentum
+        - 'hund': apply Hund's rule (maximize spin)
+        - 'alternating': fill from edges inward (0, -1, 1, -2, ...) 
+                        for momentum cancellation
+    shell_tol : float
+        tolerance for grouping eigenvalues into shells (default: 1e-6)
+        Orbitals with eigenvalues within this tolerance are considered 
+        to belong to the same shell.
+    
+    Returns
+    -------
+    wfn : list
+        wavefunction as [coefficients, orbital_matrix]
+    spin_symm : SpinSymm
+        spin symmetry of the wavefunction
+    results : dict (optional)
+        AutoHF results if return_autohf=True
     """
     if twist is None:
         twist = 0.1*np.array((THETA_X,THETA_Y))
@@ -98,7 +139,9 @@ def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=
         hamiltonian=hamiltonian,
         nelec=nelec,
         spin_symm=spin_symm,
-        use_dense=use_dense
+        use_dense=use_dense,
+        filling_strategy=filling_strategy,
+        shell_tol=shell_tol
     )
 
     # TODO: put this somewhere else, probably parse from an input file
@@ -114,12 +157,16 @@ def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=
     if spin_symm_wfn == SpinSymm.NONCOLLINEAR:
         settings["noncollinear"] = True
 
-    results = lattice_hf(
-        AutoHFHamiltonian(source=hamiltonian),
-        settings=settings,
-        initial_guess=wfn[1][0], # TODO: make a wfn container class so that we don't need to have to take awkward indices like this
-        suppress_logo = True,
-    )
+    if not HAS_AUTOHF:
+        warn("AutoHF not available. Skipping energy evaluation.")
+        results = None
+    else:
+        results = lattice_hf(
+            AutoHFHamiltonian(source=hamiltonian),
+            settings=settings,
+            initial_guess=wfn[1][0], # TODO: make a wfn container class so that we don't need to have to take awkward indices like this
+            suppress_logo = True,
+        )
 
     if return_autohf:
         return wfn,spin_symm,results
@@ -127,7 +174,7 @@ def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=
         return wfn,spin_symm_wfn
     
 
-def _free_electron(hamiltonian:Hamiltonian,nelec,spin_symm=None,use_dense=True):
+def _free_electron(hamiltonian:Hamiltonian,nelec,spin_symm=None,use_dense=True,filling_strategy='aufbau',shell_tol=1e-6):
     """
     Builds a free-electron trial wavefunction for the given Hamiltonian
 
@@ -137,6 +184,14 @@ def _free_electron(hamiltonian:Hamiltonian,nelec,spin_symm=None,use_dense=True):
         a Lattice Model Hamiltonian instance to build the Hamiltonian for.
     nelec : tuple(int,int)
         an iterable with the number of electrons per spin to use.
+    spin_symm : SpinSymm or str, optional
+        spin symmetry to use
+    use_dense : bool
+        whether to use dense matrix operations
+    filling_strategy : str
+        strategy for filling orbitals within shells ('aufbau', 'balanced', 'hund', 'alternating')
+    shell_tol : float
+        tolerance for grouping eigenvalues into shells
 
     Returns
     -------
@@ -157,10 +212,12 @@ def _free_electron(hamiltonian:Hamiltonian,nelec,spin_symm=None,use_dense=True):
     if spin_symm == SpinSymm.CLOSED:
         raise NotImplementedError("Free electron wavefunction with closed spin symmmetry is not implemented")
     elif spin_symm == SpinSymm.COLLINEAR:
-        wfn = _collinear_free_elec(T,nelec=nelec,Nmo=norb,use_dense=use_dense)
+        wfn = _collinear_free_elec(T,nelec=nelec,Nmo=norb,use_dense=use_dense,
+                                   filling_strategy=filling_strategy,shell_tol=shell_tol)
         return wfn, spin_symm
     elif spin_symm == SpinSymm.NONCOLLINEAR:
-        wfn = _noncollinear_free_elec(T,nelec=nelec,Nmo=norb,use_dense=use_dense)
+        wfn = _noncollinear_free_elec(T,nelec=nelec,Nmo=norb,use_dense=use_dense,
+                                      filling_strategy=filling_strategy,shell_tol=shell_tol)
         return wfn, spin_symm
     else:
         raise ValueError("Can't make free electron wavefunction. Uknown spin_symm")
@@ -218,8 +275,195 @@ def _get_1body_eig(H1body,num_eigenvals,use_dense=True):
     return sorted_eigenvals,sorted_orbitals
 
 
+def _group_eigenvalues_by_shell(eigenvalues, orbitals, tol=1e-6):
+    """
+    Group eigenvalues and their corresponding orbitals into shells based on degeneracy.
+    
+    Orbitals are considered to belong to the same shell if their eigenvalues 
+    are within `tol` of each other.
+    
+    Parameters
+    ----------
+    eigenvalues : np.ndarray
+        sorted array of eigenvalues
+    orbitals : np.ndarray
+        array of orbitals (columns correspond to eigenvalues)
+    tol : float
+        tolerance for considering eigenvalues as degenerate
+    
+    Returns
+    -------
+    shells : list of dict
+        list of shells, where each shell is a dict with keys:
+        - 'energy': average energy of the shell
+        - 'eigenvalues': array of eigenvalues in the shell
+        - 'orbitals': array of orbitals in the shell (columns)
+        - 'indices': original indices of orbitals in the shell
+        - 'degeneracy': number of orbitals in the shell
+    """
+    shells = []
+    i = 0
+    n_orbitals = len(eigenvalues)
+    
+    while i < n_orbitals:
+        # Start a new shell
+        shell_start = i
+        shell_energy = eigenvalues[i]
+        
+        # Find all eigenvalues within tolerance of the first one in this shell
+        j = i + 1
+        while j < n_orbitals and abs(eigenvalues[j] - shell_energy) < tol:
+            j += 1
+        
+        shell_end = j
+        shell_indices = list(range(shell_start, shell_end))
+        
+        shell = {
+            'energy': np.mean(eigenvalues[shell_start:shell_end]),
+            'eigenvalues': eigenvalues[shell_start:shell_end],
+            'orbitals': orbitals[:, shell_start:shell_end],
+            'indices': shell_indices,
+            'degeneracy': shell_end - shell_start
+        }
+        
+        shells.append(shell)
+        i = shell_end
+    
+    return shells
 
-def _collinear_free_elec(Hfree,nelec,Nmo,use_dense=True):
+
+def _fill_shells(shells, n_electrons, strategy='aufbau', verbose=True):
+    """
+    Fill shells with electrons according to a given strategy.
+    
+    Parameters
+    ----------
+    shells : list of dict
+        list of shells as returned by _group_eigenvalues_by_shell
+    n_electrons : int
+        number of electrons to place in orbitals
+    strategy : str
+        filling strategy. Options:
+        - 'aufbau': fill shells from lowest to highest energy (default)
+        - 'balanced': for partially filled shells, try to balance occupation
+                     (useful for momentum balancing in k-space)
+        - 'hund': apply Hund's rule (maximize spin, minimize pairing)
+        - 'alternating': fill from edges inward (0, -1, 1, -2, 2, ...)
+                        useful for momentum cancellation
+    verbose : bool
+        whether to print shell filling information
+    
+    Returns
+    -------
+    occupied_orbitals : np.ndarray
+        array of occupied orbitals (Nmo x n_electrons)
+    occupied_indices : list
+        list of original orbital indices that were occupied
+    """
+    if n_electrons == 0:
+        # Return empty arrays with proper shape
+        if len(shells) > 0:
+            Nmo = shells[0]['orbitals'].shape[0]
+        else:
+            Nmo = 0
+        return np.zeros((Nmo, 0), dtype=complex), []
+    
+    Nmo = shells[0]['orbitals'].shape[0]
+    occupied_orbitals_list = []
+    occupied_indices = []
+    electrons_remaining = n_electrons
+    
+    if verbose:
+        print(f"\nFilling {n_electrons} electrons using '{strategy}' strategy:")
+        print(f"Found {len(shells)} shell(s)")
+    
+    for shell_idx, shell in enumerate(shells):
+        if electrons_remaining == 0:
+            break
+        
+        shell_deg = shell['degeneracy']
+        shell_energy = shell['energy']
+        
+        # How many electrons to put in this shell?
+        electrons_in_shell = min(electrons_remaining, shell_deg)
+        
+        if verbose:
+            print(f"  Shell {shell_idx}: energy={shell_energy:.6f}, "
+                  f"degeneracy={shell_deg}, filling={electrons_in_shell}/{shell_deg}")
+        
+        # Apply filling strategy
+        if strategy == 'aufbau' or electrons_in_shell == shell_deg:
+            # Fill all available orbitals in order (or completely fill the shell)
+            selected_orbitals = shell['orbitals'][:, :electrons_in_shell]
+            selected_indices = shell['indices'][:electrons_in_shell]
+            
+        elif strategy == 'balanced':
+            # For partially filled shells, try to balance occupation
+            # This is useful for momentum balancing in k-space
+            # Strategy: select orbitals evenly spaced through the shell
+            if electrons_in_shell < shell_deg:
+                # Select evenly spaced orbitals
+                spacing = shell_deg / electrons_in_shell
+                selected_idx = [int(i * spacing) for i in range(electrons_in_shell)]
+                selected_orbitals = shell['orbitals'][:, selected_idx]
+                selected_indices = [shell['indices'][i] for i in selected_idx]
+                if verbose:
+                    print(f"    Balanced filling: selected orbital indices {selected_idx} from shell")
+            else:
+                selected_orbitals = shell['orbitals'][:, :electrons_in_shell]
+                selected_indices = shell['indices'][:electrons_in_shell]
+        
+        elif strategy == 'alternating':
+            # For partially filled shells, fill from edges inward
+            # Pattern: 0, -1, 1, -2, 2, -3, 3, ...
+            # This helps cancel momentum in k-space
+            if electrons_in_shell < shell_deg:
+                selected_idx = []
+                left = 0
+                right = shell_deg - 1
+                take_from_left = True
+                
+                for _ in range(electrons_in_shell):
+                    if take_from_left:
+                        selected_idx.append(left)
+                        left += 1
+                    else:
+                        selected_idx.append(right)
+                        right -= 1
+                    take_from_left = not take_from_left
+                
+                selected_orbitals = shell['orbitals'][:, selected_idx]
+                selected_indices = [shell['indices'][i] for i in selected_idx]
+                if verbose:
+                    print(f"    Alternating filling: selected orbital indices {selected_idx} from shell")
+            else:
+                selected_orbitals = shell['orbitals'][:, :electrons_in_shell]
+                selected_indices = shell['indices'][:electrons_in_shell]
+        
+        elif strategy == 'hund':
+            # Hund's rule: maximize spin (for single spin channel, just fill in order)
+            # This is the same as aufbau for a single spin channel
+            selected_orbitals = shell['orbitals'][:, :electrons_in_shell]
+            selected_indices = shell['indices'][:electrons_in_shell]
+        
+        else:
+            raise ValueError(f"Unknown filling strategy: {strategy}")
+        
+        occupied_orbitals_list.append(selected_orbitals)
+        occupied_indices.extend(selected_indices)
+        electrons_remaining -= electrons_in_shell
+    
+    if electrons_remaining > 0:
+        raise ValueError(f"Not enough orbitals to accommodate {n_electrons} electrons. "
+                        f"{electrons_remaining} electrons could not be placed.")
+    
+    # Concatenate all occupied orbitals
+    occupied_orbitals = np.hstack(occupied_orbitals_list)
+    
+    return occupied_orbitals, occupied_indices
+
+
+def _collinear_free_elec(Hfree,nelec,Nmo,use_dense=True,filling_strategy='aufbau',shell_tol=1e-6):
     """
     Given a 1-body Hamiltonian, generates a 'free-electron' wavefunction in
        a format that can be directly passed to `write_wfn()`.
@@ -234,32 +478,68 @@ def _collinear_free_elec(Hfree,nelec,Nmo,use_dense=True):
         the number of basis set functions
     use_dense : bool
         whether to use the dense representation of the 1-body Hamiltonian
+    filling_strategy : str
+        strategy for filling orbitals within shells. Options:
+        - 'aufbau': fill shells from lowest to highest energy (default)
+        - 'balanced': for partially filled shells, select orbitals evenly 
+                     to balance properties like momentum
+        - 'hund': apply Hund's rule (maximize spin)
+        - 'alternating': fill from edges inward (0, -1, 1, -2, ...) 
+                        for momentum cancellation
+    shell_tol : float
+        tolerance for grouping eigenvalues into shells (default: 1e-6)
     
     Returns
     -------
     wfn : list
         a list containing the coefficients and Slater determinant arrays of a Wavefunction
     """
-    num_eigenvals = max(nelec)
-    Nup,Ndown = nelec
+    Nup, Ndown = nelec
+    
+    # We need enough eigenvalues to fill the most occupied spin channel
+    # plus some buffer to ensure we capture complete shells
+    num_eigenvals = max(nelec) + 10  # Add buffer for shell structure
+    num_eigenvals = min(num_eigenvals, Nmo)  # Don't exceed available orbitals
+    
     Hfree_sigma = (Hfree[:Nmo,:],Hfree[Nmo:,:])
 
-    eigenvalues_sigma,orbitals_sigma = [],[]
+    occupied_orbitals_sigma = []
 
-    for Hfree in Hfree_sigma:
-        eigenvals,orbitals = _get_1body_eig(Hfree,num_eigenvals,use_dense=use_dense)
-        print("Eigenvalues of the non-interacting Hamiltonian: ", eigenvals)
-        eigenvalues_sigma.append(eigenvals)
-        orbitals_sigma.append(orbitals)
+    for spin_idx, (Hfree_spin, n_elec) in enumerate(zip(Hfree_sigma, nelec)):
+        spin_label = "up" if spin_idx == 0 else "down"
+        print(f"\n{'='*60}")
+        print(f"Processing spin-{spin_label} channel ({n_elec} electrons)")
+        print(f"{'='*60}")
+        
+        # Get eigenvalues and eigenvectors
+        eigenvals, orbitals = _get_1body_eig(Hfree_spin, num_eigenvals, use_dense=use_dense)
+        print(f"\nEigenvalues of the non-interacting Hamiltonian:")
+        print(eigenvals)
+        
+        # Group eigenvalues into shells
+        shells = _group_eigenvalues_by_shell(eigenvals, orbitals, tol=shell_tol)
+        
+        # Fill shells according to strategy
+        occupied_orbitals, occupied_indices = _fill_shells(
+            shells, n_elec, strategy=filling_strategy, verbose=True
+        )
+        
+        occupied_orbitals_sigma.append(occupied_orbitals)
 
-    wfn = np.zeros((1,Nmo,sum(nelec)), dtype=np.complex128)
+    # Construct the wavefunction
+    wfn = np.zeros((1, Nmo, sum(nelec)), dtype=np.complex128)
     coeffs = np.array([1.0+0j])
-    wfn[0,:,:Nup] = orbitals_sigma[0][:,:Nup]
-    wfn[0,:,Nup:] = orbitals_sigma[1][:,:Ndown]
+    wfn[0, :, :Nup] = occupied_orbitals_sigma[0]
+    wfn[0, :, Nup:] = occupied_orbitals_sigma[1]
 
-    return [coeffs,wfn]
+    print(f"\n{'='*60}")
+    print(f"Wavefunction construction complete")
+    print(f"Total electrons: {sum(nelec)} (up: {Nup}, down: {Ndown})")
+    print(f"{'='*60}\n")
 
-def _noncollinear_free_elec(Hfree,nelec,Nmo,use_dense=True):
+    return [coeffs, wfn]
+
+def _noncollinear_free_elec(Hfree,nelec,Nmo,use_dense=True,filling_strategy='aufbau',shell_tol=1e-6):
     """
     Given a 1-body Hamiltonian, generates a 'free-electron' wavefunction in
          a format that can be directly passed to `write_wfn()`.
@@ -274,15 +554,29 @@ def _noncollinear_free_elec(Hfree,nelec,Nmo,use_dense=True):
         the number of basis set functions
     use_dense : bool
         whether to use the dense representation of the 1-body Hamiltonian
+    filling_strategy : str
+        strategy for filling orbitals within shells. Options:
+        - 'aufbau': fill shells from lowest to highest energy (default)
+        - 'balanced': for partially filled shells, select orbitals evenly 
+                     to balance properties like momentum
+        - 'hund': apply Hund's rule (maximize spin)
+        - 'alternating': fill from edges inward (0, -1, 1, -2, ...) 
+                        for momentum cancellation
+    shell_tol : float
+        tolerance for grouping eigenvalues into shells (default: 1e-6)
 
     Returns
     -------
     wfn : list
         a list containing the coefficients and Slater determinant arrays of a Wavefunction
     """
-    Nup,Ndown = nelec
-    num_eigenvals = (Nup+Ndown)
-    nelec = (Nup+Ndown,0)
+    Nup, Ndown = nelec
+    n_total_electrons = Nup + Ndown
+    
+    # Add buffer to ensure we capture complete shells
+    num_eigenvals = n_total_electrons + 10
+    num_eigenvals = min(num_eigenvals, 2*Nmo)  # Don't exceed available orbitals
+    
     # assumes that the input is collinear
     if Hfree.shape == (2*Nmo,Nmo):
         Hfree = sps.block_diag([Hfree[:Nmo,:],Hfree[Nmo:,:]],format="csr")
@@ -295,14 +589,36 @@ def _noncollinear_free_elec(Hfree,nelec,Nmo,use_dense=True):
             " - (2*Nmo,2*Nmo) Noncollinear H"
         )
 
-    eigenvals,orbitals = _get_1body_eig(Hfree,num_eigenvals,use_dense=use_dense)
+    print(f"\n{'='*60}")
+    print(f"Processing noncollinear system ({n_total_electrons} electrons)")
+    print(f"{'='*60}")
     
-    print("Eigenvalues of the non-interacting Hamiltonian: ", eigenvals)
-
+    # Get eigenvalues and eigenvectors
+    eigenvals, orbitals = _get_1body_eig(Hfree, num_eigenvals, use_dense=use_dense)
+    print(f"\nEigenvalues of the non-interacting Hamiltonian:")
+    print(eigenvals)
+    
+    # Group eigenvalues into shells
+    shells = _group_eigenvalues_by_shell(eigenvals, orbitals, tol=shell_tol)
+    
+    # Fill shells according to strategy
+    occupied_orbitals, occupied_indices = _fill_shells(
+        shells, n_total_electrons, strategy=filling_strategy, verbose=True
+    )
+    
+    # Construct the wavefunction
     npol = 2
-    wfn = np.zeros((1,npol*Nmo,sum(nelec)), dtype=np.complex128)
+    nelec_total = Nup + Ndown
+    wfn = np.zeros((1, npol*Nmo, nelec_total), dtype=np.complex128)
     coeffs = np.array([1.0+0j])
-    wfn[0,:,:] = orbitals[:,:Nup+Ndown]
+    wfn[0, :, :] = occupied_orbitals
 
-    return [coeffs,wfn]
+    print(f"\n{'='*60}")
+    print(f"Wavefunction construction complete")
+    print(f"Total electrons: {nelec_total} (original: up={Nup}, down={Ndown})")
+    print(f"Noncollinear representation: {nelec_total} electrons, 2*{Nmo} spinor orbitals")
+    print(f"{'='*60}\n")
+
+    return [coeffs, wfn]
+
 
