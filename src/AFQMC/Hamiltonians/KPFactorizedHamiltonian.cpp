@@ -1115,12 +1115,13 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
 		shared_allocator<ComplexType>{TG.Node()});
   std::vector<shmSpMatrix> LQKikn;
   LQKikn.reserve(nkpts);
-  for (int Q = 0; Q < nkpts; Q++)
+  for (int Q = 0; Q < nkpts; Q++) {
     if (Qmap[Q] >= 0 && Q <= Qminus[Q])
       LQKikn.emplace_back(
           shmSpMatrix({nkpts, nmo_max * nmo_max * nchol_max}, shared_allocator<SPComplexType>{distNode}));
     else // Q > Qminus[Q]
       LQKikn.emplace_back(shmSpMatrix({1, 1}, shared_allocator<SPComplexType>{distNode}));
+  }
 
   if (TG.Node().root())
   {
@@ -1191,6 +1192,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
           // normalize
           ma::scal(SPComplexType(SPRealType(1.0/std::sqrt(SPRealType(nkpts)))), Vq);
           SpTensor3 Vqt({nmo_max, nmo_max, nchol_max});
+          Sp4Tensor_ref L_Kikn(raw_pointer_cast(LQKikn[Q].origin()), {nkpts, nmo_max, nmo_max, nchol_max});
           for (int K = 0; K < nkpts; K++)
           {
             int QK    = QKtok2[Q][K];
@@ -1201,7 +1203,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
               for(int i=0; i<ni; ++i)
                 for(int k=0; k<nk; ++k)
                   Vqt[i][k][n] = Vq[n][0][K][i][k];
-            copy_n(Vqt.origin(), nmo_max*nmo_max*nchol_max, LQKikn[Q][K].origin());
+            copy_n(Vqt.origin(), nmo_max*nmo_max*nchol_max, L_Kikn[K].origin());
           }
         }
       }
