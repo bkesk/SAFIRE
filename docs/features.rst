@@ -161,20 +161,24 @@ We indicate in parentheses whether the combination supports CPU, GPU, or is in t
     **PHMSD Wavefunction**
         * COLLINEAR walkers (GPU only) 🪳 BUG: Error constructing propagator for more than 1 SD 🪳
 
-**Lattice Model Hamiltonian**
+**Lattice Model Hamiltonian** with Continuous Hubbard-Stratonovich Transformation
     **NOMSD Wavefunction**
-        * COLLINEAR walkers (CPU only)
-        * NONCOLLINEAR walkers (CPU only)
+        * COLLINEAR walkers (CPU, GPU) ‼️ DEV TODO: add test ‼️
+        * NONCOLLINEAR walkers (CPU, GPU) ‼️ DEV TODO: add test ‼️
+
+**Lattice Model Hamiltonian** with Discrete Hubbard-Stratonovich Transformation
+    **NOMSD Wavefunction**
+        * COLLINEAR walkers (CPU)
+        * NONCOLLINEAR walkers (CPU)
 
 **THC Hamiltonian**
     **NOMSD Wavefunction**
-        * CLOSED walkers (CPU only)
-        * COLLINEAR walkers (CPU only)
-        * NONCOLLINEAR walkers (CPU only) ‼️ DEV TODO: add upgrade integrals from CLOSED format OR add way to generate the NONCOLLINEAR format Hamiltonian
+        * CLOSED walkers (CPU, GPU) ‼️ DEV TODO : turn on test for GPU ‼️
+        * COLLINEAR walkers (CPUm GPU) ‼️ DEV TODO : turn on test GPU ‼️
 
 Not Currently Supported
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-* Lattice Model Hamiltonian, and THC Hamiltonian *on GPU* - **please use CPU instead**.
+* Discrete Hubbard-Stratonovich Transformation on GPU for Lattice Model Hamiltonian **please use CPU instead**.
 * PHMSD trial wavefunctions with THC Hamiltonians or Lattice Model Hamiltonians
 * PHMSD trial wavefunctions with K-Point Factorized Hamiltonians *on CPU* - **please use GPU instead.**
