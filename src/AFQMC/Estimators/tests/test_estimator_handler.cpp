@@ -55,6 +55,9 @@ using namespace afqmc;
 template<bool MP, class Allocator>
 void measure_schedule(boost::mpi3::communicator& world)
 {
+
+int population_control_interval = 10;
+
 // 1. setup:
 
 //using pointer = typename Allocator::pointer;
@@ -160,73 +163,72 @@ else
 
   test_case.put("name", "case1");
   test_case.put("meas1", 5);
-  test_case.put("meas2",5);
-  test_case.put("gcd", 5);
+  test_case.put("meas2", 5);
+  test_case.put("gcd", 5*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
 
   test_case.put("name", "case2");
   test_case.put("meas1", 5);
-  test_case.put("meas2",10);
-  test_case.put("gcd", 5);
+  test_case.put("meas2", 10);
+  test_case.put("gcd", 5*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
 
   test_case.put("name", "case3");
   test_case.put("meas1", 5);
-  test_case.put("meas2",20);
-  test_case.put("gcd", 5);
+  test_case.put("meas2", 20);
+  test_case.put("gcd", 5*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
 
   test_case.put("name", "case4");
   test_case.put("meas1", 20);
-  test_case.put("meas2",10);
-  test_case.put("gcd", 10);
+  test_case.put("meas2", 10);
+  test_case.put("gcd", 10*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
   test_case.put("name", "case5");
   test_case.put("meas1", 5);
-  test_case.put("meas2",100);
-  test_case.put("gcd", 5);
+  test_case.put("meas2", 100);
+  test_case.put("gcd", 5*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
   test_case.put("name", "case6");
   test_case.put("meas1", 5);
-  test_case.put("meas2",7);
-  test_case.put("gcd", 1);
+  test_case.put("meas2", 7);
+  test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
     
   test_case.put("name", "case7");
   test_case.put("meas1", 11);
-  test_case.put("meas2",7);
-  test_case.put("gcd", 1);
+  test_case.put("meas2", 7);
+  test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
   test_case.put("name", "case8");
   test_case.put("meas1", 47);
-  test_case.put("meas2",99);
-  test_case.put("gcd", 1);
+  test_case.put("meas2", 99);
+  test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
   test_case.put("name", "case9");
   test_case.put("meas1", 201);
-  test_case.put("meas2",7);
-  test_case.put("gcd", 1);
+  test_case.put("meas2", 7);
+  test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
   // test that we default properly
-  // 1. if execute has a measure_interval, but meas2 is not set
   test_case.put("name", "case10");
-  test_case.put("measure_inteval", 5);
-  test_case.put("meas2", 7); // noncommensurate with 5 on purpose
-  test_case.put("gcd", 1);
+  test_case.put("meas1", 1);  // This is what energy estimator will actually use
+  test_case.put("meas2", 7); // noncommensurate on purpose
+  test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
 
@@ -245,9 +247,9 @@ else
 
     ptree est_pt_bp;
     est_pt_bp.put("name","back_propagation");
-    est_pt_bp.put("nsteps",test_ptree.get<int>("meas2"));
-    est_pt_bp.put("equil",0);
-    est_pt_bp.put("ortho",1);
+    est_pt_bp.put("measure_interval_multiplier",test_ptree.get<int>("meas2"));
+    est_pt_bp.put("equil_multiplier",0);
+    est_pt_bp.put("bp_walker_ortho_interval",1);
     est_pt_bp.add_child("onerdm",one_rdm);
 
     app_log(1,"\nEstimator input:\n{}\n",io::to_string(est_pt_bp));
@@ -255,12 +257,15 @@ else
     ptree est_pt;
     est_pt.add_child("estimator",est_pt_energy);
     est_pt.add_child("estimator",est_pt_bp);
+    est_pt.put("population_control_interval",population_control_interval);
+    // Set the global measure_interval_multiplier that will be used by BasicEstimator and EnergyEstimator
+    est_pt.put("measure_interval_multiplier",test_ptree.get<int>("meas1"));
 
     // to verify the ptree
     std::cout <<" Test case Ptree:  "<< std::endl;
     std::cout << io::to_string(est_pt) << std::endl;
 
-    int nAccumulate, measure_interval;
+    int measure_interval;
     //int estimator1_calls = 0;
     //int estimator2_calls = 0;
     int estimator_handler_querries = 0;
@@ -276,38 +281,38 @@ else
       // set measurement intervals
       measure_interval = estim0.get_max_common_interval();
       std::cout << "Querrying estimator handler with interval " << measure_interval << " (commensurate with all measurement intervals)" << std::endl;
-      nAccumulate = measure_interval;
 
       /* Fake Driver Block */
       std::vector<ComplexType> dummyData;
-      wset.popControl(dummyData);
+      //wset.popControl(dummyData);
 
       for (int iStep = 0; iStep < nStep; ++iStep)
       {
         prop.Propagate(1, wset, E1, dt, false);
         total_time += dt;
 
-        if ((iStep + 1) % nPopulation == 0 || iStep == 0)
+        if (total_time < 1.0 || (iStep + 1) % nPopulation == 0 || iStep == 0)
         {
-          wset.popControl(dummyData);
-        }
-
-        if (total_time < 1.0 || (iStep + 1) % nAccumulate == 0)
-        {
+          AFQMCTimer.start(popcont_timer);
+          wset.processWalkerData(dummyData);
+          wset.popControl(); // make this a call to actual pop control
+          AFQMCTimer.stop(popcont_timer);
           estim0.accumulate_step(total_time, wset, dummyData);
         }
 
         if ((iStep + 1) % measure_interval == 0 )
         {
           estim0.accumulate_block(total_time, wset);
-          estim0.print(iStep + 1, total_time, 0.0, wset);
+          estim0.print(iStep + 1, total_time, E1, wset);
           estimator_handler_querries++;
         }
       }
     
     }
     int expected_estimator_querries = nStep / test_ptree.get<int>("gcd");
-    int expected_measurments = nStep / test_ptree.get<int>("meas1");
+    // Energy estimator uses meas1 as the global measure_interval_multiplier
+    int energy_interval = test_ptree.get<int>("meas1") * population_control_interval;
+    int expected_measurments = nStep / energy_interval;
     // read results from "test_est_handler.scalar.dat"
     std::string filename = "test_est_handler.scalar.dat";
     std::ifstream in(filename.c_str());
@@ -323,9 +328,10 @@ else
       line_count++;
       cout << line << endl;
     }
-    REQUIRE(measure_interval == test_ptree.get<int>("gcd"));
-    REQUIRE(estimator_handler_querries == expected_estimator_querries);
-    REQUIRE(line_count == expected_measurments);
+    app_log(1, "\n[TESTS] Running test case: {} \n",test_ptree.get<std::string>("name","no name"));
+    CHECK(measure_interval == test_ptree.get<int>("gcd"));
+    CHECK(estimator_handler_querries == expected_estimator_querries);
+    CHECK(line_count == expected_measurments);
     in.close();
   }
 }
