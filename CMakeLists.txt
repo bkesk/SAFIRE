@@ -270,6 +270,7 @@ target_compile_options(${PROJECT_NAME}_warnings
     $<$<CXX_COMPILER_ID:GNU>:-Wno-attributes>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-deprecated-declarations>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-deprecated-comma-subscript>
+    $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-deprecated-declarations>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-unknown-warning-option>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wshadow>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wimplicit-float-conversion>

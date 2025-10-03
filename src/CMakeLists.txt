@@ -9,7 +9,6 @@
   include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/boost_multi")
   include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/mpi_wrapper")
   include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/cxxopts")
-  include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/spdlog/include")
   include_directories("${PROJECT_SOURCE_DIR}/src/io")
 
   subdirs(io)
