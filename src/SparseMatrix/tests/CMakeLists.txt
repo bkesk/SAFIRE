@@ -9,7 +9,7 @@ else(ENABLE_CUDA)
 endif(ENABLE_CUDA)
 
 add_executable(test_sparse test_csr_matrix.cpp)
-target_link_libraries(test_sparse catch_main memory spdlog::spdlog ${CMAKE_DL_LIBS})
+target_link_libraries(test_sparse catch_main memory ${CMAKE_DL_LIBS})
 if(ENABLE_CUDA)
   target_link_libraries(test_sparse kernels)
 elseif(ENABLE_HIP)

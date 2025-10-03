@@ -19,7 +19,7 @@ endif()
 add_executable(qmc-performance performance.cpp)
 target_include_directories(qmc-performance PUBLIC "${LIBXML2_INCLUDE_DIR}")
 
-target_link_libraries(qmc-performance memory BLAS::BLAS LAPACK::LAPACK spdlog::spdlog)
+target_link_libraries(qmc-performance memory BLAS::BLAS LAPACK::LAPACK)
 if(ENABLE_CUDA OR ENABLE_HIP)
   target_link_libraries(qmc-performance kernels)
 else()

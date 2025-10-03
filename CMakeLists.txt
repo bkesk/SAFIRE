@@ -256,7 +256,6 @@ include_directories(SYSTEM ${spdlog_SOURCE_DIR}/include)
 # catch
 ######################################################################
 add_library(catch_amalgamated STATIC extern/catch/catch_amalgamated.cpp)
-link_libraries(catch_amalgamated)
 add_definitions(-DCATCH_AMALGAMATED_CUSTOM_MAIN)
 
 ######################################################################
