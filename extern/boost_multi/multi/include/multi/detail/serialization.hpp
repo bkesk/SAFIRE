@@ -4,7 +4,7 @@
 #ifndef MULTI_DETAIL_SERIALIZATION_HPP
 #define MULTI_DETAIL_SERIALIZATION_HPP
 
-#include< algorithm>  // for_each
+#include <algorithm>  // for_each
 #include <cstdint>
 
 namespace boost {  // NOLINT(modernize-concat-nested-namespaces) keep c++14 compat
