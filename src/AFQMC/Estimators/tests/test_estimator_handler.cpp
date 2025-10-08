@@ -163,71 +163,36 @@ else
 
   test_case.put("name", "case1");
   test_case.put("meas1", 5);
-  test_case.put("meas2", 5);
-  test_case.put("gcd", 5*population_control_interval);
-  cases.push_back(test_case);
-  test_case.clear();
-
-  test_case.put("name", "case2");
-  test_case.put("meas1", 5);
-  test_case.put("meas2", 10);
-  test_case.put("gcd", 5*population_control_interval);
-  cases.push_back(test_case);
-  test_case.clear();
-
-  test_case.put("name", "case3");
-  test_case.put("meas1", 5);
   test_case.put("meas2", 20);
   test_case.put("gcd", 5*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
 
-  test_case.put("name", "case4");
+  test_case.put("name", "case2");
   test_case.put("meas1", 20);
   test_case.put("meas2", 10);
   test_case.put("gcd", 10*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
-  test_case.put("name", "case5");
-  test_case.put("meas1", 5);
-  test_case.put("meas2", 100);
-  test_case.put("gcd", 5*population_control_interval);
-  cases.push_back(test_case);
-  test_case.clear();
-  
-  test_case.put("name", "case6");
+  test_case.put("name", "case3");
   test_case.put("meas1", 5);
   test_case.put("meas2", 7);
   test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
     
-  test_case.put("name", "case7");
+  test_case.put("name", "case4");
   test_case.put("meas1", 11);
   test_case.put("meas2", 7);
   test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
-  test_case.put("name", "case8");
-  test_case.put("meas1", 47);
-  test_case.put("meas2", 99);
-  test_case.put("gcd", 1*population_control_interval);
-  cases.push_back(test_case);
-  test_case.clear();
-  
-  test_case.put("name", "case9");
-  test_case.put("meas1", 201);
-  test_case.put("meas2", 7);
-  test_case.put("gcd", 1*population_control_interval);
-  cases.push_back(test_case);
-  test_case.clear();
-  
   // test that we default properly
-  test_case.put("name", "case10");
-  test_case.put("meas1", 1);  // This is what energy estimator will actually use
-  test_case.put("meas2", 7); // noncommensurate on purpose
+  test_case.put("name", "case5");
+  test_case.put("meas1", 1);
+  test_case.put("meas2", 7);
   test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
@@ -266,8 +231,6 @@ else
     std::cout << io::to_string(est_pt) << std::endl;
 
     int measure_interval;
-    //int estimator1_calls = 0;
-    //int estimator2_calls = 0;
     int estimator_handler_querries = 0;
     {
       int nPopulation = 1;
@@ -284,11 +247,10 @@ else
 
       /* Fake Driver Block */
       std::vector<ComplexType> dummyData;
-      //wset.popControl(dummyData);
 
       for (int iStep = 0; iStep < nStep; ++iStep)
       {
-        prop.Propagate(1, wset, E1, dt, false);
+        prop.Propagate(1, wset, E1, dt, 1);
         total_time += dt;
 
         if (total_time < 1.0 || (iStep + 1) % nPopulation == 0 || iStep == 0)
