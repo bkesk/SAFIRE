@@ -288,7 +288,7 @@ else
 
       for (int iStep = 0; iStep < nStep; ++iStep)
       {
-        prop.Propagate(1, wset, E1, dt, false);
+        prop.Propagate(1, wset, E1, dt, 1);
         total_time += dt;
 
         if (total_time < 1.0 || (iStep + 1) % nPopulation == 0 || iStep == 0)
