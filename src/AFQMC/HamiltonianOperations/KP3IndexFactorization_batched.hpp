@@ -1574,7 +1574,13 @@ COMPLETE
     }
     {
       // assuming contiguous
-      ma::scal(SPRealType(c), v);
+      // Not an ideal solution, but the types of vHS and vbias
+      //   are SP for some propagators always full precision for
+      //   other propagators.
+      using VElementType = typename std::decay_t<MatB>::element;
+      using VValueType = typename VElementType::value_type;
+      
+      ma::scal(VValueType(c), v);
     }
 
     int nmo_max2 = nmo_max * nmo_max;
@@ -1709,8 +1715,11 @@ COMPLETE
                                                                                                 (nspin - 1),
                                                                                         {noccb_tot, nmo_tot, nwalk});
 
-    // assuming contiguous
-    ma::scal(c, v);
+    {
+      using VElementType = typename std::decay_t<MatB>::element;
+      using VValueType = typename VElementType::value_type; // real part of complex type
+      ma::scal(VValueType(c), v);
+    }
 
     for (int spin = 0; spin < nspin; spin++)
     {

@@ -198,49 +198,132 @@ void wfn_fac(boost::mpi3::communicator& world)
       // spin dependent HS potential?
       // generalize later
       int nx = ( wfn.getHamType() == ModelHamiltonian ? nspins*npol*npol : 1 ); 
-      int vdim1 = (wfn.transposed_vHS() ? nwalk : NMO * NMO * nx );
-      int vdim2 = (wfn.transposed_vHS() ? NMO * NMO * nx : nwalk );
-      CMatrix vHS({vdim1, vdim2}, alloc_);
-      Time.reset();
-      wfn.vHS(X, vHS, dt);
-      TG.TG_local().barrier();
-      ComplexType Vsum = 0;
-      if (std::abs(file_data.Vsum) > 1e-8)
+      int nspin_hst = (wfn.spin_dependent_vHS()?2:1);
+      int vdim1 = (wfn.transposed_vHS() ? nspin_hst*nwalk : NMO * NMO * nx );
+      int vdim2 = (wfn.transposed_vHS() ? NMO * NMO * nx : nspin_hst*nwalk );
+      if (wfn.getHamType() == ModelHamiltonian) // only sparseP2 is used - denseP2 is hardcoded to never run!
       {
-        for (int n = 0; n < nwalk; n++)
+        Time.reset();
+        auto [vHS_up, vHS_down] = wfn.vHS_sparse(X, dt); // vHS_sparse lives inside the ModelHamOps class
+        TG.TG_local().barrier();
+        
+        // Convert sparse matrices to dense CMatrix objects for easier manipulation
+        CMatrix vHS_up_dense({vHS_up->size(0), vHS_up->size(1)}, alloc_);
+        CMatrix vHS_down_dense({vHS_down->size(0), vHS_down->size(1)}, alloc_);
+        
+        // Initialize dense matrices to zero
+        std::fill_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), ComplexType(0.0));
+        std::fill_n(vHS_down_dense.origin(), vHS_down_dense.num_elements(), ComplexType(0.0));
+        
+        // Convert sparse to dense using correct sparse matrix API
+        for (int row = 0; row < static_cast<int>(vHS_up->size(0)); ++row) {
+          auto [nnz, vals, cols] = vHS_up->sparse_row(row);
+          for (size_t i = 0; i < nnz; ++i) {
+            vHS_up_dense[row][cols[i]] = vals[i];
+          }
+        }
+        
+        // For collinear systems, handle vHS_down if it's different from vHS_up
+        // For noncollinear systems, vHS_up and vHS_down point to the same matrix
+        if (vHS_up != vHS_down) {
+          // COLLINEAR case: fill vHS_down_dense separately
+          for (int row = 0; row < static_cast<int>(vHS_down->size(0)); ++row) {
+            auto [nnz, vals, cols] = vHS_down->sparse_row(row);
+            for (size_t i = 0; i < nnz; ++i) {
+              vHS_down_dense[row][cols[i]] = vals[i];
+            }
+          }
+        } else {
+          // NONCOLLINEAR case: copy the same data
+          std::copy_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), vHS_down_dense.origin());
+        }
+        
+        ComplexType Vsum = 0;
+        if (std::abs(file_data.Vsum) > 1e-8)
+        {
+          for (int n = 0; n < nwalk; n++)
+          {
+            Vsum = 0;
+            if (wfn.transposed_vHS())
+            {
+              for (int i = 0; i < vHS_up_dense.size(1); i++)
+                Vsum += vHS_up_dense[n][i];
+              for (int i = 0; i < vHS_down_dense.size(1); i++)
+                Vsum += vHS_down_dense[n][i];
+            }
+            else
+            {
+              for (int i = 0; i < vHS_up_dense.size(0); i++)
+                Vsum += vHS_up_dense[i][n];
+              for (int i = 0; i < vHS_down_dense.size(0); i++)
+                Vsum += vHS_down_dense[i][n];
+            }
+            REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
+            REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+          }
+        } else {
+          Vsum = 0;
+          if (wfn.transposed_vHS())
+          {
+            for (int i = 0; i < vHS_up_dense.size(1); i++)
+              Vsum += vHS_up_dense[0][i];
+            for (int i = 0; i < vHS_down_dense.size(1); i++)
+              Vsum += vHS_down_dense[0][i];
+          }
+          else
+          {
+            for (int i = 0; i < vHS_up_dense.size(0); i++)
+              Vsum += vHS_up_dense[i][0];
+            for (int i = 0; i < vHS_down_dense.size(0); i++)
+              Vsum += vHS_down_dense[i][0];
+          }
+          app_log(1," Vsum: {}", ComplexType(Vsum));
+        }
+      } else { // not a model Hamiltonian
+        CMatrix vHS({vdim1, vdim2}, alloc_);
+        Time.reset();
+        wfn.vHS(X, vHS, dt);
+      
+        TG.TG_local().barrier();
+        ComplexType Vsum = 0;
+        if (std::abs(file_data.Vsum) > 1e-8)
+        {
+          for (int n = 0; n < nwalk; n++)
+          {
+            Vsum = 0;
+            if (wfn.transposed_vHS())
+            {
+              for (int i = 0; i < vHS.size(1); i++)
+                Vsum += vHS[n][i];
+            }
+            else
+            {
+              for (int i = 0; i < vHS.size(0); i++)
+                Vsum += vHS[i][n];
+            }
+            REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
+            REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+          }
+        }
+        else
         {
           Vsum = 0;
           if (wfn.transposed_vHS())
           {
             for (int i = 0; i < vHS.size(1); i++)
-              Vsum += vHS[n][i];
+              Vsum += vHS[0][i];
           }
           else
           {
             for (int i = 0; i < vHS.size(0); i++)
-              Vsum += vHS[i][n];
+              Vsum += vHS[i][0];
           }
-          REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
-          REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+          app_log(1," Vsum: {}", ComplexType(Vsum));
         }
-      }
-      else
-      {
-        Vsum = 0;
-        if (wfn.transposed_vHS())
-        {
-          for (int i = 0; i < vHS.size(1); i++)
-            Vsum += vHS[0][i];
-        }
-        else
-        {
-          for (int i = 0; i < vHS.size(0); i++)
-            Vsum += vHS[i][0];
-        }
-        app_log(1," Vsum: {}", ComplexType(Vsum));
       }
       return;
 
+      /*
       // Restarting Wavefunction from file
       ptree wfn_pt2;
       wfn_pt2.put("name","wfn1");
@@ -357,6 +440,8 @@ void wfn_fac(boost::mpi3::communicator& world)
       // remove temporary file
       if (TG.Node().root())
         remove("dummy.h5");
+    }
+  }*/
     }
   }
 }
@@ -512,16 +597,125 @@ void wfn_fac_distributed(boost::mpi3::communicator& world, int ngroups)
     // spin dependent HS potential?
     // generalize later
     int nx = ( wfn.getHamType() == ModelHamiltonian ? nspins*npol*npol : 1 ); 
-    int vdim1 = (wfn.transposed_vHS() ? nwalk : NMO * NMO * nx );
-    int vdim2 = (wfn.transposed_vHS() ? NMO * NMO * nx : nwalk);
-    CMatrix vHS({vdim1, vdim2}, alloc_);
-    Time.reset();
-    wfn.vHS(X, vHS, dt);
-    TG.TG_local().barrier();
-    ComplexType Vsum = 0;
-    if (std::abs(file_data.Vsum) > 1e-8)
+    int nspin_hst = (wfn.spin_dependent_vHS()?2:1);
+    int vdim1 = (wfn.transposed_vHS() ? nspin_hst*nwalk : NMO * NMO * nx );
+    int vdim2 = (wfn.transposed_vHS() ? NMO * NMO * nx : nspin_hst*nwalk );
+    if (wfn.getHamType() == ModelHamiltonian) // only sparseP2 is used
     {
-      for (int n = 0; n < nwalk; n++)
+      Time.reset();
+      auto [vHS_up, vHS_down] = wfn.vHS_sparse(X, dt);
+      TG.TG_local().barrier();
+      
+      // Convert sparse matrices to dense CMatrix objects for easier manipulation
+      CMatrix vHS_up_dense({vHS_up->size(0), vHS_up->size(1)}, alloc_);
+      CMatrix vHS_down_dense({vHS_down->size(0), vHS_down->size(1)}, alloc_);
+      
+      // Initialize dense matrices to zero
+      std::fill_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), ComplexType(0.0));
+      std::fill_n(vHS_down_dense.origin(), vHS_down_dense.num_elements(), ComplexType(0.0));
+      
+      // Convert sparse to dense using correct sparse matrix API
+      for (int row = 0; row < static_cast<int>(vHS_up->size(0)); ++row) {
+        auto [nnz, vals, cols] = vHS_up->sparse_row(row);
+        for (size_t i = 0; i < nnz; ++i) {
+          vHS_up_dense[row][cols[i]] = vals[i];
+        }
+      }
+      
+      // For collinear systems, handle vHS_down if it's different from vHS_up
+      // For noncollinear systems, vHS_up and vHS_down point to the same matrix
+      if (vHS_up != vHS_down) {
+        // COLLINEAR case: fill vHS_down_dense separately
+        for (int row = 0; row < static_cast<int>(vHS_down->size(0)); ++row) {
+          auto [nnz, vals, cols] = vHS_down->sparse_row(row);
+          for (size_t i = 0; i < nnz; ++i) {
+            vHS_down_dense[row][cols[i]] = vals[i];
+          }
+        }
+      } else {
+        // NONCOLLINEAR case: copy the same data
+        std::copy_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), vHS_down_dense.origin());
+      }
+      
+      ComplexType Vsum = 0;
+      if (std::abs(file_data.Vsum) > 1e-8)
+      {
+        for (int n = 0; n < nwalk; n++)
+        {
+          Vsum = 0;
+          if (TGwfn.TG_local().root())
+          {
+            if (wfn.transposed_vHS())
+            {
+              for (int i = 0; i < vHS_up_dense.size(1); i++)
+                Vsum += vHS_up_dense[n][i];
+              for (int i = 0; i < vHS_down_dense.size(1); i++)
+                Vsum += vHS_down_dense[n][i];
+            }
+            else
+            {
+              for (int i = 0; i < vHS_up_dense.size(0); i++)
+                Vsum += vHS_up_dense[i][n];
+              for (int i = 0; i < vHS_down_dense.size(0); i++)
+                Vsum += vHS_down_dense[i][n];
+            }
+          }
+          Vsum = (TGwfn.TG() += Vsum);
+          REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
+          REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+        }
+      } else {
+        Vsum = 0;
+        if (TGwfn.TG_local().root())
+        {
+          if (wfn.transposed_vHS())
+          {
+            for (int i = 0; i < vHS_up_dense.size(1); i++)
+              Vsum += vHS_up_dense[0][i];
+            for (int i = 0; i < vHS_down_dense.size(1); i++)
+              Vsum += vHS_down_dense[0][i];
+          }
+          else
+          {
+            for (int i = 0; i < vHS_up_dense.size(0); i++)
+              Vsum += vHS_up_dense[i][0];
+            for (int i = 0; i < vHS_down_dense.size(0); i++)
+              Vsum += vHS_down_dense[i][0];
+          }
+        }
+        Vsum = (TGwfn.TG() += Vsum);
+        app_log(1," Vsum: {}", ComplexType(Vsum));
+      }
+    } else { // not a model Hamiltonian
+      CMatrix vHS({vdim1, vdim2}, alloc_);
+      Time.reset();
+      wfn.vHS(X, vHS, dt);
+      TG.TG_local().barrier();
+      ComplexType Vsum = 0;
+      if (std::abs(file_data.Vsum) > 1e-8)
+      {
+        for (int n = 0; n < nwalk; n++)
+        {
+          Vsum = 0;
+          if (TGwfn.TG_local().root())
+          {
+            if (wfn.transposed_vHS())
+            {
+              for (int i = 0; i < vHS.size(1); i++)
+                Vsum += vHS[n][i];
+            }
+            else
+            {
+              for (int i = 0; i < vHS.size(0); i++)
+                Vsum += vHS[i][n];
+            }
+          }
+          Vsum = (TGwfn.TG() += Vsum);
+          REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
+          REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+        }
+      }
+      else
       {
         Vsum = 0;
         if (TGwfn.TG_local().root())
@@ -529,39 +723,21 @@ void wfn_fac_distributed(boost::mpi3::communicator& world, int ngroups)
           if (wfn.transposed_vHS())
           {
             for (int i = 0; i < vHS.size(1); i++)
-              Vsum += vHS[n][i];
+              Vsum += vHS[0][i];
           }
           else
           {
             for (int i = 0; i < vHS.size(0); i++)
-              Vsum += vHS[i][n];
+              Vsum += vHS[i][0];
           }
         }
         Vsum = (TGwfn.TG() += Vsum);
-        REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
-        REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+        app_log(1," Vsum: {}", ComplexType(Vsum));
       }
     }
-    else
-    {
-      Vsum = 0;
-      if (TGwfn.TG_local().root())
-      {
-        if (wfn.transposed_vHS())
-        {
-          for (int i = 0; i < vHS.size(1); i++)
-            Vsum += vHS[0][i];
-        }
-        else
-        {
-          for (int i = 0; i < vHS.size(0); i++)
-            Vsum += vHS[i][0];
-        }
-      }
-      Vsum = (TGwfn.TG() += Vsum);
-      app_log(1," Vsum: {}", ComplexType(Vsum));
-    }
-    return;
+    
+    
+    return; /*
 
     // Restarting Wavefunction from file
     ptree wfn_pt2;
@@ -650,12 +826,122 @@ void wfn_fac_distributed(boost::mpi3::communicator& world, int ngroups)
       TGwfn.TG_local().barrier();
     }
 
-    wfn2.vHS(X, vHS, dt);
-    TG.TG_local().barrier();
-    Vsum = 0;
-    if (std::abs(file_data.Vsum) > 1e-8)
+    if (wfn2.getHamType() == ModelHamiltonian) // only sparseP2 is used - denseP2 is hardcoded to never run!
     {
-      for (int n = 0; n < nwalk; n++)
+      auto [vHS_up2, vHS_down2] = wfn2.vHS_sparse(X, dt); // vHS_sparse lives inside the ModelHamOps class
+      TG.TG_local().barrier();
+      
+      // Convert sparse matrices to dense CMatrix objects for easier manipulation
+      CMatrix vHS_up_dense2({vHS_up2->size(0), vHS_up2->size(1)}, alloc_);
+      CMatrix vHS_down_dense2({vHS_down2->size(0), vHS_down2->size(1)}, alloc_);
+      
+      // Initialize dense matrices to zero
+      std::fill_n(vHS_up_dense2.origin(), vHS_up_dense2.num_elements(), ComplexType(0.0));
+      std::fill_n(vHS_down_dense2.origin(), vHS_down_dense2.num_elements(), ComplexType(0.0));
+      
+      // Convert sparse to dense using correct sparse matrix API
+      for (int row = 0; row < static_cast<int>(vHS_up2->size(0)); ++row) {
+        auto [nnz, vals, cols] = vHS_up2->sparse_row(row);
+        for (size_t i = 0; i < nnz; ++i) {
+          vHS_up_dense2[row][cols[i]] = vals[i];
+        }
+      }
+      
+      // For collinear systems, handle vHS_down if it's different from vHS_up
+      // For noncollinear systems, vHS_up and vHS_down point to the same matrix
+      if (vHS_up2 != vHS_down2) {
+        // COLLINEAR case: fill vHS_down_dense separately
+        for (int row = 0; row < static_cast<int>(vHS_down2->size(0)); ++row) {
+          auto [nnz, vals, cols] = vHS_down2->sparse_row(row);
+          for (size_t i = 0; i < nnz; ++i) {
+            vHS_down_dense2[row][cols[i]] = vals[i];
+          }
+        }
+      } else {
+        // NONCOLLINEAR case: copy the same data
+        std::copy_n(vHS_up_dense2.origin(), vHS_up_dense2.num_elements(), vHS_down_dense2.origin());
+      }
+      
+      ComplexType Vsum = 0;
+      if (std::abs(file_data.Vsum) > 1e-8)
+      {
+        for (int n = 0; n < nwalk; n++)
+        {
+          Vsum = 0;
+          if (TGwfn.TG_local().root())
+          {
+            if (wfn2.transposed_vHS())
+            {
+              for (int i = 0; i < vHS_up_dense2.size(1); i++)
+                Vsum += vHS_up_dense2[n][i];
+              for (int i = 0; i < vHS_down_dense2.size(1); i++)
+                Vsum += vHS_down_dense2[n][i];
+            }
+            else
+            {
+              for (int i = 0; i < vHS_up_dense2.size(0); i++)
+                Vsum += vHS_up_dense2[i][n];
+              for (int i = 0; i < vHS_down_dense2.size(0); i++)
+                Vsum += vHS_down_dense2[i][n];
+            }
+          }
+          Vsum = (TGwfn.TG() += Vsum);
+          REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
+          REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+        }
+      }
+      else
+      {
+        Vsum = 0;
+        if (TGwfn.TG_local().root())
+        {
+          if (wfn2.transposed_vHS())
+          {
+            for (int i = 0; i < vHS_up_dense2.size(1); i++)
+              Vsum += vHS_up_dense2[0][i];
+            for (int i = 0; i < vHS_down_dense2.size(1); i++)
+              Vsum += vHS_down_dense2[0][i];
+          }
+          else
+          {
+            for (int i = 0; i < vHS_up_dense2.size(0); i++)
+              Vsum += vHS_up_dense2[i][0];
+            for (int i = 0; i < vHS_down_dense2.size(0); i++)
+              Vsum += vHS_down_dense2[i][0];
+          }
+        }
+        Vsum = (TGwfn.TG() += Vsum);
+        app_log(1," Vsum: {}", ComplexType(Vsum));
+      }
+    } else { // not a model Hamiltonian
+      CMatrix vHS({vdim1, vdim2}, alloc_);
+      wfn2.vHS(X, vHS, dt);
+      TG.TG_local().barrier();
+      ComplexType Vsum = 0;
+      if (std::abs(file_data.Vsum) > 1e-8)
+      {
+        for (int n = 0; n < nwalk; n++)
+        {
+          Vsum = 0;
+          if (TGwfn.TG_local().root())
+          {
+            if (wfn.transposed_vHS())
+            {
+              for (int i = 0; i < vHS.size(1); i++)
+                Vsum += vHS[n][i];
+            }
+            else
+            {
+              for (int i = 0; i < vHS.size(0); i++)
+                Vsum += vHS[i][n];
+            }
+          }
+          Vsum = (TGwfn.TG() += Vsum);
+          REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
+          REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+        }
+      }
+      else
       {
         Vsum = 0;
         if (TGwfn.TG_local().root())
@@ -663,43 +949,23 @@ void wfn_fac_distributed(boost::mpi3::communicator& world, int ngroups)
           if (wfn.transposed_vHS())
           {
             for (int i = 0; i < vHS.size(1); i++)
-              Vsum += vHS[n][i];
+              Vsum += vHS[0][i];
           }
           else
           {
             for (int i = 0; i < vHS.size(0); i++)
-              Vsum += vHS[i][n];
+              Vsum += vHS[i][0];
           }
         }
         Vsum = (TGwfn.TG() += Vsum);
-        REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
-        REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+        app_log(1," Vsum: {}", ComplexType(Vsum));
       }
-    }
-    else
-    {
-      Vsum = 0;
-      if (TGwfn.TG_local().root())
-      {
-        if (wfn.transposed_vHS())
-        {
-          for (int i = 0; i < vHS.size(1); i++)
-            Vsum += vHS[0][i];
-        }
-        else
-        {
-          for (int i = 0; i < vHS.size(0); i++)
-            Vsum += vHS[i][0];
-        }
-      }
-      Vsum = (TGwfn.TG() += Vsum);
-      app_log(1," Vsum: {}", ComplexType(Vsum));
     }
 
     TG.Global().barrier();
     // remove temporary file
     if (TG.Node().root())
-      remove("dummy.h5");
+      remove("dummy.h5");*/
   }
 }
 

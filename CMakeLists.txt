@@ -157,7 +157,11 @@ endif(ENABLE_HIP)
 # MPI
 ######################################################################
 find_package(MPI REQUIRED)
-include_directories(${MPI_CXX_INCLUDE_PATH})
+include_directories(SYSTEM ${MPI_CXX_INCLUDE_PATH})
+# Mark MPI includes as SYSTEM to suppress warnings
+set_target_properties(MPI::MPI_CXX PROPERTIES
+    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:MPI::MPI_CXX,INTERFACE_INCLUDE_DIRECTORIES>
+)
 link_libraries(MPI::MPI_CXX) 
 message(STATUS "MPI Executable for running programs:" ${MPIEXEC_EXECUTABLE})
 message(STATUS "MPI number of processors detected on the host system: " ${MPIEXEC_MAX_NUMPROCS})
@@ -214,6 +218,10 @@ endif(ENABLE_PHDF5)
 ######################################################################
 set(Boost_NO_BOOST_CMAKE on)
 find_package(Boost 1.61.0 REQUIRED)
+# Add Boost include directories as SYSTEM to suppress warnings
+if(Boost_INCLUDE_DIRS)
+  include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+endif()
 add_definitions(-DBOOST_LOCALE_HIDE_AUTO_PTR)
 
 ######################################################################
@@ -233,10 +241,13 @@ FetchContent_Declare(
         spdlog
         GIT_REPOSITORY https://github.com/gabime/spdlog.git
         GIT_TAG        v1.8.3
+        SYSTEM
 )
 FetchContent_MakeAvailable(spdlog)
-# turn off warnings
+# turn off warnings for spdlog library itself
 set_property(TARGET spdlog PROPERTY SYSTEM TRUE)
+# Suppress all warnings when compiling spdlog's own source files
+target_compile_options(spdlog PRIVATE -w)
 
 include_directories(SYSTEM ${spdlog_SOURCE_DIR}/include)
 
@@ -245,7 +256,6 @@ include_directories(SYSTEM ${spdlog_SOURCE_DIR}/include)
 # catch
 ######################################################################
 add_library(catch_amalgamated STATIC extern/catch/catch_amalgamated.cpp)
-link_libraries(catch_amalgamated)
 add_definitions(-DCATCH_AMALGAMATED_CUSTOM_MAIN)
 
 ######################################################################
@@ -270,6 +280,7 @@ target_compile_options(${PROJECT_NAME}_warnings
     $<$<CXX_COMPILER_ID:GNU>:-Wno-attributes>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-deprecated-declarations>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-deprecated-comma-subscript>
+    $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-deprecated-declarations>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-unknown-warning-option>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wshadow>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wimplicit-float-conversion>

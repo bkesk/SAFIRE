@@ -19,6 +19,7 @@
 #include <random>
 #include "mpi3/communicator.hpp"
 #include "Utilities/check.hpp"
+#include "AFQMC/Utilities/type_conversion.hpp"
 
 namespace utils
 {
@@ -101,7 +102,8 @@ void sampleGaussianFields(Mat&& M, RandomGenerator_t& rng)
 template<class T>
 void sampleGaussianFields_n(T* V, int n, RandomGenerator_t& rng)
 {
-  std::normal_distribution<double> distribution(0.0,1.0);
+  using real_t = typename sfqmc::afqmc::remove_complex<T>::type;
+  std::normal_distribution<real_t> distribution(0.0, 1.0);  
   for(int i=0; i<n; i++)
     V[i] = T(distribution(rng));
 }

@@ -4,7 +4,7 @@ if(ENABLE_CUDA)
 endif()
 
 add_executable(safire main.cpp)
-target_link_libraries(safire utils afqmc) 
+target_link_libraries(safire afqmc) 
 
 install(TARGETS safire
         RUNTIME DESTINATION bin)

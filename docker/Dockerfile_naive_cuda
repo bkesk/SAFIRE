@@ -1,7 +1,7 @@
-FROM ubuntu:latest
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 WORKDIR /var/app/
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-c"]
 
@@ -25,17 +25,17 @@ RUN apt-get update && apt-get install -y openssh-client git \
 # checkout source from private repo via ssh
 RUN mkdir -p -m 0700 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
 RUN --mount=type=ssh \
-   git clone --progress --verbose  git@github.com:SFQMC/SAFIRE.git afqmc \
+   git clone --progress --verbose git@github.com:SFQMC/SAFIRE.git afqmc \
    && cd afqmc \
    && git submodule init \
    && git submodule update \
    && git checkout pre_beta \
    && mkdir build \
    && cd build \
-   && cmake .. -DCMAKE_BUILD_TYPE=Release \
+   && cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=ON \
    && make -j 4
 
-ENV AFQMC_EXEC /var/app/afqmc/build/bin/safire
+ENV AFQMC_EXEC=/var/app/afqmc/build/bin/safire
 
 # Build Python layer
 RUN cd /var/app/ \

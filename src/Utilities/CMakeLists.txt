@@ -121,3 +121,4 @@ TARGET_LINK_LIBRARIES(utils PUBLIC spdlog::spdlog)
 # MAM:  Putting catch library here, move to a better place later
 ADD_LIBRARY(catch_main catch_main.cpp)
 TARGET_INCLUDE_DIRECTORIES(catch_main PUBLIC "${PROJECT_SOURCE_DIR}/extern/catch")
+TARGET_LINK_LIBRARIES(catch_main PUBLIC catch_amalgamated)

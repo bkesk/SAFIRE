@@ -126,7 +126,7 @@ public:
     if ((equil_multiplier * _population_control_interval) % max_nback_prop != 0 )
       APP_ABORT("Error in BackPropagatedEstimator user input: 'equil_multiplier' must be evenly divisible by the maximum value in 'measure_interval_multiplier'");
     nblocks_equil = (equil_multiplier *_population_control_interval )/ max_nback_prop; // Note: nback_prop is in steps, so we have to convert equil_multiplier to steps by multiplying by _population_control_interval
-    _measure_interval_multiplier_for_handler = _population_control_interval;
+    _measure_interval_for_handler = max_nback_prop;
 
     /* 
     BP uses "blocks" internally, but we want the input
@@ -357,7 +357,7 @@ public:
   int get_measurement_interval()
   {
     // this is forced to be commensurate with population control interval; see constructor.
-    return _measure_interval_multiplier_for_handler;
+    return _measure_interval_for_handler;
   }
 
   void print([[maybe_unused]] std::ofstream& out, hdf_archive& dump, [[maybe_unused]] WalkerSet& wset)
@@ -419,7 +419,7 @@ private:
   std::vector<int> nback_prop_interval_multipliers;
 
   // this is for the EstimatorHandler
-  int _measure_interval_multiplier_for_handler = 1; 
+  int _measure_interval_for_handler = 1; 
 
   int iblock       = 0;
   int nblocks_equil = 0;

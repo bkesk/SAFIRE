@@ -25,7 +25,7 @@ endif()
 
 add_executable(${UTEST_EXE} ${NUMERICS_TEST_SRCS} ) 
 
-target_link_libraries(${UTEST_EXE} PUBLIC catch_main qmcio memory BLAS::BLAS LAPACK::LAPACK spdlog::spdlog)
+target_link_libraries(${UTEST_EXE} PUBLIC catch_main qmcio memory BLAS::BLAS LAPACK::LAPACK)
 if(ENABLE_CUDA)
   target_link_libraries(${UTEST_EXE} PUBLIC kernels)
 elseif(ENABLE_HIP)

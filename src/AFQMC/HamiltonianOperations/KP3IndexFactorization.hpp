@@ -1358,10 +1358,16 @@ public:
                                                     {noccb_tot, nmo_tot, nwalk});
 
     {
+      // Not an ideal solution, but the types of vHS and vbias
+      //   are SP for some propagators always full precision for
+      //   other propagators.
+      using VElementType = typename std::decay_t<MatB>::element;
+      using VValueType = typename VElementType::value_type;
+      
       size_t i0, iN;
       std::tie(i0, iN) = FairDivideBoundary(size_t(comm->rank()), size_t(v.size(0)), size_t(comm->size()));
       for (size_t i = i0; i < iN; ++i)
-        ma::scal(c, v[i]);
+        ma::scal(VValueType(c), v[i]);
     }
     comm->barrier();
 
