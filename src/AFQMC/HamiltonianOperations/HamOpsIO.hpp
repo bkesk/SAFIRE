@@ -25,9 +25,6 @@
 #include "AFQMC/config.h"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
-#if !defined(ENABLE_DEVICE)
-#include "AFQMC/HamiltonianOperations/SparseTensorIO.hpp"
-#endif
 #include "AFQMC/HamiltonianOperations/THCOpsIO.hpp"
 //#if defined(ENABLE_COMPLEX)
 //#include "AFQMC/HamiltonianOperations/KP3IndexFactorizationIO.hpp"
@@ -58,29 +55,6 @@ HamiltonianOperations loadHamOps(hdf_archive& dump,
       hops_type = 1;
     else if (dump.is_group(std::string("KP3IndexFactorization")))
       hops_type = 3;
-#if !defined(ENABLE_DEVICE)
-    else if (dump.is_group(std::string("SparseTensor")))
-    {
-      dump.push("SparseTensor", false);
-      std::vector<int> type;
-      if (!dump.readEntry(type, "type"))
-        APP_ABORT(" Error in loadHamOps: Problems reading type dataset. ");
-      if (type[0] == 11)
-        hops_type = 211;
-      else if (type[0] == 12)
-        hops_type = 212;
-      else if (type[0] == 21)
-        hops_type = 221;
-      else if (type[0] == 22)
-        hops_type = 222;
-      else
-      {
-        app_error(" Unknown SparseTensor/type: {}", type[0]);
-        APP_ABORT("");
-      }
-      dump.pop();
-    }
-#endif
     else
     {
       APP_ABORT(" Error in loadHamOps: Unknown hdf5 format. ");
@@ -91,22 +65,8 @@ HamiltonianOperations loadHamOps(hdf_archive& dump,
 
   if (hops_type == 1)
     return HamiltonianOperations(loadTHCOps<MP,REAL>(dump, type, NMO, NAEA, NAEB, PsiT, TGprop, TGwfn, cutvn, cutv2));
-#if !defined(ENABLE_DEVICE)
-  else if (hops_type == 211)
-    return HamiltonianOperations(
-        loadSparseTensor<ValueType, ValueType>(dump, type, NMO, NAEA, NAEB, PsiT, TGprop, TGwfn, cutvn, cutv2));
-  else if (hops_type == 212)
-    return HamiltonianOperations(
-        loadSparseTensor<ValueType, ComplexType>(dump, type, NMO, NAEA, NAEB, PsiT, TGprop, TGwfn, cutvn, cutv2));
-  else if (hops_type == 221)
-    return HamiltonianOperations(
-        loadSparseTensor<ComplexType, ValueType>(dump, type, NMO, NAEA, NAEB, PsiT, TGprop, TGwfn, cutvn, cutv2));
-  else if (hops_type == 222)
-    return HamiltonianOperations(
-        loadSparseTensor<ComplexType, ComplexType>(dump, type, NMO, NAEA, NAEB, PsiT, TGprop, TGwfn, cutvn, cutv2));
   //  else if(hops_type == 3)
   //    return  HamiltonianOperations(loadKP3IndexFactorization(dump,type,NMO,NAEA,NAEB,PsiT,TGprop,TGwfn,cutvn,cutv2));
-#endif
 
   app_error(" Error in loadHamOps: Unknown HOps type: {}", hops_type);
   APP_ABORT("");

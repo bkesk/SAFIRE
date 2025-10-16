@@ -22,7 +22,6 @@
 #include "AFQMC/config.h"
 #include "boost/variant.hpp"
 
-#include "AFQMC/Hamiltonians/FactorizedSparseHamiltonian.h"
 #include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
 #include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
@@ -67,7 +66,6 @@ public:
 } // namespace dummy
 
 class Hamiltonian : public boost::variant<dummy::dummy_Hamiltonian 
-                                          ,FactorizedSparseHamiltonian
                                           ,THCHamiltonian 
                                           ,ModelHamOpsGenerator 
                                           ,KPFactorizedHamiltonian
@@ -80,14 +78,12 @@ public:
   Hamiltonian() = default; 
   explicit Hamiltonian(THCHamiltonian&& other) : variant(std::move(other)) {}
   explicit Hamiltonian(ModelHamOpsGenerator&& other) : variant(std::move(other)) {}
-  explicit Hamiltonian(FactorizedSparseHamiltonian&& other) : variant(std::move(other)) {}
   explicit Hamiltonian(KPFactorizedHamiltonian&& other) : variant(std::move(other)) {}
   explicit Hamiltonian(RealDenseHamiltonian&& other) : variant(std::move(other)) {}
   explicit Hamiltonian(RealDenseHamiltonian_v2&& other) : variant(std::move(other)) {}
 
   explicit Hamiltonian(THCHamiltonian const& other)              = delete;
   explicit Hamiltonian(ModelHamOpsGenerator const& other)              = delete;
-  explicit Hamiltonian(FactorizedSparseHamiltonian const& other) = delete;
   explicit Hamiltonian(KPFactorizedHamiltonian const& other) = delete;
   explicit Hamiltonian(RealDenseHamiltonian const& other)    = delete;
   explicit Hamiltonian(RealDenseHamiltonian_v2 const& other) = delete;

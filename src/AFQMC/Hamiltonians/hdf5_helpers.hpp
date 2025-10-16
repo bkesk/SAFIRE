@@ -222,14 +222,6 @@ mpi3_csr_matrix<VType> read_V2fact(hdf_archive& dump,
     {
       return RealDenseFactorized;
     }
-    if (dump.is_group(std::string("/Hamiltonian/Factorized")))
-    {
-      return FactorizedSparse;
-    }
-    if (dump.is_group(std::string("/Hamiltonian/FactorizedSparse")))
-    {
-      return FactorizedSparse;
-    }
     if (dump.is_group(std::string("/Hamiltonian/ModelHamiltonian")))
     {
       return ModelHamiltonian;

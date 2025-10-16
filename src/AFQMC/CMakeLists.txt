@@ -21,7 +21,6 @@ set (AFQMC_SRCS
   Hamiltonians/ModelHamOpsGenerator.cpp
   Hamiltonians/HamiltonianFactory.cpp
   Hamiltonians/THCHamiltonian.cpp
-  Hamiltonians/FactorizedSparseHamiltonian.cpp
   )
 
 if(ENABLE_CUDA)
@@ -49,20 +48,13 @@ if (BUILD_UNIT_TESTS)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/extern/catch)
   if (ENABLE_DEVICE)
     set(AFQMC_UNIT_TEST_INPUTS 
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/ham_chol_sc.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/wfn_rhf.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/ham_chol_sc.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/wfn_uhf.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/ham_chol_sc.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/wfn_msd.h5
+      # Removed FactorizedSparse test files: ham_chol_sc.h5 (3 pairs), ham_chol.h5 (1 pair)
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_ks_basis/ham_chol_1e-5.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_ks_basis/wfn_mf_pbe.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_ks_basis/ham_thc_1e-6.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_ks_basis/wfn_mf_pbe.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/He_2x2x2_dzv/ham_chol_uc.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/He_2x2x2_dzv/wfn_rhf.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Ne_cc-pvdz/ham_chol.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Ne_cc-pvdz/wfn_rhf.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Ne_cc-pvdz/ham_chol_dense.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Ne_cc-pvdz/wfn_rhf.h5     	
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/hubbard/4x4squareU1/hubb4x4U1.h5
@@ -70,20 +62,13 @@ if (BUILD_UNIT_TESTS)
     )
   else()
     set(AFQMC_UNIT_TEST_INPUTS 
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/ham_chol_sc.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/wfn_rhf.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/ham_chol_sc.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/wfn_uhf.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/ham_chol_sc.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_dzvp/wfn_msd.h5
+      # Removed FactorizedSparse test files: ham_chol_sc.h5 (3 pairs), ham_chol.h5 (1 pair)
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_ks_basis/ham_chol_1e-5.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_ks_basis/wfn_mf_pbe.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_ks_basis/ham_thc_1e-6.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/C_1x1x1_ks_basis/wfn_mf_pbe.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/He_2x2x2_dzv/ham_chol_uc.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/He_2x2x2_dzv/wfn_rhf.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Ne_cc-pvdz/ham_chol.h5
-      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Ne_cc-pvdz/wfn_rhf.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Ne_cc-pvdz/ham_chol_dense.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Ne_cc-pvdz/wfn_rhf.h5
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/hubbard/4x4squareU1/hubb4x4U1.h5

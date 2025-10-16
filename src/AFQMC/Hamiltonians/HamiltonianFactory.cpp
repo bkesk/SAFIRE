@@ -34,7 +34,6 @@
 #include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
 #include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
 #include "AFQMC/Hamiltonians/RealDenseHamiltonian_v2.h"
-#include "AFQMC/Hamiltonians/FactorizedSparseHamiltonian.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
 #include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
 #include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
@@ -261,24 +260,6 @@ Hamiltonian HamiltonianFactory::fromHDF5(GlobalTaskGroup& gTG, ptree pt)
     }
     TG.Global().barrier();
     return Hamiltonian(THCHamiltonian(AFinfo, pt, TG, NuclearCoulombEnergy, FrozenCoreEnergy));
-  }
-  else if (htype == FactorizedSparse)
-  {
-    if(format != "std")
-      APP_ABORT("Error: format: {} not yet implemented with this hamiltonian type.", format);
-    if (coreid < nread and dump.push("Factorized", false)<0)
-      APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Group Factorized not found. ");
-
-    if (coreid < nread)
-    {
-      dump.pop();
-      dump.pop();
-      dump.close();
-    }
-    TG.Global().barrier();
-
-    return Hamiltonian(FactorizedSparseHamiltonian(AFinfo, pt, TG, 
-                                                   NuclearCoulombEnergy, FrozenCoreEnergy));
   }
 
   APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Unknown Hamiltonian Type. ");

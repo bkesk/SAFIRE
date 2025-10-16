@@ -158,7 +158,6 @@ using P1Type        = ma::sparse::csr_matrix<ComplexType, int, int, localTG_allo
 
 enum HamiltonianTypes
 {
-  FactorizedSparse,
   THC,
   KPTHC,
   KPFactorized,

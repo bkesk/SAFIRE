@@ -37,15 +37,18 @@ foreach(I RANGE 0 ${ENDP} 2)
     set_property(TEST ${UTEST_NAME} APPEND PROPERTY LABELS "afqmc")
 endforeach()
 
-set(TEST_ID afqmc_phmsd)
-add_executable(test_${TEST_ID} test_phmsd.cpp)
-target_link_libraries(test_${TEST_ID} catch_main afqmc)
-set(UTEST_NAME unit_test_${TEST_ID})
-add_unit_test(${UTEST_NAME} "${PROJECT_UNIT_TEST_DIR}/test_${TEST_ID}"
-              "--hamil ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Be_sto-3g/afqmc.h5"
-              "--wfn ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Be_sto-3g/afqmc.h5")
-set_tests_properties(${UTEST_NAME} PROPERTIES WORKING_DIRECTORY ${PROJECT_UNIT_TEST_DIR})
-set_property(TEST ${UTEST_NAME} APPEND PROPERTY LABELS "afqmc")
+message(STATUS "WARNING for Developers. Missing PHMSD tests. Add wavefunction file to unit tests files.")
+# Disabled test_afqmc_phmsd - requires Be_sto-3g/afqmc.h5 (FactorizedSparse format, removed)
+# TODO: Regenerate afqmc.h5 in supported Hamiltonian format to re-enable this test
+#set(TEST_ID afqmc_phmsd)
+#add_executable(test_${TEST_ID} test_phmsd.cpp)
+#target_link_libraries(test_${TEST_ID} catch_main afqmc)
+#set(UTEST_NAME unit_test_${TEST_ID})
+#add_unit_test(${UTEST_NAME} "${PROJECT_UNIT_TEST_DIR}/test_${TEST_ID}"
+#              "--hamil ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Be_sto-3g/afqmc.h5"
+#              "--wfn ${PROJECT_SOURCE_DIR}/tests/unit_test_files/Be_sto-3g/afqmc.h5")
+#set_tests_properties(${UTEST_NAME} PROPERTIES WORKING_DIRECTORY ${PROJECT_UNIT_TEST_DIR})
+#set_property(TEST ${UTEST_NAME} APPEND PROPERTY LABELS "afqmc")
 
 set(TEST_ID afqmc_phmsd_components)
 add_executable(test_${TEST_ID} test_phmsd_components.cpp)

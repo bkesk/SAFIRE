@@ -35,7 +35,6 @@
 #include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
 #include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
 #endif
-#include "AFQMC/HamiltonianOperations/SparseTensor.hpp"
 #include "AFQMC/HamiltonianOperations/THCOps.hpp"
 #include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
 #include "AFQMC/HamiltonianOperations/Real3IndexFactorization_batched_v2.hpp"
@@ -188,9 +187,6 @@ namespace detail
 		,ModelHamOps<MP,true,Matrix_<shared_allocator<typename to_working_precision<MP, ComplexType>::type>>>
 		,ModelHamOps<MP,false,Matrix_<shared_allocator<typename to_working_precision<MP, ComplexType>::type>>>
 #endif
-		,SparseTensor<MP, ComplexType, ComplexType, ComplexType>
-		,SparseTensor<MP, RealType, RealType, RealType>
-		,SparseTensor<MP, RealType, ComplexType, ComplexType>
 		,KP3IndexFactorization_batched<MP,Matrix_<device_allocator<typename to_working_precision<MP, ComplexType>::type>>>
 		,KP3IndexFactorization_batched<MP,Matrix_<shared_allocator<typename to_working_precision<MP, ComplexType>::type>>>
 		,THCOps<MP,true>
@@ -230,9 +226,6 @@ public:
   explicit HamiltonianOperations(KP3IndexFactorization<MP>&& other) : Base::variant(std::move(other)) {}
 #endif
   // GPU enabled
-  explicit HamiltonianOperations(SparseTensor<MP, ComplexType, ComplexType, ComplexType>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(SparseTensor<MP, RealType, RealType, RealType>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(SparseTensor<MP, RealType, ComplexType, ComplexType>&& other) : Base::variant(std::move(other)) {}
   explicit HamiltonianOperations(THCOps<MP,true>&& other) : Base::variant(std::move(other)) {}
   explicit HamiltonianOperations(THCOps<MP,false>&& other) : Base::variant(std::move(other)) {}
   explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix_<device_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
@@ -251,9 +244,6 @@ public:
   explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix<shared_allocator<SPComplexType>>> const& other) = delete;
 #endif
 // GPU enabled
-  explicit HamiltonianOperations(SparseTensor<MP, ComplexType, ComplexType, ComplexType> const& other)                    = delete;
-  explicit HamiltonianOperations(SparseTensor<MP, RealType, RealType, RealType> const& other)                    = delete;
-  explicit HamiltonianOperations(SparseTensor<MP, RealType, ComplexType, ComplexType> const& other)                    = delete;
   explicit HamiltonianOperations(THCOps<MP,true> const& other) = delete;
   explicit HamiltonianOperations(THCOps<MP,false> const& other) = delete;
   explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
