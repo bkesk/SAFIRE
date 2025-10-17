@@ -10,11 +10,11 @@
 
 import pytest
 
-#skip this file if pyscf can't import
-pyscf = pytest.importorskip("pyscf")
+# skip this file if pyscf can't import
+pytest.importorskip("pyscf")
 
 # skip this file if mpi4py can't import
-mpi4py = pytest.importorskip("mpi4py")
+pytest.importorskip("mpi4py")
 from mpi4py import MPI
 
 from afqmctools.inputs.from_pyscf import pyscf_to_afqmc

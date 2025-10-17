@@ -23,7 +23,7 @@ import h5py as h5
 import pytest 
 
 # skip this file if pyscf can't import
-pyscf = pytest.importorskip("pyscf")
+pytest.importorskip("pyscf")
 
 try:
     from mpi4py import MPI
