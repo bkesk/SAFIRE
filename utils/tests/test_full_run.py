@@ -44,9 +44,7 @@ from afqmctools.analysis.rdm import average_afqmc_rdm
 from afqmctools.inputs.from_hdf import write_json
 import afqmctools.hamiltonian.model.director as ham
 
-# skip this file if optax can't import
 pytest.importorskip("optax")
-# skip this file if autohf can't import
 pytest.importorskip("autohf")
 
 from autohf import lattice_hf, AutoHFHamiltonian

@@ -10,10 +10,7 @@
 
 import pytest
 
-# skip this file if pyscf can't import
 pytest.importorskip("pyscf")
-
-# skip this file if mpi4py can't import
 pytest.importorskip("mpi4py")
 from mpi4py import MPI
 

@@ -18,7 +18,6 @@ from afqmctools.hamiltonian.model.director import HamiltonianDirector
 from afqmctools.hamiltonian.model.builder import HamiltonianBuilder
 from afqmctools.hamiltonian.model.ham_class import SpinSymm
 
-# skip this file if autohf can't import
 pytest.importorskip("autohf")
 from autohf.solver import lattice_hf # TODO: move partially to afqmctools
 
