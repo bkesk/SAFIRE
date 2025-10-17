@@ -22,21 +22,14 @@ import numpy as np
 import h5py as h5
 import pytest 
 
+# skip this file if pyscf can't import
+pyscf = pytest.importorskip("pyscf")
+
 try:
     from mpi4py import MPI
     no_mpi = False
 except ImportError:
     no_mpi = True
-
-'''
-@pytest.mark.skipif(no_mpi,
-                    reason="requires mpi4py")
-def test_function_mpi():
-    ...
-'''
-
-#skip this file if pyscf can't import
-pyscf = pytest.importorskip("pyscf")
 
 
 from afqmctools.hamiltonian.converter import (
