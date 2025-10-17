@@ -106,12 +106,20 @@ endif()
 # CUDA
 ######################################################################
 if(ENABLE_CUDA)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "13.0")
+      message(FATAL_ERROR "CUDA builds require GCC version < 13 due to incompatibilities with NVCC. "
+                          "Current GCC version is ${CMAKE_CXX_COMPILER_VERSION}. "
+                          "Please use GCC 11 or 12 for CUDA builds.")
+    endif()
+  endif()
+  
   enable_language(CUDA)
   find_package(CUDAToolkit 12.0.0 REQUIRED)
   set(CMAKE_CUDA_STANDARD 17)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
   set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
-  set(CMAKE_CUDA_ARCHITECTURES 70)
+  set(CMAKE_CUDA_ARCHITECTURES 75)
   string(APPEND CMAKE_CUDA_FLAGS " -Drestrict=__restrict__ -std=c++17 --expt-relaxed-constexpr --extended-lambda -Xcudafe \"--diag_suppress=implicit_return_from_non_void_function\" -Wdeprecated-declarations -w") 
 
   include_directories(${CUDA_INCLUDE_DIRS})
@@ -237,16 +245,22 @@ endif()
 set(SPDLOG_FMT_EXTERNAL OFF)
 set(SPDLOG_BUILD_SHARED OFF)
 
-FetchContent_Declare(
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.25.0")
+  FetchContent_Declare(
         spdlog
         GIT_REPOSITORY https://github.com/gabime/spdlog.git
-        GIT_TAG        v1.8.3
+        GIT_TAG        v1.8.5
         SYSTEM
-)
+  )
+else()
+  FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG        v1.8.5
+  )
+endif()
 FetchContent_MakeAvailable(spdlog)
-# turn off warnings for spdlog library itself
 set_property(TARGET spdlog PROPERTY SYSTEM TRUE)
-# Suppress all warnings when compiling spdlog's own source files
 target_compile_options(spdlog PRIVATE -w)
 
 include_directories(SYSTEM ${spdlog_SOURCE_DIR}/include)
@@ -294,7 +308,6 @@ target_compile_options(${PROJECT_NAME}_warnings
     $<$<COMPILE_LANGUAGE:CUDA>:--diag-suppress=20208> # esa_on_defaulted_function_ignored
     $<$<COMPILE_LANGUAGE:CUDA>:--diag-error=128> # unreachable_code
 )
-
 subdirs(src)
 
 
