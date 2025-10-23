@@ -62,8 +62,31 @@ def hermitize_factory(walker_type) -> callable:
                 new_data[:,s,:] = 0.5 * (data[:,s*M_squared:(s+1)*M_squared] + data[:,s*M_squared:(s+1)*M_squared][:,transposed_indices].conj())
             return new_data
         return hermitize
-    elif walker_type == 'noncollinear':
-        raise NotImplementedError("Non-collinear walker type not implemented")
+    elif walker_type == 'non_collinear':
+        def hermitize(data):
+            # data shape: (n_samples, 4*M²) representing flattened (2M, 2M) spinor matrices
+            M_squared_times_4 = data.shape[-1]
+            M_squared = M_squared_times_4 // 4
+            
+            if not np.allclose(M_squared_times_4 / 4, M_squared):
+                raise ValueError(f"Flattened Matrix dimension {M_squared_times_4} is not divisible by 4")
+            
+            M = np.sqrt(M_squared)
+            if M != int(M):
+                raise ValueError(f"Flattened Matrix dimension {M_squared} (per spin block) is not a perfect square")
+            else:
+                M = int(M)
+            
+            M_spinor = 2 * M
+            M_spinor_squared = M_spinor * M_spinor
+            
+            transposed_indices = np.ravel_multi_index(
+                np.unravel_index(np.arange(M_spinor_squared), (M_spinor, M_spinor)), 
+                (M_spinor, M_spinor), 
+                order='F'
+            )
+            return 0.5 * (data + data[:, transposed_indices].conj())
+        return hermitize
     else:
         raise ValueError(f"Unknown walker type: {walker_type}")
 
