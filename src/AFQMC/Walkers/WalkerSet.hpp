@@ -26,7 +26,7 @@ namespace afqmc
 {
 
 // MAM: Make variant with memory types
-using WalkerSet = WalkerSetBase<HOST_MEMORY,double>;
+using WalkerSet = WalkerSetBase<HOST_MEMORY>;
 
 
 } // namespace afqmc

@@ -71,6 +71,8 @@ using namespace afqmc;
 void test_basic_walker_features(bool serial, std::string wtype)
 {
   using Type = std::complex<double>;
+  using nda::array;
+  using nda::array_view;
 
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -81,27 +83,26 @@ void test_basic_walker_features(bool serial, std::string wtype)
     NAEB = 0;
   }
 
-/*
-  GlobalTaskGroup gTG(world);
-  TaskGroup_ TG(gTG, std::string("TaskGroup"), 1, serial ? 1 : gTG.getTotalCores());
   AFQMCInfo info;
   info.NMO  = NMO;
   info.NAEA = NAEA;
   info.NAEB = NAEB;
   info.name = "walker";
   int M((wtype == "noncollinear") ? 2 * NMO : NMO);
-  boost::multi::array<Type, 2> initA({M, NAEA}, Type(0.0));
-  boost::multi::array<Type, 2> initB({M, NAEB}, Type(0.0));
+  array<Type, 2> initA(M, NAEA);
+  array<Type, 2> initB(M, NAEB);
+  initA() = Type(0.0);
+  initB() = Type(0.0);
   for (int i = 0; i < NAEA; i++)
-    initA[i][i] = Type(0.22);
+    initA(i,i) = Type(0.22);
   for (int i = 0; i < NAEB; i++)
-    initB[i][i] = Type(0.33);
-  utils::RandomGenerator_t rng;
+    initB(i,i) = Type(0.33);
+  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("walker_type",wtype);
-  WalkerSet wset(TG, wlk_pt, info, &rng);
+  WalkerSet wset(mpi, wlk_pt, info, rng);
   wset.resize(nwalkers, initA, initB);
 
   REQUIRE(wset.size() == nwalkers);
@@ -111,14 +112,14 @@ void test_basic_walker_features(bool serial, std::string wtype)
   for (WalkerSet::iterator it = wset.begin(); it != wset.end(); ++it)
   {
     auto sm = it->SlaterMatrix(Alpha);
-    REQUIRE( (*sm).size(0) == initA.size(0) );	
-    REQUIRE( (*sm).size(1) == initA.size(1) );	
-    REQUIRE(*it->SlaterMatrix(Alpha) == initA);
+    REQUIRE( sm.extent(0) == initA.extent(0) );	
+    REQUIRE( sm.extent(1) == initA.extent(1) );	
+    REQUIRE(it->SlaterMatrix(Alpha) == initA);
     if( wset.getWalkerType() == COLLINEAR ) { 
       auto smB = it->SlaterMatrix(Beta);
-      REQUIRE( (*smB).size(0) == initB.size(0) );	
-      REQUIRE( (*smB).size(1) == initB.size(1) );	
-      REQUIRE(*it->SlaterMatrix(Beta) == initB);
+      REQUIRE( smB.extent(0) == initB.extent(0) );	
+      REQUIRE( smB.extent(1) == initB.extent(1) );	
+      REQUIRE(it->SlaterMatrix(Beta) == initB);
     }
     *it->weight()  = base * 1.0 + 0.5;
     *it->overlap() = base * 1.0 + 0.5;
@@ -177,23 +178,23 @@ void test_basic_walker_features(bool serial, std::string wtype)
     REQUIRE(Type(*w.EXX()) == i_ * 1.0 + 0.5);
     REQUIRE(Type(*w.EJ()) == i_ * 1.0 + 0.5);
   }
-  REQUIRE(wset.get_TG_target_population() == nwalkers);
-  REQUIRE(wset.get_global_target_population() == nwalkers * TG.getNumberOfTGs());
-  REQUIRE(wset.GlobalPopulation() == nwalkers * TG.getNumberOfTGs());
+  REQUIRE(wset.get_target_population() == nwalkers);
+  REQUIRE(wset.get_global_target_population() == nwalkers * mpi->comm.size());
+  REQUIRE(wset.GlobalPopulation() == nwalkers * mpi->comm.size());
   REQUIRE(wset.GlobalPopulation() == wset.get_global_target_population());
   REQUIRE(wset.NumBackProp() == 0);
-  REQUIRE(wset.GlobalWeight() == tot_weight * Type(TG.getNumberOfTGs()));
+  REQUIRE(wset.GlobalWeight() == tot_weight * Type(mpi->comm.size()));
 
   wset.scaleWeight(2.0);
   tot_weight *= 2.0;
-  REQUIRE(wset.GlobalWeight() == tot_weight * Type(TG.getNumberOfTGs()));
+  REQUIRE(wset.GlobalWeight() == tot_weight * Type(mpi->comm.size()));
 
   std::vector<ComplexType> Wdata;
   wset.popControl(Wdata);
   REQUIRE(wset.GlobalWeight() == Approx(static_cast<RealType>(wset.get_global_target_population())));
-  REQUIRE(wset.get_TG_target_population() == nwalkers);
-  REQUIRE(wset.get_global_target_population() == nwalkers * TG.getNumberOfTGs());
-  REQUIRE(wset.GlobalPopulation() == nwalkers * TG.getNumberOfTGs());
+  REQUIRE(wset.get_target_population() == nwalkers);
+  REQUIRE(wset.get_global_target_population() == nwalkers * mpi->comm.size());
+  REQUIRE(wset.GlobalPopulation() == nwalkers * mpi->comm.size());
   REQUIRE(wset.GlobalPopulation() == wset.get_global_target_population());
   REQUIRE(wset.GlobalWeight() == Approx(static_cast<RealType>(wset.get_global_target_population())));
   double nx = (wset.getWalkerType() == NONCOLLINEAR or wset.getWalkerType() == FULLYPOLARIZED ? 1.0 : 2.0);
@@ -208,7 +209,6 @@ void test_basic_walker_features(bool serial, std::string wtype)
   wset.clean();
   REQUIRE(wset.size() == 0);
   REQUIRE(wset.capacity() == 0);
-*/
 }
 
 void test_hyperslab()

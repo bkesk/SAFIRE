@@ -24,6 +24,10 @@
 #include "IO/AppAbort.hpp"
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/Random.hpp"
+#include "utilities/mpi_context.h"
+#include "utilities/type_traits.hpp"
+
+#include "nda/tensor.hpp"
 
 #include "AFQMC/config.h"
 #include "IO/app_loggers.h"
@@ -43,19 +47,13 @@ namespace afqmc
  * Implements communication, load balancing, and I/O operations.   
  * Walkers are always accessed through the handler.
  */
-template<MEMORY_SPACE _MEM_, typename _value_t_>
+template<MEMORY_SPACE _MEM_>
 class WalkerSetBase : public AFQMCInfo
 {
 protected:
 
 public:
-  using element       = _value_t_; //remove_complex<_value_t_>; 
-  using element_type  = element; 
-  using value_type  = element; 
   static const MEMORY_SPACE MEM    = _MEM_;
-
-protected:
-  using const_element = const element;
 
 public:
   // contiguous_walker = true means that all the data of a walker is continguous in memory
@@ -64,23 +62,21 @@ public:
   static const bool contiguous_storage = true;
   static const bool fixed_population   = true;
 
-  using reference = walker<MEM,element>;
-  using iterator  = walker_iterator<MEM,element>;
-  using const_reference = reference; 
+  using reference = walker<MEM>;
+  using iterator  = walker_iterator<MEM>;
+  using const_reference = reference;     // MAM: do I need an actual const version??? 
   using const_iterator  = iterator; 
 
   WalkerSetBase() = default;
 
-/*
   /// constructor
-  WalkerSetBase(afqmc::TaskGroup_& tg_,
+  WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
                 ptree pt,
                 AFQMCInfo& info,
-                utils::RandomGenerator_t* r,
-                Allocator alloc_,
-                BPAllocator bpalloc_)
+                std::shared_ptr<utils::RandomGenerator_t> r
+               )
       : AFQMCInfo(info),
-        TG(tg_),
+        mpi(_mpi_),
         rng(r),
         walker_size(1),
         walker_memory_usage(0),
@@ -90,8 +86,8 @@ public:
         history_pos(0),
         walkerType(UNDEFINED_WALKER_TYPE),
         tot_num_walkers(0),
-        walker_buffer({0, 1}, alloc_),
-        bp_buffer({0, 0}, bpalloc_),
+        walker_buffer(0, 1),
+        bp_buffer(0, 0),
         load_balance(UNDEFINED_LOAD_BALANCE),
         pop_control(UNDEFINED_BRANCHING),
         min_weight(0.05),
@@ -108,60 +104,53 @@ public:
   WalkerSetBase(WalkerSetBase&& other)      = default;
   WalkerSetBase& operator=(WalkerSetBase const& other) = delete;
   WalkerSetBase& operator=(WalkerSetBase&& other) = delete;
-*/
 
   /*
    * Returns the current number of walkers in the set.
    */
-//  int size() const { return tot_num_walkers; }
+  int size() const { return tot_num_walkers; }
 
   /*
    * Returns the maximum number of walkers in the set that can be stored without reallocation.
    */
-//  int capacity() const { return int(walker_buffer.size(0)); }
+  int capacity() const { return int(walker_buffer.extent(0)); }
 
   /*
    * Returns the maximum number of fields in the set that can be stored without reallocation. 
    */
-//  int NumBackProp() const { return wlk_desc[3]; }
+  int NumBackProp() const { return wlk_desc[3]; }
   /*
    * Returns the maximum number of cholesky vectors in the set that can be stored without reallocation. 
    */
-//  int NumCholVecs() const { return wlk_desc[4]; }
+  int NumCholVecs() const { return wlk_desc[4]; }
   /*
    * Returns the length of the history buffers. 
    */
-//  int HistoryBufferLength() const { return wlk_desc[6]; }
+  int HistoryBufferLength() const { return wlk_desc[6]; }
 
   /*
    * Returns the position of the insertion point in the BP stack. 
    */
-/*
   int getBPPos() const { return bp_pos; }
   void setBPPos(int p) { bp_pos = p; }
   void advanceBPPos() { bp_pos++; }
-*/
 
   /*
    * Returns, sets and advances the position of the insertion point in the History circular buffers. 
    */
-/*
   int getHistoryPos() const { return history_pos; }
   void setHistoryPos(int p) { history_pos = p % wlk_desc[6]; }
   void advanceHistoryPos() { history_pos = (history_pos + 1) % wlk_desc[6]; }
-*/
 
 
   /*
    * Returns iterator to the first walker in the set
    */
-/*
   iterator begin()
   {
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return iterator(0, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ, wlk_desc);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return iterator(0, walker_buffer, data_displ, wlk_desc);
   }
-*/
 
   /*
    * Returns iterator to the first walker in the set
@@ -169,7 +158,7 @@ public:
 /*
   const_iterator begin() const
   {
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
+    utils::check(walker_buffer.size(1) == walker_size, "");
     return const_iterator(0, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ, wlk_desc);
   }
 */
@@ -178,49 +167,40 @@ public:
   /*
    * Returns iterator to the past-the-end walker in the set
    */
-/*
   iterator end()
   {
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return iterator(tot_num_walkers, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ,
-                    wlk_desc);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
   }
-*/
 
   /*
    * Returns a reference to a walker
    */
-/*
   reference operator[](int i)
   {
-    if (i < 0 || i > tot_num_walkers)
-      APP_ABORT("error: index out of bounds.");
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return reference(boost::multi::static_array_cast<element, pointer>(walker_buffer)[i], data_displ, wlk_desc);
+    utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
-*/
 
   /*
    * Returns a reference to a walker
    */
-/*
   const_reference operator[](int i) const
   {
-    if (i < 0 || i > tot_num_walkers)
-      APP_ABORT("error: index out of bounds.");
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return const_reference(boost::multi::static_array_cast<element, pointer>(walker_buffer)[i], data_displ, wlk_desc);
+    utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return const_reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
-*/
 
   // cleans state of object.
   //   -erases allocated memory
-//  bool clean();
+  bool clean();
 
   /*
    * Increases the capacity of the containers to n.
    */
-//  void reserve(int n);
+  void reserve(int n);
 
   /*
    * Adds/removes the number of walkers in the set to match the requested value.
@@ -231,7 +211,7 @@ public:
    * Capacity is increased if necessary.
    * Target Populations are set to n.
    */
-//  void resize(int n);
+  void resize(int n);
 
   /*
    * Adds/removes the number of walkers in the set to match the requested value.
@@ -241,20 +221,19 @@ public:
    * Capacity is increased if necessary.
    * Target Populations are set to n.
    */
-//  template<class MatA, class MatB>
-//  void resize(int n, MatA&& A, MatB&& B);
+  template<class MatA, class MatB>
+  void resize(int n, MatA&& A, MatB&& B);
 
   /*
    * Resizes back propagation buffers.
    * Must be called before any call to bp-related routines.
    */     
-//  void resize_bp(int nbp, int nCV, int nref);
+  void resize_bp(int nbp, int nCV, int nref);
 
-/*
   // perform and report tests/timings
   void benchmark(std::string& blist, int maxnW, int delnW, int repeat);
 
-  int get_TG_target_population() const { return targetN_per_TG; }
+  int get_target_population() const { return targetN_per_rank; }
   int get_global_target_population() const { return targetN; }
 
   std::pair<int, int> walker_dims() const { return std::pair<int, int>{wlk_desc[0], wlk_desc[1]}; }
@@ -262,26 +241,23 @@ public:
   int GlobalPopulation() const
   {
     int res = 0;
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    if (TG.TG_local().root())
-      res += tot_num_walkers;
-    return (TG.Global() += res);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch.");
+    res += tot_num_walkers;
+    return (mpi->comm += res);
   }
 
   RealType GlobalWeight() const
   {
     RealType res = 0;
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    if (TG.TG_local().root())
-    {
-      boost::multi::array<ComplexType, 1> buff(iextensions<1u>{tot_num_walkers});
-      getProperty(WEIGHT, buff);
-      for (int i = 0; i < tot_num_walkers; i++)
-        res += std::abs(buff[i]);
-    }
-    return (TG.Global() += res);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch.");
+    nda::array<ComplexType, 1> buff(tot_num_walkers,ComplexType(0.0));
+    getProperty(WEIGHT, buff);
+    for (int i = 0; i < tot_num_walkers; i++)
+      res += std::abs(buff(i));
+    return (mpi->comm += res);
   }
 
+/*
   auto SlaterMatrices( SpinTypes s )  
 //  -> decltype( W.rotated().partitioned(1) )
   {
@@ -373,6 +349,7 @@ public:
       return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
     }
   }
+*/
 
   void processWalkerData(std::vector<ComplexType>& curData);
 
@@ -382,58 +359,57 @@ public:
   // Note: the following overload is deprecated
   void popControl(std::vector<ComplexType>& curData, bool skip = false);
 
-  template<class Mat>
-  void push_walkers(Mat&& M);
+//  template<class Mat>
+//  void push_walkers(Mat&& M);
 
-  template<class Mat>
-  void pop_walkers(Mat&& M);
+//  template<class Mat>
+//  void pop_walkers(Mat&& M);
 
   // given a list of new weights and counts, add/remove walkers and reassign weight accordingly
-  template<class Mat>
-  void branch(Vector<std::pair<double, int>>::iterator itbegin,
-              Vector<std::pair<double, int>>::iterator itend,
-              Mat& M);
+  template<class It>
+  void branch(It itbeg, It itend, nda::MemoryArrayOfRank<2> auto&& M); 
 
   template<class T>
   void scaleWeight(const T& w0, bool scale_last_history = false)
   {
-    if (!TG.TG_local().root())
-      return;
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    ma::scal(ComplexType(w0), W({0, tot_num_walkers}, data_displ[WEIGHT]));
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    nda::blas::scal(ComplexType(w0), walker_buffer(nda::range(tot_num_walkers), data_displ[WEIGHT]));
     if (scale_last_history)
     {
       int his_pos = ((history_pos == 0) ? wlk_desc[6] - 1 : history_pos - 1);
       if (wlk_desc[6] > 0 && his_pos >= 0 && his_pos < wlk_desc[6])
       {
-        auto BPW{boost::multi::static_array_cast<bp_element, bp_pointer>(bp_buffer)};
-        ma::scal(bp_element(static_cast<bp_element_value_type>(w0)), BPW[data_displ[WEIGHT_HISTORY] + his_pos]);
+        nda::blas::scal(ComplexType(w0), 
+                bp_buffer(data_displ[WEIGHT_HISTORY] + his_pos, nda::range(tot_num_walkers)));
       }
     }
   }
 
   void scaleWeightsByOverlap()
   {
-    if (!TG.TG_local().root())
-      return;
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    boost::multi::array<ComplexType, 1> ov(iextensions<1u>{tot_num_walkers});
-    boost::multi::array<ComplexType, 1> buff(iextensions<1u>{tot_num_walkers});
+    using nda::tensor::op::MUL;
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    nda::range r(tot_num_walkers);
+    nda::array<ComplexType,1> ov(tot_num_walkers);  // on host
+    nda::array<ComplexType,1> buff(tot_num_walkers);  // on host
+    memory::array<MEM,ComplexType,1> buff_d(tot_num_walkers);  // on device
     getProperty(OVLP, ov);
     for (int i = 0; i < tot_num_walkers; i++)
-      buff[i] = ComplexType(1.0 / std::abs(ov[i]), 0.0);
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[WEIGHT]));
+      buff(i) = ComplexType(1.0 / std::abs(ov[i]), 0.0);
+    buff_d() = buff(); // to device
+    // A(i) = A(i) * x(i)
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[WEIGHT]),"i",MUL);
     for (int i = 0; i < tot_num_walkers; i++)
       buff[i] = std::exp(ComplexType(0.0, -std::arg(ov[i])));
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[PHASE]));
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[PHASE1]));
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[PHASE2]));
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[PHASE3]));
+    buff_d() = buff();  // to device
+    // A(i) = A(i) * x(i)
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE]),"i",MUL);
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE1]),"i",MUL);
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE2]),"i",MUL);
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE3]),"i",MUL);
   }
 
-  afqmc::TaskGroup_& getTG() const { return TG; }
+  auto get_mpi() const { return mpi; }
 
   int single_walker_memory_usage() const { return walker_memory_usage; }
   int single_walker_size() const { return walker_size; }
@@ -453,14 +429,15 @@ public:
     return 0;
   }
 
+/*
   // I am going to assume that the relevant data to be copied is continuous,
   // careful not to break this in the future
   template<class Vec>
   void copyToIO(Vec&& x, int n)
   {
-    RUNTIME_CHECK(n < tot_num_walkers, "");
-    RUNTIME_CHECK(x.size() >= walkerSizeIO(), "");
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
+    utils::check(n < tot_num_walkers, "");
+    utils::check(x.size() >= walkerSizeIO(), "");
+    utils::check(walker_buffer.size(1) == walker_size, "");
     auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
     using std::copy_n;
     copy_n(W[n].origin(), walkerSizeIO(), x.origin());
@@ -469,34 +446,28 @@ public:
   template<class Vec>
   void copyFromIO(Vec&& x, int n)
   {
-    RUNTIME_CHECK(n < tot_num_walkers, "");
-    RUNTIME_CHECK(x.size() >= walkerSizeIO(), "");
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
+    utils::check(n < tot_num_walkers, "");
+    utils::check(x.size() >= walkerSizeIO(), "");
+    utils::check(walker_buffer.size(1) == walker_size, "");
     auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
     using std::copy_n;
     copy_n(x.origin(), walkerSizeIO(), W[n].origin());
   }
+*/
 
-  template<class TVec>
-  void getProperty(walker_data id, TVec&& v) const
+  void getProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v) const
   {
-    static_assert(std::decay<TVec>::type::dimensionality == 1, "Wrong dimensionality");
-    if (v.num_elements() < tot_num_walkers)
-      APP_ABORT("Error: getProperty(v):: v.size < tot_num_walkers.");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    ma::copy(W({0, tot_num_walkers}, data_displ[id]), v.sliced(0, tot_num_walkers));
+    utils::check(v.size() >= tot_num_walkers, " Shape mismatch");
+    v(nda::range(tot_num_walkers)) = walker_buffer(nda::range(tot_num_walkers),data_displ[id]);
   }
 
-  template<class TVec>
-  void setProperty(walker_data id, TVec&& v)
+  void setProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v)
   {
-    static_assert(std::decay<TVec>::type::dimensionality == 1, "Wrong dimensionality");
-    if (v.num_elements() < tot_num_walkers)
-      APP_ABORT("Error: setProperty(v):: v.size < tot_num_walkers.");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    ma::copy(v.sliced(0, tot_num_walkers), W({0, tot_num_walkers}, data_displ[id]));
+    utils::check(v.size() >= tot_num_walkers, " Shape mismatch");
+    walker_buffer(nda::range(tot_num_walkers),data_displ[id]) = v(nda::range(tot_num_walkers));
   }
 
+/*
   void resetWeights()
   {
     TG.TG_local().barrier();
@@ -548,9 +519,10 @@ public:
     return stdBPCMatrix_ptr(raw_pointer_cast(bp_buffer.origin()) + data_displ[WEIGHT_HISTORY] * bp_buffer.size(1),
                           {wlk_desc[6], bp_buffer.size(1)});
   }
+*/ 
 
   double getLogOverlapFactor() const { return LogOverlapFactor; }
-*/ 
+
 /**
  * @brief Updates the WalkerSetBase::LogOverlapFactor
  *
@@ -566,18 +538,13 @@ public:
  * 
  * @param f const double f is factor to include in the current LogOverlapFactor. It is assumed that f = log(F).
  */
-/*
   void adjustLogOverlapFactor(const double f)
   {
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
     double nx = (walkerType == NONCOLLINEAR or walkerType == FULLYPOLARIZED ? 1.0 : 2.0);
-    if (TG.TG_local().root())
-    {
-      auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-      ma::scal(ComplexType(std::exp(-f)), W({0, tot_num_walkers}, data_displ[OVLP]));
-    }
+    nda::blas::scal(ComplexType(std::exp(-f)), walker_buffer(nda::range(tot_num_walkers), data_displ[OVLP]));
     LogOverlapFactor += f / nx;
-    TG.TG_local().barrier();
+    mpi->comm.barrier();
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -618,6 +585,7 @@ public:
     return pt1;
   }
 
+/*
   // load balancing algorithm
   template<class Mat>
   void loadBalance(Mat&& M,  std::vector<int> const& nwalk_counts_old,  std::vector<int> const& nwalk_counts_new)
@@ -640,10 +608,11 @@ public:
 
   utils::RandomGenerator_t* getRNG() { return rng; }
 
+*/
 protected:
-  afqmc::TaskGroup_& TG;
+  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
-  utils::RandomGenerator_t* rng;
+  std::shared_ptr<utils::RandomGenerator_t> rng;
 
   int LoadBalance_timer;
   int Branching_timer;
@@ -659,7 +628,7 @@ protected:
 
   WALKER_TYPES walkerType;
 
-  int targetN_per_TG;
+  int targetN_per_rank;
   int targetN;
   int tot_num_walkers;
 
@@ -674,10 +643,10 @@ protected:
   double LogOverlapFactor = 0.0;
 
   // Contains main walker data needed for propagation
-  CMatrix walker_buffer;
+  memory::array<MEM, ComplexType, 2> walker_buffer;
 
   // Contains stack of fields and slater matrix references for back propagation
-  BPCMatrix bp_buffer;
+  memory::array<MEM, ComplexType, 2> bp_buffer;
 
   // performs setup
   void parse(ptree cur);
@@ -689,12 +658,11 @@ protected:
   // branching algorithm
   BRANCHING_ALGORITHM pop_control;
   [[maybe_unused]] double min_weight, max_weight;
-*/
 };
 
 } // namespace afqmc
 
 } // namespace sfqmc
 
-//#include "AFQMC/Walkers/WalkerSetBase.icc"
+#include "AFQMC/Walkers/WalkerSetBase.icc"
 

@@ -32,7 +32,7 @@ template<class WlkBucket, class DVec>
 inline void BasicWalkerData(WlkBucket& wlk, DVec&& curData, mpi3::communicator& comm)
 {
   using nda::range;
-  RUNTIME_CHECK(curData.size() >= 7, "");
+  utils::check(curData.size() >= 7, "Size mismatch.");
   std::fill(curData.begin(), curData.begin() + 7, 0);
   int nW            = wlk.size();
   std::vector<double> data(8, 0.);
@@ -88,15 +88,15 @@ inline void CountWalkers(WlkBucket& wlk, IVec& WCnt, mpi3::communicator& comm)
   comm.all_gather_value(nw, WCnt.begin());
 }
 
-template<class WlkBucket, 
+template<class WlkBucket, class Vec,
          typename = typename std::enable_if<(WlkBucket::fixed_population)>::type>
 inline void getGlobalListOfWalkerWeights(WlkBucket& wlk,
-                                         nda::MemoryArrayOfRank<1> auto&& buffer,
+                                         Vec&& buffer,
                                          mpi3::communicator& comm)
 {
   using Type = std::pair<double, int>;
   static_assert( std::is_same_v<Type,
-                                typename std::decay_t<decltype(buffer)>::value_type>, 
+                                typename std::decay_t<Vec>::value_type>, 
                  "Type mismatch.");
   int target = wlk.get_target_population();
   int nW     = wlk.size();
