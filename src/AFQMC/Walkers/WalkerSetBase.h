@@ -14,24 +14,21 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_WALKERSETBASE_H
-#define SFQMC_AFQMC_WALKERSETBASE_H
+#pragma once
 
 #include <random>
 #include <type_traits>
 #include <memory>
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-#include "io/ptree/ptree_utilities.hpp"
-#include "Utilities/Random.hpp"
+#include "IO/AppAbort.hpp"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
 
 #include "AFQMC/config.h"
-#include "Utilities/app_loggers.h"
+#include "IO/app_loggers.h"
 #include "AFQMC/Utilities/AFQMCTimer.h"
-#include "AFQMC/Utilities/taskgroup.h"
 #include "AFQMC/Utilities/type_conversion.hpp"
-#include "Numerics/ma_blas.hpp"
 
 #include "AFQMC/Walkers/Walkers.hpp"
 #include "AFQMC/Walkers/WalkerControl.hpp"
@@ -46,40 +43,19 @@ namespace afqmc
  * Implements communication, load balancing, and I/O operations.   
  * Walkers are always accessed through the handler.
  */
-template<class Alloc, class Ptr> //, class BPAlloc, class BPPtr>
+template<MEMORY_SPACE _MEM_, typename _value_t_>
 class WalkerSetBase : public AFQMCInfo
 {
 protected:
 
 public:
-  using element       = typename std::pointer_traits<Ptr>::element_type;
+  using element       = _value_t_; //remove_complex<_value_t_>; 
   using element_type  = element; 
-  using pointer       = Ptr;
-  using bp_element       = std::complex<float>; //typename to_single_precision<ComplexType>::type; 
-  using bp_element_value_type = typename std::decay<bp_element>::type::value_type;
-  using bp_pointer       = bp_element*; 
+  using value_type  = element; 
+  static const MEMORY_SPACE MEM    = _MEM_;
 
 protected:
   using const_element = const element;
-  using const_pointer = const Ptr;
-  using Allocator     = Alloc;
-
-  // since there is no factory, I can't use the trick I've been using to 
-  // choose precision runtime. Storing BP fields in single precision for now,
-  // regardless of choice of precision. If this is a problem, make a factory and choose
-  // at runtime appropriately.  
-  using const_bp_element = const bp_element;
-  using const_bp_pointer = const bp_pointer;
-  using BPAllocator      = shared_allocator<bp_element>; //BPAlloc;
-
-  using CMatrix       = boost::multi::array<element, 2, Allocator>;
-  using BPCMatrix     = boost::multi::array<bp_element, 2, BPAllocator>;
-  using BPCVector_ref = boost::multi::array_ref<bp_element, 1, bp_pointer>;
-  using BPCMatrix_ref = boost::multi::array_ref<bp_element, 2, bp_pointer>;
-  using BPCTensor_ref = boost::multi::array_ref<bp_element, 3, bp_pointer>;
-
-  using stdBPCMatrix_ptr = boost::multi::array_ptr<bp_element, 2>;
-  using stdBPCTensor_ptr = boost::multi::array_ptr<bp_element, 3>;
 
 public:
   // contiguous_walker = true means that all the data of a walker is continguous in memory
@@ -88,13 +64,14 @@ public:
   static const bool contiguous_storage = true;
   static const bool fixed_population   = true;
 
-  using reference = walker<pointer>;
-  using iterator  = walker_iterator<pointer>;
-  //using const_reference = const_walker<const_pointer>;
-  //using const_iterator = const_walker_iterator<const_pointer>;
-  using const_reference = walker<pointer>;
-  using const_iterator  = walker_iterator<pointer>;
+  using reference = walker<MEM,element>;
+  using iterator  = walker_iterator<MEM,element>;
+  using const_reference = reference; 
+  using const_iterator  = iterator; 
 
+  WalkerSetBase() = default;
+
+/*
   /// constructor
   WalkerSetBase(afqmc::TaskGroup_& tg_,
                 ptree pt,
@@ -131,77 +108,89 @@ public:
   WalkerSetBase(WalkerSetBase&& other)      = default;
   WalkerSetBase& operator=(WalkerSetBase const& other) = delete;
   WalkerSetBase& operator=(WalkerSetBase&& other) = delete;
+*/
 
   /*
    * Returns the current number of walkers in the set.
    */
-  int size() const { return tot_num_walkers; }
+//  int size() const { return tot_num_walkers; }
 
   /*
    * Returns the maximum number of walkers in the set that can be stored without reallocation.
    */
-  int capacity() const { return int(walker_buffer.size(0)); }
+//  int capacity() const { return int(walker_buffer.size(0)); }
 
   /*
    * Returns the maximum number of fields in the set that can be stored without reallocation. 
    */
-  int NumBackProp() const { return wlk_desc[3]; }
+//  int NumBackProp() const { return wlk_desc[3]; }
   /*
    * Returns the maximum number of cholesky vectors in the set that can be stored without reallocation. 
    */
-  int NumCholVecs() const { return wlk_desc[4]; }
+//  int NumCholVecs() const { return wlk_desc[4]; }
   /*
    * Returns the length of the history buffers. 
    */
-  int HistoryBufferLength() const { return wlk_desc[6]; }
+//  int HistoryBufferLength() const { return wlk_desc[6]; }
 
   /*
    * Returns the position of the insertion point in the BP stack. 
    */
+/*
   int getBPPos() const { return bp_pos; }
   void setBPPos(int p) { bp_pos = p; }
   void advanceBPPos() { bp_pos++; }
+*/
 
   /*
    * Returns, sets and advances the position of the insertion point in the History circular buffers. 
    */
+/*
   int getHistoryPos() const { return history_pos; }
   void setHistoryPos(int p) { history_pos = p % wlk_desc[6]; }
   void advanceHistoryPos() { history_pos = (history_pos + 1) % wlk_desc[6]; }
+*/
 
 
   /*
    * Returns iterator to the first walker in the set
    */
+/*
   iterator begin()
   {
     RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
     return iterator(0, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ, wlk_desc);
   }
+*/
 
   /*
    * Returns iterator to the first walker in the set
    */
+/*
   const_iterator begin() const
   {
     RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
     return const_iterator(0, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ, wlk_desc);
   }
+*/
 
 
   /*
    * Returns iterator to the past-the-end walker in the set
    */
+/*
   iterator end()
   {
     RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
     return iterator(tot_num_walkers, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ,
                     wlk_desc);
   }
+*/
 
   /*
    * Returns a reference to a walker
    */
+/*
   reference operator[](int i)
   {
     if (i < 0 || i > tot_num_walkers)
@@ -209,10 +198,12 @@ public:
     RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
     return reference(boost::multi::static_array_cast<element, pointer>(walker_buffer)[i], data_displ, wlk_desc);
   }
+*/
 
   /*
    * Returns a reference to a walker
    */
+/*
   const_reference operator[](int i) const
   {
     if (i < 0 || i > tot_num_walkers)
@@ -220,15 +211,16 @@ public:
     RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
     return const_reference(boost::multi::static_array_cast<element, pointer>(walker_buffer)[i], data_displ, wlk_desc);
   }
+*/
 
   // cleans state of object.
   //   -erases allocated memory
-  bool clean();
+//  bool clean();
 
   /*
    * Increases the capacity of the containers to n.
    */
-  void reserve(int n);
+//  void reserve(int n);
 
   /*
    * Adds/removes the number of walkers in the set to match the requested value.
@@ -239,7 +231,7 @@ public:
    * Capacity is increased if necessary.
    * Target Populations are set to n.
    */
-  void resize(int n);
+//  void resize(int n);
 
   /*
    * Adds/removes the number of walkers in the set to match the requested value.
@@ -249,15 +241,16 @@ public:
    * Capacity is increased if necessary.
    * Target Populations are set to n.
    */
-  template<class MatA, class MatB>
-  void resize(int n, MatA&& A, MatB&& B);
+//  template<class MatA, class MatB>
+//  void resize(int n, MatA&& A, MatB&& B);
 
   /*
    * Resizes back propagation buffers.
    * Must be called before any call to bp-related routines.
    */     
-  void resize_bp(int nbp, int nCV, int nref);
+//  void resize_bp(int nbp, int nCV, int nref);
 
+/*
   // perform and report tests/timings
   void benchmark(std::string& blist, int maxnW, int delnW, int repeat);
 
@@ -557,7 +550,7 @@ public:
   }
 
   double getLogOverlapFactor() const { return LogOverlapFactor; }
- 
+*/ 
 /**
  * @brief Updates the WalkerSetBase::LogOverlapFactor
  *
@@ -573,6 +566,7 @@ public:
  * 
  * @param f const double f is factor to include in the current LogOverlapFactor. It is assumed that f = log(F).
  */
+/*
   void adjustLogOverlapFactor(const double f)
   {
     RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
@@ -695,12 +689,12 @@ protected:
   // branching algorithm
   BRANCHING_ALGORITHM pop_control;
   [[maybe_unused]] double min_weight, max_weight;
+*/
 };
 
 } // namespace afqmc
 
 } // namespace sfqmc
 
-#include "AFQMC/Walkers/WalkerSetBase.icc"
+//#include "AFQMC/Walkers/WalkerSetBase.icc"
 
-#endif

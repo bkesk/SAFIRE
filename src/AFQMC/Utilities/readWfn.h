@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef AFQMC_READWFN_H
-#define AFQMC_READWFN_H
+#pragma once
 
 #include <cstdlib>
 #include <iostream>
@@ -24,17 +23,16 @@
 #include <string>
 #include <ctype.h>
 
-#include "hdf/hdf_archive.h"
 #include "AFQMC/config.h"
-#include "SparseMatrix/csr_matrix.hpp"
-#include "SparseMatrix/csr_matrix_construct.hpp"
-#include "AFQMC/Wavefunctions/Excitations.hpp"
+//#include "SparseMatrix/csr_matrix.hpp"
+//#include "SparseMatrix/csr_matrix_construct.hpp"
+//#include "AFQMC/Wavefunctions/Excitations.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
-
+/*
 void read_ph_wavefunction_hdf(hdf_archive& dump,
                               std::vector<ComplexType>& ci_coeff,
                               std::vector<int>& occs,
@@ -69,9 +67,8 @@ WALKER_TYPES getWalkerType(std::string filename, std::string type);
 
 std::string getWavefunctionType(std::string filename);
 std::tuple<int,int,int,int> getWavefunctionDims(std::string filename);
-
+*/
 } // namespace afqmc
 
 } // namespace sfqmc
 
-#endif

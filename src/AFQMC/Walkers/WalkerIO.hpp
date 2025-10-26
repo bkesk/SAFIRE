@@ -14,19 +14,19 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef AFQMC_WALKERIO_HPP
-#define AFQMC_WALKERIO_HPP
+#pragma once
 
 #include <cassert>
 #include <cstdlib>
 #include <vector>
 #include <type_traits>
-#include "Utilities/type_traits/container_traits_multi.h"
-#include "Utilities/app_loggers.h"
+#include "IO/app_loggers.h"
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
+#include "IO/AppAbort.hpp"
 #include "AFQMC/config.h"
+
+#include "nda/h5.hpp"
 
 namespace sfqmc
 {
@@ -34,7 +34,7 @@ namespace afqmc
 {
 template<class WalkerSet, typename = typename std::enable_if<(WalkerSet::contiguous_walker)>::type>
 bool dumpSamplesHDF5([[maybe_unused]] WalkerSet& wset,
-                     [[maybe_unused]] hdf_archive& dump,
+                     [[maybe_unused]] h5::group& dump,
                      [[maybe_unused]] int nW_to_file)
 {
   return true;
@@ -171,17 +171,13 @@ template<class WalkerSet, typename = typename std::enable_if<(WalkerSet::contigu
 bool restartFromHDF5(WalkerSet& wset,
                      int nW_per_tg,
                      std::string hdf_read_restart,
-                     hdf_archive& read,
+                     h5::group& read,
                      bool set_to_target)
 {
+/*
   TaskGroup_& TG = wset.getTG();
 
   std::vector<int> Idata(7);
-  if (read.is_parallel())
-  {
-    app_error(" Error: hdf_archive can't be parallel in restartFromHDF5().");
-    APP_ABORT("");
-  }
   if (TG.TG_local().root())
   {
     if (!read.open(hdf_read_restart, H5F_ACC_RDONLY))
@@ -282,12 +278,14 @@ bool restartFromHDF5(WalkerSet& wset,
   TG.Global().barrier();
 
   read.close();
+*/
   return true;
 }
 
 template<class WalkerSet, typename = typename std::enable_if<(WalkerSet::contiguous_walker)>::type>
-bool dumpToHDF5(WalkerSet& wset, hdf_archive& dump)
+bool dumpToHDF5(WalkerSet& wset, h5::group& dump)
 {
+/*
   TaskGroup_& TG = wset.getTG();
 
   if (TG.TG_local().root())
@@ -473,6 +471,7 @@ bool dumpToHDF5(WalkerSet& wset, hdf_archive& dump)
   }
 
   TG.Global().barrier();
+*/
   return true;
 }
 
@@ -480,4 +479,3 @@ bool dumpToHDF5(WalkerSet& wset, hdf_archive& dump)
 
 } // namespace sfqmc
 
-#endif

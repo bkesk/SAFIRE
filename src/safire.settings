@@ -3,7 +3,6 @@ AF_APP_VERSION    = @AF_APP_VERSION@
 
 ENABLE_CUDA            = @ENABLE_CUDA@
 ENABLE_PHDF5           = @ENABLE_PHDF5@
-ENABLE_STACKTRACE      = @ENABLE_STACKTRACE@ 
 
 #system variables
 SYSTEM                 = @CMAKE_SYSTEM@

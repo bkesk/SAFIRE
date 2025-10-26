@@ -14,47 +14,45 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_WALKERS_HPP
-#define SFQMC_AFQMC_WALKERS_HPP
+#pragma once
 
 #include <random>
 #include <type_traits>
 #include <memory>
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
+#include "IO/AppAbort.hpp"
 
 #include "AFQMC/config.h"
-#include "Numerics/ma_blas_extensions.hpp"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
-template<class Ptr>
+
+template<MEMORY_SPACE _MEM_, typename _value_t_>
 struct walker
 {
 public:
-  using pointer = Ptr;
-  using element = typename std::pointer_traits<pointer>::element_type;
-  using SMType  = boost::multi::array_ptr<element, 2, pointer>;
+  using element = _value_t_; 
+  MEMORY_SPACE MEM = _MEM_;
+  using SMType  = memory::array_view<_MEM_,element,2>;
 
+  walker() = default;
+
+/*
   template<class ma>
   walker(ma&& a, const wlk_indices& i_, const wlk_descriptor& d_)
       : w_(a.origin(), iextensions<1u>{a.size()}), indx(i_), desc(d_)
   {
-    static_assert(std::decay<ma>::type::dimensionality == 1, "Wrong dimensionality");
+//    static_assert(::nda::get_rank<> == 1, "Wrong dimensionality");
   }
+*/
 
   ~walker() {}
 
-  /*
-      walker(walker&& other): w_(other.w_.origin(), iextensions<1u>{other.w_.size()}), 
-                              indx(other.indx),desc(other.desc)  {} 
-      walker(walker const& other): w_(other.w_.origin(),iextensions<1u>{other.w_.size()}), 
-                              indx(other.indx),desc(other.desc)  {} 
-*/
+/*
   // no copy/move assignment
   walker(walker&& other)      = default;
   walker(walker const& other) = default;
@@ -117,13 +115,15 @@ private:
   const wlk_descriptor& desc;
 
   pointer getw_(int P) const { return (*w_).origin() + indx[P]; }
+*/
 };
 
-template<class Ptr>
+template<MEMORY_SPACE _MEM_, typename _value_t_>
 struct walker_iterator
     : public boost::
-          iterator_facade<walker_iterator<Ptr>, void, std::random_access_iterator_tag, walker<Ptr>, std::ptrdiff_t>
+          iterator_facade<walker_iterator<_MEM_,_value_t_>, void, std::random_access_iterator_tag, walker<_MEM_,_value_t_>, std::ptrdiff_t>
 {
+/*
 public:
   template<class WBuff>
   walker_iterator(int k, WBuff&& w_, const wlk_indices& i_, const wlk_descriptor& d_)
@@ -135,16 +135,6 @@ public:
   using Wlk_Buff        = boost::multi::array_ptr<element, 2, Ptr>;
   using difference_type = std::ptrdiff_t;
   using reference       = walker<Ptr>;
-
-  /*
-    walker_iterator(walker_iterator const& it):
-        pos(it.pos),W(it.W.origin(),it.W.extensions()),indx(it.indx),desc(it.desc)
-    {}
-
-    walker_iterator(walker_iterator && it):
-        pos(it.pos),W(it.W.origin(),it.W.extensions()),indx(it.indx),desc(it.desc)
-    {}
-*/
 
 private:
   int pos;
@@ -160,10 +150,10 @@ private:
   reference dereference() const { return reference((*W)[pos], *indx, *desc); }
   void advance(difference_type n) { pos += n; }
   difference_type distance_to(walker_iterator other) const { return other.pos - pos; }
+*/
 };
 
 } // namespace afqmc
 
 } // namespace sfqmc
 
-#endif

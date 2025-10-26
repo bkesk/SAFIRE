@@ -23,18 +23,19 @@
 #include <ctype.h>
 
 #include "AFQMC/config.h"
-#include "Utilities/app_loggers.h"
+#include "IO/app_loggers.h"
 #include "readWfn.h"
 
-#include "SparseMatrix/csr_matrix.hpp"
-#include "SparseMatrix/csr_hdf5_readers.hpp"
-#include "SparseMatrix/csr_matrix_construct.hpp"
+//#include "SparseMatrix/csr_matrix.hpp"
+//#include "SparseMatrix/csr_hdf5_readers.hpp"
+//#include "SparseMatrix/csr_matrix_construct.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
 
+/*
 std::tuple<int,int,int,int> getWavefunctionDims(std::string filename)
 {
   hdf_archive dump;
@@ -163,14 +164,14 @@ void read_ph_wavefunction_hdf(hdf_archive& dump,
   if (walker_type == COLLINEAR)
     NEL += NAEB;
 
-  /*
+  / *
    * type:
    *   - occ: All determinants are specified with occupation numbers
    *
    *   - 0: excitations out of a RHF reference
    *          NOTE: Does not mean perfect pairing, means excitations from a single reference
    *   - 1: excitations out of a UHF reference (not yet working)
-   */
+   * /
   WALKER_TYPES wtype;
   getCommonInput(dump, NMO, NAEA, NAEB, ndets, ci_coeff, wtype, comm.root());
   if (wtype == CLOSED)
@@ -373,9 +374,9 @@ ph_excitations<int, ComplexType> build_ph_struct(std::vector<ComplexType> ci_coe
   return ph_struct;
 }
 
-/*
+/ *
  * Read trial wavefunction information from file.
-*/
+* /
 void getCommonInput(hdf_archive& dump,
                     int NMO,
                     int NAEA,
@@ -406,6 +407,7 @@ void getCommonInput(hdf_archive& dump,
     APP_ABORT(" Error in getCommonInput(): Problems reading ci_coeffs. ");
   app_log(1," - Coefficient of first determinant: {} ", ci[0]);
 }
+*/
 
 } // namespace afqmc
 

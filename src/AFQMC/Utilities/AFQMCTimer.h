@@ -14,10 +14,9 @@
 //
 //
 
-#ifndef AFQMC_AFQMCTIMER_H
-#define AFQMC_AFQMCTIMER_H
+#pragma once
 
-#include "Utilities/Timer.hpp"
+#include "utilities/Timer.hpp"
 
 namespace sfqmc
 {
@@ -49,4 +48,3 @@ void setup_AFQMC_timer();
 }
 }
 
-#endif

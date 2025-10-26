@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_WALKERSETFACTORY_H
-#define SFQMC_AFQMC_WALKERSETFACTORY_H
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -133,4 +132,3 @@ protected:
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

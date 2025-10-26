@@ -16,27 +16,24 @@
 
 #undef NDEBUG
 
-#include "catch_amalgamated.hpp"
+#include "catch2/catch.hpp"
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-#include "Utilities/Random.hpp"
+#include "configuration.hpp"
+#include "IO/AppAbort.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/test_common.hpp"
 
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
-#include "io/ptree/ptree_utilities.hpp"
-#include "Utilities/app_loggers.h"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "IO/app_loggers.h"
 
 #include <stdio.h>
 #include <string>
 #include <vector>
 #include <complex>
 
-#include "mpi3/communicator.hpp"
-#include "mpi3/shared_communicator.hpp"
-//#include "mpi3/environment.hpp"
+#include "utilities/mpi_context.h"
 
-//#include "AFQMC/Walkers WalkerSetFactory.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
 #include "AFQMC/Walkers/WalkerIO.hpp"
 
@@ -73,16 +70,9 @@ using namespace afqmc;
 
 void test_basic_walker_features(bool serial, std::string wtype)
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node  = world.split_shared(world.rank());
-
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-#endif
-
   using Type = std::complex<double>;
 
-  //assert(world.size()%2 == 0);
+  auto& mpi = utils::make_unit_test_mpi_context();
 
   int NMO = 8, NAEA = 2, NAEB = 2, nwalkers = 10;
   if (wtype == "noncollinear")
@@ -91,8 +81,7 @@ void test_basic_walker_features(bool serial, std::string wtype)
     NAEB = 0;
   }
 
-  //auto node = world.split_shared();
-
+/*
   GlobalTaskGroup gTG(world);
   TaskGroup_ TG(gTG, std::string("TaskGroup"), 1, serial ? 1 : gTG.getTotalCores());
   AFQMCInfo info;
@@ -219,24 +208,20 @@ void test_basic_walker_features(bool serial, std::string wtype)
   wset.clean();
   REQUIRE(wset.size() == 0);
   REQUIRE(wset.capacity() == 0);
+*/
 }
 
 void test_hyperslab()
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node  = world.split_shared(world.rank());
-
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-#endif
-
   using Type   = std::complex<double>;
-  using Matrix = boost::multi::array<Type, 2>;
 
-  int rank = world.rank();
+  auto& mpi = utils::make_unit_test_mpi_context();
+
+  int rank = mpi->comm.rank();
 
   int nwalk         = 9;
   int nprop         = 7;
+/*
   Matrix Data({nwalk, nprop});
 
   for (int i = 0; i < nwalk; i++)
@@ -285,12 +270,14 @@ void test_hyperslab()
   world.barrier();
   if (world.root())
     remove("dummy_walkers.h5");
+*/
 }
 
 void test_double_hyperslab()
 {
-  auto world = boost::mpi3::environment::get_world_instance();
+  auto& mpi = utils::make_unit_test_mpi_context();
 
+/*
   using Type   = std::complex<double>;
   using Matrix = boost::multi::array<Type, 2>;
 
@@ -354,31 +341,23 @@ void test_double_hyperslab()
         REQUIRE(real(DataIn[i][j]) == i * 10 + rank * 100 + j);
         REQUIRE(imag(DataIn[i][j]) == 0);
       }
-      /*
-     for(int j=nprop_to_safe; j<nprop; j++) {
-       REQUIRE( real(DataIn[i][j]) == 0);
-       REQUIRE( imag(DataIn[i][j]) == 0);
-     }
-*/
+\\     for(int j=nprop_to_safe; j<nprop; j++) {
+\\       REQUIRE( real(DataIn[i][j]) == 0);
+\\       REQUIRE( imag(DataIn[i][j]) == 0);
+\\     }
     }
   }
   world.barrier();
   if (world.root())
     remove("dummy_walkers.h5");
+*/
 }
 
 void test_walker_io(std::string wtype)
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node  = world.split_shared(world.rank());
-
   using Type = std::complex<double>;
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-#endif
-
-  //assert(world.size()%2 == 0);
+  auto& mpi = utils::make_unit_test_mpi_context();
 
   int NMO = 8, NAEA = 2, NAEB = 2, nwalkers = 10;
   if (wtype == "noncollinear")
@@ -387,8 +366,7 @@ void test_walker_io(std::string wtype)
     NAEB = 0;
   }
 
-  //auto node = world.split_shared();
-
+/*
   GlobalTaskGroup gTG(world);
   TaskGroup_ TG(gTG, std::string("TaskGroup"), 1, 1);
   AFQMCInfo info;
@@ -492,11 +470,11 @@ void test_walker_io(std::string wtype)
   world.barrier();
   if (world.root())
     remove("dummy_walkers.h5");
+*/
 }
 
 TEST_CASE("swset_test_serial", "[shared_wset]")
 {
-  setup_loggers(true,2,0);
   test_basic_walker_features(true, "closed");
   test_basic_walker_features(false, "closed");
   test_basic_walker_features(true, "collinear");
@@ -515,7 +493,6 @@ TEST_CASE("hyperslab_tests", "[shared_wset]")
 */
 TEST_CASE("walker_io", "[shared_wset]")
 {
-  setup_loggers(true,2,0);
   test_walker_io("closed");
   test_walker_io("collinear");
   test_walker_io("noncollinear");

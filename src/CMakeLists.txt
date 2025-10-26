@@ -11,13 +11,15 @@
   include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/cxxopts")
   include_directories("${PROJECT_SOURCE_DIR}/src/io")
 
-  subdirs(io)
-  subdirs(Utilities)
-  subdirs(Memory)
-  subdirs(Numerics)
-  subdirs(SparseMatrix)
+  subdirs(IO)
+  subdirs(arch)
+  subdirs(utilities)
+#  subdirs(Memory)
+#  subdirs(Numerics)
+  subdirs(numerics)
+#  subdirs(SparseMatrix)
 
   subdirs(AFQMC)
 
-  subdirs(main)
+#  subdirs(main)
 

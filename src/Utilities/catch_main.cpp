@@ -15,38 +15,43 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #define CATCH_CONFIG_RUNNER
-#include "catch_amalgamated.hpp"
+#include "catch2/catch.hpp"
 
 #include "config.h"
-
-#include "mpi3/environment.hpp"
-namespace mpi3 = boost::mpi3;
+#include "arch/arch.h"
+#include "utilities/mpi_context.h"
 
 #include<iostream>
+
+namespace utils::detail {
+  // gets allocated in utilities/test_common.hpp when requested, cleanup below before exiting main
+  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> __unit_test_mpi_context__ = nullptr;
+}
 
 // input files 
 std::string UTEST_HAMIL, UTEST_WFN;
 
 int main(int argc, char* argv[])
 {
-  mpi3::environment env(argc, argv);
+  boost::mpi3::environment env(argc, argv);
   Catch::Session session;
-  using namespace Catch::Clara;
+  using namespace Catch::clara;
   // Build command line parser.
   auto cli = session.cli() |
       Opt(UTEST_HAMIL, "UTEST_HAMIL")["--hamil"]("Hamiltonian file to be used by unit test if applicable.") |
       Opt(UTEST_WFN, "UTEST_WFN")["--wfn"]("Wavefunction file to be used by unit test if applicable.");
   session.cli(cli);
+
   // Parse arguments.
   int parser_err = session.applyCommandLine(argc, argv);
+  if( parser_err != 0 ) // Indicates a command line error
+      return parser_err; 
+
   // Run the tests.
   int result = session.run(argc, argv);
-  if (parser_err != 0)
-  {
-    return parser_err;
-  }
-  else
-  {
-    return result;
-  }
+
+  // cleanup mpi context 
+  utils::detail::__unit_test_mpi_context__.reset();
+
+  return result;
 }
