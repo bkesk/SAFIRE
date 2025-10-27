@@ -62,12 +62,10 @@ public:
   static const bool contiguous_storage = true;
   static const bool fixed_population   = true;
 
-  using reference = walker<MEM>;
-  using iterator  = walker_iterator<MEM>;
-  using const_reference = reference;     // MAM: do I need an actual const version??? 
-  using const_iterator  = iterator; 
-
-  WalkerSetBase() = default;
+  WalkerSetBase() 
+  {
+    utils::check(false, "Default initialization of WalkerSetBase is not allowed.");
+  } 
 
   /// constructor
   WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
@@ -100,10 +98,15 @@ public:
   /// destructor
   ~WalkerSetBase() {}
 
-  WalkerSetBase(WalkerSetBase const& other) = delete;
+  WalkerSetBase(WalkerSetBase const& other) = default;
   WalkerSetBase(WalkerSetBase&& other)      = default;
-  WalkerSetBase& operator=(WalkerSetBase const& other) = delete;
-  WalkerSetBase& operator=(WalkerSetBase&& other) = delete;
+  WalkerSetBase& operator=(WalkerSetBase const& other) = default;
+  WalkerSetBase& operator=(WalkerSetBase&& other) = default;
+
+  /*
+   * Returns the memory space.
+   */
+  constexpr auto get_memory_space() const { return MEM; }
 
   /*
    * Returns the current number of walkers in the set.
@@ -146,48 +149,69 @@ public:
   /*
    * Returns iterator to the first walker in the set
    */
-  iterator begin()
+  template<MEMORY_SPACE _M2_>
+  auto begin()
   {
+    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return iterator(0, walker_buffer, data_displ, wlk_desc);
+    return walker_iterator<_M2_,ComplexType>(0, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
    * Returns iterator to the first walker in the set
    */
-  const_iterator begin() const
+  template<MEMORY_SPACE _M2_>
+  auto begin() const
   {
+    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_iterator(0, walker_buffer, data_displ, wlk_desc);
+    return walker_iterator<_M2_,const ComplexType>(0, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
    * Returns iterator to the past-the-end walker in the set
    */
-  iterator end()
+  template<MEMORY_SPACE _M2_>
+  auto end()
   {
+    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
+    return walker_iterator<_M2_,ComplexType>(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
+  }
+
+  /*
+   * Returns iterator to the past-the-end walker in the set
+   */
+  template<MEMORY_SPACE _M2_>
+  auto end() const
+  {
+    utils::check(_M2_ == MEM, "Incompatible memory space");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return walker_iterator<_M2_,const ComplexType>(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
+  } 
+
+  /*
+   * Returns a reference to a walker
+   */
+  template<MEMORY_SPACE _M2_>
+  auto get_walker(int i)
+  {
+    utils::check(_M2_ == MEM, "Incompatible memory space");
+    utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return walker<_M2_,ComplexType>(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
   /*
    * Returns a reference to a walker
    */
-  reference operator[](int i)
+  template<MEMORY_SPACE _M2_>
+  auto get_walker(int i) const
   {
+    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
-  }
-
-  /*
-   * Returns a reference to a walker
-   */
-  const_reference operator[](int i) const
-  {
-    utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
-    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
+    return walker<_M2_,const ComplexType>(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
   // cleans state of object.
@@ -256,62 +280,70 @@ public:
 
   private:
 
-  template<walker_data D>
+  template<MEMORY_SPACE _M_, walker_data D>
   auto extract_SM( SpinTypes s ) {
     static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
+    utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
     std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<MEM,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+    return memory::array_view<_M_,ComplexType,3>(idxm, walker_buffer.data() + i0);     
   } 
 
-  template<walker_data D>
+  template<MEMORY_SPACE _M_, walker_data D>
   auto extract_SM( SpinTypes s ) const {
     static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
+    utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
     std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<MEM,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+    return memory::array_view<_M_,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
   }
 
   public:
 
+  template<MEMORY_SPACE _M_>
   auto SlaterMatrices( SpinTypes s )  
   {
-    return extract_SM<SM>(s);
+    return extract_SM<_M_,SM>(s);
   } 
 
+  template<MEMORY_SPACE _M_>
   auto SlaterMatrices( SpinTypes s ) const
   {
-    return extract_SM<SM>(s);
+    return extract_SM<_M_,SM>(s);
   }
 
+  template<MEMORY_SPACE _M_>
   auto SlaterMatricesN( SpinTypes s )
   {
     utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<SMN>(s);
+    return extract_SM<_M_,SMN>(s);
   }
 
+  template<MEMORY_SPACE _M_>
   auto SlaterMatricesN( SpinTypes s ) const
   {
     utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<SMN>(s);
+    return extract_SM<_M_,SMN>(s);
   }
 
+  template<MEMORY_SPACE _M_>
   auto SlaterMatricesAux( SpinTypes s )
   {
     utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<SM_AUX>(s);
+    return extract_SM<_M_,SM_AUX>(s);
   }
 
+  template<MEMORY_SPACE _M_>
   auto SlaterMatricesAux( SpinTypes s ) const
   {
     utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<SM_AUX>(s);
+    return extract_SM<_M_,SM_AUX>(s);
   }
 
   void processWalkerData(std::vector<ComplexType>& curData);
@@ -359,15 +391,20 @@ public:
       buff(i) = ComplexType(1.0 / std::abs(ov[i]), 0.0);
     buff_d() = buff(); // to device
     // A(i) = A(i) * x(i)
-    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[WEIGHT]),"i",MUL);
+    nda::tensor::elementwise(ComplexType(1.0),buff_d,"i",
+                             ComplexType(1.0),walker_buffer(r,data_displ[WEIGHT]),"i",MUL);
     for (int i = 0; i < tot_num_walkers; i++)
       buff[i] = std::exp(ComplexType(0.0, -std::arg(ov[i])));
     buff_d() = buff();  // to device
     // A(i) = A(i) * x(i)
-    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE]),"i",MUL);
-    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE1]),"i",MUL);
-    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE2]),"i",MUL);
-    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE3]),"i",MUL);
+    nda::tensor::elementwise(ComplexType(1.0),buff_d,"i",
+                             ComplexType(1.0),walker_buffer(r,data_displ[PHASE]),"i",MUL);
+    nda::tensor::elementwise(ComplexType(1.0),buff_d,"i",
+                             ComplexType(1.0),walker_buffer(r,data_displ[PHASE1]),"i",MUL);
+    nda::tensor::elementwise(ComplexType(1.0),buff_d,"i",
+                             ComplexType(1.0),walker_buffer(r,data_displ[PHASE2]),"i",MUL);
+    nda::tensor::elementwise(ComplexType(1.0),buff_d,"i",
+                             ComplexType(1.0),walker_buffer(r,data_displ[PHASE3]),"i",MUL);
   }
 
   auto get_mpi() const { return mpi; }
@@ -381,7 +418,7 @@ public:
   std::tuple<BRANCHING_ALGORITHM,int,int> population_control_parameters() const 
   { return std::make_tuple(pop_control,min_weight,max_weight); }
 
-  int walkerSizeIO()
+  int walkerSizeIO() const
   {
     if (walkerType == COLLINEAR)
       return wlk_desc[0] * (wlk_desc[1] + wlk_desc[2]) + 10;
@@ -392,7 +429,7 @@ public:
 
   // I am going to assume that the relevant data to be copied is continuous,
   // careful not to break this in the future
-  void copyToIO(nda::MemoryArrayOfRank<1> auto&& x, int n)
+  void copyToIO(nda::MemoryArrayOfRank<1> auto&& x, int n) const
   {
     using nda::range;
     utils::check(n < tot_num_walkers, "Incorrect argument");

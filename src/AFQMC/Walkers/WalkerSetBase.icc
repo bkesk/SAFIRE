@@ -428,10 +428,10 @@ void WalkerSetBase<_M_>::resize(int n, MatA&& A, MatB&& B)
     while (pos < n)
     { 
       walker_buffer(pos,all) = ComplexType(0.0);
-      reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
-      w0.SlaterMatrix(Alpha) = A;
+      walker<MEM,ComplexType> w0(walker_buffer(pos,all), data_displ, wlk_desc);
+      w0.template SlaterMatrix<_M_>(Alpha) = A;
       if (walkerType == COLLINEAR)
-        w0.SlaterMatrix(Beta) = B;
+        w0.template SlaterMatrix<_M_>(Beta) = B;
       pos++;
     }
     auto r = nda::range(tot_num_walkers,n); 

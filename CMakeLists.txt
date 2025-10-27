@@ -106,7 +106,7 @@ option(NDA_PYTHON_SUPPORT "Build nda with python support" OFF)
 option(FETCH_CCCL "Fetch CCCL and enable support. Only used with ENABLE_CUDA" OFF)
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
 
-if( ENABLE_CUDA OR ENABLE_HIP OR ENABLE_OPENMP)
+if( ENABLE_CUDA OR ENABLE_HIP ) #OR ENABLE_OPENMP)
   set(ENABLE_DEVICE ON)
 else()
   set(ENABLE_DEVICE OFF)

@@ -255,6 +255,7 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
 {
   auto all = nda::range::all;
   auto mpi = wset.get_mpi();
+  auto MEM = wset.get_memory_space();
 
   int nW = wset.size();
   auto nw_per_rank = mpi->comm.all_gather_value(nW);
@@ -287,12 +288,14 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
 
     int NMO, NAEA, NAEB = 0;
     { // to limit the scope
-      auto w = wset[0];
-      std::tie(NMO,NAEA) = w.SlaterMatrix(Alpha).shape();
+/*
+      auto w = wset.template get_walker<MEM>(0);
+      std::tie(NMO,NAEA) = w.template SlaterMatrix<MEM>(Alpha).shape();
       if (walker_type == COLLINEAR)
-        NAEB = w.SlaterMatrix(Beta).extent(1);
+        NAEB = w.template SlaterMatrix<MEM>(Beta).extent(1);
       if (walker_type == NONCOLLINEAR)
         NMO /= 2;
+*/
     }
 
     std::vector<int> Idata(7);
