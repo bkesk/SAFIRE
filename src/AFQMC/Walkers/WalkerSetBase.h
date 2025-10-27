@@ -394,30 +394,34 @@ public:
   // careful not to break this in the future
   void copyToIO(nda::MemoryArrayOfRank<1> auto&& x, int n)
   {
+    using nda::range;
     utils::check(n < tot_num_walkers, "Incorrect argument");
     utils::check(x.size() >= walkerSizeIO(), "Size mismatch");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    x(nda::range(walkerSizeIO())) = walker_buffer(n,nda::range(walkerSizeIO()));
+    x(range(walkerSizeIO())) = walker_buffer(n,range(walkerSizeIO()));
   }
 
   void copyFromIO(nda::MemoryArrayOfRank<1> auto&& x, int n)
   {
+    using nda::range;
     utils::check(n < tot_num_walkers, "Incorrect argument");
     utils::check(x.size() >= walkerSizeIO(), "Size mismatch");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    walker_buffer(n,nda::range(walkerSizeIO())) = x(nda::range(walkerSizeIO()));
+    walker_buffer(n,range(walkerSizeIO())) = x(range(walkerSizeIO()));
   }
 
   void getProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v) const
   {
+    using nda::range;
     utils::check(v.size() >= tot_num_walkers, " Shape mismatch");
-    v(nda::range(tot_num_walkers)) = walker_buffer(nda::range(tot_num_walkers),data_displ[id]);
+    v(range(tot_num_walkers)) = walker_buffer(range(tot_num_walkers),data_displ[id]);
   }
 
   void setProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v)
   {
+    using nda::range;
     utils::check(v.size() >= tot_num_walkers, " Shape mismatch");
-    walker_buffer(nda::range(tot_num_walkers),data_displ[id]) = v(nda::range(tot_num_walkers));
+    walker_buffer(range(tot_num_walkers),data_displ[id]) = v(range(tot_num_walkers));
   }
 
   void resetWeights()
@@ -430,48 +434,40 @@ public:
     mpi->comm.barrier();
   }
 
-/*
-  // Careful!!! This matrix returns an array_ptr, NOT a copy!!!
-  stdBPCMatrix_ptr getFields(int ip)
+  auto getFields(int ip)
   {
-    if (ip < 0 || ip > wlk_desc[3])
-      APP_ABORT(" Error: index out of bounds in getFields. ");
-    int skip = (data_displ[FIELDS] + ip * wlk_desc[4]) * bp_buffer.size(1);
-    return stdBPCMatrix_ptr(raw_pointer_cast(bp_buffer.origin()) + skip, {wlk_desc[4], bp_buffer.size(1)});
+    using nda::range;
+    utils::check(ip>=0 and ip<wlk_desc[3], " Error: index out of bounds in getFields. ");
+    long i0 = data_displ[FIELDS] + ip * wlk_desc[4];
+    return bp_buffer(range(i0,i0+wlk_desc[4]),range::all);
   }
 
-  stdBPCTensor_ptr getFields()
+  auto getFields()
   {
-    return stdBPCTensor_ptr(raw_pointer_cast(bp_buffer.origin()) + data_displ[FIELDS] * bp_buffer.size(1),
-                          {wlk_desc[3], wlk_desc[4], bp_buffer.size(1)});
+    long i0 = data_displ[FIELDS] * bp_buffer.size(1);
+    return memory::array_view<MEM,ComplexType,3>({wlk_desc[3], wlk_desc[4], bp_buffer.size(1)}, bp_buffer.data() + i0);
   }
 
-  template<class Mat>
-  void storeFields(int ip, Mat&& V)
+  void storeFields(int ip, nda::MemoryArrayOfRank<2> auto&& V)
   {
-    static_assert(std::decay<Mat>::type::dimensionality == 2, "Wrong dimensionality");
-    auto&& F{*getFields(ip)};
-    if (V.stride(0) == V.size(1))
-    {
-      using std::copy_n;
-      copy_n(V.origin(), F.num_elements(), F.origin());
-    }
-    else
-      F = V;
+    auto F = getFields(ip);
+    utils::check(F.shape() == V.shape(), "Shape mismatch");
+    F() = V();
   }
 
-  stdBPCMatrix_ptr getWeightFactors()
+  auto getWeightFactors()
   {
-    return stdBPCMatrix_ptr(raw_pointer_cast(bp_buffer.origin()) + data_displ[WEIGHT_FAC] * bp_buffer.size(1),
-                          {wlk_desc[6], bp_buffer.size(1)});
+    using nda::range;
+    return bp_buffer(range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6]),
+                     range::all);
   }
 
-  stdBPCMatrix_ptr getWeightHistory()
+  auto getWeightHistory()
   {
-    return stdBPCMatrix_ptr(raw_pointer_cast(bp_buffer.origin()) + data_displ[WEIGHT_HISTORY] * bp_buffer.size(1),
-                          {wlk_desc[6], bp_buffer.size(1)});
+    using nda::range;
+    return bp_buffer(range(data_displ[WEIGHT_HISTORY],data_displ[WEIGHT_HISTORY]+wlk_desc[6]),
+                     range::all);
   }
-*/ 
 
   double getLogOverlapFactor() const { return LogOverlapFactor; }
 

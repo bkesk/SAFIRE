@@ -227,7 +227,6 @@ inline void min_branch([[maybe_unused]] std::vector<std::pair<double, int>>& buf
 template<class Random>
 inline void serial_comb(std::vector<std::pair<double, int>>& buff, Random& rng)
 {
-//  APP_ABORT(" Error: serial_comb not implemented yet. \n\n");
   std::uniform_real_distribution<double> distribution(0.0,1.0);
   int nW = buff.size();
   double norm = 0.0; 

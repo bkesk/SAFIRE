@@ -68,7 +68,7 @@ void check(M1&& A, M2& B)
 
 using namespace afqmc;
 
-void test_basic_walker_features(bool serial, std::string wtype)
+void test_basic_walker_features(std::string wtype)
 {
   using Type = std::complex<double>;
   using nda::array;
@@ -219,148 +219,6 @@ void test_basic_walker_features(bool serial, std::string wtype)
 
 }
 
-void test_hyperslab()
-{
-  using Type   = std::complex<double>;
-
-  auto& mpi = utils::make_unit_test_mpi_context();
-
-  int rank = mpi->comm.rank();
-
-  int nwalk         = 9;
-  int nprop         = 7;
-/*
-  Matrix Data({nwalk, nprop});
-
-  for (int i = 0; i < nwalk; i++)
-    for (int j = 0; j < nprop; j++)
-      Data[i][j] = i * 10 + rank * 100 + j;
-
-  int nwtot = (world += nwalk);
-
-  hdf_archive dump(world, true);
-  if (!dump.create("dummy_walkers.h5", H5F_ACC_EXCL))
-  {
-    app_error(" Error opening restart file. ");
-    APP_ABORT("");
-  }
-  dump.push("WalkerSet");
-
-  hyperslab_proxy<Matrix, 2> hslab(Data, std::array<int, 2>{nwtot, nprop}, std::array<int, 2>{nwalk, nprop},
-                                   std::array<int, 2>{rank * nwalk, 0});
-  dump.write(hslab, "Walkers");
-  dump.close();
-  world.barrier();
-
-  {
-    hdf_archive read(world, false);
-    if (!read.open("dummy_walkers.h5", H5F_ACC_RDONLY))
-    {
-      app_error(" Error opening restart file. ");
-      APP_ABORT("");
-    }
-    read.push("WalkerSet");
-
-    Matrix DataIn({nwalk, nprop});
-
-    hyperslab_proxy<Matrix, 2> hslabIn(DataIn, std::array<int, 2>{nwtot, nprop}, std::array<int, 2>{nwalk, nprop},
-                                     std::array<int, 2>{rank * nwalk, 0});
-    read.read(hslabIn, "Walkers");
-    read.close();
-
-    for (int i = 0; i < nwalk; i++)
-      for (int j = 0; j < nprop; j++)
-      {
-        REQUIRE(real(DataIn[i][j]) == i * 10 + rank * 100 + j);
-        REQUIRE(imag(DataIn[i][j]) == 0);
-      }
-  }
-  world.barrier();
-  if (world.root())
-    remove("dummy_walkers.h5");
-*/
-}
-
-void test_double_hyperslab()
-{
-  auto& mpi = utils::make_unit_test_mpi_context();
-
-/*
-  using Type   = std::complex<double>;
-  using Matrix = boost::multi::array<Type, 2>;
-
-  int rank = world.rank();
-
-  int nwalk         = 9;
-  int nprop         = 3;
-  int nprop_to_safe = 3;
-  Matrix Data({nwalk, nprop});
-
-  for (int i = 0; i < nwalk; i++)
-    for (int j = 0; j < nprop; j++)
-      Data[i][j] = i * 10 + rank * 100 + j;
-
-  int nwtot = (world += nwalk);
-
-  hdf_archive dump(world, true);
-  if (!dump.create("dummy_walkers.h5", H5F_ACC_EXCL))
-  {
-    app_error(" Error opening restart file. ");
-    APP_ABORT("");
-  }
-  dump.push("WalkerSet");
-
-  //double_hyperslab_proxy<Matrix,2> hslab(Data,
-  hyperslab_proxy<Matrix, 2> hslab(Data, std::array<int, 2>{nwtot, nprop_to_safe},
-                                   std::array<int, 2>{nwalk, nprop_to_safe}, std::array<int, 2>{rank * nwalk, 0}); //,
-
-  //                                  std::array<int,2>{nwalk,nprop},
-  //                                  std::array<int,2>{nwalk,nprop_to_safe},
-  //                                  std::array<int,2>{0,0});
-  dump.write(hslab, "Walkers");
-  dump.close();
-  world.barrier();
-
-  {
-    hdf_archive read(world, false);
-    if (!read.open("dummy_walkers.h5", H5F_ACC_RDONLY))
-    {
-      app_error(" Error opening restart file. ");
-      APP_ABORT("");
-    }
-    read.push("WalkerSet");
-
-    //Matrix DataIn({nwalk,nprop});
-    Matrix DataIn({nwalk, nprop_to_safe});
-
-    //double_hyperslab_proxy<Matrix,2> hslab(DataIn,
-    hyperslab_proxy<Matrix, 2> hslabIn(DataIn, std::array<int, 2>{nwtot, nprop_to_safe},
-                                     std::array<int, 2>{nwalk, nprop_to_safe}, std::array<int, 2>{rank * nwalk, 0}); //,
-    //                                  std::array<int,2>{nwalk,nprop},
-    //                                  std::array<int,2>{nwalk,nprop_to_safe},
-    //                                  std::array<int,2>{0,0});
-    read.read(hslabIn, "Walkers");
-    read.close();
-
-    for (int i = 0; i < nwalk; i++)
-    {
-      for (int j = 0; j < nprop_to_safe; j++)
-      {
-        REQUIRE(real(DataIn[i][j]) == i * 10 + rank * 100 + j);
-        REQUIRE(imag(DataIn[i][j]) == 0);
-      }
-\\     for(int j=nprop_to_safe; j<nprop; j++) {
-\\       REQUIRE( real(DataIn[i][j]) == 0);
-\\       REQUIRE( imag(DataIn[i][j]) == 0);
-\\     }
-    }
-  }
-  world.barrier();
-  if (world.root())
-    remove("dummy_walkers.h5");
-*/
-}
-
 void test_walker_io(std::string wtype)
 {
   using Type = std::complex<double>;
@@ -425,41 +283,19 @@ void test_walker_io(std::string wtype)
   REQUIRE(cnt == nwalkers);
 
   // dump restart file
-  if(mpi->comm.root()) 
   {
-    h5::file fh5("dummy_walkers.h5",'w');
-    dumpToHDF5(wset, fh5);
-  } else {
     h5::file fh5;
+    if(mpi->comm.root()) fh5 = h5::file("dummy_walkers.h5",'w');
     dumpToHDF5(wset, fh5);
   }
 
-/*
   {
-#if defined(ENABLE_PHDF5)
-    hdf_archive read(world, true);
-    {
-#else
-    hdf_archive read(world, false);
-    if (TG.Global().root())
-    {
-#endif
-      if (!read.open("dummy_walkers.h5", H5F_ACC_RDONLY))
-      {
-        app_error(" Error opening restart file. ");
-        APP_ABORT("");
-      }
-      else
-      {
-        read.close();
-      }
-    }
-
-    WalkerSet wset2(TG, pt0.get_child("WalkerSet"), info, &rng);
-    restartFromHDF5(wset2, nwalkers, "dummy_walkers.h5", read, true);
+    h5::file fh5 = h5::file("dummy_walkers.h5",'r');
+    WalkerSet wset2(mpi, pt0.get_child("WalkerSet"), info, rng);
+    restartFromHDF5(wset2, nwalkers, fh5, true);
     for (int i = 0; i < nwalkers; i++)
     {
-      CHECK(*wset[i].SlaterMatrix(Alpha) == *wset2[i].SlaterMatrix(Alpha));
+      CHECK(wset[i].SlaterMatrix(Alpha) == wset2[i].SlaterMatrix(Alpha));
       CHECK(ComplexType(*wset[i].weight()) == ComplexType(*wset2[i].weight()));
       CHECK(ComplexType(*wset[i].overlap()) == ComplexType(*wset2[i].overlap()));
       CHECK(ComplexType(*wset[i].E1()) == ComplexType(*wset2[i].E1()));
@@ -467,30 +303,20 @@ void test_walker_io(std::string wtype)
       CHECK(ComplexType(*wset[i].EJ()) == ComplexType(*wset2[i].EJ()));
     }
   }
-*/
+
   mpi->comm.barrier();
   if (mpi->comm.root())
     remove("dummy_walkers.h5");
 }
 
-TEST_CASE("swset_test_serial", "[shared_wset]")
+// MAM: Tests are not GPU enabled, fix direct access to GPU memory
+TEST_CASE("swset_test_basic", "[shared_wset]")
 {
-  test_basic_walker_features(true, "closed");
-  test_basic_walker_features(false, "closed");
-  test_basic_walker_features(true, "collinear");
-  test_basic_walker_features(false, "collinear");
-  test_basic_walker_features(true, "noncollinear");
-  test_basic_walker_features(false, "noncollinear");
-  test_basic_walker_features(true, "fullypolarized");
-  test_basic_walker_features(false, "fullypolarized");
+  test_basic_walker_features("closed");
+  test_basic_walker_features("collinear");
+  test_basic_walker_features("noncollinear");
+  test_basic_walker_features("fullypolarized");
 }
-/*
-TEST_CASE("hyperslab_tests", "[shared_wset]")
-{
- // test_hyperslab();
-  test_double_hyperslab();
-}
-*/
 TEST_CASE("walker_io", "[shared_wset]")
 {
   test_walker_io("closed");

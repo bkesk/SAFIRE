@@ -32,15 +32,14 @@ namespace sfqmc
 {
 namespace afqmc
 {
-template<class WalkerSet, typename = typename std::enable_if<(WalkerSet::contiguous_walker)>::type>
+template<class WalkerSet>
 bool dumpSamplesHDF5([[maybe_unused]] WalkerSet& wset,
-                     [[maybe_unused]] h5::group& dump,
+                     [[maybe_unused]] h5::file& dump,
                      [[maybe_unused]] int nW_to_file)
 {
   return true;
   APP_ABORT("Finish ");
-  return true;
-  /*
+/*
   if(nW_to_file==0) return true;
   if(head) { 
 
@@ -161,45 +160,29 @@ bool dumpSamplesHDF5([[maybe_unused]] WalkerSet& wset,
 
   }
 
-  TG.Global().barrier();  
+  mpi->comm.barrier();  
 
   return true;
 */
 }
 
-template<class WalkerSet, typename = typename std::enable_if<(WalkerSet::contiguous_walker)>::type>
+// fh5 opened on all ranks with read-only
+template<class WalkerSet>
 bool restartFromHDF5(WalkerSet& wset,
-                     int nW_per_tg,
-                     std::string hdf_read_restart,
-                     h5::group& read,
+                     int nW_per_rank,
+                     h5::file& fh5,
                      bool set_to_target)
 {
-/*
-  TaskGroup_& TG = wset.getTG();
+  auto all = nda::range::all;
+  auto mpi = wset.get_mpi();
 
   std::vector<int> Idata(7);
-  if (TG.TG_local().root())
-  {
-    if (!read.open(hdf_read_restart, H5F_ACC_RDONLY))
-      APP_ABORT("Problem opening restart file");
-
-    std::string path = "/Walkers/WalkerSet";
-
-    if (!read.is_group(path))
-    {
-      app_error(" ERROR: H5Group  could not find /Walkers/WalkerSet group in file. No restart data for walkers. ");
-      return false;
-    }
-
-    if (!read.push("Walkers"))
-      return false;
-    if (!read.push("WalkerSet"))
-      return false;
-
-    if (!read.readEntry(Idata, "dims"))
-      return false;
-  }
-  TG.TG_local().broadcast_n(Idata.begin(), Idata.size());
+  h5::group grp(fh5);
+  utils::check(grp.has_subgroup("Walkers"), " restartFromHDF5: Missing Walkers dataset.");
+  h5::group sgrp = grp.open_group("Walkers"); 
+  utils::check(sgrp.has_subgroup("WalkerSet"), " restartFromHDF5: Missing WalkeriSet dataset.");
+  h5::group wgrp = sgrp.open_group("WalkerSet");
+  h5::h5_read(wgrp, "dims", Idata);
 
   auto walker_type = wset.getWalkerType();
 
@@ -208,77 +191,62 @@ bool restartFromHDF5(WalkerSet& wset,
   int NMO        = Idata[4];
   int NAEA       = Idata[5];
   int NAEB       = Idata[6];
-  if (wlk_nterms != wset.walkerSizeIO())
-  {
-    app_error(" Inconsistent walker restart file: IO size, NMO, NAEA, NAEB, WalkerType: {}, {}, {}, {}, {} ",
-		 wset.walkerSizeIO(), NMO, NAEA< NAEB, int(wset.getWalkerType()));
-    APP_ABORT("");
-  }
+  utils::check(wlk_nterms == wset.walkerSizeIO(), 
+               " Inconsistent walker restart file: IO size, NMO, NAEA, NAEB, WalkerType: {}, {}, {}, {}, {} ",
+               wset.walkerSizeIO(), NMO, NAEA< NAEB, int(wset.getWalkerType()));
 
-  // walker range belonging to this TG
+  // walker range belonging to this comm 
   int nW0, nWN;
   if (set_to_target)
   {
-    if (nWtot < nW_per_tg * TG.TG_heads().size())
-      APP_ABORT(" Error: Not enough walkers in restart file.");
-    nW0 = nW_per_tg * TG.TG_heads().rank();
-    nWN = nW0 + nW_per_tg;
+    utils::check(nWtot >= nW_per_rank * mpi->comm.size(),
+                 " Error: Not enough walkers in restart file.");
+    nW0 = nW_per_rank * mpi->comm.rank();
+    nWN = nW0 + nW_per_rank;
   }
   else
   {
-    if (nWtot % TG.TG_heads().size() != 0)
-      APP_ABORT(" Error: Number of walkers in restart file must be divisible by number of task groups.");
-    nW0 = (nWtot / TG.TG_heads().size()) * TG.TG_heads().rank();
-    nWN = nW0 + nWtot / TG.TG_heads().size();
+    utils::check(nWtot % mpi->comm.size() == 0, 
+                 " Error: Number of walkers in restart file must be divisible by number of task groups.");
+    nW0 = (nWtot / mpi->comm.size()) * mpi->comm.rank();
+    nWN = nW0 + nWtot / mpi->comm.size();
   }
+
   int nw_local = nWN - nW0;
   { // to limit scope
-    boost::multi::array<ComplexType, 2> PsiA, PsiB;
     int NMO2 = ((walker_type == NONCOLLINEAR) ? 2 * NMO : NMO);
-    if (TG.TG_local().root())
-    {
-      PsiA.reextent({NMO2, NAEA});
-      if (wset.getWalkerType() == COLLINEAR)
-        PsiB.reextent({NMO, NAEB});
+    nda::array<ComplexType, 2> PsiA(NMO2, NAEA), PsiB;
+    if (wset.getWalkerType() == COLLINEAR) {
+      PsiB.resize(NMO, NAEB);
+      PsiB() = ComplexType(0.0);
     }
-    // PsiA/B only meaningful at root
     wset.resize(nw_local, PsiA, PsiB);
   }
 
-  // only head of WalkerSet reads
-  if (TG.TG_local().root())
+  std::vector<int> wlk_per_blk;
+  h5::h5_read(wgrp,"wlk_per_blk",wlk_per_blk);
+
+  nda::array<ComplexType, 2> Data;
+
+  // loop through blocks and read when necessary
+  int ni = 0, nread = 0, bi = 0;
+  while (nread < nw_local)
   {
-    std::vector<int> wlk_per_blk;
-    read.read(wlk_per_blk, "wlk_per_blk");
-
-    boost::multi::array<ComplexType, 2> Data;
-
-    // loop through blocks and read when necessary
-    int ni = 0, nread = 0, bi = 0;
-    while (nread < nw_local)
+    if (ni + wlk_per_blk[bi] > nW0)
     {
-      if (ni + wlk_per_blk[bi] > nW0)
-      {
-        // determine block of walkers to read
-        int w0  = std::max(0, nW0 - ni);
-        int nw_ = std::min(ni + wlk_per_blk[bi], nWN) - std::max(ni, nW0);
-        Data.reextent({nw_, wlk_nterms});
-        hyperslab_proxy<boost::multi::array_ref<ComplexType, 2>, 2> hslab(Data,
-                                                                          std::array<int, 2>{wlk_per_blk[bi],
-                                                                                             wlk_nterms},
-                                                                          std::array<int, 2>{nw_, wlk_nterms},
-                                                                          std::array<int, 2>{w0, 0});
-        read.read(hslab, std::string("walkers_") + std::to_string(bi));
-        for (int n = 0; n < nw_; n++, nread++)
-          wset.copyFromIO(Data[n], nread);
-      }
-      ni += wlk_per_blk[bi++];
-    }
-  }
-  TG.Global().barrier();
+      // determine block of walkers to read
+      int w0  = std::max(0, nW0 - ni);
+      int nw_ = std::min(ni + wlk_per_blk[bi], nWN) - std::max(ni, nW0);
+      Data.resize(nw_, wlk_nterms);
 
-  read.close();
-*/
+      nda::range r(w0,w0+nw_);
+      nda::h5_read(wgrp,"walkers_"+std::to_string(bi),Data,std::tuple{r,all}); 
+      for (int n = 0; n < nw_; n++, nread++)
+        wset.copyFromIO(Data(n,all), nread);
+    }
+    ni += wlk_per_blk[bi++];
+  }
+  mpi->comm.barrier();
   return true;
 }
 
@@ -289,9 +257,9 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
   auto mpi = wset.get_mpi();
 
   int nW = wset.size();
-  auto nw_per_tg = mpi->comm.all_gather_value(nW);
-  int nWtot = std::accumulate(nw_per_tg.begin(), nw_per_tg.end(), int(0));
-  int w0    = std::accumulate(nw_per_tg.begin(), nw_per_tg.begin() + mpi->comm.rank(), int(0));
+  auto nw_per_rank = mpi->comm.all_gather_value(nW);
+  int nWtot = std::accumulate(nw_per_rank.begin(), nw_per_rank.end(), int(0));
+  int w0    = std::accumulate(nw_per_rank.begin(), nw_per_rank.begin() + mpi->comm.rank(), int(0));
 
   auto walker_type = wset.getWalkerType();
 
@@ -367,7 +335,7 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
         }
 
         counts[p] = n_ * wlk_nterms;
-        nt += nw_per_tg[p];
+        nt += nw_per_rank[p];
       }
       displ[0] = 0;
       for (int p = 1, nt = 0; p < mpi->comm.size(); p++)
