@@ -164,6 +164,27 @@ if(ENABLE_HIP)
 endif(ENABLE_HIP)
 
 ######################################################################
+# HDF5
+######################################################################
+find_package(ZLIB)
+set(HDF5_PREFER_PARALLEL TRUE CACHE BOOL "Request parallel/serial HDF5 library")
+find_package(HDF5 REQUIRED COMPONENTS C)
+message(STATUS "HDF5 version: ${HDF5_VERSION}")
+if(HDF5_IS_PARALLEL)
+  message(STATUS "Parallel HDF5 library found")
+  set(ENABLE_PHDF5 TRUE CACHE BOOL "Enable code paths using parallel HDF5")
+else(HDF5_IS_PARALLEL)
+  message(STATUS "Serial HDF5 library found")
+  set(ENABLE_PHDF5 FALSE CACHE BOOL "Enable code paths using parallel HDF5")
+endif(HDF5_IS_PARALLEL)
+add_library(IO::HDF5 INTERFACE IMPORTED)
+set_target_properties(IO::HDF5 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${HDF5_INCLUDE_DIR}"
+                                          INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
+if(ENABLE_PHDF5)
+  set_property(TARGET IO::HDF5 APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS "ENABLE_PHDF5")
+endif(ENABLE_PHDF5)
+
+######################################################################
 # MPI
 ######################################################################
 find_package(MPI REQUIRED)
@@ -247,28 +268,6 @@ endif()
 #      set(HAVE_MKL ON)
 #  endif()
 #endif()
-
-######################################################################
-# HDF5
-######################################################################
-find_package(ZLIB)
-set(HDF5_PREFER_PARALLEL TRUE CACHE BOOL "Request parallel/serial HDF5 library")
-find_package(HDF5 REQUIRED COMPONENTS C)
-message(STATUS "HDF5 version: ${HDF5_VERSION}")
-if(HDF5_IS_PARALLEL)
-  message(STATUS "Parallel HDF5 library found")
-  set(ENABLE_PHDF5 TRUE CACHE BOOL "Enable code paths using parallel HDF5")
-else(HDF5_IS_PARALLEL)
-  message(STATUS "Serial HDF5 library found")
-  set(ENABLE_PHDF5 FALSE CACHE BOOL "Enable code paths using parallel HDF5")
-endif(HDF5_IS_PARALLEL)
-add_library(IO::HDF5 INTERFACE IMPORTED)
-set_target_properties(IO::HDF5 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${HDF5_INCLUDE_DIR}"
-                                          INTERFACE_COMPILE_DEFINITIONS "H5_USE_16_API"
-                                          INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
-if(ENABLE_PHDF5)
-  set_property(TARGET IO::HDF5 APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS "ENABLE_PHDF5")
-endif(ENABLE_PHDF5)
 
 ######################################################################
 # Boost: Header-only
@@ -407,7 +406,7 @@ target_compile_options(${PROJECT_NAME}_warnings
     $<$<COMPILE_LANGUAGE:CUDA>:--diag-error=128> # unreachable_code
 )
 
-subdirs(src)
+add_subdirectory(src)
 
 
 #######################################################################
