@@ -1,0 +1,23 @@
+#//////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////
+
+ 
+if(ENABLE_CUDA)
+
+  set(SRCS
+    ucsr_matrix.cpp
+    detail/CUDA/cusparse_interface.cpp
+  )
+
+ELSE()
+
+  set(SRCS
+    ucsr_matrix.cpp
+  )
+
+ENDIF()
+
+add_library(sparse_lib ${SRCS})
+target_link_libraries(sparse_lib PUBLIC io_lib arch_lib nda_c) 
+
+

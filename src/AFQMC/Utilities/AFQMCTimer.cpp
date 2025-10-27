@@ -14,7 +14,7 @@
 //
 //
 
-#include "Utilities/Timer.hpp"
+#include "utilities/Timer.hpp"
 
 namespace sfqmc
 {

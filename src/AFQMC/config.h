@@ -27,27 +27,15 @@
 #include <tuple>
 #include <fstream>
 
-#include "config.h"
-#include "Utilities/AppAbort.hpp"
-#include "Utilities/check.hpp"
+#include "configuration.hpp"
 #include "config.0.h"
+#include "IO/AppAbort.hpp"
+#include "utilities/check.hpp"
 
-#include "io/ptree/ptree_utilities.hpp"
+#include "IO/ptree/ptree_utilities.hpp"
 
-// platform-specific definition of pointer types, memory resources, etc...
-#include "Memory/config.h"
-#include "Memory/custom_pointers.hpp"
-
-#include "SparseMatrix/csr_matrix.hpp"
-#include "SparseMatrix/coo_matrix.hpp"
-
-//#include "mpi3/shared_window.hpp"
-#include "Memory/SharedMemory/shm_ptr_with_raw_ptr_dispatch.hpp"
-#include "multi/array.hpp"
-#include "multi/array_ref.hpp"
-#include "multi/memory/fallback.hpp"
-
-namespace mpi3 = boost::mpi3;
+//#include "SparseMatrix/csr_matrix.hpp"
+//#include "SparseMatrix/coo_matrix.hpp"
 
 namespace sfqmc
 {
@@ -59,8 +47,6 @@ const int DEFAULT_MEASURE_INTERVAL_MULTIPLIER = 1; // in units of population con
 const int DEFAULT_POPULATION_CONTROL_INTERVAL = 10; // in units of steps
 const int DEFAULT_WALKER_ORTHO_INTERVAL = 10; // in units of steps
 const float DEFAULT_TIME_STEP = 0.01f; // in units of inverse energy (depending on Hamiltonian units)
-
-namespace multi = boost::multi;
 
 // ultil we switch to c++17, to reduce extra lines
 using tp_ul_ul = std::tuple<std::size_t, std::size_t>;
@@ -110,21 +96,13 @@ inline INTEGRAL_TYPES initINTEGRAL_TYPES(int i)
   return UNDEFINED_INTEGRAL_TYPE;
 }
 
-template<typename T>
-using s1D = std::tuple<IndexType, T>;
-template<typename T>
-using s2D = std::tuple<IndexType, IndexType, T>;
-template<typename T>
-using s3D = std::tuple<IndexType, IndexType, IndexType, T>;
-template<typename T>
-using s4D = std::tuple<IndexType, IndexType, IndexType, IndexType, T>;
-
 enum SpinTypes
 {
   Alpha,
   Beta
 };
 
+/*
 // new types
 template<typename T>
 using mpi3_csr_matrix =
@@ -155,6 +133,7 @@ using P1Type = ma::sparse::csr_matrix<ComplexType, int, int, localTG_allocator<C
 #else
 using P1Type        = ma::sparse::csr_matrix<ComplexType, int, int, localTG_allocator<ComplexType>, ma::sparse::is_root>;
 #endif
+*/
 
 enum HamiltonianTypes
 {
@@ -176,77 +155,6 @@ enum PropagatorTypes
   DiscreteSpinPropagator,
   UndefinedPropagator
 };
-
-template<std::ptrdiff_t D>
-using iextensions = typename boost::multi::iextensions<D>;
-
-// general matrix definitions
-template<class Alloc = std::allocator<int>>
-using IntegerVector = boost::multi::array<int, 1, Alloc>;
-template<class Alloc = std::allocator<ComplexType>>
-using ComplexVector = boost::multi::array<ComplexType, 1, Alloc>;
-template<class Ptr = ComplexType*>
-using ComplexVector_ref = boost::multi::array_ref<ComplexType, 1, Ptr>;
-
-template<class Alloc = std::allocator<int>>
-using IntegerMatrix = boost::multi::array<int, 2, Alloc>;
-template<class Alloc = std::allocator<ComplexType>>
-using ComplexMatrix = boost::multi::array<ComplexType, 2, Alloc>;
-template<class Ptr = ComplexType*>
-using ComplexMatrix_ref = boost::multi::array_ref<ComplexType, 2, Ptr>;
-
-template<class Alloc = std::allocator<ComplexType>>
-using Complex3Tensor = boost::multi::array<ComplexType, 3, Alloc>;
-template<class Ptr = ComplexType*>
-using Complex3Tensor_ref = boost::multi::array_ref<ComplexType, 3, Ptr>;
-
-template<std::ptrdiff_t D, class Alloc = std::allocator<ComplexType>>
-using ComplexArray = boost::multi::array<ComplexType, D, Alloc>;
-template<std::ptrdiff_t D, class Ptr = ComplexType*>
-using ComplexArray_ref = boost::multi::array_ref<ComplexType, D, Ptr>;
-
-/* move to these types */
-template<class T, class Alloc = std::allocator<T>> 
-using Vector = boost::multi::array<T, 1, Alloc>;
-template<class T, class Alloc = std::allocator<T>> 
-using StaticVector = boost::multi::static_array<T, 1, Alloc>;
-template<class T, class Ptr = T*> 
-using Vector_ref = boost::multi::array_ref<T, 1, Ptr>;
-
-template<class T, class Alloc = std::allocator<T>>
-using Matrix = boost::multi::array<T, 2, Alloc>;
-template<class T, class Alloc = std::allocator<T>>
-using StaticMatrix = boost::multi::static_array<T, 2, Alloc>;
-template<class T, class Ptr = T*>              
-using Matrix_ref = boost::multi::array_ref<T, 2, Ptr>;
-
-template<class T, std::ptrdiff_t D, class Alloc = std::allocator<T>> 
-using Array = boost::multi::array<T, D, Alloc>;
-template<class T, std::ptrdiff_t D, class Alloc = std::allocator<T>> 
-using StaticArray = boost::multi::static_array<T, D, Alloc>;
-template<class T, std::ptrdiff_t D, class Ptr = T*> 
-using Array_ref = boost::multi::array_ref<T, D, Ptr>;
-
-template<class Alloc> 
-using Vector_ = boost::multi::array<typename std::allocator_traits<Alloc>::value_type, 1, Alloc>;
-template<class Alloc> 
-using StaticVector_ = boost::multi::static_array<typename std::allocator_traits<Alloc>::value_type, 1, Alloc>;
-template<class ptr> 
-using Vector_ref_ = boost::multi::array_ref<typename std::pointer_traits<ptr>::element_type, 1, ptr>; 
-
-template<class Alloc> 
-using Matrix_ = boost::multi::array<typename std::allocator_traits<Alloc>::value_type, 2, Alloc>;
-template<class Alloc> 
-using StaticMatrix_ = boost::multi::static_array<typename std::allocator_traits<Alloc>::value_type, 2, Alloc>;
-template<class ptr> 
-using Matrix_ref_ = boost::multi::array_ref<typename std::pointer_traits<ptr>::element_type, 2, ptr>; 
-
-template<std::ptrdiff_t D, class Alloc>
-using Array_ = boost::multi::array<typename std::allocator_traits<Alloc>::value_type, D, Alloc>;
-template<std::ptrdiff_t D, class Alloc>
-using StaticArray_ = boost::multi::static_array<typename std::allocator_traits<Alloc>::value_type, D, Alloc>;
-template<std::ptrdiff_t D, class ptr>
-using Array_ref_ = boost::multi::array_ref<typename std::pointer_traits<ptr>::element_type, D, ptr>; 
 
 struct AFQMCInfo
 {

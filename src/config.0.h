@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef CONFIG_0_H
-#define CONFIG_0_H
+#pragma once
 
 #include <complex>
 
@@ -48,14 +47,7 @@
 
 // guard with directive that checks if boost version is >=1.65
 // uncomment to enable stacktrace
-//#define ENABLE_STACKTRACE
 #include <boost/version.hpp>
-#if (BOOST_VERSION >= 106500) && defined(ENABLE_STACKTRACE)
-#include <boost/stacktrace.hpp>
-#define print_stacktrace std::cout << boost::stacktrace::stacktrace();
-#else
-#define print_stacktrace std::cout << "stacktrace not enabled.\n";
-#endif
 
 namespace sfqmc
 {
@@ -74,4 +66,3 @@ typedef std::complex<FloatType> ComplexFloat;
 } // namespace sfqmc
 
 
-#endif

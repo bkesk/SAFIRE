@@ -111,14 +111,19 @@ ENDIF()
 
 
 SET(UTILITIES
-  app_loggers.cpp
   app_version.cpp
+  mpi_context.cpp
+  parser.cpp
+  freemem.cpp
   ${GITREV_TMP}
 )
 ADD_LIBRARY(utils ${UTILITIES})
-TARGET_LINK_LIBRARIES(utils PUBLIC spdlog::spdlog)
+TARGET_LINK_LIBRARIES(utils PUBLIC qmcio)
 
-# MAM:  Putting catch library here, move to a better place later
-ADD_LIBRARY(catch_main catch_main.cpp)
-TARGET_INCLUDE_DIRECTORIES(catch_main PUBLIC "${PROJECT_SOURCE_DIR}/extern/catch")
-TARGET_LINK_LIBRARIES(catch_main PUBLIC catch_amalgamated)
+if(BUILD_UNIT_TESTS)
+  ADD_LIBRARY(catch_main catch_main.cpp)
+  TARGET_LINK_LIBRARIES(catch_main PUBLIC utils Catch2::Catch2)
+endif(BUILD_UNIT_TESTS)
+
+#TARGET_INCLUDE_DIRECTORIES(catch_main PUBLIC "${PROJECT_SOURCE_DIR}/extern/catch")
+#TARGET_LINK_LIBRARIES(catch_main PUBLIC utils catch_amalgamated)

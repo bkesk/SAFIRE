@@ -17,18 +17,17 @@
 #ifndef SFQMC_AFQMC_WALKERSET_HPP
 #define SFQMC_AFQMC_WALKERSET_HPP
 
-#include "AFQMC/Walkers/SharedWalkerSet.hpp"
-#include "AFQMC/Walkers/SerialWalkerSet.hpp"
+#include "configuration.hpp"
+#include "AFQMC/Walkers/WalkerSetBase.h"
 
 namespace sfqmc
 {
 namespace afqmc
 {
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-using WalkerSet = SerialWalkerSet;
-#else
-using WalkerSet = SharedWalkerSet;
-#endif
+
+// MAM: Make variant with memory types
+using WalkerSet = WalkerSetBase<HOST_MEMORY>;
+
 
 } // namespace afqmc
 

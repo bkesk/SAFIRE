@@ -40,9 +40,6 @@
 /* Enable device code, with some backend. */
 #cmakedefine ENABLE_DEVICE @ENABLE_DEVICE@
 
-/* Using boost::stacktrace */ 
-#cmakedefine ENABLE_STACKTRACE @ENABLE_STACKTRACE@
-
 /* Use NCCL library, only with ENABLE_CUDA=ON  */
 #cmakedefine USE_NCCL @USE_NCCL@
 

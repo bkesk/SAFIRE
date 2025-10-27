@@ -11,14 +11,13 @@
  *
  */
 
-#ifndef UTILITIES_RANDOM_HPP
-#define UTILITIES_RANDOM_HPP
+#pragma once
 
 #include <ctime>
 #include <vector>
 #include <random>
 #include "mpi3/communicator.hpp"
-#include "Utilities/check.hpp"
+#include "utilities/check.hpp"
 #include "AFQMC/Utilities/type_conversion.hpp"
 
 namespace utils
@@ -30,7 +29,7 @@ using RandomGenerator_t = std::mt19937;
 template<typename UInt>
 UInt get_prime(UInt N)
 {
-  RUNTIME_CHECK(not(N < 1),"N must be positive, provided N = {}", N);
+  utils::check(not(N < 1),"N must be positive, provided N = {}", N);
   if(N==UInt(1)) return UInt(1);
   if(N==UInt(2)) return UInt(2);
   if(N==UInt(3)) return UInt(3);
@@ -138,4 +137,3 @@ inline void load(RandomGenerator_t& rng,
 
 }
 
-#endif

@@ -14,24 +14,25 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_WALKERSETBASE_H
-#define SFQMC_AFQMC_WALKERSETBASE_H
+#pragma once
 
 #include <random>
 #include <type_traits>
 #include <memory>
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-#include "io/ptree/ptree_utilities.hpp"
-#include "Utilities/Random.hpp"
+#include "IO/AppAbort.hpp"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/mpi_context.h"
+#include "utilities/type_traits.hpp"
+
+#include "nda/tensor.hpp"
 
 #include "AFQMC/config.h"
-#include "Utilities/app_loggers.h"
+#include "IO/app_loggers.h"
 #include "AFQMC/Utilities/AFQMCTimer.h"
-#include "AFQMC/Utilities/taskgroup.h"
 #include "AFQMC/Utilities/type_conversion.hpp"
-#include "Numerics/ma_blas.hpp"
 
 #include "AFQMC/Walkers/Walkers.hpp"
 #include "AFQMC/Walkers/WalkerControl.hpp"
@@ -46,40 +47,13 @@ namespace afqmc
  * Implements communication, load balancing, and I/O operations.   
  * Walkers are always accessed through the handler.
  */
-template<class Alloc, class Ptr> //, class BPAlloc, class BPPtr>
+template<MEMORY_SPACE _MEM_>
 class WalkerSetBase : public AFQMCInfo
 {
 protected:
 
 public:
-  using element       = typename std::pointer_traits<Ptr>::element_type;
-  using element_type  = element; 
-  using pointer       = Ptr;
-  using bp_element       = std::complex<float>; //typename to_single_precision<ComplexType>::type; 
-  using bp_element_value_type = typename std::decay<bp_element>::type::value_type;
-  using bp_pointer       = bp_element*; 
-
-protected:
-  using const_element = const element;
-  using const_pointer = const Ptr;
-  using Allocator     = Alloc;
-
-  // since there is no factory, I can't use the trick I've been using to 
-  // choose precision runtime. Storing BP fields in single precision for now,
-  // regardless of choice of precision. If this is a problem, make a factory and choose
-  // at runtime appropriately.  
-  using const_bp_element = const bp_element;
-  using const_bp_pointer = const bp_pointer;
-  using BPAllocator      = shared_allocator<bp_element>; //BPAlloc;
-
-  using CMatrix       = boost::multi::array<element, 2, Allocator>;
-  using BPCMatrix     = boost::multi::array<bp_element, 2, BPAllocator>;
-  using BPCVector_ref = boost::multi::array_ref<bp_element, 1, bp_pointer>;
-  using BPCMatrix_ref = boost::multi::array_ref<bp_element, 2, bp_pointer>;
-  using BPCTensor_ref = boost::multi::array_ref<bp_element, 3, bp_pointer>;
-
-  using stdBPCMatrix_ptr = boost::multi::array_ptr<bp_element, 2>;
-  using stdBPCTensor_ptr = boost::multi::array_ptr<bp_element, 3>;
+  static const MEMORY_SPACE MEM    = _MEM_;
 
 public:
   // contiguous_walker = true means that all the data of a walker is continguous in memory
@@ -88,22 +62,21 @@ public:
   static const bool contiguous_storage = true;
   static const bool fixed_population   = true;
 
-  using reference = walker<pointer>;
-  using iterator  = walker_iterator<pointer>;
-  //using const_reference = const_walker<const_pointer>;
-  //using const_iterator = const_walker_iterator<const_pointer>;
-  using const_reference = walker<pointer>;
-  using const_iterator  = walker_iterator<pointer>;
+  using reference = walker<MEM>;
+  using iterator  = walker_iterator<MEM>;
+  using const_reference = reference;     // MAM: do I need an actual const version??? 
+  using const_iterator  = iterator; 
+
+  WalkerSetBase() = default;
 
   /// constructor
-  WalkerSetBase(afqmc::TaskGroup_& tg_,
+  WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
                 ptree pt,
                 AFQMCInfo& info,
-                utils::RandomGenerator_t* r,
-                Allocator alloc_,
-                BPAllocator bpalloc_)
+                std::shared_ptr<utils::RandomGenerator_t> r
+               )
       : AFQMCInfo(info),
-        TG(tg_),
+        mpi(_mpi_),
         rng(r),
         walker_size(1),
         walker_memory_usage(0),
@@ -113,8 +86,8 @@ public:
         history_pos(0),
         walkerType(UNDEFINED_WALKER_TYPE),
         tot_num_walkers(0),
-        walker_buffer({0, 1}, alloc_),
-        bp_buffer({0, 0}, bpalloc_),
+        walker_buffer(0, 1),
+        bp_buffer(0, 0),
         load_balance(UNDEFINED_LOAD_BALANCE),
         pop_control(UNDEFINED_BRANCHING),
         min_weight(0.05),
@@ -140,7 +113,7 @@ public:
   /*
    * Returns the maximum number of walkers in the set that can be stored without reallocation.
    */
-  int capacity() const { return int(walker_buffer.size(0)); }
+  int capacity() const { return int(walker_buffer.extent(0)); }
 
   /*
    * Returns the maximum number of fields in the set that can be stored without reallocation. 
@@ -175,8 +148,8 @@ public:
    */
   iterator begin()
   {
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return iterator(0, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ, wlk_desc);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return iterator(0, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
@@ -184,19 +157,17 @@ public:
    */
   const_iterator begin() const
   {
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return const_iterator(0, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ, wlk_desc);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return const_iterator(0, walker_buffer, data_displ, wlk_desc);
   }
-
 
   /*
    * Returns iterator to the past-the-end walker in the set
    */
   iterator end()
   {
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return iterator(tot_num_walkers, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ,
-                    wlk_desc);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
@@ -204,10 +175,9 @@ public:
    */
   reference operator[](int i)
   {
-    if (i < 0 || i > tot_num_walkers)
-      APP_ABORT("error: index out of bounds.");
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return reference(boost::multi::static_array_cast<element, pointer>(walker_buffer)[i], data_displ, wlk_desc);
+    utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
   /*
@@ -215,10 +185,9 @@ public:
    */
   const_reference operator[](int i) const
   {
-    if (i < 0 || i > tot_num_walkers)
-      APP_ABORT("error: index out of bounds.");
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    return const_reference(boost::multi::static_array_cast<element, pointer>(walker_buffer)[i], data_displ, wlk_desc);
+    utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return const_reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
   // cleans state of object.
@@ -261,7 +230,7 @@ public:
   // perform and report tests/timings
   void benchmark(std::string& blist, int maxnW, int delnW, int repeat);
 
-  int get_TG_target_population() const { return targetN_per_TG; }
+  int get_target_population() const { return targetN_per_rank; }
   int get_global_target_population() const { return targetN; }
 
   std::pair<int, int> walker_dims() const { return std::pair<int, int>{wlk_desc[0], wlk_desc[1]}; }
@@ -269,116 +238,80 @@ public:
   int GlobalPopulation() const
   {
     int res = 0;
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    if (TG.TG_local().root())
-      res += tot_num_walkers;
-    return (TG.Global() += res);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch.");
+    res += tot_num_walkers;
+    return (mpi->comm += res);
   }
 
   RealType GlobalWeight() const
   {
     RealType res = 0;
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    if (TG.TG_local().root())
-    {
-      boost::multi::array<ComplexType, 1> buff(iextensions<1u>{tot_num_walkers});
-      getProperty(WEIGHT, buff);
-      for (int i = 0; i < tot_num_walkers; i++)
-        res += std::abs(buff[i]);
-    }
-    return (TG.Global() += res);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch.");
+    nda::array<ComplexType, 1> buff(tot_num_walkers,ComplexType(0.0));
+    getProperty(WEIGHT, buff);
+    for (int i = 0; i < tot_num_walkers; i++)
+      res += std::abs(buff(i));
+    return (mpi->comm += res);
   }
 
+  private:
+
+  template<walker_data D>
+  auto extract_SM( SpinTypes s ) {
+    static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
+    auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
+    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
+    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
+    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<MEM,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+  } 
+
+  template<walker_data D>
+  auto extract_SM( SpinTypes s ) const {
+    static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
+    auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
+    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
+    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
+    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<MEM,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+  }
+
+  public:
+
   auto SlaterMatrices( SpinTypes s )  
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SM]};
-    auto dx{wlk_desc[0]*wlk_desc[1]};
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2{dx + wlk_desc[0]*wlk_desc[2]};
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    return extract_SM<SM>(s);
   } 
 
   auto SlaterMatrices( SpinTypes s ) const
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SM]};
-    auto dx{wlk_desc[0]*wlk_desc[1]};
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2{dx + wlk_desc[0]*wlk_desc[2]};
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    return extract_SM<SM>(s);
   }
 
   auto SlaterMatricesN( SpinTypes s )
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    if (data_displ[SMN] < 0)
-      APP_ABORT("error in SlaterMatricesN: access to uninitialized BP sector. ");
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SMN]};
-    auto dx{wlk_desc[0]*wlk_desc[1]};
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2(dx + wlk_desc[0]*wlk_desc[2]);
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
+    return extract_SM<SMN>(s);
   }
 
   auto SlaterMatricesN( SpinTypes s ) const
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    if (data_displ[SMN] < 0)
-      APP_ABORT("error in SlaterMatricesN: access to uninitialized BP sector. ");
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SMN]};
-    auto dx{wlk_desc[0]*wlk_desc[1]};
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2(dx + wlk_desc[0]*wlk_desc[2]);
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
+    return extract_SM<SMN>(s);
   }
 
   auto SlaterMatricesAux( SpinTypes s )
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    if (data_displ[SM_AUX] < 0)
-      APP_ABORT("error in SlaterMatricesAux: access to uninitialized BP sector. ");
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SM_AUX]};
-    auto dx(wlk_desc[0]*wlk_desc[1]);
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2(dx + wlk_desc[0]*wlk_desc[2]);
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
+    return extract_SM<SM_AUX>(s);
   }
 
   auto SlaterMatricesAux( SpinTypes s ) const
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    if (data_displ[SM_AUX] < 0)
-      APP_ABORT("error in SlaterMatricesAux: access to uninitialized BP sector. ");
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SM_AUX]};
-    auto dx(wlk_desc[0]*wlk_desc[1]);
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2(dx + wlk_desc[0]*wlk_desc[2]);
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
+    return extract_SM<SM_AUX>(s);
   }
 
   void processWalkerData(std::vector<ComplexType>& curData);
@@ -389,58 +322,55 @@ public:
   // Note: the following overload is deprecated
   void popControl(std::vector<ComplexType>& curData, bool skip = false);
 
-  template<class Mat>
-  void push_walkers(Mat&& M);
+  void push_walkers(nda::MemoryArrayOfRank<2> auto&& M);
 
-  template<class Mat>
-  void pop_walkers(Mat&& M);
+  void pop_walkers(nda::MemoryArrayOfRank<2> auto&& M);
 
   // given a list of new weights and counts, add/remove walkers and reassign weight accordingly
-  template<class Mat>
-  void branch(Vector<std::pair<double, int>>::iterator itbegin,
-              Vector<std::pair<double, int>>::iterator itend,
-              Mat& M);
+  template<class It>
+  void branch(It itbeg, It itend, nda::MemoryArrayOfRank<2> auto&& M); 
 
   template<class T>
   void scaleWeight(const T& w0, bool scale_last_history = false)
   {
-    if (!TG.TG_local().root())
-      return;
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    ma::scal(ComplexType(w0), W({0, tot_num_walkers}, data_displ[WEIGHT]));
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    nda::blas::scal(ComplexType(w0), walker_buffer(nda::range(tot_num_walkers), data_displ[WEIGHT]));
     if (scale_last_history)
     {
       int his_pos = ((history_pos == 0) ? wlk_desc[6] - 1 : history_pos - 1);
       if (wlk_desc[6] > 0 && his_pos >= 0 && his_pos < wlk_desc[6])
       {
-        auto BPW{boost::multi::static_array_cast<bp_element, bp_pointer>(bp_buffer)};
-        ma::scal(bp_element(static_cast<bp_element_value_type>(w0)), BPW[data_displ[WEIGHT_HISTORY] + his_pos]);
+        nda::blas::scal(ComplexType(w0), 
+                bp_buffer(data_displ[WEIGHT_HISTORY] + his_pos, nda::range(tot_num_walkers)));
       }
     }
   }
 
   void scaleWeightsByOverlap()
   {
-    if (!TG.TG_local().root())
-      return;
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    boost::multi::array<ComplexType, 1> ov(iextensions<1u>{tot_num_walkers});
-    boost::multi::array<ComplexType, 1> buff(iextensions<1u>{tot_num_walkers});
+    using nda::tensor::op::MUL;
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    nda::range r(tot_num_walkers);
+    nda::array<ComplexType,1> ov(tot_num_walkers);  // on host
+    nda::array<ComplexType,1> buff(tot_num_walkers);  // on host
+    memory::array<MEM,ComplexType,1> buff_d(tot_num_walkers);  // on device
     getProperty(OVLP, ov);
     for (int i = 0; i < tot_num_walkers; i++)
-      buff[i] = ComplexType(1.0 / std::abs(ov[i]), 0.0);
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[WEIGHT]));
+      buff(i) = ComplexType(1.0 / std::abs(ov[i]), 0.0);
+    buff_d() = buff(); // to device
+    // A(i) = A(i) * x(i)
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[WEIGHT]),"i",MUL);
     for (int i = 0; i < tot_num_walkers; i++)
       buff[i] = std::exp(ComplexType(0.0, -std::arg(ov[i])));
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[PHASE]));
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[PHASE1]));
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[PHASE2]));
-    ma::axty(ComplexType(1.0), buff, W({0, tot_num_walkers}, data_displ[PHASE3]));
+    buff_d() = buff();  // to device
+    // A(i) = A(i) * x(i)
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE]),"i",MUL);
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE1]),"i",MUL);
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE2]),"i",MUL);
+    nda::tensor::elementwise(buff_d,"i",walker_buffer(r,data_displ[PHASE3]),"i",MUL);
   }
 
-  afqmc::TaskGroup_& getTG() const { return TG; }
+  auto get_mpi() const { return mpi; }
 
   int single_walker_memory_usage() const { return walker_memory_usage; }
   int single_walker_size() const { return walker_size; }
@@ -462,102 +392,85 @@ public:
 
   // I am going to assume that the relevant data to be copied is continuous,
   // careful not to break this in the future
-  template<class Vec>
-  void copyToIO(Vec&& x, int n)
+  void copyToIO(nda::MemoryArrayOfRank<1> auto&& x, int n)
   {
-    RUNTIME_CHECK(n < tot_num_walkers, "");
-    RUNTIME_CHECK(x.size() >= walkerSizeIO(), "");
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    using std::copy_n;
-    copy_n(W[n].origin(), walkerSizeIO(), x.origin());
+    using nda::range;
+    utils::check(n < tot_num_walkers, "Incorrect argument");
+    utils::check(x.size() >= walkerSizeIO(), "Size mismatch");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    x(range(walkerSizeIO())) = walker_buffer(n,range(walkerSizeIO()));
   }
 
-  template<class Vec>
-  void copyFromIO(Vec&& x, int n)
+  void copyFromIO(nda::MemoryArrayOfRank<1> auto&& x, int n)
   {
-    RUNTIME_CHECK(n < tot_num_walkers, "");
-    RUNTIME_CHECK(x.size() >= walkerSizeIO(), "");
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    using std::copy_n;
-    copy_n(x.origin(), walkerSizeIO(), W[n].origin());
+    using nda::range;
+    utils::check(n < tot_num_walkers, "Incorrect argument");
+    utils::check(x.size() >= walkerSizeIO(), "Size mismatch");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    walker_buffer(n,range(walkerSizeIO())) = x(range(walkerSizeIO()));
   }
 
-  template<class TVec>
-  void getProperty(walker_data id, TVec&& v) const
+  void getProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v) const
   {
-    static_assert(std::decay<TVec>::type::dimensionality == 1, "Wrong dimensionality");
-    if (v.num_elements() < tot_num_walkers)
-      APP_ABORT("Error: getProperty(v):: v.size < tot_num_walkers.");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    ma::copy(W({0, tot_num_walkers}, data_displ[id]), v.sliced(0, tot_num_walkers));
+    using nda::range;
+    utils::check(v.size() >= tot_num_walkers, " Shape mismatch");
+    v(range(tot_num_walkers)) = walker_buffer(range(tot_num_walkers),data_displ[id]);
   }
 
-  template<class TVec>
-  void setProperty(walker_data id, TVec&& v)
+  void setProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v)
   {
-    static_assert(std::decay<TVec>::type::dimensionality == 1, "Wrong dimensionality");
-    if (v.num_elements() < tot_num_walkers)
-      APP_ABORT("Error: setProperty(v):: v.size < tot_num_walkers.");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    ma::copy(v.sliced(0, tot_num_walkers), W({0, tot_num_walkers}, data_displ[id]));
+    using nda::range;
+    utils::check(v.size() >= tot_num_walkers, " Shape mismatch");
+    walker_buffer(range(tot_num_walkers),data_displ[id]) = v(range(tot_num_walkers));
   }
 
   void resetWeights()
   {
-    TG.TG_local().barrier();
-    if (TG.TG_local().root())
+    mpi->comm.barrier();
     {
-      boost::multi::array<element, 1> w_(iextensions<1u>{tot_num_walkers}, ComplexType(1.0));
+      memory::array<MEM, ComplexType, 1> w_(tot_num_walkers, ComplexType(1.0));
       setProperty(WEIGHT, w_);
     }
-    TG.TG_local().barrier();
+    mpi->comm.barrier();
   }
 
-  // Careful!!! This matrix returns an array_ptr, NOT a copy!!!
-  stdBPCMatrix_ptr getFields(int ip)
+  auto getFields(int ip)
   {
-    if (ip < 0 || ip > wlk_desc[3])
-      APP_ABORT(" Error: index out of bounds in getFields. ");
-    int skip = (data_displ[FIELDS] + ip * wlk_desc[4]) * bp_buffer.size(1);
-    return stdBPCMatrix_ptr(raw_pointer_cast(bp_buffer.origin()) + skip, {wlk_desc[4], bp_buffer.size(1)});
+    using nda::range;
+    utils::check(ip>=0 and ip<wlk_desc[3], " Error: index out of bounds in getFields. ");
+    long i0 = data_displ[FIELDS] + ip * wlk_desc[4];
+    return bp_buffer(range(i0,i0+wlk_desc[4]),range::all);
   }
 
-  stdBPCTensor_ptr getFields()
+  auto getFields()
   {
-    return stdBPCTensor_ptr(raw_pointer_cast(bp_buffer.origin()) + data_displ[FIELDS] * bp_buffer.size(1),
-                          {wlk_desc[3], wlk_desc[4], bp_buffer.size(1)});
+    long i0 = data_displ[FIELDS] * bp_buffer.size(1);
+    return memory::array_view<MEM,ComplexType,3>({wlk_desc[3], wlk_desc[4], bp_buffer.size(1)}, bp_buffer.data() + i0);
   }
 
-  template<class Mat>
-  void storeFields(int ip, Mat&& V)
+  void storeFields(int ip, nda::MemoryArrayOfRank<2> auto&& V)
   {
-    static_assert(std::decay<Mat>::type::dimensionality == 2, "Wrong dimensionality");
-    auto&& F{*getFields(ip)};
-    if (V.stride(0) == V.size(1))
-    {
-      using std::copy_n;
-      copy_n(V.origin(), F.num_elements(), F.origin());
-    }
-    else
-      F = V;
+    auto F = getFields(ip);
+    utils::check(F.shape() == V.shape(), "Shape mismatch");
+    F() = V();
   }
 
-  stdBPCMatrix_ptr getWeightFactors()
+  auto getWeightFactors()
   {
-    return stdBPCMatrix_ptr(raw_pointer_cast(bp_buffer.origin()) + data_displ[WEIGHT_FAC] * bp_buffer.size(1),
-                          {wlk_desc[6], bp_buffer.size(1)});
+    using nda::range;
+    return bp_buffer(range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6]),
+                     range::all);
   }
 
-  stdBPCMatrix_ptr getWeightHistory()
+  auto getWeightHistory()
   {
-    return stdBPCMatrix_ptr(raw_pointer_cast(bp_buffer.origin()) + data_displ[WEIGHT_HISTORY] * bp_buffer.size(1),
-                          {wlk_desc[6], bp_buffer.size(1)});
+    using nda::range;
+    return bp_buffer(range(data_displ[WEIGHT_HISTORY],data_displ[WEIGHT_HISTORY]+wlk_desc[6]),
+                     range::all);
   }
 
   double getLogOverlapFactor() const { return LogOverlapFactor; }
- 
+
 /**
  * @brief Updates the WalkerSetBase::LogOverlapFactor
  *
@@ -575,15 +488,11 @@ public:
  */
   void adjustLogOverlapFactor(const double f)
   {
-    RUNTIME_CHECK(walker_buffer.size(1) == walker_size, "");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
     double nx = (walkerType == NONCOLLINEAR or walkerType == FULLYPOLARIZED ? 1.0 : 2.0);
-    if (TG.TG_local().root())
-    {
-      auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-      ma::scal(ComplexType(std::exp(-f)), W({0, tot_num_walkers}, data_displ[OVLP]));
-    }
+    nda::blas::scal(ComplexType(std::exp(-f)), walker_buffer(nda::range(tot_num_walkers), data_displ[OVLP]));
     LogOverlapFactor += f / nx;
-    TG.TG_local().barrier();
+    mpi->comm.barrier();
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -625,31 +534,27 @@ public:
   }
 
   // load balancing algorithm
-  template<class Mat>
-  void loadBalance(Mat&& M,  std::vector<int> const& nwalk_counts_old,  std::vector<int> const& nwalk_counts_new)
+  void loadBalance(nda::MemoryArrayOfRank<2> auto&& M,  
+                   std::vector<int> const& nwalk_counts_old,  
+                   std::vector<int> const& nwalk_counts_new)
   {
     if (load_balance == SIMPLE)
     {
-      if (TG.TG_local().root())
-        afqmc::swapWalkersSimple(*this, std::forward<Mat>(M), nwalk_counts_old, nwalk_counts_new, TG.TG_heads());
+      afqmc::swapWalkersSimple(*this, M, nwalk_counts_old, nwalk_counts_new, mpi->comm);
     }
     else if (load_balance == ASYNC)
     {
-      if (TG.TG_local().root())
-        afqmc::swapWalkersAsync(*this, std::forward<Mat>(M), nwalk_counts_old, nwalk_counts_new, TG.TG_heads());
+      afqmc::swapWalkersAsync(*this, M, nwalk_counts_old, nwalk_counts_new, mpi->comm);
     }
-    TG.TG_local().barrier();
-    // since tot_num_walkers is local, you need to sync it
-    if (TG.TG_local().size() > 1)
-      TG.TG_local().broadcast_n(&tot_num_walkers, 1, 0);
+    mpi->comm.barrier();
   }
 
-  utils::RandomGenerator_t* getRNG() { return rng; }
+  std::shared_ptr<utils::RandomGenerator_t> getRNG() { return rng; }
 
 protected:
-  afqmc::TaskGroup_& TG;
+  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
-  utils::RandomGenerator_t* rng;
+  std::shared_ptr<utils::RandomGenerator_t> rng;
 
   int LoadBalance_timer;
   int Branching_timer;
@@ -665,7 +570,7 @@ protected:
 
   WALKER_TYPES walkerType;
 
-  int targetN_per_TG;
+  int targetN_per_rank;
   int targetN;
   int tot_num_walkers;
 
@@ -680,10 +585,10 @@ protected:
   double LogOverlapFactor = 0.0;
 
   // Contains main walker data needed for propagation
-  CMatrix walker_buffer;
+  memory::array<MEM, ComplexType, 2> walker_buffer;
 
   // Contains stack of fields and slater matrix references for back propagation
-  BPCMatrix bp_buffer;
+  memory::array<MEM, ComplexType, 2> bp_buffer;
 
   // performs setup
   void parse(ptree cur);
@@ -703,4 +608,3 @@ protected:
 
 #include "AFQMC/Walkers/WalkerSetBase.icc"
 
-#endif

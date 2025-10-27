@@ -77,9 +77,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebI
 endif()
 
 ######################################################################
-# Check C++ standard and stdlib. Currently requires 17. 
+# Check C++ standard and stdlib. Currently requires 20. 
 ######################################################################
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -93,8 +93,18 @@ option(HAVE_MKL "Assume MKL BLAS/LAPACK library." OFF)
 option(BUILD_UNIT_TESTS "Build unit tests" ON)
 option(BUILD_STATIC "Link to static libraries" OFF)
 option(ENABLE_TIMERS "Enable internal timers" ON)
-option(ENABLE_STACKTRACE "Enable use of boost::stacktrace" OFF)
 OPTION(BUILD_DOCUMENTATION "Enable compiling C++ Docs" OFF)
+option(ENABLE_SPDLOG "Build with spdlog" ON)
+option(ENABLE_CPPTRACE "Build with cpptrace support" ON)
+
+option(ENABLE_FFTW "Build using FFTW3 library." ON)
+option(ENABLE_SLATE "Build using Slate library." OFF)
+option(ENABLE_CUTENSOR "Build using cutensor library. Must set CUTENSOR_ROOT" OFF)
+option(ENABLE_TBLIS "Build using tblis library. Must set TBLIS_ROOT" OFF)
+option(COMPILE_NDA_TESTS "Build with nda tests" OFF)
+option(NDA_PYTHON_SUPPORT "Build nda with python support" OFF)
+option(FETCH_CCCL "Fetch CCCL and enable support. Only used with ENABLE_CUDA" OFF)
+option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
 
 if( ENABLE_CUDA OR ENABLE_HIP OR ENABLE_OPENMP)
   set(ENABLE_DEVICE ON)
@@ -108,11 +118,11 @@ endif()
 if(ENABLE_CUDA)
   enable_language(CUDA)
   find_package(CUDAToolkit 12.0.0 REQUIRED)
-  set(CMAKE_CUDA_STANDARD 17)
+  set(CMAKE_CUDA_STANDARD 20)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
   set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
   set(CMAKE_CUDA_ARCHITECTURES 70)
-  string(APPEND CMAKE_CUDA_FLAGS " -Drestrict=__restrict__ -std=c++17 --expt-relaxed-constexpr --extended-lambda -Xcudafe \"--diag_suppress=implicit_return_from_non_void_function\" -Wdeprecated-declarations -w") 
+  string(APPEND CMAKE_CUDA_FLAGS " -Drestrict=__restrict__ -std=c++20 --expt-relaxed-constexpr --extended-lambda -Xcudafe \"--diag_suppress=implicit_return_from_non_void_function\" -Wdeprecated-declarations -w") 
 
   include_directories(${CUDA_INCLUDE_DIRS})
   message( STATUS " CMAKE_CUDA_FLAGS: " ${CMAKE_CUDA_FLAGS})
@@ -168,28 +178,75 @@ message(STATUS "MPI number of processors detected on the host system: " ${MPIEXE
 include(CMakePrintHelpers)
 cmake_print_properties(TARGETS MPI::MPI_CXX PROPERTIES INTERFACE_LINK_LIBRARIES INTERFACE_INCLUDE_DIRECTORIES)
 
+######################################################################
+# nda: a C++ library providing multi-dimensional array classes
+######################################################################
+if(DEFINED NDA)
+  set(FETCHCONTENT_SOURCE_DIR_NDA ${NDA})
+endif()
+# set nda options before FetchContent_Declare
+set(CutensorSupport ${ENABLE_CUTENSOR} CACHE INTERNAL "")
+set(CudaSupport ${ENABLE_CUDA} CACHE INTERNAL "")
+set(TblisSupport ${ENABLE_TBLIS} CACHE INTERNAL "")
+set(Build_Tests ${COMPILE_NDA_TESTS} CACHE INTERNAL "")
+if(COQUI_PYTHON_SUPPORT)
+  # nda_py library is needed in CoQui python version
+  set(PythonSupport ON CACHE INTERNAL "")
+else()
+  set(PythonSupport ${NDA_PYTHON_SUPPORT} CACHE INTERNAL "")
+endif()
+FetchContent_Declare(
+        nda
+        GIT_REPOSITORY "https://github.com/triqs/nda.git"
+        GIT_TAG        tensor 
+)
+FetchContent_MakeAvailable(nda)
+
+set_property(GLOBAL PROPERTY nda_FOUND TRUE)
+  
+if(ENABLE_CUDA AND ENABLE_CUTENSOR)
+  add_compile_definitions(ENABLE_CUTENSOR)
+endif()
+if(ENABLE_TBLIS)
+  add_compile_definitions(ENABLE_TBLIS)
+endif()
+
+######################################################################
+# CCCL from github (useful if CudaToolkit is old 
+######################################################################
+if(ENABLE_CUDA AND FETCH_CCCL)
+  # set nevanlinna options before FetchContent_Declare
+  FetchContent_Declare(
+        cccl
+        GIT_REPOSITORY "https://github.com/NVIDIA/cccl.git"
+        GIT_TAG        main
+  )
+  FetchContent_MakeAvailable(cccl)
+  include_directories(${cccl_SOURCE_DIR}/c++)
+endif()
+
 
 ######################################################################
 # BLAS/LAPACK 
 ######################################################################
 
-if(HAVE_MKL)
-  message(STATUS "HAVE_MKL is set: requiring MKL BLAS")
-  set(BLA_VENDOR "Intel10_64ilp")
-endif()
+#if(HAVE_MKL)
+#  message(STATUS "HAVE_MKL is set: requiring MKL BLAS")
+#  set(BLA_VENDOR "Intel10_64ilp")
+#endif()
 
-find_package(BLAS REQUIRED)
-find_package(LAPACK REQUIRED)
-cmake_print_properties(TARGETS BLAS::BLAS PROPERTIES INTERFACE_LINK_LIBRARIES) 
-cmake_print_properties(TARGETS LAPACK::LAPACK PROPERTIES INTERFACE_LINK_LIBRARIES)
+#find_package(BLAS REQUIRED)
+#find_package(LAPACK REQUIRED)
+#cmake_print_properties(TARGETS BLAS::BLAS PROPERTIES INTERFACE_LINK_LIBRARIES) 
+#cmake_print_properties(TARGETS LAPACK::LAPACK PROPERTIES INTERFACE_LINK_LIBRARIES)
 
-if(NOT HAVE_MKL)
-  get_target_property(_mkl_libs BLAS::BLAS INTERFACE_LINK_LIBRARIES)
-  if("${_mkl_libs}" MATCHES "[/\\]mkl")
-      message(STATUS "Found Intel MKL: setting HAVE_MKL=ON")
-      set(HAVE_MKL ON)
-  endif()
-endif()
+#if(NOT HAVE_MKL)
+#  get_target_property(_mkl_libs BLAS::BLAS INTERFACE_LINK_LIBRARIES)
+#  if("${_mkl_libs}" MATCHES "[/\\]mkl")
+#      message(STATUS "Found Intel MKL: setting HAVE_MKL=ON")
+#      set(HAVE_MKL ON)
+#  endif()
+#endif()
 
 ######################################################################
 # HDF5
@@ -225,38 +282,93 @@ endif()
 add_definitions(-DBOOST_LOCALE_HIDE_AUTO_PTR)
 
 ######################################################################
+# toml++: c++ parser for toml files
+######################################################################
+if(DEFINED TOMLPP)
+  set(FETCHCONTENT_SOURCE_DIR_TOMLPLUSPLUS ${TOMLPP})
+endif()
+
+FetchContent_Declare( 
+        tomlplusplus
+        GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+        GIT_TAG v3.4.0
+)
+FetchContent_MakeAvailable(tomlplusplus)
+
+######################################################################
 # spdlog - disable warnings for external library
 ######################################################################
 # Save current warning flags
+if(ENABLE_SPDLOG)
+  if(DEFINED SPDLOG) 
+    set(FETCHCONTENT_SOURCE_DIR_SPDLOG ${SPDLOG})
+  endif()
 
-if(DEFINED SPDLOG) 
-  set(FETCHCONTENT_SOURCE_DIR_SPDLOG ${SPDLOG})
+  # Configure spdlog as header-only
+  set(SPDLOG_FMT_EXTERNAL OFF)
+  set(SPDLOG_BUILD_SHARED OFF)
+
+  FetchContent_Declare(
+          spdlog
+          GIT_REPOSITORY https://github.com/gabime/spdlog.git
+          GIT_TAG        v1.8.3
+          SYSTEM
+  )
+  FetchContent_MakeAvailable(spdlog)
+  # turn off warnings for spdlog library itself
+  set_property(TARGET spdlog PROPERTY SYSTEM TRUE)
+  # Suppress all warnings when compiling spdlog's own source files
+  target_compile_options(spdlog PRIVATE -w)
+  add_compile_definitions(ENABLE_SPDLOG)
+
+  include_directories(SYSTEM ${spdlog_SOURCE_DIR}/include)
 endif()
 
-# Configure spdlog as header-only
-set(SPDLOG_FMT_EXTERNAL OFF)
-set(SPDLOG_BUILD_SHARED OFF)
+######################################################################
+# cpptrace 
+######################################################################
+if(ENABLE_CPPTRACE)
+  check_include_file("stdint.h" HAVE_STDINT_H)
+  check_include_file("unistd.h" HAVE_UNISTD_H)
+  check_include_file("fcntl.h" HAVE_FCNTL_H)
+  # MAM: Failing in MacOSX, find correct way
+  add_compile_definitions( $<$<COMPILE_LANGUAGE:C>:PACKAGE_VERSION="0"> )
+  FetchContent_Declare(
+    cpptrace
+    GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+    GIT_TAG        v0.8.2 # <HASH or TAG>
+  )
+  FetchContent_MakeAvailable(cpptrace)
+endif(ENABLE_CPPTRACE)
 
-FetchContent_Declare(
-        spdlog
-        GIT_REPOSITORY https://github.com/gabime/spdlog.git
-        GIT_TAG        v1.8.3
-        SYSTEM
-)
-FetchContent_MakeAvailable(spdlog)
-# turn off warnings for spdlog library itself
-set_property(TARGET spdlog PROPERTY SYSTEM TRUE)
-# Suppress all warnings when compiling spdlog's own source files
-target_compile_options(spdlog PRIVATE -w)
-
-include_directories(SYSTEM ${spdlog_SOURCE_DIR}/include)
+######################################################################
+# FFTW: not using MKL's FFTW yet, figure out how if requested 
+######################################################################
+if(ENABLE_FFTW)
+  find_package(FFTW REQUIRED DOUBLE_OPENMP_LIB) 
+  add_compile_definitions(ENABLE_FFTW)
+endif()
 
 
 ######################################################################
 # catch
 ######################################################################
-add_library(catch_amalgamated STATIC extern/catch/catch_amalgamated.cpp)
-add_definitions(-DCATCH_AMALGAMATED_CUSTOM_MAIN)
+######################################################################
+# catch2
+######################################################################
+if(DEFINED CATCH2)
+  set(FETCHCONTENT_SOURCE_DIR_CATCH2 ${CATCH2})
+endif()
+
+FetchContent_Declare(
+  Catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG        v2.13.10
+) 
+  #GIT_TAG        v3.4.0
+FetchContent_MakeAvailable(Catch2)
+list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
+include( Catch )
 
 ######################################################################
 add_definitions( -Drestrict=__restrict__ -DADD_ )

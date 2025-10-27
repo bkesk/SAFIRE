@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef IO_PTREE_UTILITIES_HPP 
-#define IO_PTREE_UTILITIES_HPP 
+#pragma once
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -21,11 +20,9 @@
 #include <unordered_set>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/optional.hpp>
-#include "Utilities/app_loggers.h"
+#include "IO/app_loggers.h"
 
 using boost::property_tree::ptree;
-
-#include "Utilities/app_loggers.h"
 
 namespace io
 {
@@ -271,4 +268,3 @@ T get_parameter(Factory const& F, std::string obj, std::string param, T def)
   return pt.get<T>(param,def);
 }
 
-#endif

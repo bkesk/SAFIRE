@@ -213,7 +213,6 @@ public:
 
   HamiltonianOperations() : Base::variant() 
   {
-    print_stacktrace;
     APP_ABORT(" Error: Calling default constructor of HamiltonianOperations. ");
   } 
 

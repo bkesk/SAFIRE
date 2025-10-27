@@ -16,27 +16,24 @@
 
 #undef NDEBUG
 
-#include "catch_amalgamated.hpp"
+#include "catch2/catch.hpp"
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-#include "Utilities/Random.hpp"
+#include "configuration.hpp"
+#include "IO/AppAbort.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/test_common.hpp"
 
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
-#include "io/ptree/ptree_utilities.hpp"
-#include "Utilities/app_loggers.h"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "IO/app_loggers.h"
 
 #include <stdio.h>
 #include <string>
 #include <vector>
 #include <complex>
 
-#include "mpi3/communicator.hpp"
-#include "mpi3/shared_communicator.hpp"
-//#include "mpi3/environment.hpp"
+#include "utilities/mpi_context.h"
 
-//#include "AFQMC/Walkers WalkerSetFactory.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
 #include "AFQMC/Walkers/WalkerIO.hpp"
 
@@ -71,18 +68,13 @@ void check(M1&& A, M2& B)
 
 using namespace afqmc;
 
-void test_basic_walker_features(bool serial, std::string wtype)
+void test_basic_walker_features(std::string wtype)
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node  = world.split_shared(world.rank());
-
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-#endif
-
   using Type = std::complex<double>;
+  using nda::array;
+  using nda::array_view;
 
-  //assert(world.size()%2 == 0);
+  auto& mpi = utils::make_unit_test_mpi_context();
 
   int NMO = 8, NAEA = 2, NAEB = 2, nwalkers = 10;
   if (wtype == "noncollinear")
@@ -91,28 +83,26 @@ void test_basic_walker_features(bool serial, std::string wtype)
     NAEB = 0;
   }
 
-  //auto node = world.split_shared();
-
-  GlobalTaskGroup gTG(world);
-  TaskGroup_ TG(gTG, std::string("TaskGroup"), 1, serial ? 1 : gTG.getTotalCores());
   AFQMCInfo info;
   info.NMO  = NMO;
   info.NAEA = NAEA;
   info.NAEB = NAEB;
   info.name = "walker";
   int M((wtype == "noncollinear") ? 2 * NMO : NMO);
-  boost::multi::array<Type, 2> initA({M, NAEA}, Type(0.0));
-  boost::multi::array<Type, 2> initB({M, NAEB}, Type(0.0));
+  array<Type, 2> initA(M, NAEA);
+  array<Type, 2> initB(M, NAEB);
+  initA() = Type(0.0);
+  initB() = Type(0.0);
   for (int i = 0; i < NAEA; i++)
-    initA[i][i] = Type(0.22);
+    initA(i,i) = Type(0.22);
   for (int i = 0; i < NAEB; i++)
-    initB[i][i] = Type(0.33);
-  utils::RandomGenerator_t rng;
+    initB(i,i) = Type(0.33);
+  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("walker_type",wtype);
-  WalkerSet wset(TG, wlk_pt, info, &rng);
+  WalkerSet wset(mpi, wlk_pt, info, rng);
   wset.resize(nwalkers, initA, initB);
 
   REQUIRE(wset.size() == nwalkers);
@@ -122,14 +112,14 @@ void test_basic_walker_features(bool serial, std::string wtype)
   for (WalkerSet::iterator it = wset.begin(); it != wset.end(); ++it)
   {
     auto sm = it->SlaterMatrix(Alpha);
-    REQUIRE( (*sm).size(0) == initA.size(0) );	
-    REQUIRE( (*sm).size(1) == initA.size(1) );	
-    REQUIRE(*it->SlaterMatrix(Alpha) == initA);
+    REQUIRE( sm.extent(0) == initA.extent(0) );	
+    REQUIRE( sm.extent(1) == initA.extent(1) );	
+    REQUIRE(it->SlaterMatrix(Alpha) == initA);
     if( wset.getWalkerType() == COLLINEAR ) { 
       auto smB = it->SlaterMatrix(Beta);
-      REQUIRE( (*smB).size(0) == initB.size(0) );	
-      REQUIRE( (*smB).size(1) == initB.size(1) );	
-      REQUIRE(*it->SlaterMatrix(Beta) == initB);
+      REQUIRE( smB.extent(0) == initB.extent(0) );	
+      REQUIRE( smB.extent(1) == initB.extent(1) );	
+      REQUIRE(it->SlaterMatrix(Beta) == initB);
     }
     *it->weight()  = base * 1.0 + 0.5;
     *it->overlap() = base * 1.0 + 0.5;
@@ -188,23 +178,23 @@ void test_basic_walker_features(bool serial, std::string wtype)
     REQUIRE(Type(*w.EXX()) == i_ * 1.0 + 0.5);
     REQUIRE(Type(*w.EJ()) == i_ * 1.0 + 0.5);
   }
-  REQUIRE(wset.get_TG_target_population() == nwalkers);
-  REQUIRE(wset.get_global_target_population() == nwalkers * TG.getNumberOfTGs());
-  REQUIRE(wset.GlobalPopulation() == nwalkers * TG.getNumberOfTGs());
+  REQUIRE(wset.get_target_population() == nwalkers);
+  REQUIRE(wset.get_global_target_population() == nwalkers * mpi->comm.size());
+  REQUIRE(wset.GlobalPopulation() == nwalkers * mpi->comm.size());
   REQUIRE(wset.GlobalPopulation() == wset.get_global_target_population());
   REQUIRE(wset.NumBackProp() == 0);
-  REQUIRE(wset.GlobalWeight() == tot_weight * Type(TG.getNumberOfTGs()));
+  REQUIRE(wset.GlobalWeight() == tot_weight * Type(mpi->comm.size()));
 
   wset.scaleWeight(2.0);
   tot_weight *= 2.0;
-  REQUIRE(wset.GlobalWeight() == tot_weight * Type(TG.getNumberOfTGs()));
+  REQUIRE(wset.GlobalWeight() == tot_weight * Type(mpi->comm.size()));
 
   std::vector<ComplexType> Wdata;
   wset.popControl(Wdata);
   REQUIRE(wset.GlobalWeight() == Approx(static_cast<RealType>(wset.get_global_target_population())));
-  REQUIRE(wset.get_TG_target_population() == nwalkers);
-  REQUIRE(wset.get_global_target_population() == nwalkers * TG.getNumberOfTGs());
-  REQUIRE(wset.GlobalPopulation() == nwalkers * TG.getNumberOfTGs());
+  REQUIRE(wset.get_target_population() == nwalkers);
+  REQUIRE(wset.get_global_target_population() == nwalkers * mpi->comm.size());
+  REQUIRE(wset.GlobalPopulation() == nwalkers * mpi->comm.size());
   REQUIRE(wset.GlobalPopulation() == wset.get_global_target_population());
   REQUIRE(wset.GlobalWeight() == Approx(static_cast<RealType>(wset.get_global_target_population())));
   double nx = (wset.getWalkerType() == NONCOLLINEAR or wset.getWalkerType() == FULLYPOLARIZED ? 1.0 : 2.0);
@@ -216,169 +206,25 @@ void test_basic_walker_features(bool serial, std::string wtype)
     REQUIRE(ComplexType(*w.EJ()) == ComplexType(*w.E1()));
   }
 
+  auto SMs = wset.SlaterMatrices(Alpha);
+  REQUIRE( SMs.extent(0) == wset.size() ); 
+  if( wset.getWalkerType() == COLLINEAR ) { 
+    auto SMBs = wset.SlaterMatrices(Beta);
+    REQUIRE( SMBs.extent(0) == wset.size() ); 
+  }
+
   wset.clean();
   REQUIRE(wset.size() == 0);
   REQUIRE(wset.capacity() == 0);
-}
 
-void test_hyperslab()
-{
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node  = world.split_shared(world.rank());
-
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-#endif
-
-  using Type   = std::complex<double>;
-  using Matrix = boost::multi::array<Type, 2>;
-
-  int rank = world.rank();
-
-  int nwalk         = 9;
-  int nprop         = 7;
-  Matrix Data({nwalk, nprop});
-
-  for (int i = 0; i < nwalk; i++)
-    for (int j = 0; j < nprop; j++)
-      Data[i][j] = i * 10 + rank * 100 + j;
-
-  int nwtot = (world += nwalk);
-
-  hdf_archive dump(world, true);
-  if (!dump.create("dummy_walkers.h5", H5F_ACC_EXCL))
-  {
-    app_error(" Error opening restart file. ");
-    APP_ABORT("");
-  }
-  dump.push("WalkerSet");
-
-  hyperslab_proxy<Matrix, 2> hslab(Data, std::array<int, 2>{nwtot, nprop}, std::array<int, 2>{nwalk, nprop},
-                                   std::array<int, 2>{rank * nwalk, 0});
-  dump.write(hslab, "Walkers");
-  dump.close();
-  world.barrier();
-
-  {
-    hdf_archive read(world, false);
-    if (!read.open("dummy_walkers.h5", H5F_ACC_RDONLY))
-    {
-      app_error(" Error opening restart file. ");
-      APP_ABORT("");
-    }
-    read.push("WalkerSet");
-
-    Matrix DataIn({nwalk, nprop});
-
-    hyperslab_proxy<Matrix, 2> hslabIn(DataIn, std::array<int, 2>{nwtot, nprop}, std::array<int, 2>{nwalk, nprop},
-                                     std::array<int, 2>{rank * nwalk, 0});
-    read.read(hslabIn, "Walkers");
-    read.close();
-
-    for (int i = 0; i < nwalk; i++)
-      for (int j = 0; j < nprop; j++)
-      {
-        REQUIRE(real(DataIn[i][j]) == i * 10 + rank * 100 + j);
-        REQUIRE(imag(DataIn[i][j]) == 0);
-      }
-  }
-  world.barrier();
-  if (world.root())
-    remove("dummy_walkers.h5");
-}
-
-void test_double_hyperslab()
-{
-  auto world = boost::mpi3::environment::get_world_instance();
-
-  using Type   = std::complex<double>;
-  using Matrix = boost::multi::array<Type, 2>;
-
-  int rank = world.rank();
-
-  int nwalk         = 9;
-  int nprop         = 3;
-  int nprop_to_safe = 3;
-  Matrix Data({nwalk, nprop});
-
-  for (int i = 0; i < nwalk; i++)
-    for (int j = 0; j < nprop; j++)
-      Data[i][j] = i * 10 + rank * 100 + j;
-
-  int nwtot = (world += nwalk);
-
-  hdf_archive dump(world, true);
-  if (!dump.create("dummy_walkers.h5", H5F_ACC_EXCL))
-  {
-    app_error(" Error opening restart file. ");
-    APP_ABORT("");
-  }
-  dump.push("WalkerSet");
-
-  //double_hyperslab_proxy<Matrix,2> hslab(Data,
-  hyperslab_proxy<Matrix, 2> hslab(Data, std::array<int, 2>{nwtot, nprop_to_safe},
-                                   std::array<int, 2>{nwalk, nprop_to_safe}, std::array<int, 2>{rank * nwalk, 0}); //,
-
-  //                                  std::array<int,2>{nwalk,nprop},
-  //                                  std::array<int,2>{nwalk,nprop_to_safe},
-  //                                  std::array<int,2>{0,0});
-  dump.write(hslab, "Walkers");
-  dump.close();
-  world.barrier();
-
-  {
-    hdf_archive read(world, false);
-    if (!read.open("dummy_walkers.h5", H5F_ACC_RDONLY))
-    {
-      app_error(" Error opening restart file. ");
-      APP_ABORT("");
-    }
-    read.push("WalkerSet");
-
-    //Matrix DataIn({nwalk,nprop});
-    Matrix DataIn({nwalk, nprop_to_safe});
-
-    //double_hyperslab_proxy<Matrix,2> hslab(DataIn,
-    hyperslab_proxy<Matrix, 2> hslabIn(DataIn, std::array<int, 2>{nwtot, nprop_to_safe},
-                                     std::array<int, 2>{nwalk, nprop_to_safe}, std::array<int, 2>{rank * nwalk, 0}); //,
-    //                                  std::array<int,2>{nwalk,nprop},
-    //                                  std::array<int,2>{nwalk,nprop_to_safe},
-    //                                  std::array<int,2>{0,0});
-    read.read(hslabIn, "Walkers");
-    read.close();
-
-    for (int i = 0; i < nwalk; i++)
-    {
-      for (int j = 0; j < nprop_to_safe; j++)
-      {
-        REQUIRE(real(DataIn[i][j]) == i * 10 + rank * 100 + j);
-        REQUIRE(imag(DataIn[i][j]) == 0);
-      }
-      /*
-     for(int j=nprop_to_safe; j<nprop; j++) {
-       REQUIRE( real(DataIn[i][j]) == 0);
-       REQUIRE( imag(DataIn[i][j]) == 0);
-     }
-*/
-    }
-  }
-  world.barrier();
-  if (world.root())
-    remove("dummy_walkers.h5");
 }
 
 void test_walker_io(std::string wtype)
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node  = world.split_shared(world.rank());
-
   using Type = std::complex<double>;
+  using nda::array;
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-#endif
-
-  //assert(world.size()%2 == 0);
+  auto& mpi = utils::make_unit_test_mpi_context();
 
   int NMO = 8, NAEA = 2, NAEB = 2, nwalkers = 10;
   if (wtype == "noncollinear")
@@ -387,28 +233,26 @@ void test_walker_io(std::string wtype)
     NAEB = 0;
   }
 
-  //auto node = world.split_shared();
-
-  GlobalTaskGroup gTG(world);
-  TaskGroup_ TG(gTG, std::string("TaskGroup"), 1, 1);
   AFQMCInfo info;
   info.NMO  = NMO;
   info.NAEA = NAEA;
   info.NAEB = NAEB;
   info.name = "walker";
   int M((wtype == "noncollinear") ? 2 * NMO : NMO);
-  boost::multi::array<Type, 2> initA({M, NAEA}, Type(0.0));
-  boost::multi::array<Type, 2> initB({M, NAEB}, Type(0.0));
+  array<Type, 2> initA(M, NAEA);
+  array<Type, 2> initB(M, NAEB);
+  initA() = Type(0.0);
+  initB() = Type(0.0);
   for (int i = 0; i < NAEA; i++)
-    initA[i][i] = Type(0.22);
+    initA(i,i) = Type(0.22);
   for (int i = 0; i < NAEB; i++)
-    initB[i][i] = Type(0.33);
-  utils::RandomGenerator_t rng;
+    initB(i,i) = Type(0.33);
+  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
   ptree pt0;
   pt0.put("WalkerSet.name","wset0");
   pt0.put("WalkerSet.walker_type",wtype);
-  WalkerSet wset(TG, pt0.get_child("WalkerSet"), info, &rng);
+  WalkerSet wset(mpi, pt0.get_child("WalkerSet"), info, rng);
   wset.resize(nwalkers, initA, initB);
 
   REQUIRE(wset.size() == nwalkers);
@@ -418,14 +262,14 @@ void test_walker_io(std::string wtype)
   for (WalkerSet::iterator it = wset.begin(); it != wset.end(); ++it)
   {
     auto sm = it->SlaterMatrix(Alpha);
-    REQUIRE( (*sm).size(0) == initA.size(0) );
-    REQUIRE( (*sm).size(1) == initA.size(1) ); 
-    REQUIRE(*it->SlaterMatrix(Alpha) == initA);
+    REQUIRE( sm.extent(0) == initA.extent(0) );
+    REQUIRE( sm.extent(1) == initA.extent(1) ); 
+    REQUIRE( it->SlaterMatrix(Alpha) == initA );
     if( wset.getWalkerType() == COLLINEAR ) {
       auto smB = it->SlaterMatrix(Beta);
-      REQUIRE( (*smB).size(0) == initB.size(0) );
-      REQUIRE( (*smB).size(1) == initB.size(1) );
-      REQUIRE(*it->SlaterMatrix(Beta) == initB);
+      REQUIRE( smB.extent(0) == initB.extent(0) );
+      REQUIRE( smB.extent(1) == initB.extent(1) ); 
+      REQUIRE( it->SlaterMatrix(Beta) == initB );
     }
     *it->weight()  = base * 1.0 + 0.1;
     *it->overlap() = base * 1.0 + 0.2;
@@ -438,50 +282,20 @@ void test_walker_io(std::string wtype)
   }
   REQUIRE(cnt == nwalkers);
 
-#if defined(ENABLE_PHDF5)
-  hdf_archive dump(world, true);
+  // dump restart file
   {
-#else
-  hdf_archive dump(world, false);
-  if (TG.Global().root())
-  {
-#endif
-    if (!dump.create("dummy_walkers.h5", H5F_ACC_EXCL))
-    {
-      app_error(" Error opening restart file. ");
-      APP_ABORT("");
-    }
+    h5::file fh5;
+    if(mpi->comm.root()) fh5 = h5::file("dummy_walkers.h5",'w');
+    dumpToHDF5(wset, fh5);
   }
 
-  // dump restart file
-  dumpToHDF5(wset, dump);
-  dump.close();
-
   {
-#if defined(ENABLE_PHDF5)
-    hdf_archive read(world, true);
-    {
-#else
-    hdf_archive read(world, false);
-    if (TG.Global().root())
-    {
-#endif
-      if (!read.open("dummy_walkers.h5", H5F_ACC_RDONLY))
-      {
-        app_error(" Error opening restart file. ");
-        APP_ABORT("");
-      }
-      else
-      {
-        read.close();
-      }
-    }
-
-    WalkerSet wset2(TG, pt0.get_child("WalkerSet"), info, &rng);
-    restartFromHDF5(wset2, nwalkers, "dummy_walkers.h5", read, true);
+    h5::file fh5 = h5::file("dummy_walkers.h5",'r');
+    WalkerSet wset2(mpi, pt0.get_child("WalkerSet"), info, rng);
+    restartFromHDF5(wset2, nwalkers, fh5, true);
     for (int i = 0; i < nwalkers; i++)
     {
-      CHECK(*wset[i].SlaterMatrix(Alpha) == *wset2[i].SlaterMatrix(Alpha));
+      CHECK(wset[i].SlaterMatrix(Alpha) == wset2[i].SlaterMatrix(Alpha));
       CHECK(ComplexType(*wset[i].weight()) == ComplexType(*wset2[i].weight()));
       CHECK(ComplexType(*wset[i].overlap()) == ComplexType(*wset2[i].overlap()));
       CHECK(ComplexType(*wset[i].E1()) == ComplexType(*wset2[i].E1()));
@@ -489,33 +303,22 @@ void test_walker_io(std::string wtype)
       CHECK(ComplexType(*wset[i].EJ()) == ComplexType(*wset2[i].EJ()));
     }
   }
-  world.barrier();
-  if (world.root())
+
+  mpi->comm.barrier();
+  if (mpi->comm.root())
     remove("dummy_walkers.h5");
 }
 
-TEST_CASE("swset_test_serial", "[shared_wset]")
+// MAM: Tests are not GPU enabled, fix direct access to GPU memory
+TEST_CASE("swset_test_basic", "[shared_wset]")
 {
-  setup_loggers(true,2,0);
-  test_basic_walker_features(true, "closed");
-  test_basic_walker_features(false, "closed");
-  test_basic_walker_features(true, "collinear");
-  test_basic_walker_features(false, "collinear");
-  test_basic_walker_features(true, "noncollinear");
-  test_basic_walker_features(false, "noncollinear");
-  test_basic_walker_features(true, "fullypolarized");
-  test_basic_walker_features(false, "fullypolarized");
+  test_basic_walker_features("closed");
+  test_basic_walker_features("collinear");
+  test_basic_walker_features("noncollinear");
+  test_basic_walker_features("fullypolarized");
 }
-/*
-TEST_CASE("hyperslab_tests", "[shared_wset]")
-{
- // test_hyperslab();
-  test_double_hyperslab();
-}
-*/
 TEST_CASE("walker_io", "[shared_wset]")
 {
-  setup_loggers(true,2,0);
   test_walker_io("closed");
   test_walker_io("collinear");
   test_walker_io("noncollinear");
