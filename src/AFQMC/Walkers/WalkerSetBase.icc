@@ -380,7 +380,7 @@ void WalkerSetBase<_M_>::popControl()
 
   AFQMCTimer.start(LoadBalance_timer);
   // load balance after population control events
-//  loadBalance(Wexcess,nwalk_counts_old,nwalk_counts_new);
+  loadBalance(Wexcess,nwalk_counts_old,nwalk_counts_new);
   AFQMCTimer.stop(LoadBalance_timer);
 
   utils::check(tot_num_walkers==targetN_per_rank," Error: tot_num_walkers != targetN_per_rank");
@@ -513,76 +513,39 @@ void WalkerSetBase<_M_>::resize_bp(int nbp, int nCV, int nref)
   }
 }  
 
-/*
-template<class Alloc, typename Ptr>
-template<class Mat>
-void WalkerSetBase<Alloc, Ptr>::push_walkers(Mat&& M)
+template<MEMORY_SPACE _M_>
+void WalkerSetBase<_M_>::push_walkers(nda::MemoryArrayOfRank<2> auto&& M)
 {
-  static_assert(std::decay<Mat>::type::dimensionality == 2, "Wrong dimensionality");
-  if (tot_num_walkers + M.size(0) > capacity())
-    APP_ABORT("Insufficient capacity");
-  if (single_walker_size() + single_walker_bp_size() != M.size(1))
-    APP_ABORT("Incorrect dimensions.");
-  if (M.stride(1) != 1)
-    APP_ABORT("Incorrect strides.");
-  if (!TG.TG_local().root())
+  utils::check(tot_num_walkers + M.extent(0) <= capacity(), "Insufficient capacity");
+  utils::check(single_walker_size() + single_walker_bp_size() == M.extent(1), 
+               "Incorrect dimensions.");
+  utils::check(M.strides()[1] == 1, "Incorrect strides.");
+  auto all = nda::range::all;
+  for (int i = 0; i < M.extent(0); i++)
   {
-    tot_num_walkers += M.size(0);
-    return;
-  }
-  auto&& W = boost::multi::static_array_cast<element, pointer>(walker_buffer);
-  auto&& BPW = boost::multi::static_array_cast<bp_element, bp_pointer>(bp_buffer);
-  for (int i = 0; i < M.size(0); i++)
-  {
-//    W[tot_num_walkers] = M[i].sliced(0, walker_size);
-//    if (wlk_desc[3] > 0)
-//      BPW(BPW.extension(0), tot_num_walkers) = M[i].sliced(walker_size, walker_size + bp_walker_size);
-    ma::copy(M[i].sliced(0, walker_size), W[tot_num_walkers]);
+    walker_buffer(tot_num_walkers, all) = M(i, nda::range(walker_size));
     if (wlk_desc[3] > 0)
-      ma::copy_n_cast(M[i].sliced(walker_size, walker_size + bp_walker_size), BPW(BPW.extension(0), tot_num_walkers));
+      bp_buffer(all,tot_num_walkers) = M(i, nda::range(walker_size,walker_size+bp_walker_size));
     tot_num_walkers++;
   }
 }
 
-template<class Alloc, typename Ptr>
-template<class Mat>
-void WalkerSetBase<Alloc, Ptr>::pop_walkers(Mat&& M)
+template<MEMORY_SPACE _M_>
+void WalkerSetBase<_M_>::pop_walkers(nda::MemoryArrayOfRank<2> auto&& M)
 {
-  static_assert(std::decay<Mat>::type::dimensionality == 2, "Wrong dimensionality");
-  if (tot_num_walkers < int(M.size(0)))
-    APP_ABORT("Insufficient walkers");
-  if (wlk_desc[3] > 0)
+  utils::check(tot_num_walkers >= M.extent(0), "Insufficient walkers");
+  utils::check(walker_size + (wlk_desc[3]>0 ? bp_walker_size : 0 ) == int(M.extent(1)),
+               "Incorrect dimensions.");
+  utils::check(M.strides()[1] == 1, "Incorrect strides.");
+  auto all = nda::range::all;
+  for (int i = 0; i < M.extent(0); i++)
   {
-    if (walker_size + bp_walker_size != int(M.size(1)))
-      APP_ABORT("Incorrect dimensions.");
-  }
-  else
-  {
-    if (walker_size != int(M.size(1)))
-      APP_ABORT("Incorrect dimensions.");
-  }
-  if (M.stride(1) != 1)
-    APP_ABORT("Incorrect strides.");
-
-  if (!TG.TG_local().root())
-  {
-    tot_num_walkers -= int(M.size(0));
-    return;
-  }
-  auto W = boost::multi::static_array_cast<element, pointer>(walker_buffer);
-  auto BPW = boost::multi::static_array_cast<bp_element, bp_pointer>(bp_buffer);
-  for (int i = 0; i < M.size(0); i++)
-  {
-//    M[i].sliced(0, walker_size) = W[tot_num_walkers - 1];
-//    if (wlk_desc[3] > 0)
-//      M[i].sliced(walker_size, walker_size + bp_walker_size) = BPW(BPW.extension(0), tot_num_walkers - 1);
-    ma::copy(W[tot_num_walkers - 1], M[i].sliced(0, walker_size));
+    M(i, nda::range(walker_size)) =  walker_buffer(tot_num_walkers-1, all); 
     if (wlk_desc[3] > 0)
-      ma::copy_n_cast(BPW(BPW.extension(0), tot_num_walkers - 1), M[i].sliced(walker_size, walker_size + bp_walker_size));
+      M(i, nda::range(walker_size,walker_size+bp_walker_size)) = bp_buffer(all,tot_num_walkers-1);
     tot_num_walkers--;
   }
 }
-*/
 
 template<MEMORY_SPACE _M_>
 template<class It>

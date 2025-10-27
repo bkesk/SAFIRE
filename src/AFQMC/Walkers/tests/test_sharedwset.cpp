@@ -206,9 +206,17 @@ void test_basic_walker_features(bool serial, std::string wtype)
     REQUIRE(ComplexType(*w.EJ()) == ComplexType(*w.E1()));
   }
 
+  auto SMs = wset.SlaterMatrices(Alpha);
+  REQUIRE( SMs.extent(0) == wset.size() ); 
+  if( wset.getWalkerType() == COLLINEAR ) { 
+    auto SMBs = wset.SlaterMatrices(Beta);
+    REQUIRE( SMBs.extent(0) == wset.size() ); 
+  }
+
   wset.clean();
   REQUIRE(wset.size() == 0);
   REQUIRE(wset.capacity() == 0);
+
 }
 
 void test_hyperslab()
@@ -356,6 +364,7 @@ void test_double_hyperslab()
 void test_walker_io(std::string wtype)
 {
   using Type = std::complex<double>;
+  using nda::array;
 
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -366,27 +375,26 @@ void test_walker_io(std::string wtype)
     NAEB = 0;
   }
 
-/*
-  GlobalTaskGroup gTG(world);
-  TaskGroup_ TG(gTG, std::string("TaskGroup"), 1, 1);
   AFQMCInfo info;
   info.NMO  = NMO;
   info.NAEA = NAEA;
   info.NAEB = NAEB;
   info.name = "walker";
   int M((wtype == "noncollinear") ? 2 * NMO : NMO);
-  boost::multi::array<Type, 2> initA({M, NAEA}, Type(0.0));
-  boost::multi::array<Type, 2> initB({M, NAEB}, Type(0.0));
+  array<Type, 2> initA(M, NAEA);
+  array<Type, 2> initB(M, NAEB);
+  initA() = Type(0.0);
+  initB() = Type(0.0);
   for (int i = 0; i < NAEA; i++)
-    initA[i][i] = Type(0.22);
+    initA(i,i) = Type(0.22);
   for (int i = 0; i < NAEB; i++)
-    initB[i][i] = Type(0.33);
-  utils::RandomGenerator_t rng;
+    initB(i,i) = Type(0.33);
+  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
   ptree pt0;
   pt0.put("WalkerSet.name","wset0");
   pt0.put("WalkerSet.walker_type",wtype);
-  WalkerSet wset(TG, pt0.get_child("WalkerSet"), info, &rng);
+  WalkerSet wset(mpi, pt0.get_child("WalkerSet"), info, rng);
   wset.resize(nwalkers, initA, initB);
 
   REQUIRE(wset.size() == nwalkers);
@@ -396,14 +404,14 @@ void test_walker_io(std::string wtype)
   for (WalkerSet::iterator it = wset.begin(); it != wset.end(); ++it)
   {
     auto sm = it->SlaterMatrix(Alpha);
-    REQUIRE( (*sm).size(0) == initA.size(0) );
-    REQUIRE( (*sm).size(1) == initA.size(1) ); 
-    REQUIRE(*it->SlaterMatrix(Alpha) == initA);
+    REQUIRE( sm.extent(0) == initA.extent(0) );
+    REQUIRE( sm.extent(1) == initA.extent(1) ); 
+    REQUIRE( it->SlaterMatrix(Alpha) == initA );
     if( wset.getWalkerType() == COLLINEAR ) {
       auto smB = it->SlaterMatrix(Beta);
-      REQUIRE( (*smB).size(0) == initB.size(0) );
-      REQUIRE( (*smB).size(1) == initB.size(1) );
-      REQUIRE(*it->SlaterMatrix(Beta) == initB);
+      REQUIRE( smB.extent(0) == initB.extent(0) );
+      REQUIRE( smB.extent(1) == initB.extent(1) ); 
+      REQUIRE( it->SlaterMatrix(Beta) == initB );
     }
     *it->weight()  = base * 1.0 + 0.1;
     *it->overlap() = base * 1.0 + 0.2;
@@ -416,25 +424,17 @@ void test_walker_io(std::string wtype)
   }
   REQUIRE(cnt == nwalkers);
 
-#if defined(ENABLE_PHDF5)
-  hdf_archive dump(world, true);
+  // dump restart file
+  if(mpi->comm.root()) 
   {
-#else
-  hdf_archive dump(world, false);
-  if (TG.Global().root())
-  {
-#endif
-    if (!dump.create("dummy_walkers.h5", H5F_ACC_EXCL))
-    {
-      app_error(" Error opening restart file. ");
-      APP_ABORT("");
-    }
+    h5::file fh5("dummy_walkers.h5",'w');
+    dumpToHDF5(wset, fh5);
+  } else {
+    h5::file fh5;
+    dumpToHDF5(wset, fh5);
   }
 
-  // dump restart file
-  dumpToHDF5(wset, dump);
-  dump.close();
-
+/*
   {
 #if defined(ENABLE_PHDF5)
     hdf_archive read(world, true);
@@ -467,10 +467,10 @@ void test_walker_io(std::string wtype)
       CHECK(ComplexType(*wset[i].EJ()) == ComplexType(*wset2[i].EJ()));
     }
   }
-  world.barrier();
-  if (world.root())
-    remove("dummy_walkers.h5");
 */
+  mpi->comm.barrier();
+  if (mpi->comm.root())
+    remove("dummy_walkers.h5");
 }
 
 TEST_CASE("swset_test_serial", "[shared_wset]")

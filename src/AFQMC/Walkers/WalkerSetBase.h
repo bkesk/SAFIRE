@@ -155,14 +155,11 @@ public:
   /*
    * Returns iterator to the first walker in the set
    */
-/*
   const_iterator begin() const
   {
-    utils::check(walker_buffer.size(1) == walker_size, "");
-    return const_iterator(0, boost::multi::static_array_cast<element, pointer>(walker_buffer), data_displ, wlk_desc);
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    return const_iterator(0, walker_buffer, data_displ, wlk_desc);
   }
-*/
-
 
   /*
    * Returns iterator to the past-the-end walker in the set
@@ -257,99 +254,65 @@ public:
     return (mpi->comm += res);
   }
 
-/*
+  private:
+
+  template<walker_data D>
+  auto extract_SM( SpinTypes s ) {
+    static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
+    auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
+    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
+    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
+    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<MEM,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+  } 
+
+  template<walker_data D>
+  auto extract_SM( SpinTypes s ) const {
+    static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
+    auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
+    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
+    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
+    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<MEM,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+  }
+
+  public:
+
   auto SlaterMatrices( SpinTypes s )  
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SM]};
-    auto dx{wlk_desc[0]*wlk_desc[1]};
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2{dx + wlk_desc[0]*wlk_desc[2]};
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    return extract_SM<SM>(s);
   } 
 
   auto SlaterMatrices( SpinTypes s ) const
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SM]};
-    auto dx{wlk_desc[0]*wlk_desc[1]};
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2{dx + wlk_desc[0]*wlk_desc[2]};
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    return extract_SM<SM>(s);
   }
 
   auto SlaterMatricesN( SpinTypes s )
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    if (data_displ[SMN] < 0)
-      APP_ABORT("error in SlaterMatricesN: access to uninitialized BP sector. ");
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SMN]};
-    auto dx{wlk_desc[0]*wlk_desc[1]};
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2(dx + wlk_desc[0]*wlk_desc[2]);
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
+    return extract_SM<SMN>(s);
   }
 
   auto SlaterMatricesN( SpinTypes s ) const
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    if (data_displ[SMN] < 0)
-      APP_ABORT("error in SlaterMatricesN: access to uninitialized BP sector. ");
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SMN]};
-    auto dx{wlk_desc[0]*wlk_desc[1]};
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2(dx + wlk_desc[0]*wlk_desc[2]);
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
+    return extract_SM<SMN>(s);
   }
 
   auto SlaterMatricesAux( SpinTypes s )
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    if (data_displ[SM_AUX] < 0)
-      APP_ABORT("error in SlaterMatricesAux: access to uninitialized BP sector. ");
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SM_AUX]};
-    auto dx(wlk_desc[0]*wlk_desc[1]);
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2(dx + wlk_desc[0]*wlk_desc[2]);
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
+    return extract_SM<SM_AUX>(s);
   }
 
   auto SlaterMatricesAux( SpinTypes s ) const
-//  -> decltype( W.rotated().partitioned(1) )
   {
-    if (data_displ[SM_AUX] < 0)
-      APP_ABORT("error in SlaterMatricesAux: access to uninitialized BP sector. ");
-    auto&& W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    auto i0{data_displ[SM_AUX]};
-    auto dx(wlk_desc[0]*wlk_desc[1]);
-    if( s == Alpha )
-      return W({0,tot_num_walkers}, {i0, i0+dx}).rotated().partitioned(wlk_desc[0]).unrotated();
-    else {
-      auto dx2(dx + wlk_desc[0]*wlk_desc[2]);
-      return W({0,tot_num_walkers}, {i0+dx, i0+dx2}).rotated().partitioned(wlk_desc[0]).unrotated();
-    }
+    utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
+    return extract_SM<SM_AUX>(s);
   }
-*/
 
   void processWalkerData(std::vector<ComplexType>& curData);
 
@@ -359,11 +322,9 @@ public:
   // Note: the following overload is deprecated
   void popControl(std::vector<ComplexType>& curData, bool skip = false);
 
-//  template<class Mat>
-//  void push_walkers(Mat&& M);
+  void push_walkers(nda::MemoryArrayOfRank<2> auto&& M);
 
-//  template<class Mat>
-//  void pop_walkers(Mat&& M);
+  void pop_walkers(nda::MemoryArrayOfRank<2> auto&& M);
 
   // given a list of new weights and counts, add/remove walkers and reassign weight accordingly
   template<class It>
@@ -429,31 +390,23 @@ public:
     return 0;
   }
 
-/*
   // I am going to assume that the relevant data to be copied is continuous,
   // careful not to break this in the future
-  template<class Vec>
-  void copyToIO(Vec&& x, int n)
+  void copyToIO(nda::MemoryArrayOfRank<1> auto&& x, int n)
   {
-    utils::check(n < tot_num_walkers, "");
-    utils::check(x.size() >= walkerSizeIO(), "");
-    utils::check(walker_buffer.size(1) == walker_size, "");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    using std::copy_n;
-    copy_n(W[n].origin(), walkerSizeIO(), x.origin());
+    utils::check(n < tot_num_walkers, "Incorrect argument");
+    utils::check(x.size() >= walkerSizeIO(), "Size mismatch");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    x(nda::range(walkerSizeIO())) = walker_buffer(n,nda::range(walkerSizeIO()));
   }
 
-  template<class Vec>
-  void copyFromIO(Vec&& x, int n)
+  void copyFromIO(nda::MemoryArrayOfRank<1> auto&& x, int n)
   {
-    utils::check(n < tot_num_walkers, "");
-    utils::check(x.size() >= walkerSizeIO(), "");
-    utils::check(walker_buffer.size(1) == walker_size, "");
-    auto W{boost::multi::static_array_cast<element, pointer>(walker_buffer)};
-    using std::copy_n;
-    copy_n(x.origin(), walkerSizeIO(), W[n].origin());
+    utils::check(n < tot_num_walkers, "Incorrect argument");
+    utils::check(x.size() >= walkerSizeIO(), "Size mismatch");
+    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
+    walker_buffer(n,nda::range(walkerSizeIO())) = x(nda::range(walkerSizeIO()));
   }
-*/
 
   void getProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v) const
   {
@@ -467,18 +420,17 @@ public:
     walker_buffer(nda::range(tot_num_walkers),data_displ[id]) = v(nda::range(tot_num_walkers));
   }
 
-/*
   void resetWeights()
   {
-    TG.TG_local().barrier();
-    if (TG.TG_local().root())
+    mpi->comm.barrier();
     {
-      boost::multi::array<element, 1> w_(iextensions<1u>{tot_num_walkers}, ComplexType(1.0));
+      memory::array<MEM, ComplexType, 1> w_(tot_num_walkers, ComplexType(1.0));
       setProperty(WEIGHT, w_);
     }
-    TG.TG_local().barrier();
+    mpi->comm.barrier();
   }
 
+/*
   // Careful!!! This matrix returns an array_ptr, NOT a copy!!!
   stdBPCMatrix_ptr getFields(int ip)
   {
@@ -585,30 +537,24 @@ public:
     return pt1;
   }
 
-/*
   // load balancing algorithm
-  template<class Mat>
-  void loadBalance(Mat&& M,  std::vector<int> const& nwalk_counts_old,  std::vector<int> const& nwalk_counts_new)
+  void loadBalance(nda::MemoryArrayOfRank<2> auto&& M,  
+                   std::vector<int> const& nwalk_counts_old,  
+                   std::vector<int> const& nwalk_counts_new)
   {
     if (load_balance == SIMPLE)
     {
-      if (TG.TG_local().root())
-        afqmc::swapWalkersSimple(*this, std::forward<Mat>(M), nwalk_counts_old, nwalk_counts_new, TG.TG_heads());
+      afqmc::swapWalkersSimple(*this, M, nwalk_counts_old, nwalk_counts_new, mpi->comm);
     }
     else if (load_balance == ASYNC)
     {
-      if (TG.TG_local().root())
-        afqmc::swapWalkersAsync(*this, std::forward<Mat>(M), nwalk_counts_old, nwalk_counts_new, TG.TG_heads());
+      afqmc::swapWalkersAsync(*this, M, nwalk_counts_old, nwalk_counts_new, mpi->comm);
     }
-    TG.TG_local().barrier();
-    // since tot_num_walkers is local, you need to sync it
-    if (TG.TG_local().size() > 1)
-      TG.TG_local().broadcast_n(&tot_num_walkers, 1, 0);
+    mpi->comm.barrier();
   }
 
-  utils::RandomGenerator_t* getRNG() { return rng; }
+  std::shared_ptr<utils::RandomGenerator_t> getRNG() { return rng; }
 
-*/
 protected:
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
