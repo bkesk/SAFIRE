@@ -60,7 +60,13 @@ class WalkerSet
     WalkerSet& operator=(WalkerSet const&) = default;
     WalkerSet& operator=(WalkerSet &&) = default;
 
-    // Visitors
+    static ptree interpret_inputs(const ptree pt0) {
+      // assuming that input/ptree interpretation does not depend on memory space
+      return WalkerSetBase<HOST_MEMORY>::interpret_inputs(pt0);
+    }
+
+    // Using macros to simplify the implementation. 
+    // Look at WalkerSetBase for description of routines. 
     VISITOR(get_memory_space,var,const)
     VISITOR(size,var,const)
     VISITOR(capacity,var,const)
@@ -85,11 +91,10 @@ class WalkerSet
     VISITOR(walkerSizeIO,var,const)
     VISITOR(getLogOverlapFactor,var,const)
     VISITOR(getRNG,var,)
-
-//    VISITOR(getFields,var,)
-//    VISITOR_ARGS(getFields,var,)
-//    VISITOR(getWeightFactors,var,)
-//    VISITOR(getWeightHistory,var,)
+    VISITOR(begin,var,)  
+    VISITOR(begin,var,const)  
+    VISITOR(end,var,)  
+    VISITOR(end,var,const)  
 
     VOID_VISITOR(advanceBPPos,var,)
     VOID_VISITOR(advanceHistoryPos,var,)
@@ -114,30 +119,11 @@ class WalkerSet
     VOID_VISITOR_ARGS(adjustLogOverlapFactor,var,)
     VOID_VISITOR_ARGS(loadBalance,var,)
 
-    //  
-    template<MEMORY_SPACE M>
-    auto begin() { 
-      return std::visit( [&](auto&& v) { return v.template begin<M>(); }, var ); 
+    auto operator[](int i) { 
+      return std::visit( [&](auto&& v) { return v[i]; }, var ); 
     } 
-    template<MEMORY_SPACE M>
-    auto begin() const { 
-      return std::visit( [&](auto&& v) { return v.template begin<M>(); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto end() { 
-      return std::visit( [&](auto&& v) { return v.template end<M>(); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto end() const { 
-      return std::visit( [&](auto&& v) { return v.template end<M>(); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto get_walker(int i) { 
-      return std::visit( [&](auto&& v) { return v.template get_walker<M>(i); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto get_walker(int i) const { 
-      return std::visit( [&](auto&& v) { return  v.template get_walker<M>(i); }, var ); 
+    auto operator[](int i) const { 
+      return std::visit( [&](auto&& v) { return v[i]; }, var ); 
     } 
 
     template<MEMORY_SPACE M>
@@ -165,17 +151,23 @@ class WalkerSet
       return std::visit( [&](auto&& v) { return  v.template SlaterMatricesAux<M>(s); }, var ); 
     } 
 
-
-/*
-    static ptree interpret_inputs(const ptree pt0)
-
-    auto getFields()
-    auto getWeightFactors()
-    auto getWeightHistory()
-
-    auto getFields(int ip)
-*/
-
+    template<MEMORY_SPACE M>
+    auto getFields() { 
+      return std::visit( [&](auto&& v) { return  v.template getFields<M>(); }, var ); 
+    } 
+    template<MEMORY_SPACE M>
+    auto getFields(int ip) { 
+      return std::visit( [&](auto&& v) { return  v.template getFields<M>(ip); }, var ); 
+    } 
+    template<MEMORY_SPACE M>
+    auto getWeightFactors() { 
+      return std::visit( [&](auto&& v) { return  v.template getWeightFactors<M>(); }, var ); 
+    } 
+    template<MEMORY_SPACE M>
+    auto getWeightHistory() { 
+      return std::visit( [&](auto&& v) { return  v.template getWeightHistory<M>(); }, var ); 
+    } 
+    
   private:
 
 #if defined(ENABLE_DEVICE)   

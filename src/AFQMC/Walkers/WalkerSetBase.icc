@@ -428,7 +428,7 @@ void WalkerSetBase<_M_>::resize(int n, MatA&& A, MatB&& B)
     while (pos < n)
     { 
       walker_buffer(pos,all) = ComplexType(0.0);
-      walker<MEM,ComplexType> w0(walker_buffer(pos,all), data_displ, wlk_desc);
+      reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
       w0.template SlaterMatrix<_M_>(Alpha) = A;
       if (walkerType == COLLINEAR)
         w0.template SlaterMatrix<_M_>(Beta) = B;
@@ -496,7 +496,7 @@ void WalkerSetBase<_M_>::resize_bp(int nbp, int nCV, int nref)
   bp_walker_size = cnt;
   if (bp_buffer.extent(0) != bp_walker_size)
   {
-    bp_buffer.resize(bp_walker_size, walker_buffer.size(0));
+    bp_buffer.resize(bp_walker_size, walker_buffer.extent(0));
     bp_buffer() = ComplexType(0.0);
     bp_buffer(nda::range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6]), nda::range::all) = ComplexType(1.0);
   }

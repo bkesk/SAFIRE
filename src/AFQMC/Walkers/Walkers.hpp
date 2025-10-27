@@ -21,6 +21,7 @@
 #include <memory>
 
 #include "config.h"
+#include "configuration.hpp"
 #include "IO/AppAbort.hpp"
 
 #include "AFQMC/config.h"
@@ -31,19 +32,26 @@ namespace sfqmc
 namespace afqmc
 {
 
-template<MEMORY_SPACE _MEM_, typename _value_t_>
+template<typename _value_t_>
 struct walker
 {
 public:
   using value_type = _value_t_;
-  static const MEMORY_SPACE MEM    = _MEM_;
   template<MEMORY_SPACE _M_>
   using SMType  = memory::array_view<_M_,value_type,2,nda::C_layout>;
 
-  walker() = default;
+  walker() {
+    utils::check(false, "Error: Empty walker not allowed");
+  }
+
+  walker(value_type* p, long sz, MEMORY_SPACE M, const wlk_indices& i_, const wlk_descriptor& d_)
+      : _data(p), _size(sz), MEM(M), indx(i_), desc(d_)
+  { }
 
   walker(nda::MemoryArrayOfRank<1> auto&& a, const wlk_indices& i_, const wlk_descriptor& d_)
-      : w_({a.size()}, a.data()), indx(i_), desc(d_)
+      : _data(a.data()), _size(a.size()), 
+        MEM(memory::get_memory_space<std::decay_t<decltype(a)>>()), 
+        indx(i_), desc(d_)
   {
     utils::check(a.strides()[0] == 1, "Stride mismatch."); 
   }
@@ -56,11 +64,12 @@ public:
   walker& operator=(walker&& other) = delete;
   walker& operator=(walker const& other) = delete;
 
-  auto base() { return w_.data(); }
-  auto size() const { return w_.size(); }
+  auto base() { return _data; }
+  auto size() const { return _size; }
   template<MEMORY_SPACE _M_>
   auto SlaterMatrix(SpinTypes s)
   {
+    utils::check(_M_ == MEM, "Memory space mismatch.");
     utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in SlaterMatrix(SpinType).");
     return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]}, getw_(SM)))
                         : (SMType<_M_>({desc[0], desc[2]}, getw_(SM) + desc[0] * desc[1]));
@@ -68,6 +77,7 @@ public:
   template<MEMORY_SPACE _M_>
   auto SlaterMatrixN(SpinTypes s)
   {
+    utils::check(_M_ == MEM, "Memory space mismatch.");
     utils::check(indx[SMN] >= 0, "error: access to uninitialized BP sector. ");
     utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in SlaterMatrixN(SpinType).");
     return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]}, getw_(SMN)))
@@ -76,6 +86,7 @@ public:
   template<MEMORY_SPACE _M_>
   auto SlaterMatrixAux(SpinTypes s)
   {
+    utils::check(_M_ == MEM, "Memory space mismatch.");
     utils::check(indx[SM_AUX]>=0, "error: access to uninitialized BP sector. ");
     utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in SlaterMatrixAux(SpinType).");
     return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]},getw_(SM_AUX)))
@@ -100,39 +111,48 @@ public:
   // replaces Slater Matrix at timestep M+N to timestep N for back propagation.
   void setSlaterMatrixN()
   {
-    SlaterMatrixN(Alpha) = SlaterMatrix(Alpha);
+    SlaterMatrixN<MEM>(Alpha) = SlaterMatrix<MEM>(Alpha);
     if (desc[2] > 0)
-      SlaterMatrixN(Beta) = SlaterMatrix(Beta);
+      SlaterMatrixN<MEM>(Beta) = SlaterMatrix<MEM>(Beta);
   }
 
 private:
-  memory::array_view<MEM, value_type, 1, nda::C_layout> w_;
+  value_type* _data = nullptr;
+  long _size = 0;
+  MEMORY_SPACE MEM = HOST_MEMORY;
   const wlk_indices& indx;
   const wlk_descriptor& desc;
 
-  auto getw_(int P) { return w_.data() + indx[P]; }
-  auto getw_(int P) const { return w_.data() + indx[P]; }
+  auto getw_(int P) { return _data + indx[P]; }
+  auto getw_(int P) const { return _data + indx[P]; }
 };
 
-template<MEMORY_SPACE _MEM_, typename _value_t_>
+template<typename _value_t_>
 struct walker_iterator
     : public boost::
-          iterator_facade<walker_iterator<_MEM_,_value_t_>, void, std::random_access_iterator_tag, walker<_MEM_,_value_t_>, std::ptrdiff_t>
+          iterator_facade<walker_iterator<_value_t_>, void, std::random_access_iterator_tag, walker<_value_t_>, std::ptrdiff_t>
 {
 public:
   walker_iterator(int k, nda::MemoryArrayOfRank<2> auto&& w_, const wlk_indices& i_, const wlk_descriptor& d_)
-      : pos(k), W(w_.indexmap(),w_.data()), indx(&i_), desc(&d_)
-  {}
+      : pos(k), ptr(w_.data()), stride(w_.strides()[0]), size(w_.extent(1)), 
+        MEM(memory::get_memory_space<std::decay_t<decltype(w_)>>()), indx(&i_), desc(&d_)
+  {
+    utils::check(w_.strides()[1] == 1, "Stride mismatch");
+  }
 
   using element         = _value_t_; 
   using pointer         = element*;
-  using Wlk_Buff        = memory::array_view<_MEM_, element, 2>;
+//  using Wlk_Buff        = memory::array_view<_MEM_, element, 2>;
   using difference_type = std::ptrdiff_t;
-  using reference       = walker<_MEM_, element>;
+  using reference       = walker<element>;
 
 private:
   int pos;
-  mutable Wlk_Buff W;
+//  mutable Wlk_Buff W;
+  mutable element* ptr = nullptr;
+  const long stride = 0;
+  const long size = 0;
+  const MEMORY_SPACE MEM = HOST_MEMORY;
   wlk_indices const* indx;
   wlk_descriptor const* desc;
 
@@ -141,9 +161,9 @@ private:
   void increment() { ++pos; }
   void decrement() { --pos; }
   bool equal(walker_iterator const& other) const { return pos == other.pos; }
-  reference dereference() const { return reference(W(pos,nda::range::all), *indx, *desc); }
   void advance(difference_type n) { pos += n; }
   difference_type distance_to(walker_iterator other) const { return other.pos - pos; }
+  reference dereference() const { return reference(ptr+pos*stride,size,MEM,*indx,*desc); }
 };
 
 } // namespace afqmc

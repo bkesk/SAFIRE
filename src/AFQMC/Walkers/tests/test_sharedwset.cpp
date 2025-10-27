@@ -109,7 +109,7 @@ void test_basic_walker_features(std::string wtype)
   int cnt(0);
   Type base(0.0);
   Type tot_weight(0.0);
-  for (auto it = wset.template begin<MEM>(); it != wset.template end<MEM>(); ++it)
+  for (auto it = wset.begin(); it != wset.end(); ++it)
   {
     auto sm = it->template SlaterMatrix<MEM>(Alpha);
     REQUIRE( sm.extent(0) == initA.extent(0) );	
@@ -133,7 +133,7 @@ void test_basic_walker_features(std::string wtype)
   REQUIRE(cnt == nwalkers);
   base = Type(0.0);
   cnt = 0;
-  for (auto it = wset.template begin<MEM>(); it != wset.template end<MEM>(); ++it)
+  for (auto it = wset.begin(); it != wset.end(); ++it)
   {
     Type d_(base * 1.0 + 0.5);
     REQUIRE(Type(*it->weight()) == d_);
@@ -149,7 +149,7 @@ void test_basic_walker_features(std::string wtype)
   REQUIRE(wset.capacity() == 20);
   base = Type(0.0);
   cnt = 0;
-  for (auto it = wset.template begin<MEM>(); it != wset.template end<MEM>(); ++it)
+  for (auto it = wset.begin(); it != wset.end(); ++it)
   {
     REQUIRE(Type(*it->weight()) == base * 1.0 + 0.5);
     REQUIRE(Type(*it->overlap()) == base * 1.0 + 0.5);
@@ -162,16 +162,16 @@ void test_basic_walker_features(std::string wtype)
   for (int i = 0; i < wset.size(); i++)
   {
     Type i_(i);
-    REQUIRE(Type(*wset.template get_walker<MEM>(i).weight()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*wset.template get_walker<MEM>(i).overlap()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*wset.template get_walker<MEM>(i).E1()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*wset.template get_walker<MEM>(i).EXX()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*wset.template get_walker<MEM>(i).EJ()) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(*wset[i].weight()) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(*wset[i].overlap()) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(*wset[i].E1()) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(*wset[i].EXX()) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(*wset[i].EJ()) == i_ * 1.0 + 0.5);
   }
   for (int i = 0; i < wset.size(); i++)
   {
     Type i_(i);
-    auto w = wset.template get_walker<MEM>(i);
+    auto w = wset[i];
     REQUIRE(Type(*w.weight()) == i_ * 1.0 + 0.5);
     REQUIRE(Type(*w.overlap()) == i_ * 1.0 + 0.5);
     REQUIRE(Type(*w.E1()) == i_ * 1.0 + 0.5);
@@ -201,7 +201,7 @@ void test_basic_walker_features(std::string wtype)
   double nx = (wset.getWalkerType() == NONCOLLINEAR or wset.getWalkerType() == FULLYPOLARIZED ? 1.0 : 2.0);
   for (int i = 0; i < wset.size(); i++)
   {
-    auto w = wset.template get_walker<MEM>(i);
+    auto w = wset[i];
     myREQUIRE(std::exp(nx * wset.getLogOverlapFactor()) * ComplexType(*w.overlap()), ComplexType(*w.E1()));
     REQUIRE(ComplexType(*w.EXX()) == ComplexType(*w.E1()));
     REQUIRE(ComplexType(*w.EJ()) == ComplexType(*w.E1()));
@@ -213,6 +213,21 @@ void test_basic_walker_features(std::string wtype)
     auto SMBs = wset.template SlaterMatrices<MEM>(Beta);
     REQUIRE( SMBs.extent(0) == wset.size() ); 
   }
+
+  // BP
+  wset.resize_bp(4,10,2);
+  {
+    auto F0 = wset.template getFields<MEM>(0);
+    auto Fs = wset.template getFields<MEM>();
+    memory::array<MEM,ComplexType,2> Fi(F0.shape());
+    Fi() = Fs(0,nda::ellipsis{}); 
+    wset.storeFields(1,Fi);
+    auto WF = wset.template getWeightFactors<MEM>();
+    auto WH = wset.template getWeightHistory<MEM>();
+    WF() = ComplexType(0.0);
+    WH() = ComplexType(0.0);
+  }
+
 
   wset.clean();
   REQUIRE(wset.size() == 0);
@@ -260,7 +275,7 @@ void test_walker_io(std::string wtype)
   int cnt(0);
   Type base(0.0);
   Type tot_weight(0.0);
-  for (auto it = wset.template begin<MEM>(); it != wset.template end<MEM>(); ++it)
+  for (auto it = wset.begin(); it != wset.end(); ++it)
   {
     auto sm = it->template SlaterMatrix<MEM>(Alpha);
     REQUIRE( sm.extent(0) == initA.extent(0) );
@@ -286,26 +301,23 @@ void test_walker_io(std::string wtype)
   // dump restart file
   {
     h5::file fh5;
-    if(mpi->comm.root()) fh5 = h5::file("dummy_walkers.h5",'w');
+    if(mpi->comm.root()) fh5 = h5::file(std::string("dummy_walkers.h5"),'w');
     dumpToHDF5(wset, fh5);
   }
+  mpi->comm.barrier();
 
   {
-    h5::file fh5 = h5::file("dummy_walkers.h5",'r');
+    h5::file fh5(std::string("dummy_walkers.h5"),'r');
     auto wset2 = make_WalkerSet<MEM>(mpi, pt0.get_child("WalkerSet"), info, rng);
-//    restartFromHDF5(wset2, nwalkers, fh5, true);
+    restartFromHDF5(wset2, nwalkers, fh5, true);
     for (int i = 0; i < nwalkers; i++)
     {
-/*
-      auto w1 = wset.template get_walker<MEM>(i);
-      auto w2 = wset2.template get_walker<MEM>(i);
-      CHECK(w1.template SlaterMatrix<MEM>(Alpha) == w2.template SlaterMatrix<MEM>(Alpha));
-      CHECK(ComplexType(*w.weight()) == ComplexType(*wset2[i].weight()));
+      CHECK(wset[i].template SlaterMatrix<MEM>(Alpha) == wset2[i].template SlaterMatrix<MEM>(Alpha));
+      CHECK(ComplexType(*wset[i].weight()) == ComplexType(*wset2[i].weight()));
       CHECK(ComplexType(*wset[i].overlap()) == ComplexType(*wset2[i].overlap()));
       CHECK(ComplexType(*wset[i].E1()) == ComplexType(*wset2[i].E1()));
       CHECK(ComplexType(*wset[i].EXX()) == ComplexType(*wset2[i].EXX()));
       CHECK(ComplexType(*wset[i].EJ()) == ComplexType(*wset2[i].EJ()));
-*/
     }
   }
 

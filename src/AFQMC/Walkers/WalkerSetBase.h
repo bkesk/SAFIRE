@@ -46,6 +46,15 @@ namespace afqmc
  * Class that contains and handles walkers.
  * Implements communication, load balancing, and I/O operations.   
  * Walkers are always accessed through the handler.
+ *
+ */
+
+/*
+ * IMPLEMENTATION NOTE:
+ * Routines that return an array view to local memory are now templated on the
+ * MEMORY_SPACE. This is needed to be able to use the member functions as visitors,
+ * since they must return the same type. If the memory spaces are incompatible, 
+ * the call will abort the execution. 
  */
 template<MEMORY_SPACE _MEM_>
 class WalkerSetBase : public AFQMCInfo
@@ -61,6 +70,11 @@ public:
   // contiguous_storage = true means that the data of all walker is continguous in memory
   static const bool contiguous_storage = true;
   static const bool fixed_population   = true;
+
+  using reference = walker<ComplexType>;
+  using iterator  = walker_iterator<ComplexType>;
+  using const_reference = walker<const ComplexType>;
+  using const_iterator  = walker_iterator<const ComplexType>;
 
   WalkerSetBase() 
   {
@@ -149,69 +163,57 @@ public:
   /*
    * Returns iterator to the first walker in the set
    */
-  template<MEMORY_SPACE _M2_>
   auto begin()
   {
-    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return walker_iterator<_M2_,ComplexType>(0, walker_buffer, data_displ, wlk_desc);
+    return iterator(0, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
    * Returns iterator to the first walker in the set
    */
-  template<MEMORY_SPACE _M2_>
   auto begin() const
   {
-    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return walker_iterator<_M2_,const ComplexType>(0, walker_buffer, data_displ, wlk_desc);
+    return const_iterator(0, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
    * Returns iterator to the past-the-end walker in the set
    */
-  template<MEMORY_SPACE _M2_>
   auto end()
   {
-    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return walker_iterator<_M2_,ComplexType>(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
+    return iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
    * Returns iterator to the past-the-end walker in the set
    */
-  template<MEMORY_SPACE _M2_>
   auto end() const
   {
-    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return walker_iterator<_M2_,const ComplexType>(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
+    return const_iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
   } 
 
   /*
    * Returns a reference to a walker
    */
-  template<MEMORY_SPACE _M2_>
-  auto get_walker(int i)
+  auto operator[](int i)
   {
-    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return walker<_M2_,ComplexType>(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
+    return reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
   /*
    * Returns a reference to a walker
    */
-  template<MEMORY_SPACE _M2_>
-  auto get_walker(int i) const
+  auto operator[](int i) const
   {
-    utils::check(_M2_ == MEM, "Incompatible memory space");
     utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return walker<_M2_,const ComplexType>(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
+    return const_reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
   // cleans state of object.
@@ -471,37 +473,48 @@ public:
     mpi->comm.barrier();
   }
 
+  template<MEMORY_SPACE _M_>
   auto getFields(int ip)
   {
     using nda::range;
+    utils::check(_M_ == MEM, "Incompatible memory space");
     utils::check(ip>=0 and ip<wlk_desc[3], " Error: index out of bounds in getFields. ");
-    long i0 = data_displ[FIELDS] + ip * wlk_desc[4];
-    return bp_buffer(range(i0,i0+wlk_desc[4]),range::all);
+    long i0 = (data_displ[FIELDS] + ip * wlk_desc[4]) * bp_buffer.extent(1);
+    return memory::array_view<_M_,ComplexType,2>({wlk_desc[4],bp_buffer.extent(1)},bp_buffer.data() + i0);
   }
 
+  template<MEMORY_SPACE _M_>
   auto getFields()
   {
-    long i0 = data_displ[FIELDS] * bp_buffer.size(1);
-    return memory::array_view<MEM,ComplexType,3>({wlk_desc[3], wlk_desc[4], bp_buffer.size(1)}, bp_buffer.data() + i0);
+    utils::check(_M_ == MEM, "Incompatible memory space");
+    long i0 = data_displ[FIELDS] * bp_buffer.extent(1);
+    return memory::array_view<MEM,ComplexType,3>({wlk_desc[3], wlk_desc[4], bp_buffer.extent(1)}, bp_buffer.data() + i0);
   }
 
   void storeFields(int ip, nda::MemoryArrayOfRank<2> auto&& V)
   {
-    auto F = getFields(ip);
-    utils::check(F.shape() == V.shape(), "Shape mismatch");
+    utils::check(ip>=0 and ip<wlk_desc[3], " Error: index out of bounds in getFields. ");
+    long i0 = (data_displ[FIELDS] + ip * wlk_desc[4]) * bp_buffer.extent(1);
+    utils::check(V.shape() == std::array<long,2>{wlk_desc[4],bp_buffer.extent(1)}, 
+                 "Shape mismatch");
+    auto F = memory::array_view<MEM,ComplexType,2>({wlk_desc[4],bp_buffer.extent(1)},bp_buffer.data() + i0);
     F() = V();
   }
 
+  template<MEMORY_SPACE _M_>
   auto getWeightFactors()
   {
     using nda::range;
+    utils::check(_M_ == MEM, "Incompatible memory space");
     return bp_buffer(range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6]),
                      range::all);
   }
 
+  template<MEMORY_SPACE _M_>
   auto getWeightHistory()
   {
     using nda::range;
+    utils::check(_M_ == MEM, "Incompatible memory space");
     return bp_buffer(range(data_displ[WEIGHT_HISTORY],data_displ[WEIGHT_HISTORY]+wlk_desc[6]),
                      range::all);
   }
