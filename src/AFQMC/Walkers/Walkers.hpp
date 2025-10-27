@@ -111,9 +111,16 @@ public:
   // replaces Slater Matrix at timestep M+N to timestep N for back propagation.
   void setSlaterMatrixN()
   {
-    SlaterMatrixN<MEM>(Alpha) = SlaterMatrix<MEM>(Alpha);
-    if (desc[2] > 0)
-      SlaterMatrixN<MEM>(Beta) = SlaterMatrix<MEM>(Beta);
+    if(MEM==HOST_MEMORY) {
+      SlaterMatrixN<HOST_MEMORY>(Alpha) = SlaterMatrix<HOST_MEMORY>(Alpha);
+      if (desc[2] > 0) SlaterMatrixN<HOST_MEMORY>(Beta) = SlaterMatrix<HOST_MEMORY>(Beta);
+    } else if(MEM==DEVICE_MEMORY) {
+      SlaterMatrixN<DEVICE_MEMORY>(Alpha) = SlaterMatrix<DEVICE_MEMORY>(Alpha);
+      if (desc[2] > 0) SlaterMatrixN<DEVICE_MEMORY>(Beta) = SlaterMatrix<DEVICE_MEMORY>(Beta);
+    } else if(MEM==UNIFIED_MEMORY) {
+      SlaterMatrixN<UNIFIED_MEMORY>(Alpha) = SlaterMatrix<UNIFIED_MEMORY>(Alpha);
+      if (desc[2] > 0) SlaterMatrixN<UNIFIED_MEMORY>(Beta) = SlaterMatrix<UNIFIED_MEMORY>(Beta);
+    }
   }
 
 private:

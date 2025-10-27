@@ -194,6 +194,7 @@ inline int swapWalkersAsync(WlkBucket& wset,
     {
       requests[ip].wait();
       auto v = nda::array_view<ComplexType, 2>({recvCounts[ip],wlk_size},buffers[ip]);
+      wset.push_walkers(v);
       delete[] buffers[ip];
     }
   }
