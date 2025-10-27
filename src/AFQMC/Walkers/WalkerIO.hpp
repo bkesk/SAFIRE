@@ -255,6 +255,7 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
 {
   auto all = nda::range::all;
   auto mpi = wset.get_mpi();
+  auto MEM = wset.get_memory_space();
 
   int nW = wset.size();
   auto nw_per_rank = mpi->comm.all_gather_value(nW);
@@ -285,12 +286,24 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
     displ.resize(mpi->comm.size());
     wlk_per_blk.reserve(nblks);
 
-    int NMO, NAEA, NAEB = 0;
+    [[maybe_unused]] int NMO = 0, NAEA = 0, NAEB = 0;
     { // to limit the scope
       auto w = wset[0];
-      std::tie(NMO,NAEA) = w.SlaterMatrix(Alpha).shape();
-      if (walker_type == COLLINEAR)
-        NAEB = w.SlaterMatrix(Beta).extent(1);
+      if(MEM == HOST_MEMORY) {
+        std::tie(NMO,NAEA) = w.template SlaterMatrix<HOST_MEMORY>(Alpha).shape();
+        if (walker_type == COLLINEAR)
+          NAEB = w.template SlaterMatrix<HOST_MEMORY>(Beta).extent(1);
+      } else if(MEM == DEVICE_MEMORY) {
+        std::tie(NMO,NAEA) = w.template SlaterMatrix<DEVICE_MEMORY>(Alpha).shape();
+        if (walker_type == COLLINEAR)
+          NAEB = w.template SlaterMatrix<DEVICE_MEMORY>(Beta).extent(1);
+      } else if(MEM == UNIFIED_MEMORY) {
+        std::tie(NMO,NAEA) = w.template SlaterMatrix<UNIFIED_MEMORY>(Alpha).shape();
+        if (walker_type == COLLINEAR)
+          NAEB = w.template SlaterMatrix<UNIFIED_MEMORY>(Beta).extent(1);
+      } else {
+        utils::check(false,"Invalid memory space");
+      }
       if (walker_type == NONCOLLINEAR)
         NMO /= 2;
     }
