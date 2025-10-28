@@ -32,11 +32,18 @@ namespace sfqmc
 namespace afqmc
 {
 
+/*
+ * Basic class to access/interface walker information.
+ * It uses wlk_indices and wlk_descriptor to translate a linear, contiguous segment
+ * of memory into walker properties.
+ * The localtion of the memory is determined at construction of the object, it is a runtime property.
+ */ 
 template<typename _value_t_>
 struct walker
 {
 public:
   using value_type = _value_t_;
+  using decay_value_type = typename std::decay<value_type>::type;
   template<MEMORY_SPACE _M_>
   using SMType  = memory::array_view<_M_,value_type,2,nda::C_layout>;
 
@@ -92,22 +99,11 @@ public:
     return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]},getw_(SM_AUX)))
                         : (SMType<_M_>({desc[0], desc[2]},getw_(SM_AUX) + desc[0] * desc[1]));
   }
-  auto weight() { return getw_(WEIGHT); }
-  auto phase() { return getw_(PHASE); }
-  auto phase1() { return getw_(PHASE1); }
-  auto phase2() { return getw_(PHASE2); }
-  auto phase3() { return getw_(PHASE3); }
-  auto theta() { return getw_(THETA); }
-  auto pseudo_energy() { return getw_(PSEUDO_ELOC_); }
-  auto onebody_energy() { return getw_(E1_); }
-  auto exchange_energy() { return getw_(EXX_); }
-  auto coulomb_energy() { return getw_(EJ_); }
-  auto E1() { return getw_(E1_); }
-  auto EXX() { return getw_(EXX_); }
-  auto EJ() { return getw_(EJ_); }
-  // MAM: problem on GPU, need memory transfer!
-  auto energy() const { return *getw_(E1_) + *getw_(EXX_) + *getw_(EJ_); }
-  auto overlap() { return getw_(OVLP); }
+  // accessor functions. Only defined from host, no device calls allowed. 
+  decay_value_type get_property(walker_data P) const { return get_value(P); }
+  template<typename V>
+  void set_property(walker_data P, V val) { set_value(P,static_cast<decay_value_type>(val)); }
+  decay_value_type energy() const { return get_value(E1_) + get_value(EXX_) + get_value(EJ_); }
   // replaces Slater Matrix at timestep M+N to timestep N for back propagation.
   void setSlaterMatrixN()
   {
@@ -132,6 +128,38 @@ private:
 
   auto getw_(int P) { return _data + indx[P]; }
   auto getw_(int P) const { return _data + indx[P]; }
+
+  void check_allowed_property(walker_data P) const {
+    utils::check(P==WEIGHT or P==PHASE or P==PHASE1 or P==PHASE2 or P==THETA or 
+        P==PSEUDO_ELOC_ or P==E1_ or P==EXX_ or P==EJ_ or P==OVLP, "Invalid property.");
+  }
+
+  decay_value_type get_value(walker_data P) const {
+    check_allowed_property(P);
+    decay_value_type res;
+#if defined(ENABLE_DEVICE)
+    if(MEM == DEVICE_MEMORY) {
+      nda::mem::memcpy<nda::mem::Host,nda::mem::Device>(std::addressof(res), getw_(P), sizeof(value_type));   
+      return res;
+    } else 
+#endif
+    {
+      res = *getw_(P);
+      return res;
+    }
+  }
+
+  void set_value(walker_data P, decay_value_type val) {
+    check_allowed_property(P);
+#if defined(ENABLE_DEVICE)
+    if(MEM == DEVICE_MEMORY) {
+      nda::mem::memcpy<nda::mem::Device,nda::mem::Host>(getw_(P), std::addressof(val), sizeof(decay_value_type));
+    } else
+#endif
+    {
+      *getw_(P) = val;
+    }
+  }
 };
 
 template<typename _value_t_>
