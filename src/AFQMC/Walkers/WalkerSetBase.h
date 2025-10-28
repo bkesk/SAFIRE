@@ -168,7 +168,7 @@ public:
   auto begin()
   {
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return iterator(0, walker_buffer.data(), walker_buffer.strides()[0], walker_buffer.extent(1), MEM, data_displ, wlk_desc);
+    return iterator(0, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
@@ -177,7 +177,7 @@ public:
   auto begin() const
   {
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_iterator(0, walker_buffer.data(), walker_buffer.strides()[0], walker_buffer.extent(1), MEM, data_displ, wlk_desc);
+    return const_iterator(0, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
@@ -186,7 +186,7 @@ public:
   auto end()
   {
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return iterator(tot_num_walkers, walker_buffer.data(), walker_buffer.strides()[0], walker_buffer.extent(1), MEM, data_displ, wlk_desc);
+    return iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
   }
 
   /*
@@ -195,7 +195,7 @@ public:
   auto end() const
   {
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_iterator(tot_num_walkers, walker_buffer.data(), walker_buffer.strides()[0], walker_buffer.extent(1), MEM, data_displ, wlk_desc);
+    return const_iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
   } 
 
   /*
@@ -205,7 +205,7 @@ public:
   {
     utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return reference(walker_buffer(i,nda::range::all).data(), walker_buffer.extent(1), MEM, data_displ, wlk_desc);
+    return reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
   /*
@@ -215,7 +215,7 @@ public:
   {
     utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_reference(walker_buffer(i,nda::range::all).data(), walker_buffer.extent(1), MEM, data_displ, wlk_desc);
+    return const_reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
   // cleans state of object.
