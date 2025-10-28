@@ -31,7 +31,9 @@
 #include <string>
 #include <vector>
 #include <complex>
+#include <utility>
 
+#include "nda/nda.hpp"
 #include "utilities/mpi_context.h"
 
 #include "AFQMC/Walkers/WalkerSet.hpp"

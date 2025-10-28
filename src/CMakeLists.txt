@@ -6,10 +6,10 @@
 
   include(${PROJECT_SOURCE_DIR}/cmake/unit_test.cmake)
 
-  include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/boost_multi")
+#  include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/boost_multi")
   include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/mpi_wrapper")
   include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/extern/cxxopts")
-  include_directories("${PROJECT_SOURCE_DIR}/src/io")
+  include_directories("${PROJECT_SOURCE_DIR}/src/IO")
 
   add_subdirectory(IO)
   add_subdirectory(arch)

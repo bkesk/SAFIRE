@@ -147,6 +147,10 @@ public:
     utils::check(w_.strides()[1] == 1, "Stride mismatch");
   }
 
+  walker_iterator(int k, _value_t_* _p, long st, long sz, MEMORY_SPACE M, const wlk_indices& i_, const wlk_descriptor& d_)
+      : pos(k), ptr(_p), stride(st), size(sz), MEM(M), indx(&i_), desc(&d_) 
+  { }
+
   using element         = _value_t_; 
   using pointer         = element*;
 //  using Wlk_Buff        = memory::array_view<_MEM_, element, 2>;

@@ -99,7 +99,7 @@ option(ENABLE_CPPTRACE "Build with cpptrace support" ON)
 
 option(ENABLE_FFTW "Build using FFTW3 library." ON)
 option(ENABLE_SLATE "Build using Slate library." OFF)
-option(ENABLE_CUTENSOR "Build using cutensor library. Must set CUTENSOR_ROOT" OFF)
+#option(ENABLE_CUTENSOR "Build using cutensor library. Must set CUTENSOR_ROOT" OFF)
 option(ENABLE_TBLIS "Build using tblis library. Must set TBLIS_ROOT" OFF)
 option(COMPILE_NDA_TESTS "Build with nda tests" OFF)
 option(NDA_PYTHON_SUPPORT "Build nda with python support" OFF)
@@ -117,22 +117,51 @@ endif()
 ######################################################################
 if(ENABLE_CUDA)
   enable_language(CUDA)
+  if(DEFINED CUDA_ARCH)
+    set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH})
+  else()
+    set(CMAKE_CUDA_ARCHITECTURES 80)
+  endif()
   find_package(CUDAToolkit 12.0.0 REQUIRED)
+  if(NOT FETCH_CCCL)
+    find_package(CCCL REQUIRED)
+  endif()
   set(CMAKE_CUDA_STANDARD 20)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-  set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
-  set(CMAKE_CUDA_ARCHITECTURES 70)
-  string(APPEND CMAKE_CUDA_FLAGS " -Drestrict=__restrict__ -std=c++20 --expt-relaxed-constexpr --extended-lambda -Xcudafe \"--diag_suppress=implicit_return_from_non_void_function\" -Wdeprecated-declarations -w") 
-
+#  set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
+  string(APPEND CMAKE_CUDA_FLAGS " -std=c++20 --expt-relaxed-constexpr --extended-lambda -Xcudafe \"--diag_suppress=implicit_return_from_non_void_function\" -Wdeprecated-declarations -w") 
   include_directories(${CUDA_INCLUDE_DIRS})
   message( STATUS " CMAKE_CUDA_FLAGS: " ${CMAKE_CUDA_FLAGS})
 
-  # Trying to link these as PUBLIC in the afqmc library target
-  #link_libraries( CUDA::cublas CUDA::cusparse CUDA::curand CUDA::cusolver )
-  
-  # allow synthetic reference memory access from the host in multi withot warnings
-  ADD_DEFINITIONS(-D_DISABLE_CUDA_SLOW)
-
+  ########
+  # NCCL # 
+  ########
+  # look for nccl by default
+  if(NOT DEFINED NCCL_ROOT AND DEFINED ENV{NCCL_ROOT})
+    set(NCCL_ROOT $ENV{NCCL_ROOT})
+  endif()
+  find_package(NCCL QUIET)
+  if(${NCCL_FOUND})
+    set(ENABLE_NCCL TRUE)
+    add_compile_definitions(ENABLE_NCCL)
+    message(STATUS "Found NCCL library: ${NCCL_LIBRARIES}")
+    include_directories(${NCCL_INCLUDE_DIRS})
+    link_libraries(${NCCL_LIBRARIES})
+  else()
+    # try by hand
+    find_path(NCCL_INCLUDE_DIRS NAMES nccl.h nccl_net.h HINTS ${NCCL_ROOT}/include)
+    find_library(NCCL_LIBRARIES NAMES nccl HINTS ${NCCL_ROOT}/lib)
+    if(NCCL_INCLUDE_DIRS AND NCCL_LIBRARIES)
+      message(STATUS "Found NCCL library: ${NCCL_LIBRARIES}")
+      add_compile_definitions(ENABLE_NCCL)
+      include_directories(${NCCL_INCLUDE_DIRS})
+      link_libraries(${NCCL_LIBRARIES})
+      set(NCCL_FOUND TRUE)
+    endif()
+  endif()
+  if(REQUIRE_NCCL AND NOT NCCL_FOUND)
+    message(FATAL_ERROR "NCCL requested but not found. Set NCCL_ROOT")
+  endif()
 endif()
 
 ######################################################################
@@ -206,7 +235,8 @@ if(DEFINED NDA)
   set(FETCHCONTENT_SOURCE_DIR_NDA ${NDA})
 endif()
 # set nda options before FetchContent_Declare
-set(CutensorSupport ${ENABLE_CUTENSOR} CACHE INTERNAL "")
+#set(CutensorSupport ${ENABLE_CUTENSOR} CACHE INTERNAL "")
+set(CutensorSupport ${ENABLE_CUDA} CACHE INTERNAL "")
 set(CudaSupport ${ENABLE_CUDA} CACHE INTERNAL "")
 set(TblisSupport ${ENABLE_TBLIS} CACHE INTERNAL "")
 set(Build_Tests ${COMPILE_NDA_TESTS} CACHE INTERNAL "")
@@ -225,9 +255,9 @@ FetchContent_MakeAvailable(nda)
 
 set_property(GLOBAL PROPERTY nda_FOUND TRUE)
   
-if(ENABLE_CUDA AND ENABLE_CUTENSOR)
-  add_compile_definitions(ENABLE_CUTENSOR)
-endif()
+#if(ENABLE_CUDA) # AND ENABLE_CUTENSOR)
+#  add_compile_definitions(ENABLE_CUTENSOR)
+#endif()
 if(ENABLE_TBLIS)
   add_compile_definitions(ENABLE_TBLIS)
 endif()

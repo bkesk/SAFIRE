@@ -27,9 +27,8 @@
 #include <cassert>
 #include "numerics/sparse/detail/CPU/sparse.hpp"
 #if defined(ENABLE_CUDA)
-//#include "numerics/sparse/detail/CUDA/sparse_cuda_gpu.hpp"
+#include "numerics/sparse/detail/CUDA/cusparse_interface.hpp"
 //#elif defined(ENABLE_HIP)
-//#include "numerics/sparse/detail/HIP/sparse_hip_gpu.hpp"
 #endif
 
 #include "utilities/check.hpp"

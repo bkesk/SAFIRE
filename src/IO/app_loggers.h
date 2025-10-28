@@ -14,10 +14,10 @@
 #ifndef UTILITIES_APP_LOGGERS_HPP
 #define UTILITIES_APP_LOGGERS_HPP
 
-#include <format>
-
 #if defined(ENABLE_SPDLOG)
 #include "spdlog/spdlog.h"
+#else
+#include <format>
 #endif
 #include "IO/fmt_extensions.hpp"
 #include "IO/AppAbort.hpp"

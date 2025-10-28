@@ -4,13 +4,14 @@
 add_subdirectory(fft)
 add_subdirectory(device_kernels)
 add_subdirectory(ac)
+add_subdirectory(sparse)
 #add_subdirectory(imag_axes_ft)
 
 add_library(numerics INTERFACE)
 if(ENABLE_SLATE)
-target_link_libraries(numerics INTERFACE arch_lib fft_lib nda_c h5_c slate_lapack_api slate device_kernels)
+target_link_libraries(numerics INTERFACE arch_lib fft_lib sparse_lib nda_c h5_c slate_lapack_api slate device_kernels)
 ELSE(ENABLE_SLATE)
-target_link_libraries(numerics INTERFACE arch_lib fft_lib nda_c h5_c device_kernels)
+target_link_libraries(numerics INTERFACE arch_lib fft_lib sparse_lib nda_c h5_c device_kernels)
 ENDIF(ENABLE_SLATE)
 install(TARGETS numerics
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
