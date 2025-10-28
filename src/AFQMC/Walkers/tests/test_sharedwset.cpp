@@ -31,7 +31,9 @@
 #include <string>
 #include <vector>
 #include <complex>
+#include <utility>
 
+#include "nda/nda.hpp"
 #include "utilities/mpi_context.h"
 
 #include "AFQMC/Walkers/WalkerSet.hpp"
@@ -114,18 +116,18 @@ void test_basic_walker_features(std::string wtype)
     auto sm = it->template SlaterMatrix<MEM>(Alpha);
     REQUIRE( sm.extent(0) == initA.extent(0) );	
     REQUIRE( sm.extent(1) == initA.extent(1) );	
-    REQUIRE(it->template SlaterMatrix<MEM>(Alpha) == initA);
+    REQUIRE(nda::to_host(it->template SlaterMatrix<MEM>(Alpha)) == initA);
     if( wset.getWalkerType() == COLLINEAR ) { 
       auto smB = it->template SlaterMatrix<MEM>(Beta);
       REQUIRE( smB.extent(0) == initB.extent(0) );	
       REQUIRE( smB.extent(1) == initB.extent(1) );	
-      REQUIRE(it->template SlaterMatrix<MEM>(Beta) == initB);
+      REQUIRE( nda::to_host(it->template SlaterMatrix<MEM>(Beta)) == initB);
     }
-    *it->weight()  = base * 1.0 + 0.5;
-    *it->overlap() = base * 1.0 + 0.5;
-    *it->E1()      = base * 1.0 + 0.5;
-    *it->EXX()     = base * 1.0 + 0.5;
-    *it->EJ()      = base * 1.0 + 0.5;
+    it->set_property(WEIGHT,base * 1.0 + 0.5);
+    it->set_property(OVLP,base * 1.0 + 0.5);
+    it->set_property(E1_,base * 1.0 + 0.5);
+    it->set_property(EXX_,base * 1.0 + 0.5);
+    it->set_property(EJ_,base * 1.0 + 0.5);
     tot_weight += base * 1.0 + 0.5;
     base += Type(1.0);
     cnt++;
@@ -136,47 +138,46 @@ void test_basic_walker_features(std::string wtype)
   for (auto it = wset.begin(); it != wset.end(); ++it)
   {
     Type d_(base * 1.0 + 0.5);
-    REQUIRE(Type(*it->weight()) == d_);
-    REQUIRE(Type(*it->overlap()) == base * 1.0 + 0.5);
-    REQUIRE(Type(*it->E1()) == base * 1.0 + 0.5);
-    REQUIRE(Type(*it->EXX()) == base * 1.0 + 0.5);
-    REQUIRE(Type(*it->EJ()) == base * 1.0 + 0.5);
+    REQUIRE(Type(it->get_property(WEIGHT)) == d_);
+    REQUIRE(Type(it->get_property(OVLP)) == d_);
+    REQUIRE(Type(it->get_property(E1_)) == d_);
+    REQUIRE(Type(it->get_property(EXX_)) == d_);
+    REQUIRE(Type(it->get_property(EJ_)) == d_);
     base += Type(1.0);
     cnt++;
   }
-
   wset.reserve(20);
   REQUIRE(wset.capacity() == 20);
   base = Type(0.0);
   cnt = 0;
   for (auto it = wset.begin(); it != wset.end(); ++it)
   {
-    REQUIRE(Type(*it->weight()) == base * 1.0 + 0.5);
-    REQUIRE(Type(*it->overlap()) == base * 1.0 + 0.5);
-    REQUIRE(Type(*it->E1()) == base * 1.0 + 0.5);
-    REQUIRE(Type(*it->EXX()) == base * 1.0 + 0.5);
-    REQUIRE(Type(*it->EJ()) == base * 1.0 + 0.5);
+    REQUIRE(Type(it->get_property(WEIGHT)) == base * 1.0 + 0.5);
+    REQUIRE(Type(it->get_property(OVLP)) == base * 1.0 + 0.5);
+    REQUIRE(Type(it->get_property(E1_)) == base * 1.0 + 0.5);
+    REQUIRE(Type(it->get_property(EXX_)) == base * 1.0 + 0.5);
+    REQUIRE(Type(it->get_property(EJ_)) == base * 1.0 + 0.5);
     base += Type(1.0);
     cnt++;
   }
   for (int i = 0; i < wset.size(); i++)
   {
     Type i_(i);
-    REQUIRE(Type(*wset[i].weight()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*wset[i].overlap()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*wset[i].E1()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*wset[i].EXX()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*wset[i].EJ()) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(wset[i].get_property(WEIGHT)) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(wset[i].get_property(OVLP)) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(wset[i].get_property(E1_)) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(wset[i].get_property(EXX_)) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(wset[i].get_property(EJ_)) == i_ * 1.0 + 0.5);
   }
   for (int i = 0; i < wset.size(); i++)
   {
     Type i_(i);
     auto w = wset[i];
-    REQUIRE(Type(*w.weight()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*w.overlap()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*w.E1()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*w.EXX()) == i_ * 1.0 + 0.5);
-    REQUIRE(Type(*w.EJ()) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(WEIGHT)) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(OVLP)) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(E1_)) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(EXX_)) == i_ * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(EJ_)) == i_ * 1.0 + 0.5);
   }
   REQUIRE(wset.get_target_population() == nwalkers);
   REQUIRE(wset.get_global_target_population() == nwalkers * mpi->comm.size());
@@ -202,9 +203,9 @@ void test_basic_walker_features(std::string wtype)
   for (int i = 0; i < wset.size(); i++)
   {
     auto w = wset[i];
-    myREQUIRE(std::exp(nx * wset.getLogOverlapFactor()) * ComplexType(*w.overlap()), ComplexType(*w.E1()));
-    REQUIRE(ComplexType(*w.EXX()) == ComplexType(*w.E1()));
-    REQUIRE(ComplexType(*w.EJ()) == ComplexType(*w.E1()));
+    myREQUIRE(std::exp(nx * wset.getLogOverlapFactor()) * w.get_property(OVLP), w.get_property(E1_));
+    REQUIRE(w.get_property(EXX_) ==w.get_property(E1_));
+    REQUIRE(w.get_property(EJ_) == w.get_property(E1_));
   }
 
   auto SMs = wset.template SlaterMatrices<MEM>(Alpha);
@@ -227,7 +228,6 @@ void test_basic_walker_features(std::string wtype)
     WF() = ComplexType(0.0);
     WH() = ComplexType(0.0);
   }
-
 
   wset.clean();
   REQUIRE(wset.size() == 0);
@@ -280,18 +280,18 @@ void test_walker_io(std::string wtype)
     auto sm = it->template SlaterMatrix<MEM>(Alpha);
     REQUIRE( sm.extent(0) == initA.extent(0) );
     REQUIRE( sm.extent(1) == initA.extent(1) ); 
-    REQUIRE( it->template SlaterMatrix<MEM>(Alpha) == initA );
+    REQUIRE( nda::to_host(it->template SlaterMatrix<MEM>(Alpha)) == initA );
     if( wset.getWalkerType() == COLLINEAR ) {
       auto smB = it->template SlaterMatrix<MEM>(Beta);
       REQUIRE( smB.extent(0) == initB.extent(0) );
       REQUIRE( smB.extent(1) == initB.extent(1) ); 
-      REQUIRE( it->template SlaterMatrix<MEM>(Beta) == initB );
+      REQUIRE( nda::to_host(it->template SlaterMatrix<MEM>(Beta)) == initB );
     }
-    *it->weight()  = base * 1.0 + 0.1;
-    *it->overlap() = base * 1.0 + 0.2;
-    *it->E1()      = base * 1.0 + 0.3;
-    *it->EXX()     = base * 1.0 + 0.4;
-    *it->EJ()      = base * 1.0 + 0.5;
+    it->set_property(WEIGHT,base * 1.0 + 0.1);
+    it->set_property(OVLP,base * 1.0 + 0.2);
+    it->set_property(E1_,base * 1.0 + 0.3);
+    it->set_property(EXX_,base * 1.0 + 0.4);
+    it->set_property(EJ_,base * 1.0 + 0.5);
     tot_weight += base * 1.0 + 0.5; // not used?
     base += Type(1.0);
     cnt++;
@@ -310,14 +310,12 @@ void test_walker_io(std::string wtype)
     h5::file fh5(std::string("dummy_walkers.h5"),'r');
     auto wset2 = make_WalkerSet<MEM>(mpi, pt0.get_child("WalkerSet"), info, rng);
     restartFromHDF5(wset2, nwalkers, fh5, true);
+    std::array<walker_data,5> tags = {WEIGHT,OVLP,E1_,EXX_,EJ_};
     for (int i = 0; i < nwalkers; i++)
     {
-      CHECK(wset[i].template SlaterMatrix<MEM>(Alpha) == wset2[i].template SlaterMatrix<MEM>(Alpha));
-      CHECK(ComplexType(*wset[i].weight()) == ComplexType(*wset2[i].weight()));
-      CHECK(ComplexType(*wset[i].overlap()) == ComplexType(*wset2[i].overlap()));
-      CHECK(ComplexType(*wset[i].E1()) == ComplexType(*wset2[i].E1()));
-      CHECK(ComplexType(*wset[i].EXX()) == ComplexType(*wset2[i].EXX()));
-      CHECK(ComplexType(*wset[i].EJ()) == ComplexType(*wset2[i].EJ()));
+      CHECK(nda::to_host(wset[i].template SlaterMatrix<MEM>(Alpha)) == nda::to_host(wset2[i].template SlaterMatrix<MEM>(Alpha)));
+      for(auto v : tags)
+        CHECK(wset[i].get_property(v) == wset2[i].get_property(v));
     }
   }
 
@@ -333,6 +331,12 @@ TEST_CASE("swset_test_basic", "[shared_wset]")
   test_basic_walker_features<HOST_MEMORY>("collinear");
   test_basic_walker_features<HOST_MEMORY>("noncollinear");
   test_basic_walker_features<HOST_MEMORY>("fullypolarized");
+#if defined(ENABLE_DEVICE)
+  test_basic_walker_features<DEVICE_MEMORY>("closed");
+  test_basic_walker_features<DEVICE_MEMORY>("collinear");
+  test_basic_walker_features<DEVICE_MEMORY>("noncollinear");
+  test_basic_walker_features<DEVICE_MEMORY>("fullypolarized");
+#endif
 }
 TEST_CASE("walker_io", "[shared_wset]")
 {
@@ -340,6 +344,11 @@ TEST_CASE("walker_io", "[shared_wset]")
   test_walker_io<HOST_MEMORY>("collinear");
   test_walker_io<HOST_MEMORY>("noncollinear");
   test_walker_io<HOST_MEMORY>("fullypolarized");
+#if defined(ENABLE_DEVICE)
+  test_walker_io<DEVICE_MEMORY>("closed");
+  test_walker_io<DEVICE_MEMORY>("collinear");
+  test_walker_io<DEVICE_MEMORY>("noncollinear");
+  test_walker_io<DEVICE_MEMORY>("fullypolarized");
+#endif
 }
-
 } // namespace sfqmc

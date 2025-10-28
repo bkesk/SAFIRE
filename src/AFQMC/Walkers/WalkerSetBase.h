@@ -20,6 +20,7 @@
 #include <type_traits>
 #include <memory>
 
+#include "configuration.hpp"
 #include "config.h"
 #include "IO/AppAbort.hpp"
 #include "IO/ptree/ptree_utilities.hpp"
@@ -27,6 +28,7 @@
 #include "utilities/mpi_context.h"
 #include "utilities/type_traits.hpp"
 
+#include "nda/nda.hpp"
 #include "nda/tensor.hpp"
 
 #include "AFQMC/config.h"
@@ -166,7 +168,7 @@ public:
   auto begin()
   {
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return iterator(0, walker_buffer, data_displ, wlk_desc);
+    return iterator(0, walker_buffer.data(), walker_buffer.strides()[0], walker_buffer.extent(1), MEM, data_displ, wlk_desc);
   }
 
   /*
@@ -175,7 +177,7 @@ public:
   auto begin() const
   {
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_iterator(0, walker_buffer, data_displ, wlk_desc);
+    return const_iterator(0, walker_buffer.data(), walker_buffer.strides()[0], walker_buffer.extent(1), MEM, data_displ, wlk_desc);
   }
 
   /*
@@ -184,7 +186,7 @@ public:
   auto end()
   {
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
+    return iterator(tot_num_walkers, walker_buffer.data(), walker_buffer.strides()[0], walker_buffer.extent(1), MEM, data_displ, wlk_desc);
   }
 
   /*
@@ -193,7 +195,7 @@ public:
   auto end() const
   {
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
+    return const_iterator(tot_num_walkers, walker_buffer.data(), walker_buffer.strides()[0], walker_buffer.extent(1), MEM, data_displ, wlk_desc);
   } 
 
   /*
@@ -203,7 +205,7 @@ public:
   {
     utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
+    return reference(walker_buffer(i,nda::range::all).data(), walker_buffer.extent(1), MEM, data_displ, wlk_desc);
   }
 
   /*
@@ -213,7 +215,7 @@ public:
   {
     utils::check(i>=0 and i<tot_num_walkers, "error: index out of bounds.");
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
+    return const_reference(walker_buffer(i,nda::range::all).data(), walker_buffer.extent(1), MEM, data_displ, wlk_desc);
   }
 
   // cleans state of object.
@@ -256,12 +258,12 @@ public:
   // perform and report tests/timings
   void benchmark(std::string& blist, int maxnW, int delnW, int repeat);
 
-  int get_target_population() const { return targetN_per_rank; }
-  int get_global_target_population() const { return targetN; }
+  auto get_target_population() const { return targetN_per_rank; }
+  auto get_global_target_population() const { return targetN; }
 
-  std::pair<int, int> walker_dims() const { return std::pair<int, int>{wlk_desc[0], wlk_desc[1]}; }
+  auto walker_dims() const { return std::pair<int, int>{wlk_desc[0], wlk_desc[1]}; }
 
-  int GlobalPopulation() const
+  auto GlobalPopulation() const
   {
     int res = 0;
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch.");
@@ -269,7 +271,7 @@ public:
     return (mpi->comm += res);
   }
 
-  RealType GlobalWeight() const
+  auto GlobalWeight() const
   {
     RealType res = 0;
     utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch.");
@@ -449,7 +451,9 @@ public:
     walker_buffer(n,range(walkerSizeIO())) = x(range(walkerSizeIO()));
   }
 
-  void getProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v) const
+  template<typename Arr>
+  void getProperty(walker_data id, Arr&& v) const
+  //void getProperty(walker_data id, nda::MemoryArrayOfRank<1> auto&& v) const
   {
     using nda::range;
     utils::check(v.size() >= tot_num_walkers, " Shape mismatch");
@@ -488,15 +492,15 @@ public:
   {
     utils::check(_M_ == MEM, "Incompatible memory space");
     long i0 = data_displ[FIELDS] * bp_buffer.extent(1);
-    return memory::array_view<MEM,ComplexType,3>({wlk_desc[3], wlk_desc[4], bp_buffer.extent(1)}, bp_buffer.data() + i0);
+    return memory::array_view<_M_,ComplexType,3>({wlk_desc[3], wlk_desc[4], bp_buffer.extent(1)}, bp_buffer.data() + i0);
   }
 
   void storeFields(int ip, nda::MemoryArrayOfRank<2> auto&& V)
   {
     utils::check(ip>=0 and ip<wlk_desc[3], " Error: index out of bounds in getFields. ");
-    long i0 = (data_displ[FIELDS] + ip * wlk_desc[4]) * bp_buffer.extent(1);
     utils::check(V.shape() == std::array<long,2>{wlk_desc[4],bp_buffer.extent(1)}, 
                  "Shape mismatch");
+    long i0 = (data_displ[FIELDS] + ip * wlk_desc[4]) * bp_buffer.extent(1);
     auto F = memory::array_view<MEM,ComplexType,2>({wlk_desc[4],bp_buffer.extent(1)},bp_buffer.data() + i0);
     F() = V();
   }
@@ -506,8 +510,8 @@ public:
   {
     using nda::range;
     utils::check(_M_ == MEM, "Incompatible memory space");
-    return bp_buffer(range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6]),
-                     range::all);
+    long i0 = data_displ[WEIGHT_FAC] * bp_buffer.extent(1);
+    return memory::array_view<_M_,ComplexType,2>({wlk_desc[6], bp_buffer.extent(1)}, bp_buffer.data() + i0);
   }
 
   template<MEMORY_SPACE _M_>
@@ -515,8 +519,8 @@ public:
   {
     using nda::range;
     utils::check(_M_ == MEM, "Incompatible memory space");
-    return bp_buffer(range(data_displ[WEIGHT_HISTORY],data_displ[WEIGHT_HISTORY]+wlk_desc[6]),
-                     range::all);
+    long i0 = data_displ[WEIGHT_HISTORY] * bp_buffer.extent(1);
+    return memory::array_view<_M_,ComplexType,2>({wlk_desc[6], bp_buffer.extent(1)}, bp_buffer.data() + i0);
   }
 
   double getLogOverlapFactor() const { return LogOverlapFactor; }

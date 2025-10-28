@@ -14,7 +14,6 @@
 #ifndef UTILITIES_FMT_EXTENSIONS_HPP
 #define UTILITIES_FMT_EXTENSIONS_HPP
 
-#include <format>
 #include <complex>
 #include <vector>
 //#include "nda/nda.hpp"
@@ -126,6 +125,7 @@ struct fmt::formatter<Arr>
 
 #else
 
+#include <format>
 namespace std
 {
 template <> struct formatter<std::complex<double>> {

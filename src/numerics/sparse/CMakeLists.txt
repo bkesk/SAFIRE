@@ -18,6 +18,6 @@ ELSE()
 ENDIF()
 
 add_library(sparse_lib ${SRCS})
-target_link_libraries(sparse_lib PUBLIC io_lib arch_lib nda_c) 
+target_link_libraries(sparse_lib PUBLIC qmcio arch_lib nda_c) 
 
 

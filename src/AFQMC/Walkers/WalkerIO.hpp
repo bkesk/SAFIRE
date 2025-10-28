@@ -189,11 +189,11 @@ bool restartFromHDF5(WalkerSet& wset,
   int nWtot      = Idata[0];
   int wlk_nterms = Idata[2];
   int NMO        = Idata[4];
-  int NAEA       = Idata[5];
-  int NAEB       = Idata[6];
+  int nup       = Idata[5];
+  int ndn       = Idata[6];
   utils::check(wlk_nterms == wset.walkerSizeIO(), 
-               " Inconsistent walker restart file: IO size, NMO, NAEA, NAEB, WalkerType: {}, {}, {}, {}, {} ",
-               wset.walkerSizeIO(), NMO, NAEA< NAEB, int(wset.getWalkerType()));
+               " Inconsistent walker restart file: IO size, NMO, nup, ndown, WalkerType: {}, {}, {}, {}, {} ",
+               wset.walkerSizeIO(), NMO, nup, ndn, int(wset.getWalkerType()));
 
   // walker range belonging to this comm 
   int nW0, nWN;
@@ -215,9 +215,9 @@ bool restartFromHDF5(WalkerSet& wset,
   int nw_local = nWN - nW0;
   { // to limit scope
     int NMO2 = ((walker_type == NONCOLLINEAR) ? 2 * NMO : NMO);
-    nda::array<ComplexType, 2> PsiA(NMO2, NAEA), PsiB;
+    nda::array<ComplexType, 2> PsiA(NMO2, nup), PsiB;
     if (wset.getWalkerType() == COLLINEAR) {
-      PsiB.resize(NMO, NAEB);
+      PsiB.resize(NMO, ndn);
       PsiB() = ComplexType(0.0);
     }
     wset.resize(nw_local, PsiA, PsiB);
@@ -286,21 +286,27 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
     displ.resize(mpi->comm.size());
     wlk_per_blk.reserve(nblks);
 
-    [[maybe_unused]] int NMO = 0, NAEA = 0, NAEB = 0;
+    [[maybe_unused]] long NMO = 0, nup = 0, ndn = 0;
     { // to limit the scope
       auto w = wset[0];
       if(MEM == HOST_MEMORY) {
-        std::tie(NMO,NAEA) = w.template SlaterMatrix<HOST_MEMORY>(Alpha).shape();
+        auto SM = w.template SlaterMatrix<HOST_MEMORY>(Alpha);
+        NMO = SM.extent(0); 
+        nup = SM.extent(1); 
         if (walker_type == COLLINEAR)
-          NAEB = w.template SlaterMatrix<HOST_MEMORY>(Beta).extent(1);
+          ndn = w.template SlaterMatrix<HOST_MEMORY>(Beta).extent(1);
       } else if(MEM == DEVICE_MEMORY) {
-        std::tie(NMO,NAEA) = w.template SlaterMatrix<DEVICE_MEMORY>(Alpha).shape();
+        auto SM = w.template SlaterMatrix<DEVICE_MEMORY>(Alpha);
+        NMO = SM.extent(0); 
+        nup = SM.extent(1); 
         if (walker_type == COLLINEAR)
-          NAEB = w.template SlaterMatrix<DEVICE_MEMORY>(Beta).extent(1);
+          ndn = w.template SlaterMatrix<DEVICE_MEMORY>(Beta).extent(1);
       } else if(MEM == UNIFIED_MEMORY) {
-        std::tie(NMO,NAEA) = w.template SlaterMatrix<UNIFIED_MEMORY>(Alpha).shape();
+        auto SM = w.template SlaterMatrix<UNIFIED_MEMORY>(Alpha);
+        NMO = SM.extent(0); 
+        nup = SM.extent(1); 
         if (walker_type == COLLINEAR)
-          NAEB = w.template SlaterMatrix<UNIFIED_MEMORY>(Beta).extent(1);
+          ndn = w.template SlaterMatrix<UNIFIED_MEMORY>(Beta).extent(1);
       } else {
         utils::check(false,"Invalid memory space");
       }
@@ -314,8 +320,8 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
     Idata[2] = wlk_nterms;
     Idata[3] = wlk_sz;
     Idata[4] = NMO;
-    Idata[5] = NAEA;
-    Idata[6] = NAEB;
+    Idata[5] = nup;
+    Idata[6] = ndn;
 
     h5::group sgrp = (grp.has_subgroup("Walkers") ?
             grp.open_group("Walkers")    :
