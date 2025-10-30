@@ -89,22 +89,22 @@ void csrmv(::nda::get_value_t<X> alpha, A_t const& a, X const &x, ::nda::get_val
   auto [m, n] = arg(a).shape();
 
   if(op_a == 'N') {
-    utils::check(m == y.extent(0), "Shape mismatch");
-    utils::check(n == x.extent(0), "Shape mismatch");
+    sfqmc::utils::check(m == y.extent(0), "Shape mismatch");
+    sfqmc::utils::check(n == x.extent(0), "Shape mismatch");
   } else {
-    utils::check(m == x.extent(0), "Shape mismatch");
-    utils::check(n == y.extent(0), "Shape mismatch");
+    sfqmc::utils::check(m == x.extent(0), "Shape mismatch");
+    sfqmc::utils::check(n == y.extent(0), "Shape mismatch");
   }
 
   // Must be lapack compatible
-  utils::check(x.indexmap().min_stride() == 1, "Stride mismatch");
-  utils::check(y.indexmap().min_stride() == 1, "Stride mismatch");
+  sfqmc::utils::check(x.indexmap().min_stride() == 1, "Stride mismatch");
+  sfqmc::utils::check(y.indexmap().min_stride() == 1, "Stride mismatch");
 
   if constexpr (::nda::mem::have_device_compatible_addr_space<A,X,Y>) {
 #if defined(ENABLE_DEVICE)
     device::csrmv(alpha,a,x,beta,y);
 #else
-    utils::check(false," csr_blas on device without gpu support! Compile for GPU. ");
+    sfqmc::utils::check(false," csr_blas on device without gpu support! Compile for GPU. ");
 #endif
   } else {
     cpu::csrmv(op_a, m, n, alpha, "GxxCxx", arg(a).values().data(), arg(a).columns().data(), 
@@ -123,7 +123,7 @@ void csrmm(T alpha, B const& b, A_t const &a, T beta, C &&c) {
                 (std::decay_t<B>::is_stride_order_Fortran() and std::decay_t<C>::is_stride_order_Fortran()));
 
   char op_a = math::detail::op_tag<A_t>::value;
-  utils::check(op_a == 'N' or op_a == 'T', "Error: No hermitian_tag allowed in csrmm(Dense,Sparse,Dense).");
+  sfqmc::utils::check(op_a == 'N' or op_a == 'T', "Error: No hermitian_tag allowed in csrmm(Dense,Sparse,Dense).");
 
   auto bt = ::nda::transpose(b);
   auto ct = ::nda::transpose(c);
@@ -152,17 +152,17 @@ void csrmm(T alpha, A_t const& a, B const &b, T beta, C &&c) {
     
   char op_a = math::detail::op_tag<A_t>::value;
   if(op_a == 'N') {
-    utils::check(arg(a).shape(0) == c.extent(0), "Shape mismatch");
-    utils::check(arg(a).shape(1) == b.extent(0), "Shape mismatch");
+    sfqmc::utils::check(arg(a).shape(0) == c.extent(0), "Shape mismatch");
+    sfqmc::utils::check(arg(a).shape(1) == b.extent(0), "Shape mismatch");
   } else {
-    utils::check(arg(a).shape(0) == b.extent(0), "Shape mismatch");
-    utils::check(arg(a).shape(1) == c.extent(0), "Shape mismatch");
+    sfqmc::utils::check(arg(a).shape(0) == b.extent(0), "Shape mismatch");
+    sfqmc::utils::check(arg(a).shape(1) == c.extent(0), "Shape mismatch");
   }
-  utils::check(b.shape(1) == c.extent(1), "Shape mismatch");
+  sfqmc::utils::check(b.shape(1) == c.extent(1), "Shape mismatch");
     
   // Must be lapack compatible
-  utils::check(b.indexmap().min_stride() == 1, "Stride mismatch");
-  utils::check(c.indexmap().min_stride() == 1, "Stride mismatch");
+  sfqmc::utils::check(b.indexmap().min_stride() == 1, "Stride mismatch");
+  sfqmc::utils::check(c.indexmap().min_stride() == 1, "Stride mismatch");
     
   auto [m, k] = arg(a).shape();
   auto n = c.extent(1);
@@ -171,7 +171,7 @@ void csrmm(T alpha, A_t const& a, B const &b, T beta, C &&c) {
 #if defined(ENABLE_DEVICE)
     device::csrmm(alpha,a,b,beta,c);
 #else 
-    utils::check(false," csr_blas on device without gpu support! Compile for GPU. ");
+    sfqmc::utils::check(false," csr_blas on device without gpu support! Compile for GPU. ");
 #endif
   } else {
     if constexpr (std::decay_t<B>::is_stride_order_C()) {

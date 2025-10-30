@@ -20,6 +20,7 @@
 #include "utilities/check.hpp"
 #include "AFQMC/Utilities/type_conversion.hpp"
 
+namespace sfqmc {
 namespace utils
 {
 
@@ -135,5 +136,6 @@ inline void load(RandomGenerator_t& rng,
   str >> rng;
 }
 
+}
 }
 

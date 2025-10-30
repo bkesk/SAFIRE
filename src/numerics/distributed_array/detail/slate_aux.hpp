@@ -68,7 +68,7 @@ auto make_slate(DMat& A_)
 
   auto&& A = math::detail::arg(A_);
 
-  // MAM: can add a check for utils::check( A.is_slate_compatible(), "Slate incompatible matrix");
+  // MAM: can add a check for sfqmc::utils::check( A.is_slate_compatible(), "Slate incompatible matrix");
   int64_t p = A.grid()[row_index];
   int64_t q = A.grid()[col_index];
   int64_t m = A.global_shape()[row_index];
@@ -130,9 +130,9 @@ auto make_slate(DMat& A_)
       if ( R.tileIsLocal(i,j) ) {
         auto x = i*mb - A.origin()[row_index]; 
         auto y = j*nb - A.origin()[col_index]; 
-        utils::check(x>=0 and x <= A.local_shape()[row_index], 
+        sfqmc::utils::check(x>=0 and x <= A.local_shape()[row_index], 
 		"Out of range: x:{}, shape:{}",x,A.local_shape()[row_index]);
-        utils::check(y>=0 and y <= A.local_shape()[col_index], 
+        sfqmc::utils::check(y>=0 and y <= A.local_shape()[col_index], 
 		"Out of range: y:{}, shape:{}, j:{}, nb:{}, org:{}",
 		y,A.local_shape()[row_index],j,nb,A.origin()[col_index]);
       
@@ -152,7 +152,7 @@ auto make_slate(DMat& A_)
           }
         } else {
           if constexpr (not ::nda::mem::on_host<Array_t>)
-            utils::check(false," FIX: Still have problems retrieting tiles from device memory!!!");
+            sfqmc::utils::check(false," FIX: Still have problems retrieting tiles from device memory!!!");
           auto tile = R(i,j);
           auto Rloc = arr_t(lay_t{{tile.mb(),tile.nb()},{1,tile.stride()}},tile.data());
           if constexpr (transpose_layout) {

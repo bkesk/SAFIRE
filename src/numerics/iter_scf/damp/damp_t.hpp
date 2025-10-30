@@ -53,7 +53,7 @@ namespace iter_scf {
 
     template<nda::MemoryArray Array_H_t>
     double solve(Array_H_t &&H, std::string dataset, h5::group &grp, long iter) {
-      utils::check(grp.has_subgroup("iter" + std::to_string(iter-1)), "damp: h5 group /scf/iter{} does not exist.", iter-1);
+      sfqmc::utils::check(grp.has_subgroup("iter" + std::to_string(iter-1)), "damp: h5 group /scf/iter{} does not exist.", iter-1);
       auto iter_grp = grp.open_group("iter" + std::to_string(iter-1));
 
       auto H_previous = nda::make_regular(H);
@@ -77,10 +77,10 @@ namespace iter_scf {
     }
 
     void metadata_log() const {
-      app_log(2, "\nIterative algorithm for SCF");
-      app_log(2, "-----------------------------");
-      app_log(2, "  * algorithm: simple mixing");
-      app_log(2, "  * mixing parameter = {}\n", mixing);
+      sfqmc::app_log(2, "\nIterative algorithm for SCF");
+      sfqmc::app_log(2, "-----------------------------");
+      sfqmc::app_log(2, "  * algorithm: simple mixing");
+      sfqmc::app_log(2, "  * mixing parameter = {}\n", mixing);
     }
 
     // Dummy function to comply with the interface

@@ -39,7 +39,7 @@
 namespace bdft_tests
 {
 
-using utils::VALUE_EQUAL;
+using sfqmc::utils::VALUE_EQUAL;
 
 template<typename T>
 void test_argmax()
@@ -47,7 +47,7 @@ void test_argmax()
   const long N = 1000;
   const long Ns = 10;
   {
-    auto a = utils::make_random<T>(N);
+    auto a = sfqmc::utils::make_random<T>(N);
     for( auto& v: a ) v = std::real(v);
     memory::device_array<T,1> a_d(a);
   
@@ -58,7 +58,7 @@ void test_argmax()
   }
 
   { 
-    auto a = utils::make_random<T>(N,N);
+    auto a = sfqmc::utils::make_random<T>(N,N);
     for( auto& v: a ) v = std::real(v);
     memory::device_array<T,2> a_d(a);
     
@@ -70,7 +70,7 @@ void test_argmax()
   } 
 
   { 
-    auto a = utils::make_random<T>(N,N);
+    auto a = sfqmc::utils::make_random<T>(N,N);
     for( auto& v: a ) v = std::real(v);
     memory::device_array<T,2> a_d(a);
     
@@ -84,7 +84,7 @@ void test_argmax()
   }
 
   { 
-    auto a = utils::make_random<T>(Ns,Ns,Ns);
+    auto a = sfqmc::utils::make_random<T>(Ns,Ns,Ns);
     for( auto& v: a ) v = std::real(v);
     memory::device_array<T,3> a_d(a);
     
@@ -104,7 +104,7 @@ void test_argmin()
   const long N = 1000;
   const long Ns = 10;
   { 
-    auto a = utils::make_random<T>(N);
+    auto a = sfqmc::utils::make_random<T>(N);
     for( auto& v: a ) v = std::real(v);
     memory::device_array<T,1> a_d(a);
     
@@ -115,7 +115,7 @@ void test_argmin()
   }
 
   { 
-    auto a = utils::make_random<T>(N,N);
+    auto a = sfqmc::utils::make_random<T>(N,N);
     for( auto& v: a ) v = std::real(v);
     memory::device_array<T,2> a_d(a);
     
@@ -127,7 +127,7 @@ void test_argmin()
   }
 
   {
-    auto a = utils::make_random<T>(N,N);
+    auto a = sfqmc::utils::make_random<T>(N,N);
     for( auto& v: a ) v = std::real(v);
     memory::device_array<T,2> a_d(a);
 
@@ -141,7 +141,7 @@ void test_argmin()
   }
   
   { 
-    auto a = utils::make_random<T>(Ns,Ns,Ns);
+    auto a = sfqmc::utils::make_random<T>(Ns,Ns,Ns);
     for( auto& v: a ) v = std::real(v);
     memory::device_array<T,3> a_d(a);
     
@@ -168,8 +168,8 @@ void test_copy_select()
   memory::device_array<long,1> m_d(m);
 
   {
-    auto A = utils::make_random<T>(N);
-    auto B0 = utils::make_random<T>(Ns);
+    auto A = sfqmc::utils::make_random<T>(N);
+    auto B0 = sfqmc::utils::make_random<T>(Ns);
     T sref=0.0;
     for( auto i : itertools::range(Ns) ) 
       sref += B0(i) + s(i)*A(m(i)); 
@@ -188,8 +188,8 @@ void test_copy_select()
   }
 
   {
-    auto A = utils::make_random<T>(N);
-    auto B0 = utils::make_random<T>(Ns);
+    auto A = sfqmc::utils::make_random<T>(N);
+    auto B0 = sfqmc::utils::make_random<T>(Ns);
     T sref=0.0;
     for( auto i : itertools::range(Ns) ) 
       sref += B0(i) + A(m(i));
@@ -208,8 +208,8 @@ void test_copy_select()
   }
 
   {
-    auto A = utils::make_random<T>(N,32);
-    auto B0 = utils::make_random<T>(Ns,32);
+    auto A = sfqmc::utils::make_random<T>(N,32);
+    auto B0 = sfqmc::utils::make_random<T>(Ns,32);
     T sref=0.0;
     for( auto i : itertools::range(Ns) )
       for( auto r : itertools::range(32) ) 
@@ -229,8 +229,8 @@ void test_copy_select()
   }
 
   {
-    auto A = utils::make_random<T>(32,N);
-    auto B0 = utils::make_random<T>(32,Ns);
+    auto A = sfqmc::utils::make_random<T>(32,N);
+    auto B0 = sfqmc::utils::make_random<T>(32,Ns);
     T sref=0.0;
     for( auto r : itertools::range(32) ) 
       for( auto i : itertools::range(Ns) ) 
@@ -250,8 +250,8 @@ void test_copy_select()
   }
 
   {
-    auto A = utils::make_random<T>(N,32);
-    auto B0 = utils::make_random<T>(Ns,32);
+    auto A = sfqmc::utils::make_random<T>(N,32);
+    auto B0 = sfqmc::utils::make_random<T>(Ns,32);
     T sref=0.0;
     for( auto i : itertools::range(Ns) )
       for( auto r : itertools::range(32) )
@@ -271,8 +271,8 @@ void test_copy_select()
   }
 
   {
-    auto A = utils::make_random<T>(32,N);
-    auto B0 = utils::make_random<T>(32,Ns);
+    auto A = sfqmc::utils::make_random<T>(32,N);
+    auto B0 = sfqmc::utils::make_random<T>(32,Ns);
     T sref=0.0;
     for( auto r : itertools::range(32) )
       for( auto i : itertools::range(Ns) )
@@ -293,8 +293,8 @@ void test_copy_select()
 
   // expand = true now
   {
-    auto A = utils::make_random<T>(Ns);
-    auto B0 = utils::make_random<T>(N);
+    auto A = sfqmc::utils::make_random<T>(Ns);
+    auto B0 = sfqmc::utils::make_random<T>(N);
     nda::array<T,1> B1(B0);
     for( auto i : itertools::range(Ns) ) 
       B1(m(i)) = B0(m(i)) + s(i)*A(i);
@@ -314,8 +314,8 @@ void test_copy_select()
   }
 
   {
-    auto A = utils::make_random<T>(Ns);
-    auto B0 = utils::make_random<T>(N);
+    auto A = sfqmc::utils::make_random<T>(Ns);
+    auto B0 = sfqmc::utils::make_random<T>(N);
     nda::array<T,1> B1(B0);
     for( auto i : itertools::range(Ns) ) 
       B1(m(i)) = B0(m(i)) + A(i);
@@ -335,8 +335,8 @@ void test_copy_select()
   }
 
   {
-    auto A = utils::make_random<T>(Ns,32);
-    auto B0 = utils::make_random<T>(N,32);
+    auto A = sfqmc::utils::make_random<T>(Ns,32);
+    auto B0 = sfqmc::utils::make_random<T>(N,32);
     nda::array<T,2> B1(B0);
     for( auto i : itertools::range(Ns) )
       for( auto r : itertools::range(32) )
@@ -357,8 +357,8 @@ void test_copy_select()
   }
 
   { 
-    auto A = utils::make_random<T>(32,Ns);
-    auto B0 = utils::make_random<T>(32,N);
+    auto A = sfqmc::utils::make_random<T>(32,Ns);
+    auto B0 = sfqmc::utils::make_random<T>(32,N);
     nda::array<T,2> B1(B0);
     for( auto r : itertools::range(32) ) 
       for( auto i : itertools::range(Ns) )
@@ -379,8 +379,8 @@ void test_copy_select()
   }
 
   { 
-    auto A = utils::make_random<T>(Ns,32);
-    auto B0 = utils::make_random<T>(N,32);
+    auto A = sfqmc::utils::make_random<T>(Ns,32);
+    auto B0 = sfqmc::utils::make_random<T>(N,32);
     nda::array<T,2> B1(B0);
     for( auto i : itertools::range(Ns) ) 
       for( auto r : itertools::range(32) )
@@ -401,8 +401,8 @@ void test_copy_select()
   }
 
   { 
-    auto A = utils::make_random<T>(32,Ns);
-    auto B0 = utils::make_random<T>(32,N);
+    auto A = sfqmc::utils::make_random<T>(32,Ns);
+    auto B0 = sfqmc::utils::make_random<T>(32,N);
     nda::array<T,2> B1(B0);
     for( auto r : itertools::range(32) ) 
       for( auto i : itertools::range(Ns) )

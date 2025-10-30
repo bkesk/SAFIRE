@@ -172,7 +172,7 @@ namespace imag_axes_ft {
       if (grid_var.index() == 0) {
         return ir_source;
       } else {
-        utils::check(false, "IAFT::source(): This should not trigger");
+        sfqmc::utils::check(false, "IAFT::source(): This should not trigger");
         return ir_source;
       }
     }

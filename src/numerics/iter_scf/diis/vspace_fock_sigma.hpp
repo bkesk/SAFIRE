@@ -65,8 +65,8 @@ public:
     }
 
     ComplexType dot_prod(const FockSigma& rhs) const {
-      utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
-      utils::check(inited_S, "FockSigma: Sigma is not initialized");
+      sfqmc::utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
+      sfqmc::utils::check(inited_S, "FockSigma: Sigma is not initialized");
       size_t Fdim = std::reduce(_Fock.shape().begin(), _Fock.shape().end(), 1, std::multiplies<size_t>());
       size_t Sdim = std::reduce(_Sigma.shape().begin(), _Sigma.shape().end(), 1, std::multiplies<size_t>());
 /*
@@ -95,15 +95,15 @@ public:
     }
 
     const Array_4D& get_fock() const {
-        utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
+        sfqmc::utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
         return _Fock;
     }
     const Array_5D& get_sigma() const {
-        utils::check(inited_S, "FockSigma: Sigma is not initialized");
+        sfqmc::utils::check(inited_S, "FockSigma: Sigma is not initialized");
         return _Sigma;
     }
     double get_mu() const {
-        utils::check(inited_mu, "FockSigma: mu is not initialized");
+        sfqmc::utils::check(inited_mu, "FockSigma: mu is not initialized");
         return _mu;
     }
 
@@ -131,32 +131,32 @@ public:
     }
 
     FockSigma operator*=(std::complex<double> c)  {
-        utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
-        utils::check(inited_S, "FockSigma: Sigma is not initialized");
+        sfqmc::utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
+        sfqmc::utils::check(inited_S, "FockSigma: Sigma is not initialized");
         _Fock *= c;
         _Sigma *= c;
         return *this;
     }
 
     FockSigma operator+=(FockSigma & vec)  {
-        utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
-        utils::check(inited_S, "FockSigma: Sigma is not initialized");
+        sfqmc::utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
+        sfqmc::utils::check(inited_S, "FockSigma: Sigma is not initialized");
         _Fock += vec.get_fock();
         _Sigma += vec.get_sigma();
         return *this;
     }
 
     FockSigma operator+=(FockSigma && vec)  {
-        utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
-        utils::check(inited_S, "FockSigma: Sigma is not initialized");
+        sfqmc::utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
+        sfqmc::utils::check(inited_S, "FockSigma: Sigma is not initialized");
         _Fock += vec.get_fock();
         _Sigma += vec.get_sigma();
         return *this;
     }
 
     void add(FockSigma&& a, ComplexType c) {
-        utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
-        utils::check(inited_S, "FockSigma: Sigma is not initialized");
+        sfqmc::utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
+        sfqmc::utils::check(inited_S, "FockSigma: Sigma is not initialized");
         _Fock += c * a.get_fock();
         _Sigma += c * a.get_sigma();
     }
@@ -173,8 +173,8 @@ public:
         inited_mu = true;
     }
     void write_to_file(std::string filename, const size_t vec_number) {
-        utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
-        utils::check(inited_S, "FockSigma: Sigma is not initialized");
+        sfqmc::utils::check(inited_F, "FockSigma: Fock matrix is not initialized");
+        sfqmc::utils::check(inited_S, "FockSigma: Sigma is not initialized");
         h5::file file(filename, 'a');
         if(!h5::group(file).has_subgroup("vec" + std::to_string(vec_number))) {
             //app_log(2, "write_to_file: creating {} in file {}", "vec" + std::to_string(vec_number), filename);

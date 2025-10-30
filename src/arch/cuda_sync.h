@@ -18,10 +18,9 @@
  * ==========================================================================
  */
 
+#pragma once
 
-#ifndef ARCH_CUDA_CUDA_SYNC_H
-#define ARCH_CUDA_CUDA_SYNC_H
-
+namespace sfqmc {
 namespace cuda 
 {
   bool get_device_synchronization();
@@ -29,5 +28,4 @@ namespace cuda
   void synchronize_if_set();
   void synchronize();
 }
-
-#endif
+}

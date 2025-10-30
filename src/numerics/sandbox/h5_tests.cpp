@@ -65,17 +65,17 @@ int main(int argc, char* argv[])
     ("dims", "matrix dimensions", cxxopts::value<std::vector<long>>())
   ;
   auto args = options.parse(argc, argv);
-  utils::check(args.count("pgrid") == 1 and args.count("dims") == 1, 
+  sfqmc::utils::check(args.count("pgrid") == 1 and args.count("dims") == 1, 
                "Error: pgrid and dims must be provided (... and only once each)");
   auto pg = args["pgrid"].as<std::vector<long>>();
   auto dims = args["dims"].as<std::vector<long>>();
   long rank = pg.size();;
 
-  utils::check(rank > 0 and rank < 5 and rank == dims.size(), 
+  sfqmc::utils::check(rank > 0 and rank < 5 and rank == dims.size(), 
                "Error: pgrid must have same dimensions as dims");
 
   long np = std::accumulate(pg.begin(),pg.end(),1,std::multiplies<>{});
-  utils::check(np == world.size(), "Error: np != world.size()");
+  sfqmc::utils::check(np == world.size(), "Error: np != world.size()");
   std::string fname = "__h5_test__.h5";
   if(world.root() and std::filesystem::exists(fname.c_str())) remove(fname.c_str());
 
@@ -98,10 +98,10 @@ int main(int argc, char* argv[])
       auto Aloc = nda::array<ComplexType,1>::zeros({N});
       ::nda::h5_write(g,"h5_test_serial",Aloc,false);
       H5_Timer.stop("LOC");
-      app_log(0," Data Size:           {} GB",double(N)*1.49011611938477e-08);
-      app_log(0," Serial IO rate:      {}",double(N)*1.49011611938477e-08/double(H5_Timer.elapsed("LOC")));
-      app_log(0," Distributed IO rate: {}",double(N)*1.49011611938477e-08/double(H5_Timer.elapsed("IO")));
-      if(world.size()>1) app_log(0," Comm overhead:      {}",double(H5_Timer.elapsed("COMM"))/double(H5_Timer.elapsed("TOTAL")));
+      sfqmc::app_log(0," Data Size:           {} GB",double(N)*1.49011611938477e-08);
+      sfqmc::app_log(0," Serial IO rate:      {}",double(N)*1.49011611938477e-08/double(H5_Timer.elapsed("LOC")));
+      sfqmc::app_log(0," Distributed IO rate: {}",double(N)*1.49011611938477e-08/double(H5_Timer.elapsed("IO")));
+      if(world.size()>1) sfqmc::app_log(0," Comm overhead:      {}",double(H5_Timer.elapsed("COMM"))/double(H5_Timer.elapsed("TOTAL")));
       H5_Timer.print_all();
     } else {
       h5::file h5f;

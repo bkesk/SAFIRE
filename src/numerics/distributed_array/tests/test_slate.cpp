@@ -180,7 +180,7 @@ TEST_CASE("cuda_aware_mpi", "[math]")
   auto world = boost::mpi3::environment::get_world_instance();
   {
     using local_Array_t = nda::cuarray<double, 2>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
     auto A =  make_distributed_array<local_Array_t>(world, shape_t<2>{nx,ny},
                         shape_t<2>{N,N}, {16, 16}, true);
@@ -197,9 +197,9 @@ TEST_CASE("determinant", "[math]") {
   nda::matrix<double> A(N, N);
   A() = 1.1;
   auto detA_ref = ::nda::determinant_in_place(A);
-  app_log(2, "detA_ref = {}", detA_ref);
+  sfqmc::app_log(2, "detA_ref = {}", detA_ref);
 
-  long nx = utils::find_proc_grid_min_diff(world.size(), N, N);
+  long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(), N, N);
   long ny = world.size() / nx;
   using local_Array_t = memory::array<HOST_MEMORY, double, 2>;
   auto dA = make_distributed_array<local_Array_t>(world, shape_t<2>{nx, ny},
@@ -221,12 +221,12 @@ TEST_CASE("determinant", "[math]") {
     }
   }
 
-  app_log(2, "pgrid = ({}, {})", dA.grid()[0], dA.grid()[1]);
-  app_log(2, "bsize = ({}, {})", dA.block_size()[0], dA.block_size()[1]);
+  sfqmc::app_log(2, "pgrid = ({}, {})", dA.grid()[0], dA.grid()[1]);
+  sfqmc::app_log(2, "bsize = ({}, {})", dA.block_size()[0], dA.block_size()[1]);
   [[maybe_unused]] auto detA = math::nda::slate_ops::determinant(dA, diag_idx);
-  app_log(2, "detA = {}", detA);
+  sfqmc::app_log(2, "detA = {}", detA);
 
-  utils::VALUE_EQUAL(detA, detA_ref);
+  sfqmc::utils::VALUE_EQUAL(detA, detA_ref);
 }
 
 TEST_CASE("distributed_ops", "[math]")
@@ -236,7 +236,7 @@ TEST_CASE("distributed_ops", "[math]")
 
   {
     using local_Array_t = nda::array<double, 2>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
     auto A =  make_distributed_array<local_Array_t>(world, shape_t<2>{nx,ny},
 			shape_t<2>{N,N}, {16, 16}, true); 
@@ -263,7 +263,7 @@ TEST_CASE("distributed_ops", "[math]")
 
   {
     using local_Array_t = nda::array<double, 2, nda::F_layout>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
     auto A =  make_distributed_array<local_Array_t>(world, shape_t<2>{nx,ny},
                         shape_t<2>{N,N}, {16, 16}, true);  
@@ -277,7 +277,7 @@ TEST_CASE("distributed_ops", "[math]")
 
   {
     using local_Array_t = nda::array<double, 2, nda::F_layout>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
     auto A =  make_distributed_array<local_Array_t>(world, shape_t<2>{nx,ny},
                         shape_t<2>{N,N}, {16, 16}, true);
@@ -291,7 +291,7 @@ TEST_CASE("distributed_ops", "[math]")
 
   {
     using local_Array_t = nda::array<double, 3>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
     long bz = std::min(16l,std::min(N/nx,N/ny));
     auto A =  make_distributed_array<local_Array_t>(world, shape_t<3>{1,nx,ny},
@@ -318,7 +318,7 @@ TEST_CASE("distributed_ops", "[math]")
 
   { 
     using local_Array_t = nda::array<double, 3>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
 std::cout<<" nx: " <<nx <<std::endl;
     long bz = std::min(16l,N/ny);
@@ -349,7 +349,7 @@ std::cout<<" nx: " <<nx <<std::endl;
 
   {
     using local_Array_t = nda::cuarray<double, 2>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
     auto A =  make_distributed_array<local_Array_t>(world, shape_t<2>{nx,ny},
                         shape_t<2>{N,N}, {16, 16}, true);
@@ -358,8 +358,8 @@ std::cout<<" nx: " <<nx <<std::endl;
     auto C =  make_distributed_array<local_Array_t>(world, shape_t<2>{nx,ny},
                         shape_t<2>{N,N}, {16, 16}, true);
     {
-      A.local() = utils::make_random<double>(A.local_shape()[0],A.local_shape()[1]);;
-      B.local() = utils::make_random<double>(B.local_shape()[0],B.local_shape()[1]);;
+      A.local() = sfqmc::utils::make_random<double>(A.local_shape()[0],A.local_shape()[1]);;
+      B.local() = sfqmc::utils::make_random<double>(B.local_shape()[0],B.local_shape()[1]);;
     }
 
     multiply(A,B,C);
@@ -377,7 +377,7 @@ std::cout<<" nx: " <<nx <<std::endl;
   {
     //using local_Array_t = nda::cuarray<double, 2, nda::F_layout>;
     using local_Array_t = memory::unified_array<double, 2, nda::F_layout>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
     auto A =  make_distributed_array<local_Array_t>(world, shape_t<2>{nx,ny},
                         shape_t<2>{N,N}, {16, 16}, true);
@@ -395,7 +395,7 @@ std::cout<<" nx: " <<nx <<std::endl;
   {
     //using local_Array_t = nda::cuarray<double, 2, nda::F_layout>;
     using local_Array_t = memory::unified_array<double, 2, nda::F_layout>;
-    long nx = utils::find_proc_grid_min_diff(world.size(),N,N);
+    long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),N,N);
     long ny = world.size()/nx;
     auto A =  make_distributed_array<local_Array_t>(world, shape_t<2>{nx,ny},
                         shape_t<2>{N,N}, {16, 16}, true);
@@ -427,8 +427,8 @@ TEST_CASE("test_solve","[math]")
   }
   int N = A.shape(0);
   int M = B.shape(1);
-  utils::check(A.shape(1)==N,"Size mismatch.");
-  utils::check(B.shape(0)==N,"Size mismatch.");
+  sfqmc::utils::check(A.shape(1)==N,"Size mismatch.");
+  sfqmc::utils::check(B.shape(0)==N,"Size mismatch.");
 
   if(world.root()) {
     nda::array<ComplexType,2> A_ = A;
@@ -438,27 +438,27 @@ TEST_CASE("test_solve","[math]")
     nda::array<int,1> ipiv(N); 
     int info;
     double anorm = nda::lapack::f77::lange('I',N,N,A_.data(),N,rwork.data());
-    app_log(0," I-norm: {}",anorm);
+    sfqmc::app_log(0," I-norm: {}",anorm);
     double rcond;
     nda::lapack::f77::getrf(N,N,A_.data(),N,ipiv.data(),info);
-    app_log(0," getrf - info:{}",info);
+    sfqmc::app_log(0," getrf - info:{}",info);
     nda::lapack::f77::gecon('I',N,A_.data(),N,anorm,rcond,work.data(),rwork.data(),info);
-    app_log(0," gecon - info:{}, cond: {}",info,rcond);
+    sfqmc::app_log(0," gecon - info:{}, cond: {}",info,rcond);
 
     A_=A;
     ::nda::array<double, 1> C(std::min(A_.shape()[0],A_.shape()[1]));
     int rank(0);
     info = ::nda::lapack::gelss(A_,B_,C,-1,rank);
-    app_log(0," H(C)*C matrix in LS solve: dims:{}, rank:{}",A_.shape()[0],rank);
-    utils::check( info==0, "Problems with gelss solve. ");
+    sfqmc::app_log(0," H(C)*C matrix in LS solve: dims:{}, rank:{}",A_.shape()[0],rank);
+    sfqmc::utils::check( info==0, "Problems with gelss solve. ");
     nda::array<ComplexType,2> C_ = B;
     nda::blas::gemm(ComplexType(1.0),A,B_,ComplexType(0.0),C_);
     double err=0.0;
-    app_log(0,"B(0,0): {}, ~B(0,0):{}",B(0,0),C_(0,0));
+    sfqmc::app_log(0,"B(0,0): {}, ~B(0,0):{}",B(0,0),C_(0,0));
     for(int i=0; i<N; ++i) 
       for(int j=0; j<M; ++j)
         err += std::abs(B(i,j)-C_(i,j)); 
-    app_log(0," zgelss error: {}",err);
+    sfqmc::app_log(0," zgelss error: {}",err);
   }
 
   std::array<long, 2> bsz = { N/world.size(), N};
@@ -490,14 +490,14 @@ TEST_CASE("test_solve","[math]")
 
     math::nda::slate_ops::multiply(dA,dB,dC);
     double err=0.0;
-    if(world.root()) app_log(0,"B(0,0): {}, ~B(0,0):{}",B(0,0),dC.local()(0,0));
+    if(world.root()) sfqmc::app_log(0,"B(0,0): {}, ~B(0,0):{}",B(0,0),dC.local()(0,0));
     auto Bloc = dB.local();
     auto Cloc = dC.local();
     for( auto [i,in] : itertools::enumerate(dB.local_range(0)) )
       for( auto [j,jn] : itertools::enumerate(dB.local_range(1)) ) 
         err += std::abs(B(in,jn)-Cloc(i,j));
     err = world.reduce_value(err,std::plus<>{});
-    app_log(0," zgelss error: {} ",err);
+    sfqmc::app_log(0," zgelss error: {} ",err);
   } 
 
   // using slate::least_squares_solve(As,Bs);
@@ -526,7 +526,7 @@ TEST_CASE("test_solve","[math]")
 
     math::nda::slate_ops::multiply(dA,dB,dC);
     double err=0.0,err1=0.0;
-    if(world.root()) app_log(0,"B(0,0): {}, ~B(0,0):{}",B(0,0),dC.local()(0,0));
+    if(world.root()) sfqmc::app_log(0,"B(0,0): {}, ~B(0,0):{}",B(0,0),dC.local()(0,0));
     auto Bloc = dB.local();
     auto Cloc = dC.local();
     for( auto [i,in] : itertools::enumerate(dB.local_range(0)) )
@@ -536,7 +536,7 @@ TEST_CASE("test_solve","[math]")
       }
     err = world.reduce_value(err,std::plus<>{});
     err1 = world.reduce_value(err1,std::plus<>{});
-    app_log(0," zgelss error: {} (global index: {})",err,err1);
+    sfqmc::app_log(0," zgelss error: {} (global index: {})",err,err1);
   }
 
 }

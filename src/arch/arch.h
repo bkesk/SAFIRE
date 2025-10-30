@@ -22,8 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef ARCH_ARCH_H
-#define ARCH_ARCH_H
+#pragma once
 
 #if defined(ENABLE_CUDA)
 #include "CUDA/cuda_init.h"
@@ -32,6 +31,7 @@
 
 #include "config.h"
 
+namespace sfqmc {
 namespace arch
 {
   void init(bool active_log, int output_level, int debug_level);
@@ -40,6 +40,5 @@ namespace arch
   void synchronize_if_set();
   void synchronize();
 }
+}
 
-
-#endif

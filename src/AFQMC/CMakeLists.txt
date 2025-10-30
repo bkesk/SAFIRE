@@ -19,8 +19,8 @@ set (AFQMC_SRCS
 #  Hamiltonians/RealDenseHamiltonian.cpp
 #  Hamiltonians/RealDenseHamiltonian_v2.cpp
 #  Hamiltonians/ModelHamOpsGenerator.cpp
-#  Hamiltonians/HamiltonianFactory.cpp
-#  Hamiltonians/THCHamiltonian.cpp
+  Hamiltonians/HamiltonianFactory.cpp
+  Hamiltonians/THCHamiltonian.cpp
   )
 
 #if(ENABLE_CUDA)
@@ -71,7 +71,7 @@ if (BUILD_UNIT_TESTS)
 #  SUBDIRS(SlaterDeterminantOperations/tests)
 #  SUBDIRS(SlaterDeterminantOperations/time_propagation)
   SUBDIRS(Walkers/tests)
-#  SUBDIRS(Hamiltonians/tests)
+  SUBDIRS(Hamiltonians/tests)
 #  SUBDIRS(HamiltonianOperations/tests)
 #  SUBDIRS(Wavefunctions/tests)
 #  SUBDIRS(Propagators/tests)

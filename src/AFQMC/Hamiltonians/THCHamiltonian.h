@@ -14,21 +14,19 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_THCHAMILTONIAN_H
-#define SFQMC_AFQMC_THCHAMILTONIAN_H
+#pragma once
 
 #include <iostream>
 #include <vector>
 #include <map>
 #include <fstream>
 
-#include "hdf/hdf_archive.h"
-#include "io/ptree/ptree_utilities.hpp"
-#include "Utilities/app_loggers.h"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "IO/app_loggers.h"
+#include "utilities/mpi_context.h"
 
 #include "AFQMC/config.h"
-#include "AFQMC/Utilities/taskgroup.h"
-#include "Numerics/ma_operations.hpp"
+#include "nda/h5.hpp"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
 
@@ -39,13 +37,16 @@ namespace afqmc
 class THCHamiltonian : public AFQMCInfo 
 {
 public:
+
+  THCHamiltonian() {
+    utils::check(false, "Default constructor of THCHamiltonian not allowed.");
+  }
+
   THCHamiltonian(AFQMCInfo const& info,
                  ptree pt_in,
-                 TaskGroup_& tg_,
                  ComplexType nucE = 0,
                  ComplexType fzcE = 0)
       : AFQMCInfo(info), 
-	TG(tg_), 
         NuclearCoulombEnergy(nucE),
         FrozenCoreEnergy(fzcE),
 	cutoff_cholesky(1e-6), 
@@ -63,19 +64,17 @@ public:
 
   ~THCHamiltonian() {}
 
-  THCHamiltonian(THCHamiltonian const& other) = delete;
+  THCHamiltonian(THCHamiltonian const& other) = default;
   THCHamiltonian(THCHamiltonian&& other)      = default;
-  THCHamiltonian& operator=(THCHamiltonian const& other) = delete;
-  THCHamiltonian& operator=(THCHamiltonian&& other) = delete;
+  THCHamiltonian& operator=(THCHamiltonian const& other) = default;
+  THCHamiltonian& operator=(THCHamiltonian&& other) = default;
 
   ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
-  template<bool MP>
-  HamiltonianOperations<MP> getHamiltonianOperations(WALKER_TYPES type,
-                                                     std::vector<PsiT_Matrix>& PsiT,
-                                                     TaskGroup_& TGprop,
-                                                     TaskGroup_& TGwfn,
-                                                     hdf_archive& hdf_restart);
+  template<MEMORY_SPACE MEM, bool MP>
+  HamiltonianOperations<MEM,MP> getHamiltonianOperations(WALKER_TYPES type,
+                 std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, 
+                 nda::array<PsiT_Matrix<MEM>,2>& PsiT);
 
   HamiltonianTypes getHamType()
   {
@@ -104,7 +103,7 @@ public:
   }
 
 protected:
-  TaskGroup_& TG;
+  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
   ComplexType NuclearCoulombEnergy;
   ComplexType FrozenCoreEnergy;
@@ -113,12 +112,10 @@ protected:
 
   std::string fileName;
 
-  template<bool MP, bool REAL>
-  HamiltonianOperations<MP> getHamiltonianOperations_impl(WALKER_TYPES type,
-                                                         std::vector<PsiT_Matrix>& PsiT,
-                                                         TaskGroup_& TGprop,   
-                                                         TaskGroup_& TGwfn,    
-                                                         hdf_archive& hdf_restart);
+  template<MEMORY_SPACE MEM, bool MP, bool REAL> 
+  HamiltonianOperations<MEM,MP> getHamiltonianOperations_impl(WALKER_TYPES type,
+                 std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, 
+                 nda::array<PsiT_Matrix<MEM>,2>& PsiT);
 
 };
 
@@ -126,4 +123,3 @@ protected:
 
 } // namespace sfqmc
 
-#endif

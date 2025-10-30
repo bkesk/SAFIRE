@@ -14,255 +14,161 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <cstdlib>
-#include <memory>
-#include <algorithm>
+#include <optional>
 #include <complex>
 #include <iostream>
 #include <fstream>
 #include <map>
-#include <utility>
 #include <vector>
-#include <numeric>
-#include <boost/version.hpp>
+
+#include "nda/h5.hpp"
+#include <hdf5.h>
+#include <hdf5_hl.h>
 
 #include "AFQMC/config.h"
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
 #include "HamiltonianFactory.h"
-
 #include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
-#include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
-#include "AFQMC/Hamiltonians/RealDenseHamiltonian_v2.h"
+
+//#include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
+//#include "AFQMC/Hamiltonians/RealDenseHamiltonian_v2.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
-#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
-#include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
+//#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
+//#include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
 
-#include "AFQMC/Utilities/Utils.hpp"
+#include "numerics/sparse/sparse.hpp"
+//#include "AFQMC/Utilities/Utils.hpp"
 
-#include "Numerics/ma_operations.hpp"
-#include "SparseMatrix/csr_matrix.hpp"
-
-#include "AFQMC/Utilities/hdf5_consistency_helper.hpp"
-#include "SparseMatrix/array_partition.hpp"
+// has_complex_attribute 
 
 namespace sfqmc
 {
 namespace afqmc
 {
-Hamiltonian HamiltonianFactory::fromHDF5(GlobalTaskGroup& gTG, ptree pt)
+Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, ptree pt)
 {
   std::string info;
   info = pt.get<std::string>("system", "");
-
-  if (InfoMap.find(info) == InfoMap.end())
-    APP_ABORT("ERROR: Undefined system in execute block. ");
+  utils::check(InfoMap.find(info) != InfoMap.end(), "ERROR: Undefined system in execute block. ");
 
   AFQMCInfo& AFinfo = InfoMap[info];
 
   int NMO  = AFinfo.NMO;
-  int NAEA = AFinfo.NAEA;
-  int NAEB = AFinfo.NAEB;
+  int nup = AFinfo.NAEA;
+  int ndown = AFinfo.NAEB;
 
   std::string filename = pt.get<std::string>("filename");
-  int number_of_TGs = pt.get<int>("number_of_TGs", 1);
-  int n_reading_cores = pt.get<int>("num_io_cores", -1);
-
-  // make or get TG
-  number_of_TGs  = std::max(1, std::min(number_of_TGs, gTG.getTotalNodes()));
-  TaskGroup_& TG = getTG(gTG, number_of_TGs);
-
-  // processor info
-  int ncores = TG.getTotalCores(), coreid = TG.getCoreID();
-  int nread = (n_reading_cores <= 0) ? (ncores) : (std::min(n_reading_cores, ncores));
-  int head  = TG.Global().rank() == 0;
+  std::string format;  // only meaningful at root
+  HamiltonianTypes htype = UNKNOWN;
 
   app_log(1," Initializing Hamiltonian from file: {}", filename);
 
-  // FIX FIX FIX
-  hdf_archive dump(TG.Global());
-  // these cores will read from hdf file
-  if (coreid < nread)
+  h5::file file;
+  std::optional<h5::group> grp, hgrp;
+  if (mpi->comm.root())
   {
-    if (!dump.open(filename, H5F_ACC_RDONLY))
-      APP_ABORT("Error opening integral file in HamiltonianFactory. ");
-  }
-  std::string format = get_hamiltonian_format(dump,TG.Global());
-  app_log(1, " Found hamiltonian with format: {}", format);
-  if (coreid < nread)
-  {
+    file = h5::file(filename,'r');
+    grp = std::make_optional(h5::group(file));
+    format = get_hamiltonian_format(*grp);
+    app_log(1, " Found hamiltonian with format: {}", format);
+    htype = peekHamType(*grp,format);
+    // open subgroup
     if(format.substr(0,6) == "coqui") {
-      if (dump.push("System", false)<0)
-        APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Group System not found. ");
+      hgrp = std::make_optional(grp->open_group("System"));
     } else {
-      if (dump.push("Hamiltonian", false)<0)
-        APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Group Hamiltonian not found. ");
+      hgrp = std::make_optional(grp->open_group("Hamiltonian"));
     } 
   }
-
-  HamiltonianTypes htype = UNKNOWN;
-  if (head)
-    htype = peekHamType(dump,format);
   {
     int htype_ = int(htype);
-    TG.Global().broadcast_n(&htype_, 1, 0);
+    mpi->comm.broadcast_n(&htype_, 1, 0);
     htype = HamiltonianTypes(htype_);
   }
 
-  int complex_integrals;
-  // Hamiltonian file may not contain flag.
-  bool have_complex_flag = true;
-  if (head)
-  {
-    if(format.substr(0,6) == "coqui") { // coqui always complex for now!
-      have_complex_flag = true;
-    } else if (!dump.readEntry(complex_integrals, "ComplexIntegrals"))
-    {
-      have_complex_flag = false;
-    }
-  }
-  TG.Global().broadcast_n(&have_complex_flag, 1, 0);
-
   std::vector<int> Idata(8);
-  if (head) {
+  if (mpi->comm.root()) {
     if(format.substr(0,6) == "coqui") { // coqui always complex for now!
-      if (!dump.readAttributeEntry(Idata[3], "number_of_bands"))
-        APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Problems reading attribute /System/number_of_bands. ");
-      if (dump.push("BZ", false)<0)
-        APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Group /System/BZ not found. ");
-      if (!dump.readAttributeEntry(Idata[2], "number_of_kpoints"))
-        APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Problems reading attribute /System/BZ/number_of_kpoints. ");
-      dump.pop();
+      h5::h5_read_attribute(*hgrp,"number_of_bands",Idata[3]);  // per kpoint
+      h5::group bz = hgrp->open_group("BZ");
+      h5::h5_read_attribute(bz,"number_of_kpoints",Idata[2]);
       Idata[3] *= Idata[2];
-    } else if (!dump.readEntry(Idata, "dims")) {
-      APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Problems reading dims. ");
+    } else { // assuming only coqui or std
+      h5::h5_read(*hgrp,"dims",Idata); 
     }
   }
-  TG.Global().broadcast(Idata.begin(), Idata.end());
+  mpi->comm.broadcast(Idata.begin(), Idata.end());
 
-  if (Idata[3] != NMO)
-    APP_ABORT(" Error: NMO differs from value in integral file. ");
-// MAM: checking this doesn't really do anything
-//  if (Idata[4] != NAEA)
-//    app_warning(" WARNING: NAEA differs from value in integral file. ");
-//  if (Idata[5] != NAEB)
-//    app_warning(" WARNING: NAEB differs from value in integral file. ");
+  // safety check!!!
+  utils::check(Idata[3] == NMO, " Error: NMO differs from value in integral file. ");
 
   ComplexType NuclearCoulombEnergy(0);
   ComplexType FrozenCoreEnergy(0);
   ComplexType ElecSelfIntEnergy(0);
 
-  if (head)
+  if (mpi->comm.root())
   {
     if(format == "std") {
       std::vector<RealType> Rdata(2);
-      if (!dump.readEntry(Rdata, "Energies"))
-        APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Problems reading  dataset. ");
+      h5::h5_read(*hgrp,"Energies",Rdata);  
       if (Rdata.size() > 0)
         NuclearCoulombEnergy = Rdata[0];
       if (Rdata.size() > 1)
         FrozenCoreEnergy = Rdata[1];
     } else if(format.substr(0,6) == "coqui") {
-      double et(0);
-      if (dump.readAttributeEntry(et, "nuclear_energy")) {
-        NuclearCoulombEnergy = et;
-      } else {
-        app_warning("Could not find nuclear_energy in h5 file. Setting to 0."); 
+      NuclearCoulombEnergy = 0.0;
+      if( H5Aexists(h5::hid_t(*hgrp),"nuclear_energy") )
+        h5::h5_read_attribute(*hgrp,"nuclear_energy",NuclearCoulombEnergy);  
+      if( H5Aexists(h5::hid_t(*hgrp),"frozen_core_energy") )
+        h5::h5_read_attribute(*hgrp,"frozen_core_energy",FrozenCoreEnergy);
+      if( H5Aexists(h5::hid_t(*hgrp),"madelung_constant") ) {
+        h5::h5_read_attribute(*hgrp,"madelung_constant",ElecSelfIntEnergy);
+        ElecSelfIntEnergy *= -1.0*(nup+ndown);
       }
-      if (dump.readAttributeEntry(et, "frozen_core_energy")) 
-        FrozenCoreEnergy = et;
-      if (dump.readAttributeEntry(et, "madelung_constant"))
-        ElecSelfIntEnergy = -1.0*et*(NAEA+NAEB);
     }
   }
+  mpi->comm.broadcast_n(&NuclearCoulombEnergy, 1, 0);
+  mpi->comm.broadcast_n(&FrozenCoreEnergy, 1, 0);
+  mpi->comm.broadcast_n(&ElecSelfIntEnergy, 1, 0);
+
   app_log(2, "");
   app_log(2, " - Nuclear coulomb energy: {}",NuclearCoulombEnergy);
   app_log(2, " - Frozen Core energy: {}",FrozenCoreEnergy);
   app_log(2, " - Electron self-interaction energy: {}",ElecSelfIntEnergy);
 
-  TG.Global().broadcast_n(&NuclearCoulombEnergy, 1, 0);
-  TG.Global().broadcast_n(&FrozenCoreEnergy, 1, 0);
-  TG.Global().broadcast_n(&ElecSelfIntEnergy, 1, 0);
   // MAM: FrozenCoreEnergy is not handled correctly! FIX! Add all terms into a single E0
   NuclearCoulombEnergy += ElecSelfIntEnergy;
 
+  mpi->comm.barrier();
   if (htype == KPTHC)
   {
-    APP_ABORT(" Error: KPTHC hamiltonian not yet working. ");
-    if (coreid < nread and dump.push("KPTHC", false)<0)
-      APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Group KPTHC not found. ");
-    if (coreid < nread)
-    {
-      dump.pop();
-      dump.pop();
-      dump.close();
-    }
-    TG.Global().barrier();
-    //      return Hamiltonian(KPTHCHamiltonian(AFinfo,pt,TG,
-    //                                        NuclearCoulombEnergy,FrozenCoreEnergy));
+    utils::check(false," Error: KPTHC hamiltonian not yet working. ");
+//    return Hamiltonian(KPTHCHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if (htype == KPFactorized)
   {
-    if (format == "std" and coreid < nread and dump.push("KPFactorized", false)<0)
-      APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Group KPFactorized not found. ");
-    if (coreid < nread)
-    {
-      if(format == "std") dump.pop();
-      dump.pop();
-      dump.close();
-    }
-    TG.Global().barrier();
-    return Hamiltonian(KPFactorizedHamiltonian(AFinfo, pt, TG, NuclearCoulombEnergy, FrozenCoreEnergy));
+    utils::check(false," Error: KPFactorized hamiltonian not yet working. ");
+//    return Hamiltonian(KPFactorizedHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if (htype == RealDenseFactorized)
   {
-    if(format != "std")
-      APP_ABORT("Error: format: {} not yet implemented with this hamiltonian type.", format);
-    if (coreid < nread and dump.push("DenseFactorized", false)<0)
-      APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Group DenseFactorized not found. ");
-    if (coreid < nread)
-    {
-      dump.pop();
-      dump.pop();
-      dump.close();
-    }
-    TG.Global().barrier();
-#if defined(ENABLE_DEVICE)
-    return Hamiltonian(RealDenseHamiltonian_v2(AFinfo, pt, TG, NuclearCoulombEnergy, FrozenCoreEnergy));
-#else
-    return Hamiltonian(RealDenseHamiltonian(AFinfo, pt, TG, NuclearCoulombEnergy, FrozenCoreEnergy));
-#endif
+    if(mpi->comm.root())
+      utils::check(format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
+// rename after RealDenseHamiltonian_v2 becomes the only choice
+//    return Hamiltonian(RealDenseHamiltonian_v2(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if ( htype == ModelHamiltonian ) 
   {
-    if(format != "std")
-      APP_ABORT("Error: format: {} not yet implemented with this hamiltonian type.", format);
-    if (coreid < nread and dump.push("ModelHamiltonian", false)<0)
-      APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Group ModelHamiltonian not found. ");
-    if (coreid < nread)
-    {
-      dump.pop();
-      dump.pop();
-      dump.close();
-    }
-    TG.Global().barrier();
-    return Hamiltonian(ModelHamOpsGenerator(AFinfo, pt, TG, NuclearCoulombEnergy, FrozenCoreEnergy));
+    if(mpi->comm.root())
+      utils::check(format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
+//    return Hamiltonian(ModelHamOpsGenerator(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if ( htype == THC )
   {
-    if(format != "coqui")
-      APP_ABORT("Error: format: {} not yet implemented with this hamiltonian type.", format);
-    if (coreid < nread)
-    {
-      dump.pop();
-      dump.pop();
-      dump.close();
-    }
-    TG.Global().barrier();
-    return Hamiltonian(THCHamiltonian(AFinfo, pt, TG, NuclearCoulombEnergy, FrozenCoreEnergy));
+    if(mpi->comm.root())
+      utils::check(format == "coqui", "Error: format: {} not yet implemented with this hamiltonian type.", format);
+    return Hamiltonian(THCHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
 
-  APP_ABORT(" Error in HamiltonianFactory::fromHDF5(): Unknown Hamiltonian Type. ");
+  utils::check(false, " Error in HamiltonianFactory::fromHDF5(): Unknown Hamiltonian Type. ");
   return Hamiltonian{};
 }
 } // namespace afqmc

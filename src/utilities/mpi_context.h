@@ -24,6 +24,7 @@
 #include "nda/nda.hpp"
 
 namespace mpi3 = boost::mpi3;
+namespace sfqmc {
 namespace utils {
 
 template <typename comm_t = mpi3::communicator, 
@@ -122,4 +123,5 @@ auto& get_dev_comm(mpi_context_t<comm_t,shm_comm_t>& mpi) {
 mpi_context_t<mpi3::communicator> make_mpi_context(); 
 mpi_context_t<mpi3::communicator> make_mpi_context(mpi3::communicator& comm); 
 
+}
 }

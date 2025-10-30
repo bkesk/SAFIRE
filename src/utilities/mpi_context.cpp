@@ -23,6 +23,7 @@
 #endif
 
 namespace mpi3 = boost::mpi3;
+namespace sfqmc {
 namespace utils {
 
 mpi_context_t<mpi3::communicator> make_mpi_context() {
@@ -55,4 +56,5 @@ mpi_context_t<mpi3::communicator> make_mpi_context(mpi3::communicator& comm) {
 #endif
 };
 
+}
 }

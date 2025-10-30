@@ -18,6 +18,7 @@
 
 #include "utilities/check.hpp"
 
+namespace sfqmc {
 namespace utils
 {
 
@@ -130,5 +131,5 @@ inline auto setup_two_layer_mpi(communicator *comm, const size_t dim0, const siz
 }
 
 }
-
+}
 

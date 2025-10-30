@@ -40,7 +40,7 @@ class opt_state {
     }
 
     Vector get() const {
-        utils::check(inited, "State is not initialized");
+        sfqmc::utils::check(inited, "State is not initialized");
         return x;
     }
 

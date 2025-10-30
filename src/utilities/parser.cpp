@@ -16,6 +16,7 @@
 #include <fstream>
 #include <vector>
 
+namespace sfqmc {
 namespace utils
 {
 
@@ -35,4 +36,5 @@ std::vector<std::string> split(std::string const& str, std::string const& delim)
   return w;
 }
 
+}
 }

@@ -31,6 +31,7 @@
 #include "mpi3/communicator.hpp"
 #include "mpi3/shared_communicator.hpp"
 
+namespace sfqmc {
 namespace cuda
 {
 
@@ -76,5 +77,5 @@ void init()
 	    world.rank(),node.rank(),devn);
 }
 
-}
-
+} // cufa
+} // sfqmc

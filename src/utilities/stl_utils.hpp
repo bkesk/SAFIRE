@@ -23,6 +23,7 @@
 #include "utilities/check.hpp"
 #include "nda/nda.hpp"
 
+namespace sfqmc {
 namespace utils
 {
 
@@ -62,5 +63,6 @@ inline bool string_equal(std::string const& s1, std::string const& s2)
   return true;
 }
 
+}
 }
 

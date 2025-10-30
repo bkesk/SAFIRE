@@ -14,31 +14,19 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_HAMILTONIANOPERATIONS_HPP
-#define SFQMC_AFQMC_HAMILTONIANOPERATIONS_HPP
-
+#pragma once
 
 #include "AFQMC/config.h"
-#include <boost/variant.hpp>
-#include <boost/mpl/vector.hpp>
-#include <boost/mpl/vector/vector30.hpp>
+#include "AFQMC/Utilities/type_conversion.hpp"
 
-#if defined(BOOST_VARIANT_NO_TYPE_SEQUENCE_SUPPORT)
-#warning "Error: BOOST_VARIANT_NO_TYPE_SEQUENCE_SUPPORT defined."
-#warning "       Compiler does not support make_variant_over."
-#warning "       Contact developers. Provide compiler information." 
-#error
-#endif
-
-
-#if !defined(ENABLE_DEVICE)
-#include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
-#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
-#endif
-#include "AFQMC/HamiltonianOperations/THCOps.hpp"
-#include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
-#include "AFQMC/HamiltonianOperations/Real3IndexFactorization_batched_v2.hpp"
-#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
+//#if !defined(ENABLE_DEVICE)
+//#include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
+//#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
+//#endif
+//#include "AFQMC/HamiltonianOperations/THCOps.hpp"
+//#include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
+//#include "AFQMC/HamiltonianOperations/Real3IndexFactorization_batched_v2.hpp"
+//#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
 
 
 namespace sfqmc
@@ -46,135 +34,7 @@ namespace sfqmc
 namespace afqmc
 {
 
-namespace dummy
-{
 /*
- * Empty class to avoid need for default constructed HamiltonianOperations.
- * Throws is any visitor is called.
- */
-class dummy_HOps
-{
-public:
-  dummy_HOps(){};
-
-  template<class... Args>
-  boost::multi::array<ComplexType, 2> getOneBodyPropagatorMatrix([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return boost::multi::array<ComplexType, 2>{};
-  }
-
-  template<class... Args>
-  void energy([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-  }
-
-  template<class... Args>
-  void generalizedFockMatrix([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-  }
-
-  template<class... Args>
-  void ph_reference_energy([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-  }
-
-  template<class... Args>
-  void ph_excited_energy([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-  }
-
-  template<class... Args>
-  void vHS([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-  }
-
-  template<class... Args>
-  void vbias([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-  }
-
-  template<class... Args>
-  void write2hdf([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-  }
-
-  int number_of_ke_vectors() const
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return 0;
-  }
-
-  int local_number_of_cholesky_vectors() const
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return 0;
-  }
-
-  int global_origin_cholesky_vector() const
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return 0;
-  }
-
-  int global_number_of_cholesky_vectors() const
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return 0;
-  }
-
-  bool transposed_G_for_vbias() const
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return false;
-  }
-
-  bool transposed_G_for_E() const
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return false;
-  }
-
-  bool transposed_vHS() const
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return false;
-  }
-
-  bool distribution_over_cholesky_vectors() const
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return false;
-  }
-
-  boost::multi::array<ComplexType, 2> getHSPotentials()
-  {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return boost::multi::array<ComplexType, 2>{};
-  }
-
-  HamiltonianTypes getHamType() const { return UNKNOWN; }
-
-  template<class TVec>
-  void getFieldTypes([[maybe_unused]] TVec&& v) {
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-  }
-
-  bool spin_dependent_vHS() const { 
-    throw std::runtime_error("calling visitor on dummy_HOps object");
-    return false;
-  }
-
-};
-} // namespace dummy
-
 namespace detail 
 {
   // MAM: If too many template arguments, use vectorn and add dummy_HOps to fill up to n.
@@ -201,21 +61,23 @@ namespace detail
   using HOps_variant = typename boost::make_variant_over< HOps_types<MP> >::type;
 
 } // namespace detail
+*/
 
-template<bool MP>
-class HamiltonianOperations : public detail::HOps_variant<MP>
+template<MEMORY_SPACE _MEM_, bool MP>
+class HamiltonianOperations 
 {
-
-  using Base = detail::HOps_variant<MP>;
-  using SPComplexType = typename to_working_precision<MP, ComplexType>::type;
 
 public:
 
-  HamiltonianOperations() : Base::variant() 
+  constexpr static MEMORY_SPACE MEM = _MEM_;
+  using SPComplexType = typename to_working_precision<MP, ComplexType>::type;
+
+  HamiltonianOperations()  
   {
     APP_ABORT(" Error: Calling default constructor of HamiltonianOperations. ");
   } 
 
+/*
   // host only !
 #if !defined(ENABLE_DEVICE) 
   explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix_<shared_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
@@ -420,10 +282,14 @@ public:
   bool spin_dependent_vHS() const { 
     return boost::apply_visitor([&](auto&& a) { return a.spin_dependent_vHS(); }, *this);
   }
+*/
+  
+  private:
+
+//    std::variant<THCOps<MEM, MP,true>> var;
 };
 
 } // namespace afqmc
 
 } // namespace sfqmc
 
-#endif

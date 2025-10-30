@@ -22,8 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef ARCH_INIT_HPP
-#define ARCH_INIT_HPP
+#pragma once
 
 #include <cstdlib>
 #include "config.h"
@@ -36,6 +35,7 @@
 //#include "ROCm/rocm_arch.h"
 #endif
 
+namespace sfqmc {
 namespace arch 
 {
 
@@ -52,5 +52,4 @@ void init(bool active_log, int output_level=2, int debug_level=2)
 }
 
 }
-
-#endif
+}

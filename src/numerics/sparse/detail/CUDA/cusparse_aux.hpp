@@ -45,7 +45,7 @@ namespace math::sparse::device
 #define CUSPARSE_CHECK(X, ...)                                                                                                                       \
   {                                                                                                                                                  \
     auto err = X(__VA_ARGS__);                                                                                                                       \
-    utils::check( err == CUSPARSE_STATUS_SUCCESS, std::string(AS_STRING(X)) + " failed with error code: " + std::to_string(err) + ", error message: " + std::string(cusparseGetErrorString(err)) + "\n");  \
+    sfqmc::utils::check( err == CUSPARSE_STATUS_SUCCESS, std::string(AS_STRING(X)) + " failed with error code: " + std::to_string(err) + ", error message: " + std::string(cusparseGetErrorString(err)) + "\n");  \
   }
 
 template <typename T>
@@ -63,7 +63,7 @@ inline cusparseOrder_t get_cusparseOrder(const char* matdescra)
 {
   if(matdescra[3]=='C') return CUSPARSE_ORDER_ROW;
   else if(matdescra[3]=='F') return CUSPARSE_ORDER_COL;
-  else utils::check(false,"Invalid matdescra:{}",std::string(matdescra));
+  else sfqmc::utils::check(false,"Invalid matdescra:{}",std::string(matdescra));
 }
 
 template <typename T>
@@ -109,7 +109,7 @@ constexpr auto get_operation() {
 template<::nda::MemoryArrayOfRank<1> X>
 auto cuDn(X& x) {
   static_assert(::nda::mem::have_device_compatible_addr_space<X>, "Memory space mismatch");
-  utils::check(x.indexmap().min_stride() == 1, "Stride mismatch");
+  sfqmc::utils::check(x.indexmap().min_stride() == 1, "Stride mismatch");
   if constexpr (std::is_const_v<std::remove_pointer_t<decltype(x.data())>>) {
     cusparseConstDnVecDescr_t cuX;
     CUSPARSE_CHECK( cusparseCreateConstDnVec, &cuX, x.extent(0), x.data(), cusparse_datatype<::nda::get_value_t<X>>)
@@ -124,7 +124,7 @@ auto cuDn(X& x) {
 template<::nda::MemoryArrayOfRank<2> X>
 auto cuDn(X& x) {
   static_assert(::nda::mem::have_device_compatible_addr_space<X>, "Memory space mismatch");
-  utils::check(x.indexmap().min_stride() == 1, "Stride mismatch");
+  sfqmc::utils::check(x.indexmap().min_stride() == 1, "Stride mismatch");
   if constexpr (std::is_const_v<std::remove_pointer_t<decltype(x.data())>>) { 
     cusparseConstDnMatDescr_t cuX;
     if constexpr (std::decay_t<X>::is_stride_order_C()) {
@@ -155,7 +155,7 @@ auto cuCSR(csr& spA, ::nda::MemoryArrayOfRank<1> auto& ofs) {
   static_assert( (MEM == DEVICE_MEMORY) or (MEM == UNIFIED_MEMORY), "Memory space mismatch.");
   static_assert(::nda::mem::have_device_compatible_addr_space<decltype(ofs)>, "Memory space mismatch");
   static_assert( std::is_same_v<index_type,int_type>, "Incompatible types: cuSparse requires index_type==int_type.");
-  utils::check(spA.compact(), "device::csrmv: Sparse matrix must be in compact form.");
+  sfqmc::utils::check(spA.compact(), "device::csrmv: Sparse matrix must be in compact form.");
   if constexpr (std::is_const_v<std::remove_pointer_t<decltype(spA.values().data())>>) { 
     cusparseConstSpMatDescr_t cuA;
     auto [m, n] = spA.shape();

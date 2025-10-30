@@ -44,7 +44,7 @@ namespace imag_axes_ft {
     } else if (stats == "boson") {
       return stats_e::boson;
     } else {
-      utils::check(false, "Unrecognized stats: {}. Available options: fermi, boson", stats);
+      sfqmc::utils::check(false, "Unrecognized stats: {}. Available options: fermi, boson", stats);
       return stats_e::fermi;
     }
   }
@@ -70,7 +70,7 @@ namespace imag_axes_ft {
     } else if (iaft_source == "ir") {
       return source_e::ir_source;
     } else {
-      utils::check(false, "Unrecognized IAFT source: {}. Available options: dlr, ir", iaft_source);
+      sfqmc::utils::check(false, "Unrecognized IAFT source: {}. Available options: dlr, ir", iaft_source);
       return source_e::ir_source;
     }
   }

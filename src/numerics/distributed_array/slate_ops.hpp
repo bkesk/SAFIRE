@@ -63,9 +63,9 @@ void svd(A_t&& A, B_t&& U, std::vector<double> S, C_t&& VH)
 
   // need to conjugate matrix in c order
   //slate::svd(As,Us,S,VHs);
-  utils::check(false, "svd not yet available in slate.");
+  sfqmc::utils::check(false, "svd not yet available in slate.");
 #else
-  utils::check(false, "svd: requires SLATE, compile with ENABLE_SLATE.");
+  sfqmc::utils::check(false, "svd: requires SLATE, compile with ENABLE_SLATE.");
 #endif
 }
 
@@ -82,9 +82,9 @@ void eig(A_t&& A, std::vector<double> L, B_t&& X)
 
   // need to conjugate matrix in c order
   //slate::eig(As,L,Xs);
-  utils::check(false, "eig not yet available in slate.");
+  sfqmc::utils::check(false, "eig not yet available in slate.");
 #else
-  utils::check(false, "eig: requires SLATE, compile with ENABLE_SLATE.");
+  sfqmc::utils::check(false, "eig: requires SLATE, compile with ENABLE_SLATE.");
 #endif
 }
 */
@@ -98,8 +98,8 @@ long lu_solve(DistributedMatrix auto&& A, DistributedMatrix auto&& B)
   long info=0;
   static_assert(std::is_same_v<typename dA_t::value_type, typename dB_t::value_type>,
                                "Value mismatch");
-  utils::check(A.global_shape()[0] == A.global_shape()[1], "Shape mismatch in lu_solve.");
-  utils::check( *(A.communicator()) == 
+  sfqmc::utils::check(A.global_shape()[0] == A.global_shape()[1], "Shape mismatch in lu_solve.");
+  sfqmc::utils::check( *(A.communicator()) == 
 		*(B.communicator()),"Communicator mismatch");
 
   static_assert(::nda::mem::have_compatible_addr_space<typename dA_t::Array_t,
@@ -116,7 +116,7 @@ long lu_solve(DistributedMatrix auto&& A, DistributedMatrix auto&& B)
         ::nda::heap<::nda::mem::get_addr_space<typename dA_t::Array_t>>> ipiv(Al.extent(0));
     info = ::nda::lapack::getrf(Al,ipiv);
     if( info != 0 ) {
-      app_warning(" serial lu_solve: getrf info != 0 , info:{}",info); 
+      sfqmc::app_warning(" serial lu_solve: getrf info != 0 , info:{}",info); 
       return info;
     }
 
@@ -146,7 +146,7 @@ long lu_solve(DistributedMatrix auto&& A, DistributedMatrix auto&& B)
       }
     }
     if( info != 0 )
-      app_warning(" serial lu_solve: getri info != 0 , info:{}",info); 
+      sfqmc::app_warning(" serial lu_solve: getri info != 0 , info:{}",info); 
     return info;
   }
 
@@ -198,7 +198,7 @@ long lu_solve(DistributedMatrix auto&& A, DistributedMatrix auto&& B)
   }
 
 #else
-  utils::check(false, "lu_solve: requires SLATE, compile with ENABLE_SLATE.");
+  sfqmc::utils::check(false, "lu_solve: requires SLATE, compile with ENABLE_SLATE.");
 #endif
   return info;
 }
@@ -212,8 +212,8 @@ long least_squares_solve(DistributedMatrix auto&& A, DistributedMatrix auto&& B)
   long info=0;
   static_assert(std::is_same_v<typename dA_t::value_type, typename dB_t::value_type>,
                                "Value mismatch");
-  utils::check(A.global_shape()[0] == A.global_shape()[1], "Shape mismatch in lu_solve.");
-  utils::check( *(A.communicator()) == 
+  sfqmc::utils::check(A.global_shape()[0] == A.global_shape()[1], "Shape mismatch in lu_solve.");
+  sfqmc::utils::check( *(A.communicator()) == 
 		*(B.communicator()),"Communicator mismatch");
 
   static_assert(::nda::mem::have_compatible_addr_space<typename dA_t::Array_t,
@@ -329,7 +329,7 @@ long least_squares_solve(DistributedMatrix auto&& A, DistributedMatrix auto&& B)
   }
 
 #else
-  utils::check(false, "lu_solve: requires SLATE, compile with ENABLE_SLATE.");
+  sfqmc::utils::check(false, "lu_solve: requires SLATE, compile with ENABLE_SLATE.");
 #endif
   return info;
 }
@@ -348,9 +348,9 @@ void inverse(DistributedMatrix auto&& A)
     ::nda::basic_array<int, 1, ::nda::C_layout, 'A',
                        ::nda::heap<::nda::mem::get_addr_space<local_Array_t>>> ipiv(Aloc.extent(0));
     long info = ::nda::lapack::getrf(Aloc, ipiv);
-    utils::check(info == 0, "inverse: getrf info: {}.", info);
+    sfqmc::utils::check(info == 0, "inverse: getrf info: {}.", info);
     info = ::nda::lapack::getri(Aloc, ipiv);
-    utils::check(info == 0, "inverse: getri info: {}.", info);
+    sfqmc::utils::check(info == 0, "inverse: getri info: {}.", info);
     return;
   }
 
@@ -364,9 +364,9 @@ void inverse(DistributedMatrix auto&& A)
       ::nda::basic_array<int, 1, ::nda::C_layout, 'A',
           ::nda::heap<::nda::mem::get_addr_space<local_Array_t>>> ipiv(A_s.extent(0));
       long info = ::nda::lapack::getrf(A_s, ipiv);
-      utils::check(info == 0, "inverse: getrf info: {}.", info);
+      sfqmc::utils::check(info == 0, "inverse: getrf info: {}.", info);
       info = ::nda::lapack::getri(A_s, ipiv);
-      utils::check(info == 0, "inverse: getri info: {}.", info);
+      sfqmc::utils::check(info == 0, "inverse: getri info: {}.", info);
       scatter(0,std::addressof(A_s),A); 
     } else {
       gather(0,A,std::addressof(A_s));
@@ -385,11 +385,11 @@ void inverse(DistributedMatrix auto&& A)
 	,{ { slate::Option::Target, slate::Target::HostBatch} }
 #endif
 	);
-    utils::check(info == 0, "inverse: getrf info: {}.", info);
+    sfqmc::utils::check(info == 0, "inverse: getrf info: {}.", info);
     slate::getri ( As , pivots 
 #if defined(USE_SLATE_HOSTBATCH)
 	,{ { slate::Option::Target, slate::Target::HostBatch} }
-    utils::check(info == 0, "inverse: getri info: {}.", info);
+    sfqmc::utils::check(info == 0, "inverse: getri info: {}.", info);
 #endif
 	);
   } else {
@@ -398,15 +398,15 @@ void inverse(DistributedMatrix auto&& A)
         // Set execution target to GPU Devices
         {{ slate::Option::Target, slate::Target::Devices },
         { slate::Option::Lookahead, 1 }});
-    utils::check(info == 0, "inverse: getrf info: {}.", info);
+    sfqmc::utils::check(info == 0, "inverse: getrf info: {}.", info);
     info = slate::getri ( As , pivots,
         // Set execution target to GPU Devices
         {{ slate::Option::Target, slate::Target::Devices },
         { slate::Option::Lookahead, 1 }} );
-    utils::check(info == 0, "inverse: getri info: {}.", info);
+    sfqmc::utils::check(info == 0, "inverse: getri info: {}.", info);
   }
 #else
-  utils::check(false, "inverse: requires SLATE, compile with ENABLE_SLATE.");
+  sfqmc::utils::check(false, "inverse: requires SLATE, compile with ENABLE_SLATE.");
 #endif
 }
 
@@ -447,10 +447,10 @@ auto determinant(DistributedMatrix auto&&A, [[maybe_unused]] std::vector<std::pa
     // temporary workaround before the pivots configuration is understood.
     //if (det_A < 0) det_A *= -1.0;
   } else {
-    utils::check(false, "determinant: requires GPU supports.");
+    sfqmc::utils::check(false, "determinant: requires GPU supports.");
   }
 #else
-  utils::check(false, "determinant: requires SLATE, compile with ENABLE_SLATE.");
+  sfqmc::utils::check(false, "determinant: requires SLATE, compile with ENABLE_SLATE.");
 #endif
   return det_A;
 }
@@ -474,7 +474,7 @@ void cholesky(DistributedMatrix auto&& A, char UPLO = "L")
     ::nda::basic_array<int, 1, ::nda::C_layout, 'A',
                        ::nda::heap<::nda::mem::get_addr_space<local_Array_t>>> ipiv(Aloc.extent(0));
     long info = ::nda::lapack::potrf(Aloc);
-    utils::check(info == 0, "cholesky: potrf info: {}.", info);
+    sfqmc::utils::check(info == 0, "cholesky: potrf info: {}.", info);
     return;
   }
 
@@ -489,16 +489,16 @@ void cholesky(DistributedMatrix auto&& A, char UPLO = "L")
 	,{ { slate::Option::Target, slate::Target::HostBatch} }
 #endif
 	);
-    utils::check(info == 0, "cholesky: potrf info: {}.", info);
+    sfqmc::utils::check(info == 0, "cholesky: potrf info: {}.", info);
   } else {
     long info = slate::potrf ( As, 
         // Set execution target to GPU Devices
         {{ slate::Option::Target, slate::Target::Devices },
         { slate::Option::Lookahead, 1 }});
-    utils::check(info == 0, "cholesky: potrf info: {}.", info);
+    sfqmc::utils::check(info == 0, "cholesky: potrf info: {}.", info);
   }
 #else
-  utils::check(false, "cholesky: requires SLATE, compile with ENABLE_SLATE.");
+  sfqmc::utils::check(false, "cholesky: requires SLATE, compile with ENABLE_SLATE.");
 #endif
 }
 */
@@ -527,9 +527,9 @@ auto multiply_impl(T a, A_t&& A, B_t&& B, T b, C_t&& C)
                                                          typename dB_t::Array_t,
                                                          typename dC_t::Array_t
                                                         >, "Memory location mismatch.");
-  utils::check( *((math::detail::arg(A).communicator())) == 
+  sfqmc::utils::check( *((math::detail::arg(A).communicator())) == 
 		*((math::detail::arg(B).communicator())),"Communicator mismatch");
-  utils::check( *((math::detail::arg(A).communicator())) == 
+  sfqmc::utils::check( *((math::detail::arg(A).communicator())) == 
 		*(C.communicator()),"Communicator mismatch");
 
   if(C.communicator()->size()==1) {
@@ -583,7 +583,7 @@ auto multiply_impl(T a, A_t&& A, B_t&& B, T b, C_t&& C)
   }
 
 #else
-  utils::check(false, "requires SLATE, compile with ENABLE_SLATE.");
+  sfqmc::utils::check(false, "requires SLATE, compile with ENABLE_SLATE.");
 #endif
   return std::forward<C_t>(C);
 }
@@ -617,25 +617,25 @@ auto multiply(T a_v, A_t&& A, B_t&& B, T b_v, C_t&& C)
     constexpr bool Bcg = math::detail::is_conjugate_transpose<dB_t>;
 
     // consistency checks
-    utils::check(*dA.communicator()==*dB.communicator(),"Communicator mismatch"); 
-    utils::check(*dA.communicator()==*C.communicator(),"Communicator mismatch"); 
+    sfqmc::utils::check(*dA.communicator()==*dB.communicator(),"Communicator mismatch"); 
+    sfqmc::utils::check(*dA.communicator()==*C.communicator(),"Communicator mismatch"); 
 
     if constexpr (dA_t::is_stride_order_C()) {
       static_assert(dB_t::is_stride_order_C() and dC_t::is_stride_order_C(), "Stride mismatch");
 
       long color=0, px=1;
       for(int r=0; r<Arank-2; ++r) { 
-        utils::check(dA.global_shape()[r]==dB.global_shape()[r] and
+        sfqmc::utils::check(dA.global_shape()[r]==dB.global_shape()[r] and
                      dA.global_shape()[r]==C.global_shape()[r],"Global shape mismatch"); 
-        utils::check(dA.local_shape()[r]==dB.local_shape()[r] and
+        sfqmc::utils::check(dA.local_shape()[r]==dB.local_shape()[r] and
                      dA.local_shape()[r]==C.local_shape()[r],"Local shape mismatch"); 
-        utils::check(dA.origin()[r]==dB.origin()[r] and
+        sfqmc::utils::check(dA.origin()[r]==dB.origin()[r] and
                      dA.origin()[r]==C.origin()[r],"Origin mismatch"); 
         // these two should ensure consistency across tasks if created with make_distributed
         // otherwise it will need communication to check
-        utils::check(dA.grid()[r]==dB.grid()[r] and
+        sfqmc::utils::check(dA.grid()[r]==dB.grid()[r] and
                      dA.grid()[r]==C.grid()[r],"Grid mismatch"); 
-        utils::check(dA.block_size()[r]==dB.block_size()[r] and
+        sfqmc::utils::check(dA.block_size()[r]==dB.block_size()[r] and
                      dA.block_size()[r]==C.block_size()[r],"Grid mismatch"); 
         color += px*C.origin()[r]; 
         px *= C.global_shape()[r];
@@ -712,17 +712,17 @@ auto multiply(T a_v, A_t&& A, B_t&& B, T b_v, C_t&& C)
 
       long color=0, px=1;
       for(int r=Arank-1; r>=2; --r) {
-        utils::check(dA.global_shape()[r]==dB.global_shape()[r] and
+        sfqmc::utils::check(dA.global_shape()[r]==dB.global_shape()[r] and
                      dA.global_shape()[r]==C.global_shape()[r],"Global shape mismatch");
-        utils::check(dA.local_shape()[r]==dB.local_shape()[r] and
+        sfqmc::utils::check(dA.local_shape()[r]==dB.local_shape()[r] and
                      dA.local_shape()[r]==C.local_shape()[r],"Local shape mismatch");
-        utils::check(dA.origin()[r]==dB.origin()[r] and
+        sfqmc::utils::check(dA.origin()[r]==dB.origin()[r] and
                      dA.origin()[r]==C.origin()[r],"Origin mismatch");         
         // these two should ensure consistency across tasks if created with make_distributed
         // otherwise it will need communication to check
-        utils::check(dA.grid()[r]==dB.grid()[r] and
+        sfqmc::utils::check(dA.grid()[r]==dB.grid()[r] and
                      dA.grid()[r]==C.grid()[r],"Grid mismatch");               
-        utils::check(dA.block_size()[r]==dB.block_size()[r] and
+        sfqmc::utils::check(dA.block_size()[r]==dB.block_size()[r] and
                      dA.block_size()[r]==C.block_size()[r],"Grid mismatch");
         color += px*C.origin()[r]; 
         px *= C.global_shape()[r];

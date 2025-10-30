@@ -48,7 +48,7 @@ template<Array Arr>
 auto argmin(Arr const& A)
 {
   using T = std::decay_t<typename Arr::value_type>;
-  using Tp = utils::remove_complex_t<T>;
+  using Tp = sfqmc::utils::remove_complex_t<T>;
   constexpr int rank = get_rank<Arr>;
   using ret_t = std::tuple<std::array<long, rank>, Tp>;
   if constexpr(nda::mem::on_host<Arr>) {
@@ -75,14 +75,14 @@ auto argmin(Arr const& A)
 	  p_d /= A.shape()[i];
 	}
       } else
-        APP_ABORT("Error: Missing device function argmin with generic array layout.");
+        sfqmc::utils::check(false,"Error: Missing device function argmin with generic array layout.");
       return std::make_tuple(indx,std::real(v_d)); 
     } else {
-      APP_ABORT("Error: Missing device function argmin.");
+      sfqmc::utils::check(false,"Error: Missing device function argmin.");
       return ret_t{}; 
     }
 #else
-    APP_ABORT("Error: Missing device function argmin.");
+    sfqmc::utils::check(false,"Error: Missing device function argmin.");
     return ret_t{}; 
 #endif
   }
@@ -97,7 +97,7 @@ template<Array Arr>
 auto argmax(Arr & A)
 {   
   using T = std::decay_t<typename Arr::value_type>;
-  using Tp = utils::remove_complex_t<T>;
+  using Tp = sfqmc::utils::remove_complex_t<T>;
   constexpr int rank = get_rank<Arr>;
   using ret_t = std::tuple<std::array<long, rank>, Tp>; 
   if constexpr(nda::mem::on_host<Arr>) {
@@ -124,14 +124,14 @@ auto argmax(Arr & A)
           p_d /= A.shape()[i];
         }
       } else
-        APP_ABORT("Error: Missing device function argmin with generic array layout.");
+        sfqmc::utils::check(false,"Error: Missing device function argmin with generic array layout.");
       return std::make_tuple(indx,std::real(v_d));
     } else {
-      APP_ABORT("Error: Missing device function argmax.");
+      sfqmc::utils::check(false,"Error: Missing device function argmax.");
       return ret_t{};
     } 
 #else
-    APP_ABORT("Error: Missing device function argmax.");
+    sfqmc::utils::check(false,"Error: Missing device function argmax.");
     return ret_t{};
 #endif
   } 
@@ -143,18 +143,18 @@ template<MemoryArrayOfRank<1> V1, MemoryArrayOfRank<1> V3, MemoryArrayOfRank<1> 
 void copy_select(bool expand, V1 const& m, T alpha, V3 const& A, T scl, V4&& B)
 {
   if(expand) {
-    utils::check( m.shape() == A.shape(), "Shape mismatch");
-    utils::check( B.shape()[0] >= A.shape()[0], "Shape mismatch");
+    sfqmc::utils::check( m.shape() == A.shape(), "Shape mismatch");
+    sfqmc::utils::check( B.shape()[0] >= A.shape()[0], "Shape mismatch");
   } else {
-    utils::check( m.shape() == B.shape(), "Shape mismatch");
-    utils::check( A.shape()[0] >= B.shape()[0], "Shape mismatch");
+    sfqmc::utils::check( m.shape() == B.shape(), "Shape mismatch");
+    sfqmc::utils::check( A.shape()[0] >= B.shape()[0], "Shape mismatch");
   }
   static_assert(nda::mem::have_compatible_addr_space<V1,V3,V4>, "Address space mismatch.");
   if constexpr(nda::mem::have_device_compatible_addr_space<V1,V3,V4>) {
 #if defined(ENABLE_DEVICE)
     kernels::device::copy_select(expand,m,alpha,A,scl,B);
 #else
-    APP_ABORT("Error: Missing device function copy_select.");
+    sfqmc::utils::check(false,"Error: Missing device function copy_select.");
 #endif
   } else {
     if(expand)  
@@ -169,20 +169,20 @@ void copy_select(bool expand, V1 const& m, T alpha, V3 const& A, T scl, V4&& B)
 template<MemoryArrayOfRank<1> V1, MemoryArrayOfRank<1> V2, MemoryArrayOfRank<1> V3, MemoryArrayOfRank<1> V4, typename T>
 void copy_select(bool expand, V1 const& m, V2 const& s, T alpha, V3 const& A, T scl, V4&& B)
 {
-  utils::check( s.shape() == m.shape(), "Shape mismatch");
+  sfqmc::utils::check( s.shape() == m.shape(), "Shape mismatch");
   if(expand) {
-    utils::check( s.shape() == A.shape(), "Shape mismatch");
-    utils::check( B.shape()[0] >= A.shape()[0], "Shape mismatch");
+    sfqmc::utils::check( s.shape() == A.shape(), "Shape mismatch");
+    sfqmc::utils::check( B.shape()[0] >= A.shape()[0], "Shape mismatch");
   } else {
-    utils::check( s.shape() == B.shape(), "Shape mismatch");
-    utils::check( A.shape()[0] >= B.shape()[0], "Shape mismatch");
+    sfqmc::utils::check( s.shape() == B.shape(), "Shape mismatch");
+    sfqmc::utils::check( A.shape()[0] >= B.shape()[0], "Shape mismatch");
   }
   static_assert(nda::mem::have_compatible_addr_space<V1,V2,V3,V4>, "Address space mismatch.");
   if constexpr(nda::mem::have_device_compatible_addr_space<V1,V2,V3,V4>) {  
 #if defined(ENABLE_DEVICE)
     kernels::device::copy_select(expand,m,s,alpha,A,scl,B);
 #else
-    APP_ABORT("Error: Missing device function copy_select.");
+    sfqmc::utils::check(false,"Error: Missing device function copy_select.");
 #endif
   } else {
     if(expand)
@@ -198,22 +198,22 @@ void copy_select(bool expand, V1 const& m, V2 const& s, T alpha, V3 const& A, T 
 template<MemoryArrayOfRank<1> V1, MemoryArrayOfRank<2> V3, MemoryArrayOfRank<2> V4, typename T>
 void copy_select(bool expand, int indx, V1 const& m, T alpha, V3 const& A, T scl, V4&& B)
 {
-  utils::check( indx >= 0 and indx <= 1, "Index mismatch");
+  sfqmc::utils::check( indx >= 0 and indx <= 1, "Index mismatch");
   if(expand) {
-    utils::check( m.shape()[0] == A.shape()[indx], "Shape mismatch");
-    utils::check( B.shape()[1-indx] == A.shape()[1-indx], "Shape mismatch");
-    utils::check( B.shape()[indx] >= A.shape()[indx], "Shape mismatch");
+    sfqmc::utils::check( m.shape()[0] == A.shape()[indx], "Shape mismatch");
+    sfqmc::utils::check( B.shape()[1-indx] == A.shape()[1-indx], "Shape mismatch");
+    sfqmc::utils::check( B.shape()[indx] >= A.shape()[indx], "Shape mismatch");
   } else {
-    utils::check( m.shape()[0] == B.shape()[indx], "Shape mismatch");
-    utils::check( A.shape()[1-indx] == B.shape()[1-indx], "Shape mismatch");
-    utils::check( A.shape()[indx] >= B.shape()[indx], "Shape mismatch");
+    sfqmc::utils::check( m.shape()[0] == B.shape()[indx], "Shape mismatch");
+    sfqmc::utils::check( A.shape()[1-indx] == B.shape()[1-indx], "Shape mismatch");
+    sfqmc::utils::check( A.shape()[indx] >= B.shape()[indx], "Shape mismatch");
   }
   static_assert(nda::mem::have_compatible_addr_space<V1,V3,V4>, "Address space mismatch.");
   if constexpr(nda::mem::have_device_compatible_addr_space<V1,V3,V4>) {
 #if defined(ENABLE_DEVICE)
     kernels::device::copy_select(expand,indx,m,alpha,A,scl,B);   
 #else
-    APP_ABORT("Error: Missing device function copy_select.");
+    sfqmc::utils::check(false,"Error: Missing device function copy_select.");
 #endif
   } else {
     if(expand) {
@@ -243,23 +243,23 @@ void copy_select(bool expand, int indx, V1 const& m, T alpha, V3 const& A, T scl
 template<MemoryArrayOfRank<1> V1, MemoryArrayOfRank<1> V2, MemoryArrayOfRank<2> V3, MemoryArrayOfRank<2> V4, typename T>
 void copy_select(bool expand, int indx, V1 const& m, V2 const& s, T alpha, V3 const& A, T scl, V4&& B)
 {
-  utils::check( indx >= 0 and indx <= 1, "Index mismatch");
-  utils::check( s.shape() == m.shape(), "Shape mismatch");
+  sfqmc::utils::check( indx >= 0 and indx <= 1, "Index mismatch");
+  sfqmc::utils::check( s.shape() == m.shape(), "Shape mismatch");
   if(expand) {
-    utils::check( s.shape()[0] == A.shape()[indx], "Shape mismatch");
-    utils::check( B.shape()[1-indx] == A.shape()[1-indx], "Shape mismatch");
-    utils::check( B.shape()[indx] >= A.shape()[indx], "Shape mismatch");
+    sfqmc::utils::check( s.shape()[0] == A.shape()[indx], "Shape mismatch");
+    sfqmc::utils::check( B.shape()[1-indx] == A.shape()[1-indx], "Shape mismatch");
+    sfqmc::utils::check( B.shape()[indx] >= A.shape()[indx], "Shape mismatch");
   } else {
-    utils::check( s.shape()[0] == B.shape()[indx], "Shape mismatch");
-    utils::check( A.shape()[1-indx] == B.shape()[1-indx], "Shape mismatch");
-    utils::check( A.shape()[indx] >= B.shape()[indx], "Shape mismatch");
+    sfqmc::utils::check( s.shape()[0] == B.shape()[indx], "Shape mismatch");
+    sfqmc::utils::check( A.shape()[1-indx] == B.shape()[1-indx], "Shape mismatch");
+    sfqmc::utils::check( A.shape()[indx] >= B.shape()[indx], "Shape mismatch");
   }
   static_assert(nda::mem::have_compatible_addr_space<V1,V2,V3,V4>, "Address space mismatch.");
   if constexpr(nda::mem::have_device_compatible_addr_space<V1,V2,V3,V4>) {
 #if defined(ENABLE_DEVICE)
     kernels::device::copy_select(expand,indx,m,s,alpha,A,scl,B);
 #else
-    APP_ABORT("Error: Missing device function copy_select.");
+    sfqmc::utils::check(false,"Error: Missing device function copy_select.");
 #endif
   } else {
     if(expand) {
@@ -297,7 +297,7 @@ void zero_imag(Arr && A)
 #if defined(ENABLE_DEVICE)
       kernels::device::zero_imag(A);
 #else
-      APP_ABORT("Error: Found device array without ENABLE_DEVICE."); 
+      sfqmc::utils::check(false,"Error: Found device array without ENABLE_DEVICE."); 
 #endif
     }
   }

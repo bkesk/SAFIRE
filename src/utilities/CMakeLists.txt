@@ -115,7 +115,7 @@ SET(UTILITIES
   mpi_context.cpp
   parser.cpp
   freemem.cpp
-  ${GITREV_TMP}
+#  ${GITREV_TMP}
 )
 ADD_LIBRARY(utils ${UTILITIES})
 TARGET_LINK_LIBRARIES(utils PUBLIC qmcio)

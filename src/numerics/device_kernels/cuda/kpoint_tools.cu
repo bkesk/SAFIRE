@@ -48,7 +48,7 @@ void rspace_phase_factor(nda::stack_array<double,3,3> const& lattv,
   long N = rng.size(), N0 = rng.first();
   if(N==0) return;
   auto f_d = to_cuda_std_mdspan(f);
-  auto F = utils::detail::rspace_phase_factor_mesh<decltype(f_d)>{N0,
+  auto F = sfqmc::utils::detail::rspace_phase_factor_mesh<decltype(f_d)>{N0,
      to_cuda_std_array<3>(mesh),to_cuda_std_array<3>(G),
      to_cuda_std_array<9>(lattv),f_d}; 
   cub::DeviceFor::Bulk(N,F);
@@ -64,7 +64,7 @@ void rspace_phase_factor(nda::stack_array<double,3> const& G,
   if(N==0) return;
   auto f_d = to_cuda_std_mdspan(f);
   auto rp_d = to_cuda_std_mdspan(rp);
-  auto F = utils::detail::rspace_phase_factor_crystal<decltype(rp_d),decltype(f_d)>{
+  auto F = sfqmc::utils::detail::rspace_phase_factor_crystal<decltype(rp_d),decltype(f_d)>{
      to_cuda_std_array<3>(mesh), to_cuda_std_array<3>(G),rp_d,f_d};
   cub::DeviceFor::Bulk(N,F);
   arch::synchronize_if_set();

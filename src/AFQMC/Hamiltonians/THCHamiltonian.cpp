@@ -25,39 +25,29 @@
 #include <numeric>
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-#include "Utilities/type_traits/container_traits_multi.h"
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
+#include "utilities/check.hpp"
 
 #include "AFQMC/config.h"
 #include "AFQMC/Utilities/Utils.hpp"
 #include "THCHamiltonian.h"
 #include "AFQMC/Hamiltonians/rotateHamiltonian.hpp"
-#include "AFQMC/HamiltonianOperations/THCOpsIO.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
-// Right now, cutvn, cutvn2, TGprop and TGwfn are completely ignored.
-// Note: addCoulomb only has meaning on the sparse hamiltonians, not in THC
-template<bool MP, bool REAL> HamiltonianOperations<MP> 
+
+template<MEMORY_SPACE MEM, bool MP, bool REAL> HamiltonianOperations<MEM,MP> 
 THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
-                                              std::vector<PsiT_Matrix>& PsiT,
-                                              TaskGroup_& TGprop,   
-                                              TaskGroup_& TGwfn,    
-                                              hdf_archive& hdf_restart)
+               std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+               nda::array<PsiT_Matrix<MEM>,2>& PsiT)
 {
   using SPComplexType = typename to_working_precision<MP,ComplexType>::type;
 
   using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
   using SPValueType   = typename to_working_precision<MP,ValueType  >::type;
 
-  using shmCMatrix    = Matrix_<shared_allocator<ComplexType>>;
-  using shmSPVMatrix  = Matrix_<shared_allocator<SPValueType>>;
-  using shmSPCMatrix  = Matrix_<shared_allocator<SPComplexType>>;
-
+/*
   std::string base_error(" Error in THCHamiltonian::getHamiltonianOperations():\n   ");
 
   size_t nspin = (type == COLLINEAR?2:1);
@@ -200,7 +190,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   shmSPVMatrix Luv({nmu, gnmu}, shared_allocator<SPValueType>{distNode});
   if (distNode.root())
   {
-    /***************************************/
+    / *************************************** /
     // X_skiu
     Array_ref_<4,SPValueType*> Piu_(raw_pointer_cast(Piu.origin()), {nspin_in_file,1,npol*NMO,nmu});
     hyperslab_proxy<decltype(Piu_), 4> hslab(Piu_, 
@@ -211,7 +201,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       APP_ABORT(base_error+" Problems reading collocation_matrix. ");
     if(nspin == 2 and nspin_in_file == 1)
       std::copy_n(raw_pointer_cast(Piu.origin()),npol*NMO*nmu,raw_pointer_cast(Piu[npol*NMO].origin())); 
-    /***************************************/
+    / *************************************** /
     // Vqun
     Array_ref_<3,SPValueType*> Luv_(raw_pointer_cast(Luv.origin()), {1,nmu,gnmu});
     hyperslab_proxy<decltype(Luv_), 3> hslab2(Luv_, 
@@ -220,7 +210,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
                 std::array<size_t, 3>{0,nmu0,0});
     if (!dump.readEntry(hslab2, "factorized_coulomb_matrix"))
       APP_ABORT(base_error+" Problems reading factorized_coulomb_matrix ");
-    /***************************************/
+    /*************************************** /
   }
   TG.Global().barrier();
 
@@ -236,9 +226,9 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       coul_name = "half_rotated_coulomb_matrix";
       coll_name = "collocation_matrix_half_rotated"; 
     }
-    /***************************************/
+    /*************************************** /
     // Mquv
-    /***************************************/
+    /*************************************** /
     Array_ref_<3,SPValueType*> rotMuv_(raw_pointer_cast(rotMuv.origin()), {1,rotnmu,grotnmu});
     hyperslab_proxy<decltype(rotMuv_), 3> hslab2(rotMuv_, 
                 std::array<size_t, 3>{1,grotnmu,grotnmu},  
@@ -252,7 +242,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       APP_ABORT(base_error+" Problems reading " + coll_name);
     if(nspin == 2 and nspin_in_file == 1)
       std::copy_n(raw_pointer_cast(rotPiu.origin()),npol*NMO*grotnmu,raw_pointer_cast(rotPiu[npol*NMO].origin())); 
-    /***************************************/
+    /*************************************** /
   }
   TG.Global().barrier();
 
@@ -268,19 +258,19 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
     shmSPVMatrix Luv__({gnmu, gnmu}, shared_allocator<SPValueType>{TG.Node()});
     if (TG.Node().root())
     {
-      /***************************************/
+      /*************************************** /
       // X_skiu
       Array_ref_<4,SPValueType*> Piu_(raw_pointer_cast(Piu__.origin()), {nspin_in_file,1,npol*NMO,gnmu});
       if (!dump.readEntry(Piu_, "collocation_matrix"))
         APP_ABORT(base_error+" Problems reading collocation_matrix. ");
       if(nspin == 2 and nspin_in_file == 1)
         std::copy_n(raw_pointer_cast(Piu__.origin()),npol*NMO*gnmu,raw_pointer_cast(Piu__[npol*NMO].origin())); 
-      /***************************************/
+      /*************************************** /
       // Vqun
       Array_ref_<3,SPValueType*> Luv_(raw_pointer_cast(Luv__.origin()), {1,gnmu,gnmu});
       if (!dump.readEntry(Luv_, "factorized_coulomb_matrix"))
         APP_ABORT(base_error+" Problems reading factorized_coulomb_matrix ");
-      /***************************************/
+      /*************************************** / 
     }
     TG.Node().barrier();
 
@@ -523,10 +513,6 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   }
   TG.Node().barrier();
 
-//  if (write_hdf)
-//    writeTHCOps(hdf_restart, type, NMO, nup, ndown, nmu0, rotnmu0, ndet, TGprop, TGwfn, H1, rotPiu, rotMuv, Piu, Luv,
-//                v0, E0);
-
   if (distNode.root())
   {
     dump.pop();
@@ -536,17 +522,19 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   return HamiltonianOperations<MP>(THCOps<MP, REAL>(TGwfn.TG_local(), NMO, nup, ndown, type, nmu0, rotnmu0, std::move(H1),
                                       std::move(hij), std::move(rotMuv), std::move(rotPiu), std::move(rotcXau),
                                       std::move(Luv), std::move(Piu), std::move(cXau), std::move(v0), E0));
+*/
+
+  return HamiltonianOperations<MEM,MP>();
 }
 
-template<bool MP> HamiltonianOperations<MP> 
+template<MEMORY_SPACE MEM, bool MP> HamiltonianOperations<MEM,MP> 
 THCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
-                                         std::vector<PsiT_Matrix>& PsiT,
-                                         TaskGroup_& TGprop,   
-                                         TaskGroup_& TGwfn,    
-                                         hdf_archive& hdf_restart)
+               std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+               nda::array<PsiT_Matrix<MEM>,2>& PsiT)
 {
-  bool Real; 
+  bool Real = false; 
  
+/*
   // factorized_coulomb_matrix(q,u,n): required
   // collocation_matrix(s,k,i,u): required
   // Option 1: Provide L * dagger(L) where L=factorized_coulomb_matrix. Reuse collocation_matrix.
@@ -609,17 +597,32 @@ THCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     dump.close(); 
   }
   TG.Global().broadcast_n(&Real, 1, 0);
+*/
 
   if(Real) 
-    return getHamiltonianOperations_impl<MP,true>(type, PsiT, TGprop, TGwfn, hdf_restart);
+    return getHamiltonianOperations_impl<MEM,MP,true>(type, mpi, PsiT); 
   else
-    return getHamiltonianOperations_impl<MP,false>(type, PsiT, TGprop, TGwfn, hdf_restart);
+    return getHamiltonianOperations_impl<MEM,MP,false>(type, mpi, PsiT);
 }
 
-template HamiltonianOperations<true> THCHamiltonian::getHamiltonianOperations<true>(
-		WALKER_TYPES, std::vector<PsiT_Matrix>&,TaskGroup_&,TaskGroup_&,hdf_archive&);
-template HamiltonianOperations<false> THCHamiltonian::getHamiltonianOperations<false>(
-		WALKER_TYPES, std::vector<PsiT_Matrix>&,TaskGroup_&,TaskGroup_&,hdf_archive&);
+template HamiltonianOperations<HOST_MEMORY,true> 
+  THCHamiltonian::getHamiltonianOperations<HOST_MEMORY,true>(WALKER_TYPES, 
+     std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 
+     nda::array<PsiT_Matrix<HOST_MEMORY>,2>&);
+template HamiltonianOperations<HOST_MEMORY,false> 
+  THCHamiltonian::getHamiltonianOperations<HOST_MEMORY,false>(WALKER_TYPES, 
+     std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 
+     nda::array<PsiT_Matrix<HOST_MEMORY>,2>&);
+#if defined(ENABLE_DEVICE)
+template HamiltonianOperations<DEVICE_MEMORY,true> 
+  THCHamiltonian::getHamiltonianOperations<DEVICE_MEMORY,true>(WALKER_TYPES, 
+     std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 
+     nda::array<PsiT_Matrix<DEVICE_MEMORY>,2>&);
+template HamiltonianOperations<DEVICE_MEMORY,false> 
+  THCHamiltonian::getHamiltonianOperations<DEVICE_MEMORY,false>(WALKER_TYPES, 
+     std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 
+     nda::array<PsiT_Matrix<DEVICE_MEMORY>,2>&);
+#endif
 
 } // namespace afqmc
 } // namespace sfqmc

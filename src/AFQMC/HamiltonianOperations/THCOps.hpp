@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_HAMILTONIANOPERATIONS_THCOPS_HPP
-#define SFQMC_AFQMC_HAMILTONIANOPERATIONS_THCOPS_HPP
+#pragma once
 
 
 #include "AFQMC/config.h"
@@ -50,45 +49,6 @@ class THCOps
 
   using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
   using SPValueType   = typename to_working_precision<MP,ValueType  >::type; 
-
-  // allocators
-  // device_allocator for local work space
-  // localTG_allocator for shared work space
-  // node_allocator for fixed arrays, e.g. Luv, Piu, ...
-
-  template<class T>
-  using device_alloc_type = DeviceBufferManager::template allocator_t<T>;
-  template<class T>
-  using shm_alloc_type = LocalTGBufferManager::template allocator_t<T>;
-
-  // pointers
-  using pointer    = typename std::allocator_traits<device_alloc_type<ComplexType>>::pointer;
-  using sp_pointer = typename std::allocator_traits<device_alloc_type<SPComplexType>>::pointer;
-
-  using const_pointer    = typename std::allocator_traits<device_allocator<ComplexType>>::const_pointer;
-  using const_sp_pointer = typename std::allocator_traits<device_allocator<SPComplexType>>::const_pointer;
-
-  template<class U, int N>
-  using Array = boost::multi::static_array<U, N, device_alloc_type<U>>;
-  template<class U, int N>
-  using Array_ref = boost::multi::array_ref<U, N, typename std::allocator_traits<device_alloc_type<U>>::pointer>;
-  template<class U, int N>
-  using Array_cref = boost::multi::array_cref<U, N, typename std::allocator_traits<device_allocator<U>>::const_pointer>;
-  // arrays on shared work space
-  // remember that this is device memory when built with accelerator support
-  template<class U, int N>
-  using ShmArray = boost::multi::static_array<U, N, shm_alloc_type<U>>;
-
-  // arrays on node allocator, for fixed arrays, e.g. Luv, Piu, ...
-  // remember that this is device memory when built with accelerator support
-  template<class U, int N>
-  using nodeArray = boost::multi::array<U, N, node_allocator<U>>;
-
-  // host array on shared memory
-  using mpi3VMatrix   = boost::multi::array<ValueType, 2, shared_allocator<ValueType>>;
-  using mpi3CMatrix   = boost::multi::array<ComplexType, 2, shared_allocator<ComplexType>>;
-  using mpi3SPVMatrix = boost::multi::array<SPValueType, 2, shared_allocator<SPValueType>>;
-  using mpi3SPCMatrix = boost::multi::array<SPComplexType, 2, shared_allocator<SPComplexType>>;
 
 public:
   static const HamiltonianTypes HamOpType = THC;
@@ -1340,4 +1300,3 @@ protected:
 
 } // namespace sfqmc
 
-#endif

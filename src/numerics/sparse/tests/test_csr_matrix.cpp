@@ -79,7 +79,7 @@ void test_csr_matrix()
     auto i0 = row_begin(0);
     for(long r=0; r<nr; r++) 
       for(long i=row_begin(r); i<row_end(r); ++i)
-        utils::VALUE_EQUAL(A_(r,cols(i-i0)),vals(i-i0)); 
+        sfqmc::utils::VALUE_EQUAL(A_(r,cols(i-i0)),vals(i-i0)); 
   };
 
   {
@@ -308,10 +308,67 @@ void test_csr_matrix()
 
     auto A = small(nda::range(2,6));
     check(As,A);
-
   }
   }
 
+}
+
+template<typename Type, typename IndxType, typename IntType, MEMORY_SPACE MEM>
+void test_array_of_csr()
+{
+  using csr_matrix  = math::sparse::csr_matrix<Type, MEM, IndxType, IntType>;
+
+  auto As = nda::array<Type,2>::zeros({4,4});
+  As(0,1) = 10;
+  As(0,2) = 9;
+  As(2,1) = 3;
+  As(3,3) = 1;
+  nda::array<IntType,1> nnz      = {2, 0, 1, 1};
+  nda::array<IntType,1> nnz_plus = {12, 10, 11, 11};
+
+  auto check = [](auto && A_, auto && SpM) {
+    auto vals = nda::to_host(SpM.values());
+    auto cols = nda::to_host(SpM.columns());
+    auto row_begin = nda::to_host(SpM.row_begin());
+    auto row_end = nda::to_host(SpM.row_end());
+    auto nr = SpM.shape(0);
+    auto i0 = row_begin(0);
+    for(long r=0; r<nr; r++)
+      for(long i=row_begin(r); i<row_end(r); ++i)
+        sfqmc::utils::VALUE_EQUAL(A_(r,cols(i-i0)),vals(i-i0));
+  };
+
+  auto csr_host = math::sparse::to_csr<HOST_MEMORY,IndxType,IntType>(As,0.0); 
+  check(As,csr_host);
+
+  csr_matrix csr(csr_host);
+  check(As,csr);
+
+  {
+    nda::array<csr_matrix, 1> csr_array(10);
+    csr_array(0) = csr;
+    check(As,csr_array(0));
+    REQUIRE(csr_array(0).nnz() == 4);
+    for(int i=1; i<csr_array.extent(0); ++i)
+      REQUIRE(csr_array(i).nnz() == 0);
+  }
+
+  {
+    nda::array<csr_matrix, 1> csr_array(10,csr);
+    for(int i=0; i<csr_array.extent(0); ++i) {
+      check(As,csr_array(i));
+      REQUIRE(csr_array(i).nnz() == 4);
+    }
+  }
+
+  { 
+    nda::array<csr_matrix, 3> csr_array(2,1,3);
+    csr_array() = csr;
+    for(auto& v : csr_array) {
+      check(As,v);
+      REQUIRE(v.nnz() == 4);
+    }
+  }
 }
 
 TEST_CASE("csr_matrix", "[csr]")
@@ -330,6 +387,11 @@ TEST_CASE("csr_matrix", "[csr]")
   test_csr_matrix<std::complex<double>, int, long, UNIFIED_MEMORY>();
   test_csr_matrix<std::complex<double>, int, int, UNIFIED_MEMORY>();
 #endif
+}
+
+TEST_CASE("arrays_of_csr")
+{
+  test_array_of_csr<double, int, long, HOST_MEMORY>();
 }
 
 } // namespace bdft 

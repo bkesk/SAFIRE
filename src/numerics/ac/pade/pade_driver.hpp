@@ -49,11 +49,11 @@ namespace analyt_cont {
 
       long dim1 = std::accumulate(A_iw.shape().begin()+1, A_iw.shape().end(), 1, std::multiplies<>{});
       long niw = A_iw.shape(0);
-      if (!is_iw_pos_only) utils::check(niw % 2 == 0, "pade_driver::init: niw ({}) % 2 != 0", niw);
+      if (!is_iw_pos_only) sfqmc::utils::check(niw % 2 == 0, "pade_driver::init: niw ({}) % 2 != 0", niw);
 
       long niw_pos = (is_iw_pos_only)? niw : niw/2;
       if (Nfit == -1) Nfit = niw_pos;
-      utils::check(Nfit <= niw_pos,
+      sfqmc::utils::check(Nfit <= niw_pos,
                    "pade_driver::init: Nfit ({}) > number of positive imaginary frequency points ({})",
                    Nfit, niw_pos);
 
@@ -67,7 +67,7 @@ namespace analyt_cont {
         long step = niw_pos/Nfit + 1;
         auto low_iw_rng = nda::range(0, step*num_lchunk, step) + shift;
         auto high_iw_rng = nda::range(step*num_lchunk, niw_pos, step-1) + shift;
-        utils::check(low_iw_rng.size()+high_iw_rng.size() == Nfit, "pade_driver::init: iw_rng.size() != Nfit");
+        sfqmc::utils::check(low_iw_rng.size()+high_iw_rng.size() == Nfit, "pade_driver::init: iw_rng.size() != Nfit");
 
         iw_fit(nda::range(0,low_iw_rng.size())) = iw_mesh(low_iw_rng);
         iw_fit(nda::range(low_iw_rng.size(),Nfit)) = iw_mesh(high_iw_rng);
@@ -76,12 +76,12 @@ namespace analyt_cont {
       } else {
         long step = niw_pos/Nfit;
         auto fit_iw_rng = nda::range(0, niw_pos, step) + shift;
-        utils::check(fit_iw_rng.size() == Nfit, "pade_driver::init: iw_rng.size() != Nfit");
+        sfqmc::utils::check(fit_iw_rng.size() == Nfit, "pade_driver::init: iw_rng.size() != Nfit");
         iw_fit(nda::range::all) = iw_mesh(fit_iw_rng);
         A_fit(nda::ellipsis{}) = Aiw_2D(fit_iw_rng, nda::range::all);
       }
 
-      app_log(2, "Solving {}-point Pade interpolation.\n", Nfit);
+      sfqmc::app_log(2, "Solving {}-point Pade interpolation.\n", Nfit);
       _pade_kernel.init(iw_fit, A_fit);
     }
 
@@ -89,7 +89,7 @@ namespace analyt_cont {
     void evaluate(mesh_w_t &&w_mesh, Array_w_t &&A_w) {
       using Aw_value_type = typename std::decay_t<Array_w_t>::value_type;
       static_assert(nda::is_complex_v<Aw_value_type>, "pade_driver::evaluate: A_w is not complex");
-      utils::check(w_mesh.shape(0) == A_w.shape(0), "pade_driver::evaluate: nw is not consistent");
+      sfqmc::utils::check(w_mesh.shape(0) == A_w.shape(0), "pade_driver::evaluate: nw is not consistent");
 
       long dim1 = std::accumulate(A_w.shape().begin()+1, A_w.shape().end(), 1, std::multiplies<>{});
       auto Aw_2D   = nda::reshape(A_w, std::array<long, 2>{A_w.shape(0), dim1});

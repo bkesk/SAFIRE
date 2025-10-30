@@ -14,16 +14,18 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef IO_INPUTPARSER_HPP
-#define IO_INPUTPARSER_HPP
+#pragma once
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <vector>
-#include "io/ptree/ptree_utilities.hpp" 
+#include "IO/ptree/ptree_utilities.hpp" 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/xml_parser.hpp>
-#include "Utilities/app_loggers.h"
+#include "IO/app_loggers.h"
+
+namespace sfqmc {
 
 class InputParser
 {
@@ -72,5 +74,4 @@ public:
 private:
   ptree pt;
 };
-
-#endif
+}

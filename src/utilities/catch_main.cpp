@@ -23,9 +23,9 @@
 
 #include<iostream>
 
-namespace utils::detail {
+namespace sfqmc::utils::detail {
   // gets allocated in utilities/test_common.hpp when requested, cleanup below before exiting main
-  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> __unit_test_mpi_context__ = nullptr;
+  std::shared_ptr<sfqmc::utils::mpi_context_t<boost::mpi3::communicator>> __unit_test_mpi_context__ = nullptr;
 }
 
 // input files 
@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
   int result = session.run(argc, argv);
 
   // cleanup mpi context 
-  utils::detail::__unit_test_mpi_context__.reset();
+  sfqmc::utils::detail::__unit_test_mpi_context__.reset();
 
   return result;
 }

@@ -106,7 +106,7 @@ void cufft_check(cufftResult_t result, std::string message)
     default:
       err = "CUFFT_UNKNOWN_ERROR";
   }
-  app_error(message);
+  sfqmc::app_error(message);
   err = std::string(" Error code returned by cufft: ") + err;
   APP_ABORT(err);
 }
@@ -152,7 +152,7 @@ fftplan_t create_plan_many_impl_(int rank, [[maybe_unused]] int *n, int howmany,
                              [[maybe_unused]] RealType *out, [[maybe_unused]] int *onembed,
                              [[maybe_unused]] int ostride,   [[maybe_unused]] int odist)
 {
-  utils::check(false,"r2r transforms not yet working.");
+  sfqmc::utils::check(false,"r2r transforms not yet working.");
   return fftplan_t {
 		FFT_BACKEND_CUFFT,
 		howmany,
@@ -165,7 +165,7 @@ fftplan_t create_plan_many_impl_(int rank, [[maybe_unused]] int *n, int howmany,
 void destroy_plan(fftplan_t& p) 
 {
   if(p.fwd==nullptr) return;
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
   cufftHandle* plan = reinterpret_cast<cufftHandle*>(p.fwd);
   if(plan != nullptr) {
     cufft_check(cufftDestroy(*plan),"cufftDestroy");
@@ -177,9 +177,9 @@ void destroy_plan(fftplan_t& p)
 // check for alignment???
 void fwdfft(fftplan_t& p, ComplexType *in, ComplexType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
   cufftHandle* plan = reinterpret_cast<cufftHandle*>(p.fwd);
-  utils::check(plan != nullptr,"Uninitiated cufft plan.");
+  sfqmc::utils::check(plan != nullptr,"Uninitiated cufft plan.");
   cufft_check(cufftExecZ2Z(*plan,
 		   reinterpret_cast<cufftDoubleComplex*>(in),
 		   reinterpret_cast<cufftDoubleComplex*>(out),
@@ -188,9 +188,9 @@ void fwdfft(fftplan_t& p, ComplexType *in, ComplexType *out)
 }
 void fwdfft(fftplan_t& p, RealType *in, ComplexType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
   cufftHandle* plan = reinterpret_cast<cufftHandle*>(p.fwd);
-  utils::check(plan != nullptr,"Uninitiated cufft plan.");
+  sfqmc::utils::check(plan != nullptr,"Uninitiated cufft plan.");
   cufft_check(cufftExecD2Z(*plan,
                    reinterpret_cast<cufftDoubleReal*>(in),
                    reinterpret_cast<cufftDoubleComplex*>(out)), "cufftExecD2Z");
@@ -198,9 +198,9 @@ void fwdfft(fftplan_t& p, RealType *in, ComplexType *out)
 }
 void fwdfft(fftplan_t& p, ComplexType *in, RealType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
   cufftHandle* plan = reinterpret_cast<cufftHandle*>(p.fwd);
-  utils::check(plan != nullptr,"Uninitiated cufft plan.");
+  sfqmc::utils::check(plan != nullptr,"Uninitiated cufft plan.");
   cufft_check(cufftExecZ2D(*plan,
                    reinterpret_cast<cufftDoubleComplex*>(in),
                    reinterpret_cast<cufftDoubleReal*>(out)), "cufftExecZ2D");
@@ -208,17 +208,17 @@ void fwdfft(fftplan_t& p, ComplexType *in, RealType *out)
 }
 void fwdfft(fftplan_t& p, [[maybe_unused]]  RealType *in, [[maybe_unused]]  RealType *out)
 {
-  utils::check(false,"r2r transforms not yet working.");
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(false,"r2r transforms not yet working.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
   cufftHandle* plan = reinterpret_cast<cufftHandle*>(p.fwd);
-  utils::check(plan != nullptr,"Uninitiated cufft plan.");
+  sfqmc::utils::check(plan != nullptr,"Uninitiated cufft plan.");
 }
 
 void invfft(fftplan_t& p, ComplexType *in, ComplexType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
   cufftHandle* plan = reinterpret_cast<cufftHandle*>(p.fwd);
-  utils::check(plan != nullptr,"Uninitiated cufft plan.");
+  sfqmc::utils::check(plan != nullptr,"Uninitiated cufft plan.");
   cufft_check(cufftExecZ2Z(*plan,
                    reinterpret_cast<cufftDoubleComplex*>(in),
                    reinterpret_cast<cufftDoubleComplex*>(out),
@@ -227,9 +227,9 @@ void invfft(fftplan_t& p, ComplexType *in, ComplexType *out)
 }
 void invfft(fftplan_t& p, RealType *in, ComplexType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
   cufftHandle* plan = reinterpret_cast<cufftHandle*>(p.fwd);
-  utils::check(plan != nullptr,"Uninitiated cufft plan.");
+  sfqmc::utils::check(plan != nullptr,"Uninitiated cufft plan.");
   cufft_check(cufftExecD2Z(*plan,
                    reinterpret_cast<cufftDoubleReal*>(in),
                    reinterpret_cast<cufftDoubleComplex*>(out)), "cufftExecD2Z");
@@ -237,9 +237,9 @@ void invfft(fftplan_t& p, RealType *in, ComplexType *out)
 }
 void invfft(fftplan_t& p, ComplexType *in, RealType *out)
 { 
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
   cufftHandle* plan = reinterpret_cast<cufftHandle*>(p.fwd);
-  utils::check(plan != nullptr,"Uninitiated cufft plan.");
+  sfqmc::utils::check(plan != nullptr,"Uninitiated cufft plan.");
   cufft_check(cufftExecZ2D(*plan,
                    reinterpret_cast<cufftDoubleComplex*>(in),
                    reinterpret_cast<cufftDoubleReal*>(out)), "cufftExecZ2D");
@@ -247,8 +247,8 @@ void invfft(fftplan_t& p, ComplexType *in, RealType *out)
 }
 void invfft(fftplan_t& p, [[maybe_unused]] RealType *in, [[maybe_unused]] RealType *out)
 { 
-  utils::check(false,"r2r transforms not yet working.");
-  utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
+  sfqmc::utils::check(false,"r2r transforms not yet working.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_CUFFT,"Incorrect FFT backend.");
 }
 
 } // math::fft::impl::dev

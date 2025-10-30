@@ -63,7 +63,7 @@ void gemm(mpi3::shared_communicator &node_comm,
 
   long np = node_comm.size();
   long rk = node_comm.rank();
-  long nx = utils::find_proc_grid_min_diff(np,C.extent(0),C.extent(1));
+  long nx = sfqmc::utils::find_proc_grid_min_diff(np,C.extent(0),C.extent(1));
   long ny = np/nx;
   long ix = rk/ny;
   long iy = rk%ny;
@@ -132,8 +132,8 @@ template<SharedArray A_t, SharedArray B_t, SharedArray C_t>
 void gemm(typename std::decay_t<A_t>::value_type a, A_t const& A, B_t const& B, 
           typename std::decay_t<C_t>::value_type c, C_t && C)
 {
-  utils::check( *A.node_comm() == *B.node_comm(), "Node comm mismatch");
-  utils::check( *A.node_comm() == *C.node_comm(), "Node comm mismatch");
+  sfqmc::utils::check( *A.node_comm() == *B.node_comm(), "Node comm mismatch");
+  sfqmc::utils::check( *A.node_comm() == *C.node_comm(), "Node comm mismatch");
   detail::gemm(*A.node_comm(),a,A.local(),B.local(),c,C.local());
 }
 

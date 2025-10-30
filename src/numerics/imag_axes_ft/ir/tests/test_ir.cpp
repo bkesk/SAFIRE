@@ -30,7 +30,7 @@
 
 namespace bdft_tests {
 
-  using utils::ARRAY_EQUAL;
+  using sfqmc::utils::ARRAY_EQUAL;
   template<int N>
   using shape_t = std::array<long,N>;
 

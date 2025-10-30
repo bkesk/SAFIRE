@@ -79,12 +79,12 @@ TEST_CASE("time_collectives", "[sandbox][mpi]")
   using Array_view_t = nda::array_view<ComplexType, 3>;
   using Array_t = nda::array<ComplexType, 3>;
 
-  utils::check(world.size()%8 == 0, "ntasks must be divisible by 8");
+  sfqmc::utils::check(world.size()%8 == 0, "ntasks must be divisible by 8");
 
-  utils::TimerManager Timer;
+  sfqmc::utils::TimerManager Timer;
   long N1_ = 1024, N2_=64, N3_=32;
   long p1 = world.size() / 8, p2 = 4, p3 = 2; 
-  utils::check(world.size() == p1*p2*p3, "Error with proc partition.");
+  sfqmc::utils::check(world.size() == p1*p2*p3, "Error with proc partition.");
   //auto pgrid = shape_t<3>{p1,p2,p3};
 
   //for(int s=1; s<=8; s*=2)
@@ -94,7 +94,7 @@ TEST_CASE("time_collectives", "[sandbox][mpi]")
     long N1 = N1_*s;
     long N2 = N2_*s;
     long N3 = N3_*s;
-    app_log(0,"N1:{} N2:{} N3:{} MEM:{} MB",N1,N2,N3,16.0*N1*N2*N3/1024.0/1024.0);
+    sfqmc::app_log(0,"N1:{} N2:{} N3:{} MEM:{} MB",N1,N2,N3,16.0*N1*N2*N3/1024.0/1024.0);
 
     if(s < 4)
     {
@@ -113,7 +113,7 @@ TEST_CASE("time_collectives", "[sandbox][mpi]")
       reduce(world,A);
       Timer.stop("red2");
 
-      app_log(0,"global reduce_in_place: {}  reduce:{}",Timer.elapsed("red"),Timer.elapsed("red2"));
+      sfqmc::app_log(0,"global reduce_in_place: {}  reduce:{}",Timer.elapsed("red"),Timer.elapsed("red2"));
     }
     Timer.reset_all();
     world.barrier();
@@ -133,7 +133,7 @@ TEST_CASE("time_collectives", "[sandbox][mpi]")
       reduce(internode_comm,A,B);
       Timer.stop("red2");
     
-      app_log(0,"global internode reduce_in_place: {}  reduce:{}",Timer.elapsed("red"),Timer.elapsed("red2"));
+      sfqmc::app_log(0,"global internode reduce_in_place: {}  reduce:{}",Timer.elapsed("red"),Timer.elapsed("red2"));
     }
     Timer.reset_all();
     world.barrier();
@@ -158,7 +158,7 @@ TEST_CASE("time_collectives", "[sandbox][mpi]")
       world.barrier();
       Timer.stop("red2");
 
-      app_log(0,"split reduce_in_place: {}  reduce:{}",Timer.elapsed("red"),Timer.elapsed("red2"));
+      sfqmc::app_log(0,"split reduce_in_place: {}  reduce:{}",Timer.elapsed("red"),Timer.elapsed("red2"));
     }
     Timer.reset_all();
     world.barrier();
@@ -184,7 +184,7 @@ TEST_CASE("time_collectives", "[sandbox][mpi]")
         reduce(internode_comm,A);
         Timer.stop("red2");
       }
-      app_log(0,"shm reduce: {} reduce 2: {}, reduce 3: {}",
+      sfqmc::app_log(0,"shm reduce: {} reduce 2: {}, reduce 3: {}",
                 Timer.elapsed("red"),Timer.elapsed("red2"),Timer.elapsed("red3"));
     }
     Timer.reset_all();

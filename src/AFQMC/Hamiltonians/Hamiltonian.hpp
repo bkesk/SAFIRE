@@ -14,106 +14,77 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_HAMILTONIAN_HPP
-#define SFQMC_AFQMC_HAMILTONIAN_HPP
+#pragma once
 
 #include <fstream>
+#include <variant>
 
 #include "AFQMC/config.h"
-#include "boost/variant.hpp"
 
-#include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
+//#include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
-#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
-#include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
-#include "AFQMC/Hamiltonians/RealDenseHamiltonian_v2.h"
-#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
+//#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
+//#include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
+//#include "AFQMC/Hamiltonians/RealDenseHamiltonian_v2.h"
+//#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
-namespace dummy
-{
-/*
- * Empty class to avoid need for default constructed Hamiltonians.
- * Throws is any visitor is called.
- */
-class dummy_Hamiltonian
-{
-public:
-  dummy_Hamiltonian(){ APP_ABORT(" Error: Reached default constructor of dummy_Hamiltonian. "); };
 
-  ComplexType getNuclearCoulombEnergy() const
-  {
-    throw std::runtime_error("calling visitor on dummy object");
-    return 0;
-  }
-
-  template<bool MP, class... Args>
-  HamiltonianOperations<MP> getHamiltonianOperations([[maybe_unused]] Args&&... args)
-  {
-    throw std::runtime_error("calling visitor on dummy object");
-    return HamiltonianOperations<MP>{};
-  }
-
-  HamiltonianTypes getHamType()
-  { 
-    throw std::runtime_error("calling visitor on dummy object");
-    return UNKNOWN; 
-  }
-};
-} // namespace dummy
-
-class Hamiltonian : public boost::variant<dummy::dummy_Hamiltonian 
-                                          ,THCHamiltonian 
-                                          ,ModelHamOpsGenerator 
-                                          ,KPFactorizedHamiltonian
-                                          ,RealDenseHamiltonian
-                                          ,RealDenseHamiltonian_v2
-					>
+class Hamiltonian 
 {
 
 public:
   Hamiltonian() = default; 
-  explicit Hamiltonian(THCHamiltonian&& other) : variant(std::move(other)) {}
-  explicit Hamiltonian(ModelHamOpsGenerator&& other) : variant(std::move(other)) {}
-  explicit Hamiltonian(KPFactorizedHamiltonian&& other) : variant(std::move(other)) {}
-  explicit Hamiltonian(RealDenseHamiltonian&& other) : variant(std::move(other)) {}
-  explicit Hamiltonian(RealDenseHamiltonian_v2&& other) : variant(std::move(other)) {}
+  explicit Hamiltonian(THCHamiltonian&& other) : var(std::move(other)) {}
+//  explicit Hamiltonian(ModelHamOpsGenerator&& other) : variant(std::move(other)) {}
+//  explicit Hamiltonian(KPFactorizedHamiltonian&& other) : variant(std::move(other)) {}
+//  explicit Hamiltonian(RealDenseHamiltonian&& other) : variant(std::move(other)) {}
+//  explicit Hamiltonian(RealDenseHamiltonian_v2&& other) : variant(std::move(other)) {}
 
-  explicit Hamiltonian(THCHamiltonian const& other)              = delete;
-  explicit Hamiltonian(ModelHamOpsGenerator const& other)              = delete;
-  explicit Hamiltonian(KPFactorizedHamiltonian const& other) = delete;
-  explicit Hamiltonian(RealDenseHamiltonian const& other)    = delete;
-  explicit Hamiltonian(RealDenseHamiltonian_v2 const& other) = delete;
+  explicit Hamiltonian(THCHamiltonian const& other) : var(other) {}  
+//  explicit Hamiltonian(ModelHamOpsGenerator const& other)              = delete;
+//  explicit Hamiltonian(KPFactorizedHamiltonian const& other) = delete;
+//  explicit Hamiltonian(RealDenseHamiltonian const& other)    = delete;
+//  explicit Hamiltonian(RealDenseHamiltonian_v2 const& other) = delete;
 
-  Hamiltonian(Hamiltonian const& other) = delete;
+  Hamiltonian(Hamiltonian const& other) = default;
   Hamiltonian(Hamiltonian&& other)      = default;
 
-  Hamiltonian& operator=(Hamiltonian const& other) = delete;
+  Hamiltonian& operator=(Hamiltonian const& other) = default;
   Hamiltonian& operator=(Hamiltonian&& other) = default;
 
-  ComplexType getNuclearCoulombEnergy()
+  auto getNuclearCoulombEnergy()
   {
-    return boost::apply_visitor([&](auto&& a) { return a.getNuclearCoulombEnergy(); }, *this);
+    return std::visit([&](auto&& a) { return a.getNuclearCoulombEnergy(); }, var);
   }
 
-  template<bool MP, class... Args>
-  HamiltonianOperations<MP> getHamiltonianOperations(Args&&... args)
+  template<MEMORY_SPACE MEM, bool MP, class... Args>
+  HamiltonianOperations<MEM,MP> getHamiltonianOperations(Args&&... args)
   {
-      return boost::apply_visitor([&](auto&& a) { 
-	return a.template getHamiltonianOperations<MP>(std::forward<Args>(args)...); }, *this);
+      return std::visit([&](auto&& a) { 
+	return a.template getHamiltonianOperations<MEM,MP>(std::forward<Args>(args)...); }, var);
   }
 
   HamiltonianTypes getHamType()
   {
-    return boost::apply_visitor([&](auto&& a) { return a.getHamType(); }, *this);
+    return std::visit([&](auto&& a) { return a.getHamType(); }, var);
   }
+
+  private:
+
+    std::variant<THCHamiltonian
+//              ,ModelHamOpsGenerator 
+//              ,KPFactorizedHamiltonian
+//              ,RealDenseHamiltonian
+//              ,RealDenseHamiltonian_v2
+                > var;
+
 };
 
 } // namespace afqmc
 
 } // namespace sfqmc
 
-#endif

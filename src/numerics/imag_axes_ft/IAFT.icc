@@ -12,8 +12,8 @@ void IAFT::tau_to_w(ndaArray_A &&X_ti, ndaArray_B &&X_wi, stats_e stats) const {
                 "iaft::tau_to_w: incorrect rank of array X_wi and X_ti. ");
   size_t nt = (stats == fermi)? nt_f() : nt_b();
   size_t nw = (stats == fermi)? nw_f() : nw_b();
-  utils::check(X_ti.shape(0) == nt, "iaft::tau_to_w: incorrect dimension of nt = {} for X_ti; stats = {}", X_ti.shape(0), int(stats));
-  utils::check(X_wi.shape(0) == nw, "iaft::tau_to_w: incorrect dimension of nw = {} for X_wi; stats = {}", X_wi.shape(0), int(stats));
+  sfqmc::utils::check(X_ti.shape(0) == nt, "iaft::tau_to_w: incorrect dimension of nt = {} for X_ti; stats = {}", X_ti.shape(0), int(stats));
+  sfqmc::utils::check(X_wi.shape(0) == nw, "iaft::tau_to_w: incorrect dimension of nw = {} for X_wi; stats = {}", X_wi.shape(0), int(stats));
 
   long dim1 = std::accumulate(X_ti.shape().begin()+1, X_ti.shape().end(), 1, std::multiplies<>{});
   auto X_ti_2D = nda::reshape(X_ti, shape_t<2>{nt, dim1});
@@ -31,8 +31,8 @@ void IAFT::tau_to_w(ndaArray_A &&X_ti, ndaArray_B &&Xw_i, stats_e stats, size_t 
                 "iaft::tau_to_w: incorrect rank of array Xw_i and X_ti. ");
   size_t nt = (stats == fermi)? nt_f() : nt_b();
   long dim1 = std::accumulate(X_ti.shape().begin()+1, X_ti.shape().end(), 1, std::multiplies<>{});
-  utils::check(X_ti.shape(0) == nt, "iaft::tau_to_w: incorrect dimension of nt for X_ti; stats = {}", int(stats));
-  utils::check(Xw_i.size() == dim1, "iaft::tau_to_w: incorrect dimension for X_wi");
+  sfqmc::utils::check(X_ti.shape(0) == nt, "iaft::tau_to_w: incorrect dimension of nt for X_ti; stats = {}", int(stats));
+  sfqmc::utils::check(Xw_i.size() == dim1, "iaft::tau_to_w: incorrect dimension for X_wi");
 
   auto X_ti_2D = nda::reshape(X_ti, shape_t<2>{nt, dim1});
   auto Xw_1i_2D = nda::reshape(Xw_i, shape_t<2>{1, dim1});
@@ -52,8 +52,8 @@ void IAFT::tau_to_w_PHsym(Array_tau_t &&X_ti_pos, Array_w_t &&X_wi_pos) const {
 
   size_t nt = (nt_b()%2==0)? nt_b()/2 : nt_b()/2 + 1;
   size_t nw = (nw_b()%2==0)? nw_b()/2 : nw_b()/2 + 1;
-  utils::check(X_ti_pos.shape(0) == nt, "iaft::tau_to_w_PHsym: incorrect dimension of nt for X_ti.");
-  utils::check(X_wi_pos.shape(0) == nw, "iaft::tau_to_w_PHsym: incorrect dimension of nw for X_wi.");
+  sfqmc::utils::check(X_ti_pos.shape(0) == nt, "iaft::tau_to_w_PHsym: incorrect dimension of nt for X_ti.");
+  sfqmc::utils::check(X_wi_pos.shape(0) == nw, "iaft::tau_to_w_PHsym: incorrect dimension of nw for X_wi.");
 
   long dim1 = std::accumulate(X_ti_pos.shape().begin()+1, X_ti_pos.shape().end(), 1, std::multiplies<>{});
   auto X_ti_2D  = nda::reshape(X_ti_pos, shape_t<2>{nt, dim1});
@@ -84,8 +84,8 @@ void IAFT::w_to_tau(ndaArray_A &&X_wi, ndaArray_B &&X_ti, stats_e stats) const {
                 "iaft::w_to_tau: incorrect rank of array X_wi and X_ti. ");
   size_t nt = (stats == fermi)? nt_f() : nt_b();
   size_t nw = (stats == fermi)? nw_f() : nw_b();
-  utils::check(X_ti.shape(0) == nt, "iaft::w_to_tau: incorrect dimension of nt for X_t; stats = {}", int(stats));
-  utils::check(X_wi.shape(0) == nw, "iaft::w_to_tau: incorrect dimension of nw for X_w; stats = {}", int(stats));
+  sfqmc::utils::check(X_ti.shape(0) == nt, "iaft::w_to_tau: incorrect dimension of nt for X_t; stats = {}", int(stats));
+  sfqmc::utils::check(X_wi.shape(0) == nw, "iaft::w_to_tau: incorrect dimension of nw for X_w; stats = {}", int(stats));
 
   long dim1 = std::accumulate(X_wi.shape().begin()+1, X_wi.shape().end(), 1, std::multiplies<>{});
   auto X_ti_2D = nda::reshape(X_ti, shape_t<2>{nt, dim1});
@@ -107,8 +107,8 @@ void IAFT::w_to_tau_PHsym(Array_w_t &&X_wi_pos, Array_tau_t &&X_ti_pos) const {
 
   size_t nt_half = (nt_b()%2==0)? nt_b()/2 : nt_b()/2 + 1;
   size_t nw_half = (nw_b()%2==0)? nw_b()/2 : nw_b()/2 + 1;
-  utils::check(X_ti_pos.shape(0) == nt_half, "iaft::w_to_tau_PHsym: incorrect dimension of nt for X_ti.");
-  utils::check(X_wi_pos.shape(0) == nw_half, "iaft::w_to_tau_PHsym: incorrect dimension of nw for X_wi.");
+  sfqmc::utils::check(X_ti_pos.shape(0) == nt_half, "iaft::w_to_tau_PHsym: incorrect dimension of nt for X_ti.");
+  sfqmc::utils::check(X_wi_pos.shape(0) == nw_half, "iaft::w_to_tau_PHsym: incorrect dimension of nw for X_wi.");
 
   long dim1 = std::accumulate(X_ti_pos.shape().begin()+1, X_ti_pos.shape().end(), 1, std::multiplies<>{});
   auto X_ti_2D  = nda::reshape(X_ti_pos, shape_t<2>{nt_half, dim1});
@@ -137,8 +137,8 @@ void IAFT::w_to_tau(ndaArray_A_t &&X_wi, stats_e stats_A, ndaArray_B_t &&X_ti, s
 
     size_t nw = (stats_A == fermi)? nw_f() : nw_b();
     size_t nt = (stats_B == fermi)? nt_f() : nt_b();
-    utils::check(X_wi.shape(0) == nw, "iaft::w_to_tau: incorrect dimension of nt for X_w; stats = {}", int(stats_A));
-    utils::check(X_ti.shape(0) == nt, "iaft::w_to_tau: incorrect dimension of nw for X_t; stats = {}", int(stats_B));
+    sfqmc::utils::check(X_wi.shape(0) == nw, "iaft::w_to_tau: incorrect dimension of nt for X_w; stats = {}", int(stats_A));
+    sfqmc::utils::check(X_ti.shape(0) == nt, "iaft::w_to_tau: incorrect dimension of nw for X_t; stats = {}", int(stats_B));
 
     long dim1 = std::accumulate(X_wi.shape().begin()+1, X_wi.shape().end(), 1, std::multiplies<>{});
     auto X_wi_2D = nda::reshape(X_wi, shape_t<2>{nw, dim1});
@@ -166,8 +166,8 @@ void IAFT::w_to_tau_partial(ndaArray_A&& Xw_i, ndaArray_B&& X_ti, stats_e stats,
       "iaft::w_to_tau_partial: incorrect rank of array Xw_i and X_ti. ");
   size_t nt = (stats == fermi)? nt_f() : nt_b();
   const long dim1 = std::accumulate(X_ti.shape().begin()+1, X_ti.shape().end(), 1, std::multiplies<>{});
-  utils::check(X_ti.shape(0) == nt, "iaft::w_to_tau_partial: incorrect dimension of nt for X_t; stats = {}", int(stats));
-  utils::check(Xw_i.size() == dim1, "iaft::w_to_tau_partial: incorrect dimension for X_w");
+  sfqmc::utils::check(X_ti.shape(0) == nt, "iaft::w_to_tau_partial: incorrect dimension of nt for X_t; stats = {}", int(stats));
+  sfqmc::utils::check(Xw_i.size() == dim1, "iaft::w_to_tau_partial: incorrect dimension for X_w");
 
   // (nt, dim1) += (nt) x (dim1)
   auto X_ti_2D = nda::reshape(X_ti, shape_t<2>{nt, dim1});
@@ -190,8 +190,8 @@ void IAFT::tau_to_tau(ndaArray_A &&A_ti, stats_e A_stats, ndaArray_B &&B_ti) con
   stats_e B_stats = (A_stats == fermi)? boson : fermi;
   size_t nt_A = (A_stats == fermi)? nt_f() : nt_b();
   size_t nt_B = (B_stats == fermi)? nt_f() : nt_b();
-  utils::check(B_ti.shape(0) == nt_B, "iaft::tau_to_tau: incorrect dimension of nt for B_ti; stats = {}", int(B_stats));
-  utils::check(A_ti.shape(0) == nt_A, "iaft::tau_to_tau: incorrect dimension of nt for A_ti; stats = {}", int(A_stats));
+  sfqmc::utils::check(B_ti.shape(0) == nt_B, "iaft::tau_to_tau: incorrect dimension of nt for B_ti; stats = {}", int(B_stats));
+  sfqmc::utils::check(A_ti.shape(0) == nt_A, "iaft::tau_to_tau: incorrect dimension of nt for A_ti; stats = {}", int(A_stats));
 
   long dim1 = std::accumulate(A_ti.shape().begin()+1, A_ti.shape().end(), 1, std::multiplies<>{});
   nda::matrix_const_view<ComplexType> A_ti_2D({nt_A, dim1}, A_ti.data());
@@ -206,8 +206,8 @@ void IAFT::tau_to_tau(ndaArray_A &&A_ti, stats_e A_stats, ndaArray_B &&Bt_i, siz
                 "iaft::tau_to_tau: incorrect rank of array A_ti and Bt_i. ");
   size_t nt_A = (A_stats == fermi)? nt_f() : nt_b();
   long dim1 = std::accumulate(A_ti.shape().begin()+1, A_ti.shape().end(), 1, std::multiplies<>{});
-  utils::check(A_ti.shape(0) == nt_A, "iaft::tau_to_tau: incorrect dimension of nt for A_ti; stats = {}", int(A_stats));
-  utils::check(Bt_i.size() == dim1, "iaft::tau_to_tau: incorrect dimension for Bt_i");
+  sfqmc::utils::check(A_ti.shape(0) == nt_A, "iaft::tau_to_tau: incorrect dimension of nt for A_ti; stats = {}", int(A_stats));
+  sfqmc::utils::check(Bt_i.size() == dim1, "iaft::tau_to_tau: incorrect dimension for Bt_i");
 
   nda::matrix_const_view<ComplexType> A_ti_2D({nt_A, dim1}, A_ti.data());
   // Bt_i = A_ti * T_t
@@ -226,9 +226,9 @@ template<nda::MemoryArray ndaArray_A, nda::MemoryArray ndaArray_B>
 void IAFT::tau_to_beta(ndaArray_A &&A_ti, ndaArray_B &&A_beta_i) const {
   static_assert(nda::get_rank<ndaArray_A>-1 == nda::get_rank<ndaArray_B>,
                 "iaft::tau_to_beta: incorrect rank of array A_ti and A_beta_i. ");
-  utils::check(A_ti.shape(0) == nt_f(), "iaft::tau_to_beta: incorrect dimension of nt for A_ti.");
+  sfqmc::utils::check(A_ti.shape(0) == nt_f(), "iaft::tau_to_beta: incorrect dimension of nt for A_ti.");
   long dim1 = std::accumulate(A_ti.shape().begin()+1, A_ti.shape().end(), 1, std::multiplies<>{});
-  utils::check(A_beta_i.size() == dim1, "iaft::tau_to_beta: incorrect dimension for A_beta_i");
+  sfqmc::utils::check(A_beta_i.size() == dim1, "iaft::tau_to_beta: incorrect dimension for A_beta_i");
 
   auto A_beta_i_1D = nda::reshape(A_beta_i, shape_t<1>{dim1});
   nda::matrix_const_view<ComplexType> A_ti_2D({nt_f(), dim1}, A_ti.data() );
@@ -247,9 +247,9 @@ template<nda::MemoryArray ndaArray_A, nda::MemoryArray ndaArray_B>
 void IAFT::tau_to_zero(ndaArray_A &&A_ti, ndaArray_B &&A_zero_i)  const {
   static_assert(nda::get_rank<ndaArray_A>-1 == nda::get_rank<ndaArray_B>,
                 "iaft::tau_to_zero: incorrect rank of array A_ti and A_beta_i. ");
-  utils::check(A_ti.shape(0) == nt_f(), "iaft::tau_to_zero: incorrect dimension of nt for A_ti.");
+  sfqmc::utils::check(A_ti.shape(0) == nt_f(), "iaft::tau_to_zero: incorrect dimension of nt for A_ti.");
   long dim1 = std::accumulate(A_ti.shape().begin()+1, A_ti.shape().end(), 1, std::multiplies<>{});
-  utils::check(A_zero_i.size() == dim1, "iaft::tau_to_zero: incorrect dimension for A_zero_i");
+  sfqmc::utils::check(A_zero_i.size() == dim1, "iaft::tau_to_zero: incorrect dimension for A_zero_i");
 
   auto A_zero_i_1D = nda::reshape(A_zero_i, shape_t<1>{dim1});
   nda::matrix_const_view<ComplexType> A_ti_2D({nt_f(), dim1}, A_ti.data() );
@@ -265,7 +265,7 @@ void IAFT::check_leakage(Array_A &&A_ti, stats_e stats, comm_t *comm, std::strin
   long nts  = (stats == fermi)? nt_f() : nt_b();
   long dim1 = std::accumulate(A_ti.shape().begin()+1, A_ti.shape().end(), 1, std::multiplies<>{});
   auto A_ti_2D = nda::reshape(A_ti, shape_t<2>{nts, dim1});
-  utils::check(A_ti.shape()[0] == nts, "check_FT_leakage: nts mismatches");
+  sfqmc::utils::check(A_ti.shape()[0] == nts, "check_FT_leakage: nts mismatches");
 
   double coeff_first = -1.0;
   double coeff_last  = -1.0;
@@ -293,9 +293,9 @@ void IAFT::check_leakage(Array_A &&A_ti, stats_e stats, comm_t *comm, std::strin
   double coeff_first_max = comm->max(coeff_first);
   double coeff_last_max  = comm->max(coeff_last);
   double leakage = coeff_last_max / coeff_first_max;
-  app_log(2, "IAFT leakage of {}: {}", A_name, leakage);
+  sfqmc::app_log(2, "IAFT leakage of {}: {}", A_name, leakage);
   if (leakage > 1e-5) {
-    app_log(1, "\n[WARNING] A large IAFT leakage is found: coeff_last/coeff_first = {} > 1e-5, coeff_last = {}, coeff_first = {}.\n"
+    sfqmc::app_log(1, "\n[WARNING] A large IAFT leakage is found: coeff_last/coeff_first = {} > 1e-5, coeff_last = {}, coeff_first = {}.\n"
                "          The leakage is roughly the accuracy of the grids used to represent the imaginary axes. \n"
                "          Considering increasing \"lambda\" of the IR/DLR grid.\n",
             leakage, coeff_last_max, coeff_first_max);
@@ -310,7 +310,7 @@ void IAFT::check_leakage_PHsym(Array_A &&A_ti, stats_e stats, comm_t *comm, std:
   long nt_half = (nts%2==0)? nts/2 : nts/2 + 1;
   long dim1 = std::accumulate(A_ti.shape().begin()+1, A_ti.shape().end(), 1, std::multiplies<>{});
   auto A_ti_2D = nda::reshape(A_ti, shape_t<2>{nt_half, dim1});
-  utils::check(A_ti.shape()[0] == nt_half, "check_FT_leakage_PHsym: nts mismatches");
+  sfqmc::utils::check(A_ti.shape()[0] == nt_half, "check_FT_leakage_PHsym: nts mismatches");
 
   double coeff_first = -1.0;
   double coeff_last  = -1.0;
@@ -347,9 +347,9 @@ void IAFT::check_leakage_PHsym(Array_A &&A_ti, stats_e stats, comm_t *comm, std:
   double coeff_first_max = comm->max(coeff_first);
   double coeff_last_max  = comm->max(coeff_last);
   double leakage = coeff_last_max / coeff_first_max;
-  app_log(2, "IAFT leakage of {}: {}", A_name, leakage);
+  sfqmc::app_log(2, "IAFT leakage of {}: {}", A_name, leakage);
   if (leakage > 1e-5) {
-    app_log(1, "\n[WARNING] A large IAFT leakage is found: coeff_last/coeff_first = {} > 1e-5, coeff_last = {}, coeff_first = {}.\n"
+    sfqmc::app_log(1, "\n[WARNING] A large IAFT leakage is found: coeff_last/coeff_first = {} > 1e-5, coeff_last = {}, coeff_first = {}.\n"
                "          The leakage is roughly the accuracy of the grids used to represent the imaginary axes. \n"
                "          Considering increasing \"lambda\" of the IR/DLR grid.\n",
             leakage, coeff_last_max, coeff_first_max);

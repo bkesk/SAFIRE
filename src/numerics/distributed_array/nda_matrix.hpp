@@ -133,7 +133,7 @@ struct darray
   // returns true if the collection of local arrays reproduces gshape without overlaps
   template<typename IntArray>
   bool full_coverage_impl([[maybe_unused]] IntArray const& local_shape) const {
-    utils::check(false,"finish");
+    sfqmc::utils::check(false,"finish");
     return false;
   }
 
@@ -167,12 +167,12 @@ struct darray
   void check_dimensions() const
   {
     long np = std::accumulate(grid.cbegin(), grid.cend(), 1, std::multiplies<>{});
-    utils::check( comm->size() == np, 
+    sfqmc::utils::check( comm->size() == np, 
       "distributed_array: Number of processors does not match grid: size:{} grid:{}",comm->size(),np);
     for(int i=0; i<rank; i++) {
-      utils::check(grid[i] >= 0,"distributed_array i:{} grid:{}",i,grid[i]);
-      utils::check(lorigin[i] >= 0,"distributed_array i:{} origin:{}",i,lorigin[i]);
-      utils::check(gextents[i] >= 0,"distributed_array i:{} extent:{}",i,gextents[i]);
+      sfqmc::utils::check(grid[i] >= 0,"distributed_array i:{} grid:{}",i,grid[i]);
+      sfqmc::utils::check(lorigin[i] >= 0,"distributed_array i:{} origin:{}",i,lorigin[i]);
+      sfqmc::utils::check(gextents[i] >= 0,"distributed_array i:{} extent:{}",i,gextents[i]);
     }
 #if defined(SYNCHRONIZE_DISTRIBUTED_ARRAY)
     std::array<long,2*rank> tmp;
@@ -180,9 +180,9 @@ struct darray
     for(int i=0; i<rank; ++i) tmp[rank+i] = long(grid[i]);
     comm->broadcast_n(tmp.begin(),2*rank,0);
     for(int i=0; i<rank; ++i) {
-      utils::check(tmp[i] == gextents[i],
+      sfqmc::utils::check(tmp[i] == gextents[i],
 		"distributed_array: Inconsistent global shape: i:{} local:{} ref:{}",i,gextents[i],tmp[i]);
-      utils::check(tmp[rank+i] == long(grid[i]), 
+      sfqmc::utils::check(tmp[rank+i] == long(grid[i]), 
     		"distributed_array: Inconsistent grid size: i:{} local:{} ref:{}",i,grid[i],tmp[rank+i]);
     }
     comm->barrier();
@@ -193,16 +193,16 @@ struct darray
   void check_dimensions(IntArray const& local_size) const
   {
     long np = std::accumulate(grid.cbegin(), grid.cend(), 1, std::multiplies<>{});
-    utils::check( comm->size() == np, 
+    sfqmc::utils::check( comm->size() == np, 
 	"distributed_array: Number of processors does not match grid: size:{} grid:{}",comm->size(),np);
     for(int i=0; i<rank; i++) {
-      utils::check(grid[i] >= 0,"distributed_array i:{} grid:{}",i,grid[i]);
-      utils::check(lorigin[i] >= 0,"distributed_array i:{} origin:{}",i,lorigin[i]);
-      utils::check(gextents[i] >= 0,"distributed_array i:{} extent:{}",i,gextents[i]);
-      utils::check(lorigin[i]+local_size[i] <= gextents[i],
+      sfqmc::utils::check(grid[i] >= 0,"distributed_array i:{} grid:{}",i,grid[i]);
+      sfqmc::utils::check(lorigin[i] >= 0,"distributed_array i:{} origin:{}",i,lorigin[i]);
+      sfqmc::utils::check(gextents[i] >= 0,"distributed_array i:{} extent:{}",i,gextents[i]);
+      sfqmc::utils::check(lorigin[i]+local_size[i] <= gextents[i],
 		"distributed_array i:{} origin:{} local_size:{} , global:{}",
 		i,lorigin[i],local_size[i],gextents[i]);
-      utils::check(local_size[i] >= 0,"distributed_array i:{} local_size:{}",i,local_size[i]);
+      sfqmc::utils::check(local_size[i] >= 0,"distributed_array i:{} local_size:{}",i,local_size[i]);
     }
 #if defined(SYNCHRONIZE_DISTRIBUTED_ARRAY)
     std::array<long,2*rank> tmp;
@@ -210,9 +210,9 @@ struct darray
     for(int i=0; i<rank; ++i) tmp[rank+i] = long(grid[i]);
     comm->broadcast_n(tmp.begin(),2*rank,0);
     for(int i=0; i<rank; ++i) {
-      utils::check(tmp[i] == gextents[i],
+      sfqmc::utils::check(tmp[i] == gextents[i],
 		"distributed_array: Inconsistent global shape: i:{} local:{} ref:{}",i,gextents[i],tmp[i]);
-      utils::check(tmp[rank+i] == long(grid[i]), 
+      sfqmc::utils::check(tmp[rank+i] == long(grid[i]), 
     		"distributed_array: Inconsistent grid size: i:{} local:{} ref:{}",i,grid[i],tmp[rank+i]);
     }
     comm->barrier();
@@ -333,7 +333,7 @@ class distributed_array
   communicator_t* communicator() const { return base.comm; }
 
   auto local_range(int dim) const { 
-    utils::check(dim >= 0 and dim < rank, "distributed_array::range: Out of range d:{}",dim); 
+    sfqmc::utils::check(dim >= 0 and dim < rank, "distributed_array::range: Out of range d:{}",dim); 
     return ::nda::range(base.lorigin[dim],base.lorigin[dim]+A.shape()[dim]);
   }
 
@@ -416,11 +416,11 @@ class distributed_array_view
   distributed_array_view(distributed_array_view &&) = default;
 
   distributed_array_view& operator=(distributed_array_view const& other) {
-    utils::check(base.grid==other.grid(), "distributed_array_view::operator= Inconsistent shapes.");
-    utils::check(base.gextents==other.global_shape(),
+    sfqmc::utils::check(base.grid==other.grid(), "distributed_array_view::operator= Inconsistent shapes.");
+    sfqmc::utils::check(base.gextents==other.global_shape(),
                                           "distributed_array_view::operator= Inconsistent shapes.");
-    utils::check(base.lorigin==other.origin(), "distributed_array_view::operator= Inconsistent shapes.");
-    utils::check(base.comm==other.communicator(), "distributed_array_view::operator= Inconsistent communicators.");
+    sfqmc::utils::check(base.lorigin==other.origin(), "distributed_array_view::operator= Inconsistent shapes.");
+    sfqmc::utils::check(base.comm==other.communicator(), "distributed_array_view::operator= Inconsistent communicators.");
     A = other.A;
 #if defined(SYNCHRONIZE_DISTRIBUTED_ARRAY)
     base.comm->barrier();
@@ -432,11 +432,11 @@ class distributed_array_view
   // MAM: operator= on the view should guard against incompatible memory spaces!
   template<DistributedArrayOfRank<rank> DArr>
   distributed_array_view& operator=(DArr & other) {
-    utils::check(base.grid==other.grid(), "distributed_array_view::operator= Inconsistent shapes.");
-    utils::check(base.gextents==other.global_shape(), 
+    sfqmc::utils::check(base.grid==other.grid(), "distributed_array_view::operator= Inconsistent shapes.");
+    sfqmc::utils::check(base.gextents==other.global_shape(), 
 					  "distributed_array_view::operator= Inconsistent shapes.");
-    utils::check(base.lorigin==other.origin(), "distributed_array_view::operator= Inconsistent shapes.");
-    utils::check(base.comm==other.communicator(), "distributed_array_view::operator= Inconsistent communicators.");
+    sfqmc::utils::check(base.lorigin==other.origin(), "distributed_array_view::operator= Inconsistent shapes.");
+    sfqmc::utils::check(base.comm==other.communicator(), "distributed_array_view::operator= Inconsistent communicators.");
     A = other.local();  
 #if defined(SYNCHRONIZE_DISTRIBUTED_ARRAY)
     base.comm->barrier();
@@ -474,7 +474,7 @@ class distributed_array_view
   communicator_t* communicator() const { return base.comm; }
 
   auto local_range(int dim) const {
-    utils::check(dim >= 0 and dim < rank, "distributed_array::range: Out of range d:{}",dim);
+    sfqmc::utils::check(dim >= 0 and dim < rank, "distributed_array::range: Out of range d:{}",dim);
     return ::nda::range(base.lorigin[dim],base.lorigin[dim]+A.shape()[dim]);
   }
 

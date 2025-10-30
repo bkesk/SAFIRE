@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
   auto nR = args["nR"].as<long>();
   auto nC = args["nC"].as<long>();
 
-  utils::check(nR*nC == world.size(), "Error: nR*nC != world.size()");
+  sfqmc::utils::check(nR*nC == world.size(), "Error: nR*nC != world.size()");
 
   long M = 1800;
   long bz = std::min({256l,M/nR,M/nC});
@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
     }
   world.all_reduce_in_place_n(&s,1,std::plus<>{});
   world.all_reduce_in_place_n(&smax,1,boost::mpi3::max<>{});
-  app_log(0," nR:{}, nC:{}, av:{}, max:{}",nR,nC,s,smax);
+  sfqmc::app_log(0," nR:{}, nC:{}, av:{}, max:{}",nR,nC,s,smax);
 
   return 0;
 }

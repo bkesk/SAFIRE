@@ -47,7 +47,7 @@ void basic_plan_c()
     memory::array<MEM, T, 1> y0(N);
     {
       nda::array<T, 1> yt(N);
-      utils::fillRandomArray(yt);
+      sfqmc::utils::fillRandomArray(yt);
       y0=yt;
     }
 
@@ -108,7 +108,7 @@ void basic_plan_c()
     memory::array<MEM, T, 3> y0(N,N,N);
     {
       nda::array<T, 3> yt(N,N,N);
-      utils::fillRandomArray(yt, -1.0, 1.0);
+      sfqmc::utils::fillRandomArray(yt, -1.0, 1.0);
       y0=yt;
     }
     { 
