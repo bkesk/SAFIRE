@@ -14,13 +14,14 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_TEST_UTILS_HPP
-#define SFQMC_AFQMC_TEST_UTILS_HPP
+#pragma once
 
 #include <complex>
-#include "hdf/hdf_archive.h"
 #include <random>
 #include <algorithm>
+
+#include "nda/nda.hpp"
+#include "nda/h5.hpp"
 
 namespace sfqmc
 {
@@ -35,50 +36,29 @@ struct TEST_DATA
   T Xsum, Vsum;
 };
 
-inline std::tuple<int, int, int> read_info_from_hdf(std::string fileName)
-{
-  hdf_archive dump;
-  if (!dump.open(fileName, H5F_ACC_RDONLY))
-    APP_ABORT(" Error opening integral file in SparseGeneralHamiltonian. ");
-  if (dump.push("Hamiltonian", false)<0)
-    APP_ABORT("Error in read_info_from_hdf(): Group not Hamiltonian found.");
-
-  std::vector<int> Idata(8);
-  if (!dump.readEntry(Idata, "dims"))
-    APP_ABORT(" Error in read_info_from_hdf(): Problems reading dims. ");
-
-  dump.pop();
-
-  return std::make_tuple(Idata[3], Idata[4], Idata[5]);
-}
-
 inline int read_nmo_from_hdf(std::string fileName, std::string format)
 {
   app_log(1, "Reading NMO from hamil file: {} of format {} ", fileName, format);
   int NMO(0);
-  hdf_archive dump;
-  if (!dump.open(fileName, H5F_ACC_RDONLY))
-    APP_ABORT("Error opening integral file in SparseGeneralHamiltonian.");
+  h5::file file(fileName,'r');
+  h5::group grp(file);
+
   if (format == "std")
   {
-    if (dump.push("Hamiltonian", false)<0)
-      APP_ABORT("Error in read_nmo_from_hdf(): Group not Hamiltonian found.");
-
+    utils::check(grp.has_subgroup("Hamiltonian"), "Missing Hamiltonian dataset.");
+    h5::group hgrp = grp.open_group("Hamiltonian");
     std::vector<int> Idata(8);
-    if (!dump.readEntry(Idata, "dims"))
-      APP_ABORT("Error in read_nmo_from_hdf(): Problems reading dims.");
+    h5::h5_read(hgrp,"dims",Idata);
     NMO = Idata[3];
-    dump.pop();
-  } else if (format == "coqui") 
-  {
-    if (!dump.push("System"))
-      APP_ABORT("Error in read_nmo_from_hdf: Group System not found.");
-    dump.readAttributeEntry(NMO, "number_of_bands");
+  } else if (format == "coqui") {
+    utils::check(grp.has_subgroup("System"), "Missing Hamiltonian dataset.");
+    h5::group hgrp = grp.open_group("System");
+    h5::h5_read_attribute(hgrp,"number_of_bands",NMO);
   }
-  dump.close();
   return NMO;
 }
 
+/*
 inline std::tuple<int, int, int> read_info_from_wfn(std::string fileName, std::string type)
 {
 
@@ -232,9 +212,8 @@ void fillRandomMatrix(std::vector<std::complex<T>>& vec)
     vec[i] = std::complex<T>(re, im);
   }
 }
-
+*/
 
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

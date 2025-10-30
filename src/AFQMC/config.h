@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef AFQMC_CONFIG_H
-#define AFQMC_CONFIG_H
+#pragma once
 
 #include <string>
 #include <algorithm>
@@ -34,8 +33,7 @@
 
 #include "IO/ptree/ptree_utilities.hpp"
 
-//#include "SparseMatrix/csr_matrix.hpp"
-//#include "SparseMatrix/coo_matrix.hpp"
+#include"numerics/sparse/sparse.hpp"
 
 namespace sfqmc
 {
@@ -102,38 +100,11 @@ enum SpinTypes
   Beta
 };
 
-/*
-// new types
-template<typename T>
-using mpi3_csr_matrix =
-    ma::sparse::csr_matrix<T, int, std::size_t, shared_allocator<T>, ma::sparse::is_root>;
-
-template<typename T>
-using dev_csr_Matrix = ma::sparse::csr_matrix<T, int, int, device_allocator<T>>;
-
-//#ifdef PsiT_IN_SHM
-template<typename T>
-using PsiT_Matrix_t = ma::sparse::csr_matrix<T, int, int, shared_allocator<T>, ma::sparse::is_root>;
-using PsiT_Matrix   = PsiT_Matrix_t<ComplexType>;
-#if defined(ENABLE_DEVICE)
-template<typename T, typename IntT = int>
-using local_csr_Matrix = ma::sparse::csr_matrix<T, int, IntT, device_allocator<T>>;
-#else
-template<typename T, typename IntT = int>
-using local_csr_Matrix = ma::sparse::csr_matrix<T, int, IntT, shared_allocator<T>, ma::sparse::is_root>;
-#endif
-//#else
-//  using PsiT_Matrix = ma::sparse::csr_matrix<ComplexType,int,int>;
-//  using devPsiT_Matrix = ma::sparse::csr_matrix<ComplexType,int,int>;
-//#endif
-
-
-#if defined(ENABLE_DEVICE)
-using P1Type = ma::sparse::csr_matrix<ComplexType, int, int, localTG_allocator<ComplexType>>;
-#else
-using P1Type        = ma::sparse::csr_matrix<ComplexType, int, int, localTG_allocator<ComplexType>, ma::sparse::is_root>;
-#endif
-*/
+// Trial wave function types
+template<typename T, MEMORY_SPACE MEM>
+using PsiT_Matrix_t = math::sparse::csr_matrix<T, MEM, int, int>;
+template<MEMORY_SPACE MEM>
+using PsiT_Matrix   = PsiT_Matrix_t<ComplexType,MEM>;
 
 enum HamiltonianTypes
 {
@@ -245,4 +216,3 @@ public:
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

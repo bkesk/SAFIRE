@@ -63,7 +63,7 @@ public:
         std::string filename = mbpt_output + ".mbpt.h5";
         h5::file file(filename, 'r');
         h5::group grp(file);
-        utils::check(grp.has_subgroup("scf"), "Simulation HDF5 file does not have an scf group");
+        sfqmc::utils::check(grp.has_subgroup("scf"), "Simulation HDF5 file does not have an scf group");
         auto scf_grp = grp.open_group("scf");
         h5::h5_read(scf_grp, "final_iter", iter_from_file);
         if(iter != iter_from_file) {
@@ -100,7 +100,7 @@ public:
     // Commutator residual
     // This may not be the most memory-efficient implementation...
     virtual bool get_diis_residual(FockSigma& res) {
-        utils::check(com_initialized, "DIIS commutator residual is not initialized");
+        sfqmc::utils::check(com_initialized, "DIIS commutator residual is not initialized");
             upload_g_mu(); // TODO if it hasn't been supplied externally
             // Warning! Sigma here is in tau!
             FockSigma x_last = state->get();

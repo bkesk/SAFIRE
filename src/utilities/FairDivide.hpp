@@ -18,8 +18,10 @@
 #include <tuple>
 #include <algorithm>
 
-#ifndef UTILITIES_FAIRDIVIDE_HPP
-#define UTILITIES_FAIRDIVIDE_HPP
+#pragma once
+
+namespace sfqmc
+{
 
 template<typename IType>
 inline std::tuple<IType, IType> FairDivideBoundary(IType me, IType ntot, IType npart)
@@ -50,4 +52,4 @@ inline void FairDivide(int ntot, int npart, IVec& adist)
   adist[npart] = ntot;
 }
 
-#endif
+} // sfqmc

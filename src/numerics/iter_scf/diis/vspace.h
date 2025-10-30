@@ -54,29 +54,29 @@ public:
     }
 
     Vector get_vec(const size_t i) {
-        utils::check(inited, "VSpace is not initialized");
-        utils::check(i < _size, "VSpace::get_vec Vector index of the VSpace container {} is out of bounds", _filename);
+        sfqmc::utils::check(inited, "VSpace is not initialized");
+        sfqmc::utils::check(i < _size, "VSpace::get_vec Vector index of the VSpace container {} is out of bounds", _filename);
         Vector vec;
         vec.read_from_file(_filename, i);
         return vec;
     };
 
     void get_vec(const size_t i, Vector& vec) {
-        utils::check(inited, "VSpace is not initialized");
-        utils::check(i < _size, "VSpace::get_vec Vector index of the VSpace container {} is out of bounds", _filename);
+        sfqmc::utils::check(inited, "VSpace is not initialized");
+        sfqmc::utils::check(i < _size, "VSpace::get_vec Vector index of the VSpace container {} is out of bounds", _filename);
         vec.read_from_file(_filename, i);
     }
 
     void add_to_vspace(Vector& a) {
-        utils::check(inited, "VSpace is not initialized");
+        sfqmc::utils::check(inited, "VSpace is not initialized");
         a.write_to_file(_filename, _size);
         _size++;
     }
 
     std::complex<double> overlap(const size_t i, const size_t j) {
-        utils::check(inited, "VSpace is not initialized");
-        utils::check(i < _size, "VSpace::overlap Vector index of the VSpace container {} is out of bounds", _filename);
-        utils::check(j < _size, "VSpace::overlap Vector index of the VSpace container {} is out of bounds", _filename);
+        sfqmc::utils::check(inited, "VSpace is not initialized");
+        sfqmc::utils::check(i < _size, "VSpace::overlap Vector index of the VSpace container {} is out of bounds", _filename);
+        sfqmc::utils::check(j < _size, "VSpace::overlap Vector index of the VSpace container {} is out of bounds", _filename);
         Vector vec_i;
         vec_i.read_from_file(_filename, i);
         Vector vec_j;
@@ -85,8 +85,8 @@ public:
     }
 
     std::complex<double> overlap(const size_t i, const Vector& a) {
-        utils::check(inited, "VSpace is not initialized");
-        utils::check(i < _size, "VSpace::overlap Vector index of the VSpace container {} is out of bounds", _filename);
+        sfqmc::utils::check(inited, "VSpace is not initialized");
+        sfqmc::utils::check(i < _size, "VSpace::overlap Vector index of the VSpace container {} is out of bounds", _filename);
         Vector vec_i;
         vec_i.read_from_file(_filename, i);
         return overlap(vec_i, a);
@@ -102,9 +102,9 @@ public:
 
     // TODO: implement through move
     void purge_vec(const size_t k) {
-        utils::check(inited, "VSpace is not initialized");
-        utils::check(k < _size, "VSpace::purge_vec Vector index of the VSpace container {} is out of bounds", _filename);
-        utils::check(_size > 0, "VSpace::purge_vec VSpace is of zero size, no vector can be deleted");
+        sfqmc::utils::check(inited, "VSpace is not initialized");
+        sfqmc::utils::check(k < _size, "VSpace::purge_vec Vector index of the VSpace container {} is out of bounds", _filename);
+        sfqmc::utils::check(_size > 0, "VSpace::purge_vec VSpace is of zero size, no vector can be deleted");
         Vector vec;
         for(size_t j = k+1; j < size(); j++) {
             vec.read_from_file(_filename, j);
@@ -115,7 +115,7 @@ public:
     }
 
     virtual Vector make_linear_comb(const nda::array<ComplexType, 1>& C) {
-        utils::check(inited, "VSpace is not initialized");
+        sfqmc::utils::check(inited, "VSpace is not initialized");
          Vector r;
          if(_size > 0) {
              get_vec(size()-1, r); // this is needed to initialize r

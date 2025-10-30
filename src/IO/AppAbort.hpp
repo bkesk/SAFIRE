@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef UTILITIES_APPABORT_HPP
-#define UTILITIES_APPABORT_HPP
+#pragma once
 
 #include <iostream>
 #include <string>
@@ -23,6 +22,8 @@
 #if defined(ENABLE_CPPTRACE)     
 #include <cpptrace/cpptrace.hpp>
 #endif
+
+namespace sfqmc {
 
 extern bool __app_stacktrace__;
 
@@ -155,4 +156,4 @@ void APP_ABORT(const std::source_location& loc, const std::string_view format_st
 
 #endif // ENABLE_SPDLOG
 
-#endif
+} // sfqmc

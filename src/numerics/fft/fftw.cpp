@@ -84,7 +84,7 @@ fftplan_t create_plan_many_impl_(int rank, [[maybe_unused]] const int *n, int ho
                              [[maybe_unused]] int ostride, [[maybe_unused]] int odist,
                              [[maybe_unused]] const unsigned flags)
 {
-  utils::check(false,"r2r transforms not yet working.");
+  sfqmc::utils::check(false,"r2r transforms not yet working.");
   return fftplan_t {
 		FFT_BACKEND_FFTW,
 		howmany,
@@ -98,7 +98,7 @@ void destroy_plan(fftplan_t& p)
 {
   // if uninitialized, don;t check for backend
   if(p.fwd==nullptr and p.inv==nullptr) return; 
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* fwd = reinterpret_cast<fftw_plan*>(p.fwd);
   if(fwd != nullptr) {
     fftw_destroy_plan(*fwd);
@@ -116,67 +116,67 @@ void destroy_plan(fftplan_t& p)
 // check for alignment???
 void fwdfft(fftplan_t const & p, ComplexType *in, ComplexType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* fwd = reinterpret_cast<fftw_plan*>(p.fwd);
-  utils::check(fwd != nullptr,"Uninitiated fftw plan.");
+  sfqmc::utils::check(fwd != nullptr,"Uninitiated fftw plan.");
   fftw_execute_dft(*fwd,
 		   reinterpret_cast<fftw_complex*>(in),
 		   reinterpret_cast<fftw_complex*>(out));
 }
 void fwdfft(fftplan_t const& p, RealType *in, ComplexType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* fwd = reinterpret_cast<fftw_plan*>(p.fwd);
-  utils::check(fwd != nullptr,"Uninitiated fftw plan.");
+  sfqmc::utils::check(fwd != nullptr,"Uninitiated fftw plan.");
   fftw_execute_dft_r2c(*fwd,in,
 		   reinterpret_cast<fftw_complex*>(out));
 }
 void fwdfft(fftplan_t const& p, ComplexType *in, RealType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* fwd = reinterpret_cast<fftw_plan*>(p.fwd);
-  utils::check(fwd != nullptr,"Uninitiated fftw plan.");
+  sfqmc::utils::check(fwd != nullptr,"Uninitiated fftw plan.");
   fftw_execute_dft_c2r(*fwd,
 		   reinterpret_cast<fftw_complex*>(in),out);
 }
 void fwdfft(fftplan_t const& p, [[maybe_unused]] RealType *in, [[maybe_unused]] RealType *out)
 {
-  utils::check(false,"r2r transforms not yet working.");
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(false,"r2r transforms not yet working.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* fwd = reinterpret_cast<fftw_plan*>(p.fwd);
-  utils::check(fwd != nullptr,"Uninitiated fftw plan.");
+  sfqmc::utils::check(fwd != nullptr,"Uninitiated fftw plan.");
 //  fftw_execute_dft_r2r(*fwd,in,out);
 }
 
 void invfft(fftplan_t const& p, ComplexType *in, ComplexType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* inv = reinterpret_cast<fftw_plan*>(p.inv);
-  utils::check(inv != nullptr,"Uninitiated fftw plan.");
+  sfqmc::utils::check(inv != nullptr,"Uninitiated fftw plan.");
   fftw_execute_dft(*inv,
                    reinterpret_cast<fftw_complex*>(in),
                    reinterpret_cast<fftw_complex*>(out));
 }
 void invfft(fftplan_t const& p, RealType *in, ComplexType *out)
 {
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* fwd = reinterpret_cast<fftw_plan*>(p.fwd);
-  utils::check(fwd != nullptr,"Uninitiated fftw plan.");
+  sfqmc::utils::check(fwd != nullptr,"Uninitiated fftw plan.");
   fftw_execute_dft_r2c(*fwd,in,
                    reinterpret_cast<fftw_complex*>(out));
 }
 void invfft(fftplan_t const& p, ComplexType *in, RealType *out)
 { 
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* fwd = reinterpret_cast<fftw_plan*>(p.fwd);
-  utils::check(fwd != nullptr,"Uninitiated fftw plan.");
+  sfqmc::utils::check(fwd != nullptr,"Uninitiated fftw plan.");
   fftw_execute_dft_c2r(*fwd,
                    reinterpret_cast<fftw_complex*>(in),out);
 }
 void invfft(fftplan_t const& p, [[maybe_unused]] RealType *in, [[maybe_unused]] RealType *out)
 { 
-  utils::check(false,"r2r transforms not yet working.");
-  utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
+  sfqmc::utils::check(false,"r2r transforms not yet working.");
+  sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
 //  fftw_execute_dft_r2r(p.inv,in,out);
 }
 

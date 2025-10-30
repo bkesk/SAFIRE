@@ -89,7 +89,7 @@ namespace iter_scf {
     template<nda::MemoryArray Array_4D_t, nda::MemoryArray Array_5D_t>
     std::array<double, 2> solve(Array_4D_t &&F, std::string dataset_F, Array_5D_t &&Sigma, std::string dataset_Sigma,
                  h5::group &scf_grp, long iter) {
-      utils::check(initialized, "DIIS must be initialed before solving");
+      sfqmc::utils::check(initialized, "DIIS must be initialed before solving");
       // do damping and grow subspace
       if(vsp.size() == 1 || iter < diis_start) {
           damp_t damp(mixing);
@@ -132,16 +132,16 @@ namespace iter_scf {
 
     // TODO: update if other DIIS versions will be plugged in
     void metadata_log() const {
-      app_log(2, "\nIterative algorithm for SCF");
-      app_log(2, "-----------------------------");
-      app_log(2, "  * algorithm: frequency-dependent commutator DIIS\n"
+      sfqmc::app_log(2, "\nIterative algorithm for SCF");
+      sfqmc::app_log(2, "-----------------------------");
+      sfqmc::app_log(2, "  * algorithm: frequency-dependent commutator DIIS\n"
                  "               P. Pokhilko, C.-N. Yeh, D. Zgid. J. Chem. Phys., 2022, 156, 094101\n"
                  "               https://doi.org/10.1063/5.0082586");
-      app_log(2, "  * DIIS parameters: ");
-      app_log(2, "    mixing = {}", mixing);
-      app_log(2, "    max_subsp_size = {}", max_subsp_size);
-      app_log(2, "    diis_start = {}", diis_start);
-      app_log(2, "    mbpt_output = {}\n", mbpt_output);
+      sfqmc::app_log(2, "  * DIIS parameters: ");
+      sfqmc::app_log(2, "    mixing = {}", mixing);
+      sfqmc::app_log(2, "    max_subsp_size = {}", max_subsp_size);
+      sfqmc::app_log(2, "    diis_start = {}", diis_start);
+      sfqmc::app_log(2, "    mbpt_output = {}\n", mbpt_output);
     }
 
   public:
@@ -166,7 +166,7 @@ namespace iter_scf {
         std::string filename = mbpt_output + ".mbpt.h5";
         h5::file file(filename, 'r');
         h5::group grp(file);
-        utils::check(grp.has_subgroup("scf"), "Simulation HDF5 file does not have an scf group");
+        sfqmc::utils::check(grp.has_subgroup("scf"), "Simulation HDF5 file does not have an scf group");
         auto scf_grp = grp.open_group("scf");
         h5::h5_read(scf_grp, "final_iter", iter_from_file);
         auto iter_grp = scf_grp.open_group("iter"+std::to_string(iter_from_file));

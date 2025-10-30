@@ -23,7 +23,7 @@
 #include "cuda_runtime.h"
 #include "cusparse.h"
 
-#include "numerics/sparse/detail/CUDA/cusparse_interface.hpp"
+//#include "numerics/sparse/detail/CUDA/cusparse_interface.hpp"
 
 namespace math::sparse::device {
 

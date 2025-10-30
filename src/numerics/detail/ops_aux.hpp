@@ -28,7 +28,6 @@
 
 #include <utility>
 #include <type_traits>
-#include "utilities/check.hpp"
 #include "nda/nda.hpp"
 
 namespace math::detail

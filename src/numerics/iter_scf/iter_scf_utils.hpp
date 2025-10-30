@@ -45,7 +45,7 @@ namespace iter_scf {
         ptree pt = it.second;
         auto v = pt.get_value_optional<std::string>();
         if (v.has_value() and *v != "") {
-          utils::check(false, "iter_alg has to be a property tree.");
+          sfqmc::utils::check(false, "iter_alg has to be a property tree.");
         } else {
           auto alg = io::get_value<std::string>(pt,"alg","iter_alg - missing alg type: damping");
           auto mixing = io::get_value_with_default<double>(pt,"mixing",0.7);
@@ -58,7 +58,7 @@ namespace iter_scf {
           } else if (alg == "diis") {
             return iter_scf_t(diis_t(mixing, max_subsp_size, diis_start));
           } else {
-            utils::check(false, "Unrecognized algorithm type for iterative solver. ");
+            sfqmc::utils::check(false, "Unrecognized algorithm type for iterative solver. ");
             return iter_scf_t("damping");
           }
         }

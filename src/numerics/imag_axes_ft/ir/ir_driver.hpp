@@ -46,8 +46,8 @@ namespace imag_axes_ft {
         // determine _lambda
         lambda = determine_lambda(beta*wmax);
         wmax = lambda / beta;
-        utils::check(lambda > 0.0, "Invalid value of lambda, {}, in imag_axes_ft::ir::ir.", lambda);
-        utils::check(wmax > 0.0, "Invalid value of wmax, {}, in imag_axes_ft::ir::ir.", wmax);
+        sfqmc::utils::check(lambda > 0.0, "Invalid value of lambda, {}, in imag_axes_ft::ir::ir.", lambda);
+        sfqmc::utils::check(wmax > 0.0, "Invalid value of wmax, {}, in imag_axes_ft::ir::ir.", wmax);
 
         std::string prec_prefix;
         if (prec == "high") {
@@ -57,7 +57,7 @@ namespace imag_axes_ft {
         } else if (prec == "low") {
           prec_prefix = "1e-06";
         } else {
-          utils::check(false, "imag_axes_ft::ir: prec = {} is not acceptable. Acceptable list = \"high\", \"medium\", \"low\"", prec);
+          sfqmc::utils::check(false, "imag_axes_ft::ir: prec = {} is not acceptable. Acceptable list = \"high\", \"medium\", \"low\"", prec);
         }
         std::string filename = ir_file(lambda, prec_prefix);
         h5::file file(filename, 'r');
@@ -113,17 +113,17 @@ namespace imag_axes_ft {
         } else if (prec == "low") {
           prec_prefix = "1e-06";
         } else {
-          utils::check(false, "imag_axes_ft::ir: prec = {} is not acceptable. Acceptable list = \"high\", \"medium\", \"low\"", prec);
+          sfqmc::utils::check(false, "imag_axes_ft::ir: prec = {} is not acceptable. Acceptable list = \"high\", \"medium\", \"low\"", prec);
         }
 
-        app_log(1, "  Mesh details on the imaginary axis");
-        app_log(1, "  ----------------------------------");
-        app_log(1, "  Intermediate Representation");
-        app_log(1, "  Beta                   = {} a.u.", beta);
-        app_log(1, "  Frequency cutoff       = {} a.u.", wmax);
-        app_log(1, "  Lambda                 = {}", lambda);
-        app_log(1, "  Precision              = {}", prec_prefix);
-        app_log(1, "  nt_f, nt_b, nw_f, nw_b = {}, {}, {}, {}\n", nt_f, nt_b, nw_f, nw_b);
+        sfqmc::app_log(1, "  Mesh details on the imaginary axis");
+        sfqmc::app_log(1, "  ----------------------------------");
+        sfqmc::app_log(1, "  Intermediate Representation");
+        sfqmc::app_log(1, "  Beta                   = {} a.u.", beta);
+        sfqmc::app_log(1, "  Frequency cutoff       = {} a.u.", wmax);
+        sfqmc::app_log(1, "  Lambda                 = {}", lambda);
+        sfqmc::app_log(1, "  Precision              = {}", prec_prefix);
+        sfqmc::app_log(1, "  nt_f, nt_b, nw_f, nw_b = {}, {}, {}, {}\n", nt_f, nt_b, nw_f, nw_b);
       }
 
       std::string ir_file(double lmbda, std::string prec_prefix) {

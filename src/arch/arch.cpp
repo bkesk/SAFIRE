@@ -24,11 +24,13 @@
 #include <cstdlib>
 #include "config.h"
 
+
 #if defined(ENABLE_CUDA)
 
 #include "CUDA/cuda_init.h"
 #include "CUDA/cuda_sync.h"
 
+namespace sfqmc {
 namespace arch
 {
   bool get_device_synchronization() {return cuda::get_device_synchronization();};
@@ -36,10 +38,11 @@ namespace arch
   void synchronize_if_set() { cuda::synchronize_if_set(); };
   void synchronize() { cuda::synchronize(); };
 }
+}
 
 #else
 
-
+namespace sfqmc {
 namespace arch
 {
   bool get_device_synchronization() {return true;};
@@ -47,11 +50,13 @@ namespace arch
   void synchronize_if_set() {};
   void synchronize() {};
 }
+}
 
 #endif
 
 #include "IO/app_loggers.h"
 
+namespace sfqmc {
 namespace arch
 {
 
@@ -66,5 +71,6 @@ void init(bool active_log, int output_level=2, int debug_level=2)
 
  // setup shared memory, memory buffers, etc, etc
 }
-
 }
+}
+

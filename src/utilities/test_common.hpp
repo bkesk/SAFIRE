@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include<fstream>
 #include<random>
 #include<complex>
 #include<vector>
@@ -31,19 +32,24 @@
 #include "nda/nda.hpp"
 #include "utilities/mpi_context.h"
 
+namespace sfqmc {
+namespace utils {
 
-namespace utils
+inline bool file_exists(const std::string& name)
 {
+  std::ifstream f(name.c_str());
+  return f.good();
+}
 
 namespace detail {
-extern std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> __unit_test_mpi_context__;
+extern std::shared_ptr<mpi_context_t<boost::mpi3::communicator>> __unit_test_mpi_context__;
 }
 
 inline std::shared_ptr<mpi_context_t<mpi3::communicator>>& make_unit_test_mpi_context()
 {
   if(not detail::__unit_test_mpi_context__) {
     detail::__unit_test_mpi_context__ =
-         std::make_shared<utils::mpi_context_t<boost::mpi3::communicator>>(utils::make_mpi_context());
+         std::make_shared<mpi_context_t<boost::mpi3::communicator>>(make_mpi_context());
 
   }
   return detail::__unit_test_mpi_context__;
@@ -168,4 +174,4 @@ auto make_random(long N1, long N2, long N3)
 }
 
 } // utils
-
+} // sfqmc

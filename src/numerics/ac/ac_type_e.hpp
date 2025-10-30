@@ -40,7 +40,7 @@ namespace analyt_cont {
     if (ac_type == "pade") {
       return ac_type_e::pade;
     } else {
-      utils::check(false, "Unrecognized ac_type");
+      sfqmc::utils::check(false, "Unrecognized ac_type");
       return ac_type_e::pade;
     }
   }

@@ -16,6 +16,8 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #endif
 
+namespace sfqmc {
+
 int __app_debug_level__ = -10000; 
 int __app_output_level__ = -10000; 
 bool __app_stacktrace__  = true;
@@ -101,3 +103,5 @@ void set_output_level(bool root, int output_level)
 }
 
 void set_stacktrace(bool stk) { __app_stacktrace__ = stk; }
+
+}

@@ -45,7 +45,7 @@ template <int Rank> using shape_t = std::array<long, Rank>;
 TEST_CASE("distributed_nda", "[math]")
 {
   auto world = boost::mpi3::environment::get_world_instance();
-  long nx = utils::find_proc_grid_min_diff(world.size(),100,100);
+  long nx = sfqmc::utils::find_proc_grid_min_diff(world.size(),100,100);
   long ny = world.size()/nx;
   long ix = world.rank()/ny;
   long iy = world.rank()%ny;

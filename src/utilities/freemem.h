@@ -17,7 +17,7 @@
 #include <sys/sysinfo.h>
 #include <sys/resource.h>
 #endif
-
+namespace sfqmc {
 namespace utils {
 
 std::size_t freemem();
@@ -25,4 +25,4 @@ std::size_t freemem_device();
 void memory_report(int io_lvl = 3, std::string message = {});
 
 }
-
+}

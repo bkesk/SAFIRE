@@ -49,7 +49,7 @@ std::array<Int, rank> strides_to_embed_dims(::nda::StdArrayOfLong auto const& st
   std::array<Int, rank> dims;
   dims[0] = n0; // must be specified, since it is not constrained by strides of parent array
   auto it = str.crbegin();
-  utils::check( *it==1, " Stride error, expect c-ordering.");
+  sfqmc::utils::check( *it==1, " Stride error, expect c-ordering.");
   auto itr = dims.rbegin();
   // use rank instead of rend, since str may be larger than rank
   for( int i=0; i<rank-1; ++i, ++itr, ++it) *itr = Int((*(it+1))/(*it));
@@ -96,7 +96,7 @@ fftplan_t create_plan(IMat && A, OMat && B, const unsigned flags = FFT_DEFAULT)
   static_assert( B_t::layout_t::is_stride_order_C(), "c-ordering mismatch.");
   static_assert( ::nda::get_rank<A_t> == ::nda::get_rank<B_t>, "math::fft::create_plan: Rank mismatch.");
   static_assert( ::nda::get_rank<A_t> >= 1 and ::nda::get_rank<A_t> <= 3, "Rank mismatch");  
-  utils::check( A.shape() == B.shape(), "math::fft::create_plan: Shape mismatch.");
+  sfqmc::utils::check( A.shape() == B.shape(), "math::fft::create_plan: Shape mismatch.");
   auto inembed = impl::strides_to_embed_dims<::nda::get_rank<A_t>, long int>(
 							A.indexmap().strides(), A.shape()[0]);
   auto onembed = impl::strides_to_embed_dims<::nda::get_rank<B_t>, long int>(
@@ -132,7 +132,7 @@ fftplan_t create_plan_many(IOMat && A, const unsigned flags = FFT_DEFAULT)
   auto inembed = impl::strides_to_embed_dims<::nda::get_rank<A_t>-1, long int>(
 							A.indexmap().strides(), A.shape()[1]);
 
-  utils::check( A.shape()[0] > 0 , "math::fft::create_plan_many: howmany=0. "); 
+  sfqmc::utils::check( A.shape()[0] > 0 , "math::fft::create_plan_many: howmany=0. "); 
   if constexpr (::nda::mem::on_host<IOMat>) {
     if( flags == FFT_DEFAULT)
       return impl::host::create_plan_many<::nda::get_rank<A_t>-1>(A.shape().data()+1,int(A.shape()[0]),A.data(), 
@@ -170,8 +170,8 @@ fftplan_t create_plan_many(IMat && A, OMat && B, const unsigned flags = FFT_DEFA
   static_assert( ::nda::get_rank<A_t> > 1," Rank > 1 required.");
   static_assert( ::nda::get_rank<A_t> >= 2 and ::nda::get_rank<A_t> <= 4, "Rank mismatch");  
   static_assert( ::nda::get_rank<A_t> == ::nda::get_rank<B_t>, "math::fft::create_plan: Rank mismatch.");
-  utils::check( A.shape() == B.shape(), "math::fft::create_plan: Shape mismatch.");
-  utils::check( A.shape()[0] > 0 , "math::fft::create_plan_many: howmany=0. "); 
+  sfqmc::utils::check( A.shape() == B.shape(), "math::fft::create_plan: Shape mismatch.");
+  sfqmc::utils::check( A.shape()[0] > 0 , "math::fft::create_plan_many: howmany=0. "); 
   auto inembed = impl::strides_to_embed_dims<::nda::get_rank<A_t>-1, long int>(
 							A.indexmap().strides(), A.shape()[1]);
   auto onembed = impl::strides_to_embed_dims<::nda::get_rank<B_t>-1, long int>(
@@ -212,7 +212,7 @@ inline void destroy_plan(fftplan_t& p)
     impl::dev::destroy_plan(p);
   } else {
     if(p.fwd != nullptr or p.inv != nullptr)
-      utils::check(false, "Unknown FFT backend in destroy_plan.");
+      sfqmc::utils::check(false, "Unknown FFT backend in destroy_plan.");
   }
 }
 
@@ -240,10 +240,10 @@ void fwdfft(fftplan_t& p, IMat && A)
   using A_t = typename std::decay_t<IMat>; 
   static_assert( A_t::layout_t::is_stride_order_C(), "c-ordering mismatch.");
   if(p.howmany < 1) {
-    utils::check(::nda::get_rank<A_t> == p.rank, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
+    sfqmc::utils::check(::nda::get_rank<A_t> == p.rank, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
   } else {
-    utils::check(::nda::get_rank<A_t> == p.rank+1, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
-    utils::check(p.howmany == A.shape()[0], "fwdfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
+    sfqmc::utils::check(::nda::get_rank<A_t> == p.rank+1, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
+    sfqmc::utils::check(p.howmany == A.shape()[0], "fwdfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
   }
   if constexpr (::nda::mem::on_host<IMat>) {
     impl::host::fwdfft(p,A.data(),A.data());
@@ -264,12 +264,12 @@ void fwdfft(fftplan_t& p, IMat && A, OMat && B)
   static_assert( A_t::layout_t::is_stride_order_C(), "c-ordering mismatch.");
   static_assert( B_t::layout_t::is_stride_order_C(), "c-ordering mismatch.");
   static_assert( ::nda::get_rank<A_t> == ::nda::get_rank<B_t>, "fwdfft: Rank mismatch.");
-  utils::check(A.shape() == B.shape(), "fwdfft: Wrong shapes.");
+  sfqmc::utils::check(A.shape() == B.shape(), "fwdfft: Wrong shapes.");
   if(p.howmany < 1) {
-    utils::check(::nda::get_rank<A_t> == p.rank, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
+    sfqmc::utils::check(::nda::get_rank<A_t> == p.rank, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
   } else {
-    utils::check(::nda::get_rank<A_t> == p.rank+1, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
-    utils::check(p.howmany == A.shape()[0], "fwdfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
+    sfqmc::utils::check(::nda::get_rank<A_t> == p.rank+1, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
+    sfqmc::utils::check(p.howmany == A.shape()[0], "fwdfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
   }
   if constexpr (::nda::mem::on_host<IMat>) {
     impl::host::fwdfft(p,A.data(),B.data());
@@ -289,10 +289,10 @@ void invfft(fftplan_t& p, IMat && A)
   using A_t = typename std::decay_t<IMat>;
   static_assert( A_t::layout_t::is_stride_order_C(), "c-ordering mismatch.");
   if(p.howmany < 1) {
-    utils::check(::nda::get_rank<A_t> == p.rank, "invfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
+    sfqmc::utils::check(::nda::get_rank<A_t> == p.rank, "invfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
   } else {
-    utils::check(::nda::get_rank<A_t> == p.rank+1, "invfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
-    utils::check(p.howmany == A.shape()[0], "invfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
+    sfqmc::utils::check(::nda::get_rank<A_t> == p.rank+1, "invfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
+    sfqmc::utils::check(p.howmany == A.shape()[0], "invfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
   }
   if constexpr (::nda::mem::on_host<IMat>) {
     impl::host::invfft(p,A.data(),A.data());
@@ -311,12 +311,12 @@ void invfft(fftplan_t& p, IMat && A, OMat && B)
   static_assert( A_t::layout_t::is_stride_order_C(), "c-ordering mismatch.");
   static_assert( B_t::layout_t::is_stride_order_C(), "c-ordering mismatch.");
   static_assert( ::nda::get_rank<A_t> == ::nda::get_rank<B_t>, "invfft: Rank mismatch.");
-  utils::check(A.shape() == B.shape(), "Shape mismatch.");
+  sfqmc::utils::check(A.shape() == B.shape(), "Shape mismatch.");
   if(p.howmany < 1) {
-    utils::check(::nda::get_rank<A_t> == p.rank, "invfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
+    sfqmc::utils::check(::nda::get_rank<A_t> == p.rank, "invfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
   } else {
-    utils::check(::nda::get_rank<A_t> == p.rank+1, "invfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
-    utils::check(p.howmany == A.shape()[0], "invfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
+    sfqmc::utils::check(::nda::get_rank<A_t> == p.rank+1, "invfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
+    sfqmc::utils::check(p.howmany == A.shape()[0], "invfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
   }
   if constexpr (::nda::mem::on_host<IMat>) {
     impl::host::invfft(p,A.data(),B.data());

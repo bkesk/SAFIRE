@@ -58,10 +58,10 @@ auto make_distributed_array(communicator_t& comm,
   using larray_t = typename std::array<long,rank>;
   larray_t origin,lshape;
   long np = std::accumulate(grid.cbegin(), grid.cend(), 1, std::multiplies<>{});
-  utils::check( comm.size() == np, 
+  sfqmc::utils::check( comm.size() == np, 
       "make_distributed_array: Number of processors does not match grid: size:{} grid:{}",comm.size(),np);
   for(int n=0; n<rank; ++n) 
-    utils::check( shape[n] >= grid[n], 
+    sfqmc::utils::check( shape[n] >= grid[n], 
       "make_distributed_array: Too many processors i:{}, shape:{}, grid:{}",n,shape[n],grid[n]); 
 
   // setting defaults by hand until I figure a better way
@@ -114,14 +114,14 @@ auto make_distributed_array(communicator_t& comm,
   using larray_t = typename std::array<long,rank>;
   larray_t origin,lshape;
   long np = std::accumulate(grid.cbegin(), grid.cend(), 1, std::multiplies<>{});
-  utils::check( comm.size() == np,
+  sfqmc::utils::check( comm.size() == np,
       "make_distributed_array: Number of processors does not match grid: size:{} grid:{}",comm.size(),np);
   for(int n=0; n<rank; ++n) { 
-    utils::check( shape[n] >= grid[n],
+    sfqmc::utils::check( shape[n] >= grid[n],
       "make_distributed_array: Too many processors i:{}, shape:{}, grid:{}",n,shape[n],grid[n]);
-    utils::check( bsize[n] > 0,
+    sfqmc::utils::check( bsize[n] > 0,
       "make_distributed_array: block size must be positive- rank:{}, dim:{}, block size:{}",rank,n,bsize[n]);
-    utils::check( bsize[n] <= shape[n]/grid[n], 
+    sfqmc::utils::check( bsize[n] <= shape[n]/grid[n], 
       "make_distributed_array: block size error ( > shape/grid)- rank:{}, dim:{}, block size:{}, shape:{}. grid:{}",
       rank,n,bsize[n],shape[n],grid[n]);
   }
@@ -138,7 +138,7 @@ auto make_distributed_array(communicator_t& comm,
       if(ip%grid[n] == grid[n]-1) lshape[n] = shape[n]-origin[n];
       ip /= grid[n];
       // check that everything is consistent!!!
-      utils::check(A_.shape(n) == lshape[n], "Size mismatch.");
+      sfqmc::utils::check(A_.shape(n) == lshape[n], "Size mismatch.");
     }
   } else {
     // row major over proc grid for all other cases
@@ -150,7 +150,7 @@ auto make_distributed_array(communicator_t& comm,
       if(ip%grid[n] == grid[n]-1) lshape[n] = shape[n]-origin[n];
       ip /= grid[n];
       // check that everything is consistent!!!
-      utils::check(A_.shape(n) == lshape[n], "Size mismatch.");
+      sfqmc::utils::check(A_.shape(n) == lshape[n], "Size mismatch.");
     }
   }
   return std::move(Array_t{ std::addressof(comm), grid, shape, origin, bsize, std::move(A_) });
@@ -171,14 +171,14 @@ auto make_distributed_array_view(communicator_t& comm,
   using larray_t = typename std::array<long,rank>;
   larray_t origin,lshape;
   long np = std::accumulate(grid.cbegin(), grid.cend(), 1, std::multiplies<>{});
-  utils::check( comm.size() == np,
+  sfqmc::utils::check( comm.size() == np,
       "make_distributed_array_view: Number of processors does not match grid: size:{} grid:{}",comm.size(),np);
   for(int n=0; n<rank; ++n) {
-    utils::check( shape[n] >= grid[n],
+    sfqmc::utils::check( shape[n] >= grid[n],
       "make_distributed_array_view: Too many processors i:{}, shape:{}, grid:{}",n,shape[n],grid[n]);
-    utils::check( bsize[n] > 0,
+    sfqmc::utils::check( bsize[n] > 0,
       "make_distributed_array_view: block size must be positive- rank:{}, dim:{}, block size:{}",rank,n,bsize[n]);
-    utils::check( bsize[n] <= shape[n]/grid[n], 
+    sfqmc::utils::check( bsize[n] <= shape[n]/grid[n], 
       "make_distributed_array_view: block size error ( > shape/grid)- rank:{}, dim:{}, block size:{}, shape:{}. grid:{}",
       rank,n,bsize[n],shape[n],grid[n]);
   }
@@ -195,7 +195,7 @@ auto make_distributed_array_view(communicator_t& comm,
       if(ip%grid[n] == grid[n]-1) lshape[n] = shape[n]-origin[n];
       ip /= grid[n];
       // check that everything is consistent!!!
-      utils::check(A_.shape[n] == lshape[n], "Size mismatch.");
+      sfqmc::utils::check(A_.shape[n] == lshape[n], "Size mismatch.");
     }
   } else {
     // row major over proc grid for all other cases
@@ -207,7 +207,7 @@ auto make_distributed_array_view(communicator_t& comm,
       if(ip%grid[n] == grid[n]-1) lshape[n] = shape[n]-origin[n];
       ip /= grid[n];
       // check that everything is consistent!!!
-      utils::check(A_.shape(n) == lshape[n], "Size mismatch.");
+      sfqmc::utils::check(A_.shape(n) == lshape[n], "Size mismatch.");
     }
   }
   return Array_t{ std::addressof(comm), grid, shape, origin, bsize, A_ };
@@ -248,7 +248,7 @@ auto get_sub_matrix(Arr_t && A , std::vector<::nda::range> const& r)
   using Array_t = std::decay_t<Arr_t>;
   static_assert(::nda::get_rank<Array_t> == N,"Rank mismatch.");
   static_assert(N <= 7, "Extend manual unroll");
-  utils::check(r.size() == N, "get_sub_matrix: Size mismatch.");
+  sfqmc::utils::check(r.size() == N, "get_sub_matrix: Size mismatch.");
   if constexpr (N==1) {
     return A(r[0]);
   } else if constexpr (N==2) {
@@ -269,7 +269,7 @@ auto get_sub_matrix(Arr_t && A , std::vector<::nda::range> const& r)
 // whether two ranges overlap
 inline bool do_ranges_overlap(std::vector<::nda::range> const& R1, std::vector<::nda::range> const& R2)
 {
-  utils::check(R1.size() == R2.size(), "Size mismatch");
+  sfqmc::utils::check(R1.size() == R2.size(), "Size mismatch");
   int N = R1.size();
   bool disjoint = false;
   for(size_t i = 0; i < N; i++) {
@@ -283,8 +283,8 @@ inline bool do_ranges_overlap(std::vector<::nda::range> const& R1, std::vector<:
 // compute intersection of ranges
 inline auto range_overlap(std::vector<::nda::range> const& R1, std::vector<::nda::range> const& R2)
 {
-  utils::check(R1.size() == R2.size(), "Size mismatch");
-  utils::check(do_ranges_overlap(R1, R2), "Ranges are disjoint, cannot get non-empty overlap");
+  sfqmc::utils::check(R1.size() == R2.size(), "Size mismatch");
+  sfqmc::utils::check(do_ranges_overlap(R1, R2), "Ranges are disjoint, cannot get non-empty overlap");
   int N = R1.size();
   std::vector<::nda::range> U(N,::nda::range(0));
   for(size_t i = 0; i < N; i++) {
@@ -304,8 +304,8 @@ void redistribute_slow(Arr1_t& A, Arr2_t& B)
 {
   using value_t = typename std::decay_t<Arr2_t>::Array_t::value_type;
   static_assert(get_rank<Arr1_t> == get_rank<Arr2_t>, "Rank mismatch.");
-  utils::check(A.global_shape() == B.global_shape(), "Size mismatch.");
-  utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
+  sfqmc::utils::check(A.global_shape() == B.global_shape(), "Size mismatch.");
+  sfqmc::utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
   // using A's communicator, since they should be compatible
   auto comm = (A.communicator());
   long mpi_size = comm->size();
@@ -352,8 +352,8 @@ void redistribute_standard(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get_
   using local_Arr1_t = typename std::decay_t<Arr1_t>::Array_t::regular_type;
   using local_Arr2_t = typename std::decay_t<Arr2_t>::Array_t::regular_type;
   static_assert(get_rank<Arr1_t> == get_rank<Arr2_t>, "Rank mismatch.");
-  utils::check(A.global_shape() == B.global_shape(), "Size mismatch.");
-  utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
+  sfqmc::utils::check(A.global_shape() == B.global_shape(), "Size mismatch.");
+  sfqmc::utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
   constexpr long rank = get_rank<Arr1_t>; 
   const std::string indx = ::nda::tensor::default_index<uint8_t(rank)>();
   auto b_one = get_value_t<Arr2_t>{1};
@@ -435,7 +435,7 @@ void redistribute_standard(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get_
             break;
           }
         }
-        utils::check(ovlp,"Logic error in redistribute. FIX!");
+        sfqmc::utils::check(ovlp,"Logic error in redistribute. FIX!");
 
         auto Bloc_p = detail::get_sub_matrix<rank>(Bloc,subblock);
         if constexpr( ::nda::mem::have_device_compatible_addr_space<local_Arr1_t,local_Arr2_t> ) {
@@ -498,7 +498,7 @@ void redistribute_standard(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get_
         break;
       }
     }
-    utils::check(ovlp,"Logic error in redistribute. FIX!");
+    sfqmc::utils::check(ovlp,"Logic error in redistribute. FIX!");
     auto Bloc_p = detail::get_sub_matrix<rank>(Bloc,subblock);
     if constexpr( ::nda::mem::have_device_compatible_addr_space<local_Arr1_t,local_Arr2_t> ) {
       ::nda::tensor::add(a, recv[i], b_one, Bloc_p);
@@ -524,8 +524,8 @@ void redistribute_no_order(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get_
   using local_Arr1_t = typename std::decay_t<Arr1_t>::Array_t::regular_type;
   using local_Arr2_t = typename std::decay_t<Arr2_t>::Array_t::regular_type;
   static_assert(get_rank<Arr1_t> == get_rank<Arr2_t>, "Rank mismatch.");
-  utils::check(A.global_shape() == B.global_shape(), "Size mismatch.");
-  utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
+  sfqmc::utils::check(A.global_shape() == B.global_shape(), "Size mismatch.");
+  sfqmc::utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
   constexpr long rank = get_rank<Arr1_t>; 
   const std::string indx = ::nda::tensor::default_index<uint8_t(rank)>();
   auto b_one = get_value_t<Arr2_t>{1};
@@ -628,7 +628,7 @@ void redistribute_no_order(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get_
       if( p == mpi_rank ) {
         auto A_ = detail::get_sub_matrix<rank>(Aloc,subblocks_from_A[p]);  
         // get subblock from B's perspective
-        utils::check(ovlps_from_B[p],"1Logic error in redistribute. FIX!");
+        sfqmc::utils::check(ovlps_from_B[p],"1Logic error in redistribute. FIX!");
 
         auto Bloc_p = detail::get_sub_matrix<rank>(Bloc,subblocks_from_B[p]);
         if constexpr( ::nda::mem::have_device_compatible_addr_space<local_Arr1_t,local_Arr2_t> ) {
@@ -669,12 +669,12 @@ void redistribute_no_order(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get_
       // wait_any changes stat_recv2 buffer and sets the async deallocated requests to MPI_REQUEST_NULL
       // that's why need to get the actual index through distance and retrieve p from another vector
       long i = std::distance(stat_recv2.begin(), it_done);
-      utils::check(i>=0,"Logic error in redistribute. FIX!");
-      utils::check(i < stat_recv2.size(),"Logic error in redistribute. FIX!");
+      sfqmc::utils::check(i>=0,"Logic error in redistribute. FIX!");
+      sfqmc::utils::check(i < stat_recv2.size(),"Logic error in redistribute. FIX!");
 
       auto p = stat_recv2_p[i];
-      utils::check(p < mpi_size,"Logic error in redistribute. FIX!");
-      utils::check(ovlps_from_B[p],"Logic error in redistribute. FIX!"); 
+      sfqmc::utils::check(p < mpi_size,"Logic error in redistribute. FIX!");
+      sfqmc::utils::check(ovlps_from_B[p],"Logic error in redistribute. FIX!"); 
       auto Bloc_p = detail::get_sub_matrix<rank>(Bloc,subblocks_from_B[p]);
     
       if constexpr( ::nda::mem::have_device_compatible_addr_space<local_Arr1_t,local_Arr2_t> ) {
@@ -691,8 +691,8 @@ void redistribute_no_order(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get_
             if(recv_processed[i]) continue; // already processed
             auto p = stat_recv2_p[i];
             
-            utils::check(p < mpi_size,"Logic error in redistribute. FIX!");
-            utils::check(ovlps_from_B[p],"Logic error in redistribute. FIX!"); 
+            sfqmc::utils::check(p < mpi_size,"Logic error in redistribute. FIX!");
+            sfqmc::utils::check(ovlps_from_B[p],"Logic error in redistribute. FIX!"); 
             auto Bloc_p = detail::get_sub_matrix<rank>(Bloc,subblocks_from_B[p]);
             
             if constexpr( ::nda::mem::have_device_compatible_addr_space<local_Arr1_t,local_Arr2_t> ) {
@@ -718,11 +718,11 @@ void redistribute_alltoallv(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get
   using local_Arr1_t = typename std::decay_t<Arr1_t>::Array_t::regular_type;
   using local_Arr2_t = typename std::decay_t<Arr2_t>::Array_t::regular_type;
   static_assert(get_rank<Arr1_t> == get_rank<Arr2_t>, "Rank mismatch.");
-  utils::check(A.global_shape() == B.global_shape(), "Size mismatch.");
-  utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
+  sfqmc::utils::check(A.global_shape() == B.global_shape(), "Size mismatch.");
+  sfqmc::utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
 
 
-  utils::check(a == get_value_t<Arr2_t>(1) && b == get_value_t<Arr2_t>(0),"Non-default redistribute_alltoallv is not ready yet");
+  sfqmc::utils::check(a == get_value_t<Arr2_t>(1) && b == get_value_t<Arr2_t>(0),"Non-default redistribute_alltoallv is not ready yet");
 
   constexpr long rank = get_rank<Arr1_t>; 
   const std::string indx = ::nda::tensor::default_index<uint8_t(rank)>();
@@ -832,8 +832,8 @@ void redistribute_alltoallv(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get
   size_t sz_buf_A = std::accumulate(A_counts.begin(), A_counts.end(), 0, std::plus<>());
   size_t sz_buf_B = std::accumulate(B_counts.begin(), B_counts.end(), 0, std::plus<>());
 
-  utils::check(sz_buf_A == Aloc.size(), "A Size mismatch.");
-  utils::check(sz_buf_B == Bloc.size(), "B Size mismatch.");
+  sfqmc::utils::check(sz_buf_A == Aloc.size(), "A Size mismatch.");
+  sfqmc::utils::check(sz_buf_B == Bloc.size(), "B Size mismatch.");
 
   std::vector<value_t> buffer_A(sz_buf_A);
   std::vector<value_t> buffer_B(sz_buf_B);
@@ -847,7 +847,7 @@ void redistribute_alltoallv(Arr1_t& A, Arr2_t& B, get_value_t<Arr1_t> a = 1, get
       count_sz_check += A_.size();
     }
   }
-  utils::check(count_sz_check == Aloc.size(), "A Size mismatch.");
+  sfqmc::utils::check(count_sz_check == Aloc.size(), "A Size mismatch.");
 
   comm->all_to_all_v_n(buffer_A.data(), A_counts.data(), A_disp.data(), 
                        buffer_B.data(), B_counts.data(), B_disp.data());
@@ -893,9 +893,9 @@ void redistribute_in_place(Arr1_t& A, std::array<long,get_rank<Arr1_t>> grid,
 template<DistributedArrayOfRank<2> Arr1_t, DistributedArrayOfRank<2> Arr2_t>
 void distributed_column_select(::nda::array<long,1> const& rn, Arr1_t const& A, Arr2_t& B)
 {
-  utils::check(A.global_shape()[0] == B.global_shape()[0], "Size mismatch.");
-  utils::check(B.global_shape()[1] == rn.shape(0), "Size mismatch.");
-  utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
+  sfqmc::utils::check(A.global_shape()[0] == B.global_shape()[0], "Size mismatch.");
+  sfqmc::utils::check(B.global_shape()[1] == rn.shape(0), "Size mismatch.");
+  sfqmc::utils::check(*A.communicator() == *B.communicator(), "Communicator mismatch.");
   decltype(::nda::range::all) all;
  
   auto comm = A.communicator();
@@ -926,13 +926,13 @@ void distributed_column_select(::nda::array<long,1> const& rn, Arr1_t const& A, 
       cnt+=bounds(0,i);
       bounds(0,i) = cnt;
     }
-    utils::check(cnt==A.global_shape()[1], "Distribution mismatch.");
+    sfqmc::utils::check(cnt==A.global_shape()[1], "Distribution mismatch.");
     cnt=0;
     for( auto i : itertools::range(nproc) ) { 
       cnt+=bounds(1,i);
       bounds(1,i) = cnt;
     }
-    utils::check(cnt==B.global_shape()[1], "Distribution mismatch.");
+    sfqmc::utils::check(cnt==B.global_shape()[1], "Distribution mismatch.");
   }
 
   /*
@@ -969,7 +969,7 @@ void distributed_column_select(::nda::array<long,1> const& rn, Arr1_t const& A, 
     nsend+=long(cnts(0,i));
     nrecv+=long(cnts(2,i));
   }
-  utils::check(nrecv == b_range.size(), "Distribution mismatch: nrecv==b_range.size()");
+  sfqmc::utils::check(nrecv == b_range.size(), "Distribution mismatch: nrecv==b_range.size()");
 
   ::nda::array<ComplexType,2> At(nsend,nrows);
   ::nda::array<ComplexType,2> Bt(nrecv,nrows);
@@ -1012,10 +1012,10 @@ requires( get_rank<dArrG_t> == ::nda::get_rank<ArrL_t> )
 {
   using local_Array_t = typename std::decay_t<ArrL_t>::regular_type;
   auto comm = G.communicator();
-  utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
+  sfqmc::utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
   if( comm->rank() == p ) { 
-    utils::check( L != nullptr, " Error: Nullptr in math::nda::gather." );
-    utils::check( L->shape() == G.global_shape(), "Error: Shape mismatch.");
+    sfqmc::utils::check( L != nullptr, " Error: Nullptr in math::nda::gather." );
+    sfqmc::utils::check( L->shape() == G.global_shape(), "Error: Shape mismatch.");
     //if( L->shape() != G.global_shape() )
     //  L->resize(G.global_shape());
   }
@@ -1099,19 +1099,19 @@ requires( get_rank<dArrG_t> == ::nda::get_rank<ArrL_t>)
 {
   using local_Array_t = typename std::decay_t<ArrL_t>::regular_type;
   auto comm = G.communicator();
-  utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
+  sfqmc::utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
   constexpr long rank = get_rank<dArrG_t>;
   for(size_t ir = 0; ir < rank; ir++)
-    utils::check( Arr_rng[ir].step() == 1, "Error: Range step must be 1.");
+    sfqmc::utils::check( Arr_rng[ir].step() == 1, "Error: Range step must be 1.");
 
   for(size_t ir = 0; ir < rank; ir++)
-    utils::check( (Arr_rng[ir].first() >= 0 and Arr_rng[ir].first() < G.global_shape()[ir]) 
+    sfqmc::utils::check( (Arr_rng[ir].first() >= 0 and Arr_rng[ir].first() < G.global_shape()[ir]) 
               and (Arr_rng[ir].last() > 0 and Arr_rng[ir].last() <= G.global_shape()[ir]) , "Error: Range shape does not fit into global shape.");
 
   if( comm->rank() == p ) { 
-    utils::check( L != nullptr, " Error: Nullptr in math::nda::gather." );
+    sfqmc::utils::check( L != nullptr, " Error: Nullptr in math::nda::gather." );
     for(size_t ir = 0; ir < rank; ir++)
-        utils::check( L->shape()[ir] == Arr_rng[ir].size(), "Error: Shape mismatch.");
+        sfqmc::utils::check( L->shape()[ir] == Arr_rng[ir].size(), "Error: Shape mismatch.");
     //if( L->shape() != G.global_shape() )
     //  L->resize(G.global_shape());
   }
@@ -1262,10 +1262,10 @@ requires( get_rank<dArrG_t> == ::nda::get_rank<ArrL_t> )
 {
   using local_Array_t = typename std::decay_t<ArrL_t>::regular_type;
   auto comm = G.communicator();
-  utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
+  sfqmc::utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
   if( comm->rank() == p ) { 
-    utils::check( L != nullptr, " Error: Nullptr in math::nda::scatter." );
-    utils::check( L->shape() == G.global_shape(), "Error: Size mismatch." );
+    sfqmc::utils::check( L != nullptr, " Error: Nullptr in math::nda::scatter." );
+    sfqmc::utils::check( L->shape() == G.global_shape(), "Error: Size mismatch." );
   }
 
   constexpr long rank = get_rank<dArrG_t>;
@@ -1344,10 +1344,10 @@ requires( get_rank<dArrG_t> == (::nda::get_rank<ArrL_t>+1) )
 {
   using local_Array_t = typename std::decay_t<ArrL_t>::regular_type;
   auto comm = G.communicator();
-  utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
+  sfqmc::utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
   constexpr long rank = get_rank<dArrG_t>;
   if( comm->rank() == p ) { 
-    utils::check( L != nullptr, " Error: Nullptr in math::nda::gather." );
+    sfqmc::utils::check( L != nullptr, " Error: Nullptr in math::nda::gather." );
     std::array<long,rank-1> sz = {0};
     bool resz = false;
     for( int i=0; i<rank-1; ++i ) 
@@ -1465,10 +1465,10 @@ void scatter_slow(int p, ::nda::MemoryArray auto const& A, dArrG_t& G)
   constexpr int rank = get_rank<std::decay_t<dArrG_t>>;
   static_assert(rank == ::nda::get_rank<decltype(A)>, "Rank mismatch");
   auto comm = G.communicator();
-  utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
+  sfqmc::utils::check( p>=0 and p < comm->size(), "Error: Communicator mismatch." );
   ::nda::array<value_t,rank> Z(G.global_shape());
   if( p == comm->rank() ) {
-    utils::check( A.shape() == G.global_shape(), "Shape mismatch" );
+    sfqmc::utils::check( A.shape() == G.global_shape(), "Shape mismatch" );
     Z() = A();
   }
   comm->broadcast_n(Z.data(),Z.size(),p);
@@ -1490,7 +1490,7 @@ void gather_to_shm(const dArr_t &dA, sArr_t &sA)
 requires( get_rank<std::decay_t<dArr_t>> == get_rank<std::decay_t<sArr_t>> ) {
 
   static constexpr int rank = get_rank<std::decay_t<dArr_t>>;
-  utils::check(dA.global_shape() == sA.shape(), "Shape mismatch.");
+  sfqmc::utils::check(dA.global_shape() == sA.shape(), "Shape mismatch.");
 
   sA.set_zero();
   auto sA_loc = sA.local();

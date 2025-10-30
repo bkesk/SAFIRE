@@ -118,7 +118,7 @@ public:
               bool extrap_, VSpace<Vector>* x_vsp_, 
               VSpace<Vector>* res_vsp_, Vector& x_start) {
 
-        utils::check(residual_->is_inited(), "diis_alg: The residual is not initialized");
+        sfqmc::utils::check(residual_->is_inited(), "diis_alg: The residual is not initialized");
 
         state = state_;
         residual = residual_;
@@ -134,15 +134,15 @@ public:
 
     int next_step(Vector& vec) {
         if(x_vsp->size() == 0 || grow_xvsp) {
-            app_log(2, diis_str + "Growing subspace without extrapolation");
+            sfqmc::app_log(2, diis_str + "Growing subspace without extrapolation");
             x_vsp->add_to_vspace(vec);
             state->put(vec); 
-            app_log(2, ""); // beautification
+            sfqmc::app_log(2, ""); // beautification
             return 0;
         }
         // Normal execution
         if(res_vsp->size() < max_subsp_size) {
-            app_log(2, diis_str + "Normal execution");
+            sfqmc::app_log(2, diis_str + "Normal execution");
             
             state->put(vec); 
             Vector res;
@@ -155,7 +155,7 @@ public:
             x_vsp->add_to_vspace(vec);
         }
         else {  // The subspace is already of the maximum size
-                app_log(2, diis_str + "Reached maximum subspace. The first vector will be kicked out of the subspace.");
+                sfqmc::app_log(2, diis_str + "Reached maximum subspace. The first vector will be kicked out of the subspace.");
                 res_vsp->purge_vec(0); // can do it smarter and purge the one with the smallest coef
                 x_vsp->purge_vec(0);   
                 purge_overlap(0);
@@ -172,31 +172,31 @@ public:
         if(extrap && (res_vsp->size() > 1) ) {
             compute_coefs(1);
 
-            app_log(2, diis_str + "Performing the DIIS extrapolation...");
+            sfqmc::app_log(2, diis_str + "Performing the DIIS extrapolation...");
             print_B();
             print_C();
             if(m_B.shape()[0] == m_B.shape()[1] && m_B.shape()[0] == m_C.shape()[0]) {
                 nda::array<ComplexType,1> vec_error(m_B.shape()[0]);
                 nda::blas::gemv(m_B, m_C, vec_error);
                 ComplexType exp_error = nda::sum(vec_error);
-                app_log(2, diis_str + "Squared predicted error of extrapolated vector (e,e) = {}", std::real(exp_error));
+                sfqmc::app_log(2, diis_str + "Squared predicted error of extrapolated vector (e,e) = {}", std::real(exp_error));
             }
 
             Vector result = x_vsp->make_linear_comb(m_C);
 
-            app_log(2, ""); // beautification
+            sfqmc::app_log(2, ""); // beautification
             state->put(result);
             return 1;
             
         }
         else {
-            app_log(2, diis_str + "Nothing to be done in DIIS...");
+            sfqmc::app_log(2, diis_str + "Nothing to be done in DIIS...");
             print_B();
-            app_log(2, ""); // beautification
+            sfqmc::app_log(2, ""); // beautification
             state->put(vec); 
             return 0;
         }
-        app_log(2, ""); // beautification
+        sfqmc::app_log(2, ""); // beautification
         return 0;
     }
 
@@ -307,7 +307,7 @@ private:
         }
         m_C = Cnew;
         lambda = x(B_cnstr.shape()[1] - 1,0);
-        app_log(2, "lambda = {}", lambda);
+        sfqmc::app_log(2, "lambda = {}", lambda);
      }
 
     // Based on nda lapack example
@@ -370,7 +370,7 @@ private:
 
         const double eig_thresh = 1E-12;
 
-        app_log(2, diis_str + "Condition number of B: {}", cond);
+        sfqmc::app_log(2, diis_str + "Condition number of B: {}", cond);
 
         for (auto i : nda::range(0, eig.size())) { 
             if(eig(i)*cond > eig_thresh) {

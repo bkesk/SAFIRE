@@ -44,7 +44,7 @@ namespace iter_scf {
     } else if (alg_type == "DIIS") {
       return iter_alg_e::DIIS;
     } else {
-      utils::check(false, "Unrecognized scf algorithm type");
+      sfqmc::utils::check(false, "Unrecognized scf algorithm type");
       return iter_alg_e::damping;
     }
   }

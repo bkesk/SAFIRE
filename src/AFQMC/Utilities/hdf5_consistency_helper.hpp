@@ -14,16 +14,12 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef HDF5_CONSISTENCY_HELPER_HPP
-#define HDF5_CONSISTENCY_HELPER_HPP
+#pragma
 
 #include <vector>
 
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
-#include <boost/type_traits/is_complex.hpp>
-
 #include "config.0.h"
+#include "nda/h5.hpp"
 
 
 namespace sfqmc
@@ -37,16 +33,12 @@ namespace afqmc
 /** read data from filespace (name) to buffer (out).
  * @return true if successful. false indiciates name not found in dump.
  */
+// MAM: check the complex attribute already present in h5 file
 template<typename T>
-bool readComplexOrReal(hdf_archive& dump, std::string name, std::vector<T>& out)
+bool readComplexOrReal(h5::group& grp, std::string name, std::vector<T>& out)
 {
-  std::vector<int> shape;
+  auto l = h5::array_interface::get_dataset_info(grp,name);
   int ndim = 1; // vector
-  if (!dump.getShape<std::vector<T>>(name, shape))
-  {
-    // name not found in dump.
-    return false;
-  }
   if (shape.size() == ndim + 1)
   {
     if constexpr (not boost::is_complex<T>::value)
@@ -111,4 +103,3 @@ bool readComplexOrReal(hdf_archive& dump, std::string name, boost::multi::array<
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

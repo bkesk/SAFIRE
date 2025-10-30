@@ -103,8 +103,8 @@ public:
         row_begin_(rb_),
         row_end_(re_)
   {
-    utils::check(row_begin_.size() == size1_+1, "Size mismatch");
-    utils::check(row_end_.size() == size1_, "Size mismatch");
+    sfqmc::utils::check(row_begin_.size() == size1_+1, "Size mismatch");
+    sfqmc::utils::check(row_end_.size() == size1_, "Size mismatch");
     auto r0 = row_begin_(0);
     row_begin_ -= r0;
     row_end_ -= r0;

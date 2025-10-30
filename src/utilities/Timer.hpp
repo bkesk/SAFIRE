@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef UTILITIES_TIMER_MANAGER_HPP
-#define UTILITIES_TIMER_MANAGER_HPP
+#pragma once
 
 #include <chrono>
 #include <map>
@@ -23,6 +22,8 @@
 #include <iomanip>
 #include "IO/AppAbort.hpp"
 #include "IO/app_loggers.h"
+
+namespace sfqmc {
 
 // simple clock. no effort currently to check for proper state. can add if needed.
 struct Watch : private std::chrono::steady_clock{
@@ -187,4 +188,4 @@ public:
   }
 };
 
-#endif //
+}

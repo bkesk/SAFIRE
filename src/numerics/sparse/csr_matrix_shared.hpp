@@ -180,7 +180,7 @@ public:
   template<typename val_t, MEMORY_SPACE mem_t, typename indx_t, typename int_t>
   csr_matrix_shared& operator=(ucsr_matrix_shared<val_t, mem_t, indx_t, int_t> const& other)
   {
-    using utils::make_paired_iterator;
+    using sfqmc::utils::make_paired_iterator;
     auto shape_ = other.shape();
     size1_      = shape_[0];
     size2_      = shape_[1];
@@ -201,7 +201,7 @@ public:
                   make_paired_iterator(jdata_.data() + i2, data_.data() + i2),
                   [](auto const& a, auto const& b) { return std::get<0>(a) < std::get<0>(b); });
       } else {
-        utils::check(false, "finish csr_matrix_shared& operator=(ucsr_matrix_shared) ");
+        sfqmc::utils::check(false, "finish csr_matrix_shared& operator=(ucsr_matrix_shared) ");
       }
     }
     return *this;
@@ -210,7 +210,7 @@ public:
   template<typename val_t, MEMORY_SPACE mem_t, typename indx_t, typename int_t>
   csr_matrix_shared& operator=(ucsr_matrix_shared<val_t, mem_t, indx_t, int_t> && other)
   { 
-    using utils::make_paired_iterator;
+    using sfqmc::utils::make_paired_iterator;
     auto shape_ = other.shape();
     size1_      = shape_[0];
     size2_      = shape_[1];
@@ -231,7 +231,7 @@ public:
                   make_paired_iterator(jdata_.data() + i2, data_.data() + i2),
                   [](auto const& a, auto const& b) { return std::get<0>(a) < std::get<0>(b); });
       } else {
-        utils::check(false, "finish csr_matrix_shared& operator=(ucsr_matrix_shared) ");
+        sfqmc::utils::check(false, "finish csr_matrix_shared& operator=(ucsr_matrix_shared) ");
       }
     }
     return *this;
@@ -244,7 +244,7 @@ public:
     assert(get<0>(indices) >= 0);
     assert(get<0>(indices) < size1_);
     if constexpr (mem_type == DEVICE_MEMORY)
-      utils::check(false,"Finish csr_matrix_shared::emplace()");
+      sfqmc::utils::check(false,"Finish csr_matrix_shared::emplace()");
 
     auto loc   = std::lower_bound(jdata_.data() + row_begin_(get<0>(indices)), 
                                   jdata_.data() + row_end_(get<0>(indices)), get<1>(indices));
@@ -253,7 +253,7 @@ public:
     
     if ( not (disp_ > 0 and *loc == get<1>(indices)) )
     { 
-      utils::check(row_end_(get<0>(indices)) < row_begin_(get<0>(indices) + 1), 
+      sfqmc::utils::check(row_end_(get<0>(indices)) < row_begin_(get<0>(indices) + 1), 
 			"row size exceeded the maximum");
       // new value, shift back and add in correct place
       if (disp_ > 0)
@@ -289,13 +289,13 @@ public:
     assert(get<0>(indices) >= 0);
     assert(get<0>(indices) < size1_);
     if constexpr (mem_type == DEVICE_MEMORY)
-      utils::check(false,"Finish csr_matrix_shared::emplace()");
+      sfqmc::utils::check(false,"Finish csr_matrix_shared::emplace()");
 
     // check that row is not full
-    utils::check(row_end_(get<0>(indices)) < row_begin_(get<0>(indices) + 1), 
+    sfqmc::utils::check(row_end_(get<0>(indices)) < row_begin_(get<0>(indices) + 1), 
 			"row size exceeded the maximum");
     // check that emplaced column belongs in the end of the row 
-    utils::check(row_begin_(get<0>(indices)) == row_end_(get<0>(indices)) or
+    sfqmc::utils::check(row_begin_(get<0>(indices)) == row_end_(get<0>(indices)) or
                  get<1>(indices) > jdata_(row_end_(get<0>(indices)) - 1),
 		 "inconsistent column index in emplace_back");
     data_(row_end_(get<0>(indices))) = value_type(std::forward<Args>(args)...);
@@ -323,7 +323,7 @@ public:
     assert(get<0>(indices) >= 0);
     assert(get<0>(indices) < size1_);
     if constexpr (mem_type == DEVICE_MEMORY)
-      utils::check(false,"Finish csr_matrix_shared::emplace()");
+      sfqmc::utils::check(false,"Finish csr_matrix_shared::emplace()");
     
     auto loc   = std::lower_bound(jdata_.data() + row_begin_(get<0>(indices)), 
                                   jdata_.data() + row_end_(get<0>(indices)), get<1>(indices));
@@ -355,7 +355,7 @@ public:
     if(size1_ == 0) return;
     // MAM: make copies of ranges in GPU and just assign
     if constexpr (mem_type == DEVICE_MEMORY)
-      utils::check(false,"Finish csr_matrix_shared::emplace()");
+      sfqmc::utils::check(false,"Finish csr_matrix_shared::emplace()");
     for (long i = 0; i < size1_ - 1; i++)
     {
       if (row_end_(i) == row_begin_(i + 1))
@@ -490,7 +490,7 @@ public:
 
   auto operator()(::nda::range r)
   {
-    utils::check(r.step() == 1, "csr_matrix_shared::operator(): Only contiguous ranges allowed.");
+    sfqmc::utils::check(r.step() == 1, "csr_matrix_shared::operator(): Only contiguous ranges allowed.");
     return sub_matrix(r);
   }
 */

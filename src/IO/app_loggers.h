@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef UTILITIES_APP_LOGGERS_HPP
-#define UTILITIES_APP_LOGGERS_HPP
+#pragma once
 
 #if defined(ENABLE_SPDLOG)
 #include "spdlog/spdlog.h"
@@ -21,6 +20,8 @@
 #endif
 #include "IO/fmt_extensions.hpp"
 #include "IO/AppAbort.hpp"
+
+namespace sfqmc {
 
 extern int __app_debug_level__; 
 extern int __app_output_level__; 
@@ -138,4 +139,4 @@ inline void app_error_flush()
 #endif
 }
 
-#endif
+}

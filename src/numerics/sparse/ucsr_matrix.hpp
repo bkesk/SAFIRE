@@ -123,7 +123,7 @@ public:
         row_begin_(size1_+1),
         row_end_(size1_)
   { 
-    utils::check(nnzpr.size() == size1_, "Size mismatch");
+    sfqmc::utils::check(nnzpr.size() == size1_, "Size mismatch");
     if(data_.size() == 0) {
       row_begin_() = 0;
       row_end_()   = 0;
@@ -188,7 +188,7 @@ public:
     if (size1_ == 0)
       return;
     bool resz = false;
-    utils::check(nnzpr.size() >= size1_, "Size mismatch");
+    sfqmc::utils::check(nnzpr.size() >= size1_, "Size mismatch");
     for (long i = 0; i < size1_; i++)
       if (static_cast<int_type>(nnzpr(i)) > row_begin_(i + 1) - row_begin_(i))
       { 
@@ -238,8 +238,8 @@ public:
   void emplace(Pair&& indices, Args&&... args)
   {
     using std::get;
-    utils::check(get<0>(indices) >= 0, "Index mismatch");
-    utils::check(get<0>(indices) < size1_, "Index mismatch");
+    sfqmc::utils::check(get<0>(indices) >= 0, "Index mismatch");
+    sfqmc::utils::check(get<0>(indices) < size1_, "Index mismatch");
     if (row_end_(get<0>(indices)) < row_begin_(get<0>(indices) + 1))
     {
       if constexpr (mem_type == HOST_MEMORY) {
@@ -254,7 +254,7 @@ public:
     else
     {
       // MAM: implement dynamic resizing if needed!
-      APP_ABORT(" Error - ucsr_matrix: row size exceeded the maximum \n\n");
+      sfqmc::utils::check(false," Error - ucsr_matrix: row size exceeded the maximum \n\n");
     }
   }
 
@@ -308,7 +308,7 @@ public:
     auto data_h = memory::to_memory_space<HOST_MEMORY>(data_());
     auto jdata_h = memory::to_memory_space<HOST_MEMORY>(jdata_());
     long sz_needed = size_of_serialized_in_bytes(compact); 
-    utils::check(sz >= sz_needed, 
+    sfqmc::utils::check(sz >= sz_needed, 
                  "Error in ucsr_matrix::serialize: bytes needed:{}, bytes provided:{}",
                  sz_needed,sz);
 
@@ -385,10 +385,10 @@ public:
   {
     {
       int const* iptr = reinterpret_cast<int const*>(ptr);
-      utils::check( iptr[0] == serialization_code(), "deserialization: Incompatible with ucsr_matrix.");
-      utils::check( iptr[1] == sizeof(value_type), "deserialization: Incompatible value_type.");
-      utils::check( iptr[2] == sizeof(index_type), "deserialization: Incompatible index_type.");
-      utils::check( iptr[3] == sizeof(int_type), "deserialization: Incompatible int_type.");
+      sfqmc::utils::check( iptr[0] == serialization_code(), "deserialization: Incompatible with ucsr_matrix.");
+      sfqmc::utils::check( iptr[1] == sizeof(value_type), "deserialization: Incompatible value_type.");
+      sfqmc::utils::check( iptr[2] == sizeof(index_type), "deserialization: Incompatible index_type.");
+      sfqmc::utils::check( iptr[3] == sizeof(int_type), "deserialization: Incompatible int_type.");
       ptr += 4*sizeof(int);
     }
     {
@@ -432,9 +432,9 @@ public:
 
     // now check
     for(long r=0; r<size1_; r++) {
-      utils::check(row_end_(r) >= row_begin_(r), "Pointer mismatch");
-      utils::check(row_begin_(r+1) >= row_begin_(r), "Pointer mismatch");
-      utils::check(row_begin_(r+1) >= row_end_(r), "Pointer mismatch");
+      sfqmc::utils::check(row_end_(r) >= row_begin_(r), "Pointer mismatch");
+      sfqmc::utils::check(row_begin_(r+1) >= row_begin_(r), "Pointer mismatch");
+      sfqmc::utils::check(row_begin_(r+1) >= row_end_(r), "Pointer mismatch");
     }
   }
 

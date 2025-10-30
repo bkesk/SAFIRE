@@ -24,6 +24,7 @@
 
 using boost::property_tree::ptree;
 
+namespace sfqmc {
 namespace io
 {
 
@@ -229,6 +230,7 @@ std::vector<T> get_value_or_vector(const ptree& pt, const std::string& key, cons
 }
 
 } // namespace io
+}
 
 /**
  * @brief Removes the first occurrence of a key from the property tree if it exists.
@@ -256,7 +258,7 @@ inline bool remove_node_if_exists(ptree& pt, const std::string& key)
 
 inline std::ostream& operator<<(std::ostream &out, const ptree &pt)
 {
-  io::str_rep(out, pt);
+  sfqmc::io::str_rep(out, pt);
   return out;
 }
 

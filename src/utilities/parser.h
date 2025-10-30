@@ -18,10 +18,11 @@
 #include <fstream>
 #include <vector>
 
+namespace sfqmc {
 namespace utils
 {
 
 std::vector<std::string> split(std::string const&, std::string const&);
 
 }
-
+}

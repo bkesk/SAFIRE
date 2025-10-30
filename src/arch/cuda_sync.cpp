@@ -19,10 +19,10 @@
  */
 
 
-
 #include "cuda_init.h"
 #include "cuda_sync.h"
 
+namespace sfqmc {
 namespace cuda 
 {
   static bool __sync__ = true;
@@ -41,5 +41,6 @@ namespace cuda
   {
     if(__sync__) synchronize(); 
   }
+}
 }
 

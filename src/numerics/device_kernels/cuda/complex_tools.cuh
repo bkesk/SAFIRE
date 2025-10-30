@@ -49,7 +49,7 @@ void zero_imag(Arr && A)
     auto A_b = to_basic_layout(Ac());
     detail::zero_imag_impl(A_b);
   } else {
-    utils::check(nda::get_rank<Arr> <= 3, "Rank mismatch");
+    sfqmc::utils::check(nda::get_rank<Arr> <= 3, "Rank mismatch");
     auto A_b = to_basic_layout(A());
     detail::zero_imag_impl(A_b);
   }

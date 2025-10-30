@@ -2,22 +2,15 @@
 #//////////////////////////////////////////////////////////////////////////////////////
 
  
-if(ENABLE_CUDA)
+if(ENABLE_DEVICE)
 
+# add choices when other backends are available
   set(SRCS
-    ucsr_matrix.cpp
     detail/CUDA/cusparse_interface.cpp
   )
 
-ELSE()
-
-  set(SRCS
-    ucsr_matrix.cpp
-  )
+  add_library(sparse_lib ${SRCS})
+  target_link_libraries(sparse_lib PUBLIC qmcio arch_lib nda_c) 
 
 ENDIF()
-
-add_library(sparse_lib ${SRCS})
-target_link_libraries(sparse_lib PUBLIC qmcio arch_lib nda_c) 
-
 

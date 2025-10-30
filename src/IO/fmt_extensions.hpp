@@ -11,17 +11,18 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef UTILITIES_FMT_EXTENSIONS_HPP
-#define UTILITIES_FMT_EXTENSIONS_HPP
+#pragma once
 
 #include <complex>
 #include <vector>
 //#include "nda/nda.hpp"
 
+
 #if defined(ENABLE_SPDLOG)
 
 #include <spdlog/fmt/bundled/format.h>
 
+namespace sfqmc {
 template <> struct fmt::formatter<std::complex<double>> {
   constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
     auto it = ctx.begin(), end = ctx.end();
@@ -122,6 +123,7 @@ struct fmt::formatter<Arr>
 
 };
 */
+}
 
 #else
 
@@ -233,8 +235,7 @@ struct formatter<Arr>
 };
 */
 
-}
+} // std
 
 #endif
 
-#endif

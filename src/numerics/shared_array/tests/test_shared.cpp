@@ -23,12 +23,10 @@
 
 #include "catch2/catch.hpp"
 
-#include "mpi3/environment.hpp"
-#include "mpi3/communicator.hpp"
-
 #include "configuration.hpp"
 #include "IO/AppAbort.hpp"
 #include "IO/app_loggers.h"
+#include "utilities/mpi_context.h"
 #include "utilities/proc_grid_partition.hpp"
 
 #include "nda/nda.hpp"
@@ -40,47 +38,19 @@ namespace bdft_tests
 {
 
 namespace mpi3 = boost::mpi3;
-using namespace math::shm;
-using namespace math::nda;
 template <int Rank> using shape_t = std::array<long, Rank>;
 
-TEST_CASE("distributed_shared_nda", "[math]") {
-  auto world = mpi3::environment::get_world_instance();
-  auto node_comm = world.split_shared();
-  // Setup internode communicator
-  int node_size = node_comm.size();
-  int color = world.rank()%node_size;
-  int key   = world.rank()/node_size;
-  auto internode_comm = world.split(color, key);
+TEST_CASE("shared_nda", "[math]") {
+  auto& mpi = sfqmc::utils::make_unit_test_mpi_context();
+  using Array_view_base_t = nda::array_view<double, 3>;
 
-  using Array_view_base_t = nda::array_view<ComplexType, 3>;
-
-  int n_nodes = internode_comm.size();
-  int node_rank = internode_comm.rank();
-  shape_t<3> grid = {n_nodes, 1, 1};
-  shape_t<3> gshape = {39, 2, 2};
-
-  auto array = make_distributed_shared_array<Array_view_base_t>(world, internode_comm, node_comm,
-                                                                grid, gshape);
-  app_log(2, "Global shape = ({}, {}, {})", array.global_shape()[0], array.global_shape()[1], array.global_shape()[2]);
-  world.barrier();
-  std::cout << "At node " << node_rank << ", local shape = (" << array.local_shape()[0] <<
-  ", " << array.local_shape()[1] << ", " << array.local_shape()[2] << ")" << std::endl;
-  std::cout << "At node " << node_rank << ", local origin = (" << array.origin()[0] <<
-  ", " << array.origin()[1] << ", " << array.origin()[2] << ")" << std::endl;
-
-  int rank = array.node_comm()->rank();
-  int group_size = array.node_comm()->size();
-  auto array_loc = array.local();
-  nda::matrix<ComplexType> eye(2, 2);
-  eye() = 2.0;
-  int t_offset = array.origin()[0];
-  for (int it = rank; it < array.local_shape()[0]; it += group_size) {
-    int t = it + t_offset;
-    nda::matrix_view<ComplexType> array_t = array_loc(t, nda::range::all, nda::range::all);
-    array_t += 2.0;
-  }
-  array.node_sync();
+  auto array = math::shm::make_shared_array<Array_view_base_t>(mpi,shape_t<3>{39,17,10});
+  mpi->node_comm.barrier();
+  if(mpi->node_comm.root()) 
+    array.local()() = 1.0;
+  mpi->node_comm.barrier();
+  for( auto& v : array.local() ) 
+    sfqmc::utils::VALUE_EQUAL(v,1.0);
 }
 
 } // bdft_tests

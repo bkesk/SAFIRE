@@ -1,6 +1,8 @@
 #//////////////////////////////////////////////////////////////////////////////////////
 #//////////////////////////////////////////////////////////////////////////////////////
 
+if(ENABLE_DEVICE)
+
 add_library(device_kernels INTERFACE)
 if(ENABLE_CUDA)
   add_subdirectory(cuda)
@@ -8,4 +10,5 @@ ENDIF(ENABLE_CUDA)
 install(TARGETS device_kernels
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
+ENDIF(ENABLE_DEVICE)
 

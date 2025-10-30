@@ -111,8 +111,8 @@ void csrmm(T alpha, A_t const& a, B const &b, T beta, C &&c)
   if constexpr (std::is_same_v<::nda::get_value_t<B>,std::complex<T>>) {
     static_assert(std::decay_t<B>::is_stride_order_C() and std::decay_t<C>::is_stride_order_C(),
         "Mixed real/complex csrmm only with row-major matrices.");
-    utils::check(b.indexmap().min_stride() == 1, "Stride mismatch");
-    utils::check(c.indexmap().min_stride() == 1, "Stride mismatch");
+    sfqmc::utils::check(b.indexmap().min_stride() == 1, "Stride mismatch");
+    sfqmc::utils::check(c.indexmap().min_stride() == 1, "Stride mismatch");
     memory::array_view< memory::get_memory_space<B>(), T, 2, typename B::layout_policy_t> b_(std::array<long,2>{b.extent(0),2*b.extent(1)},reinterpret_cast<const T*>(b.data()));
     memory::array_view< memory::get_memory_space<C>(), T, 2, typename C::layout_policy_t> c_(std::array<long,2>{c.extent(0),2*c.extent(1)},reinterpret_cast<const T*>(c.data()));
     csrmm(alpha,a,b_,beta,c_);

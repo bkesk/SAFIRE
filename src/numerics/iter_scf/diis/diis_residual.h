@@ -60,7 +60,7 @@ public:
     // as a difference between successive iterations. 
     // Should be a reasonable default choice for residual definition.
     virtual bool get_diis_residual(Vector& res) {
-        utils::check(is_initialized, "DIIS difference residual is not initialized");
+        sfqmc::utils::check(is_initialized, "DIIS difference residual is not initialized");
         if(x_vsp->size() >= 2) {
             res = state->get();
             res.add(x_vsp->get_vec(x_vsp->size()-1), -1.0);

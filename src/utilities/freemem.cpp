@@ -20,6 +20,7 @@
 #include "cuda_runtime.h"
 #endif
 
+namespace sfqmc {
 namespace utils {
 
 std::size_t freemem()
@@ -67,5 +68,6 @@ void memory_report(int io_lvl, std::string message)
   app_log_flush();
 }
 
+}
 }
 

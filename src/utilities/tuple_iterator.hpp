@@ -20,7 +20,7 @@
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/iterator/iterator_traits.hpp>
 
-
+namespace sfqmc {
 namespace utils
 {
 template<class FirstIter,
@@ -138,11 +138,12 @@ tuple_iterator<FirstIter, SecondIter, ThirdIter> make_tuple_iterator(FirstIter c
 
 
 } // namespace utils
+}
 
 namespace std
 {
 template<class It1, class It2>
-void iter_swap(utils::paired_iterator<It1, It2> const& a, utils::paired_iterator<It1, It2> const& b)
+void iter_swap(sfqmc::utils::paired_iterator<It1, It2> const& a, sfqmc::utils::paired_iterator<It1, It2> const& b)
 {
   using std::swap;
   swap(std::get<0>(*a), std::get<0>(*b));
@@ -150,7 +151,7 @@ void iter_swap(utils::paired_iterator<It1, It2> const& a, utils::paired_iterator
 }
 
 template<class It1, class It2, class It3>
-void iter_swap(utils::tuple_iterator<It1, It2, It3> const& a, utils::tuple_iterator<It1, It2, It3> const& b)
+void iter_swap(sfqmc::utils::tuple_iterator<It1, It2, It3> const& a, sfqmc::utils::tuple_iterator<It1, It2, It3> const& b)
 {
   using std::swap;
   swap(std::get<0>(*a), std::get<0>(*b));
@@ -176,5 +177,4 @@ void swap(std::tuple<T1&, T2&, T3&> const& a, std::tuple<T1&, T2&, T3&> const& b
 }
 
 } // namespace std
-
 

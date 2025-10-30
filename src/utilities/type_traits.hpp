@@ -14,6 +14,7 @@
 
 #include <complex>
 
+namespace sfqmc {
 namespace utils
 {
 
@@ -34,4 +35,5 @@ namespace utils
   using add_complex_t = typename add_complex<T>::type;
 
 } 
+}
 

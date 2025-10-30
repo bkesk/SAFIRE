@@ -18,6 +18,7 @@
 #include <boost/version.hpp>
 #include "IO/AppAbort.hpp"
 
+namespace sfqmc {
 namespace utils
 {
 
@@ -45,4 +46,5 @@ template <typename... Args>
 check(bool, const std::string_view, Args&&...) -> check<Args...>;
 
 } // namespace utils
+} // namespace sfqmc 
 
