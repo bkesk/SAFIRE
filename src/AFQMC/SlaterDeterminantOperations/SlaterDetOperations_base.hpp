@@ -32,7 +32,7 @@ namespace sfqmc
 {
 namespace afqmc
 {
-template<typename Type, class BufferManager>
+template<typename Type, MEMORY_SPACE MEM>
 class SlaterDetOperations_base
 {
 public:

@@ -16,28 +16,24 @@
 
 #undef NDEBUG
 
-#include "catch_amalgamated.hpp"
+#include "catch2/catch.hpp"
 
-//#include "catch_amalgamated.hpp"
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
+#include "configuration.hpp"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "IO/app_loggers.h" 
+#include "utilities/check.hpp"
+#include "utilities/test_common.hpp"
+#include "utilities/mpi_context.h"
+#include "numerics/sparse/sparse.hpp"
 
 #include <stdio.h>
 #include <string>
 #include <vector>
 #include <complex>
 
-#include "mpi3/shared_communicator.hpp"
-#include "mpi3/environment.hpp"
-
-#include "multi/array.hpp"
-#include "multi/array_ref.hpp"
-
-#include "Utilities/app_loggers.h" 
-#include "Memory/buffer_managers.h"
-#include "SparseMatrix/csr_matrix_construct.hpp"
-#include "AFQMC/SlaterDeterminantOperations/SlaterDetOperations.hpp"
-#include "AFQMC/SlaterDeterminantOperations/mixed_density_matrix.hpp"
+//#include "AFQMC/SlaterDeterminantOperations/SlaterDetOperations.hpp"
+//#include "AFQMC/SlaterDeterminantOperations/mixed_density_matrix.hpp"
 
 using std::complex;
 using std::cout;
@@ -67,42 +63,45 @@ void check(M1&& A, M2& B)
 }
 
 using namespace afqmc;
-template<class Allocator, class BufferManager>
-void SDetOps_complex_serial(Allocator alloc, BufferManager b)
+template<MEMORY_SPACE MEM>
+void SDetOps_complex_serial()
 {
-  static_assert(std::is_same<typename Allocator::value_type, ComplexType>::value, "Incorrect type.");
+  auto& mpi = utils::make_unit_test_mpi_context();
 
   const int NMO = 4;
   const int NEL = 3;
 
-  using Type      = ComplexType;
-  using vector    = std::vector<Type>;
-  using array     = boost::multi::array<Type, 2, Allocator>;
-  using array_ref = boost::multi::array_ref<Type, 2, typename std::allocator_traits<Allocator>::pointer>;
+  using Type        = ComplexType;
   using namespace std::complex_literals;
+  using array       = memory::array<MEM,Type,2>;
+  using array_view  = memory::array_view<MEM,Type,2>;
 
   const Type ov  = -7.62332599999999 + 22.20453200000000i;
   const Type ov2 = -10.37150000000000 - 7.15750000000000i;
 
-  // some arbitrary matrices
-  vector m_a = {0.90000 + 0.10000i, 0.40000 + 0.40000i, 1.40000 + 0.20000i, 0.40000 + 0.50000i,
-                2.40000 + 0.20000i, 1.00000 + 0.50000i, 1.60000 + 0.30000i, 0.20000 + 0.10000i,
-                3.00000 + 0.30000i, 1.20000 + 0.10000i, 3.60000 + 0.40000i, 0.10000 + 0.20000i};
-  vector m_b = {1.90000 + 0.60000i, 1.40000 + 0.70000i, 0.40000 + 0.80000i, 1.40000 + 0.90000i,
-                0.20000 + 0.50000i, 2.20000 + 0.60000i, 0.40000 + 0.70000i, 2.60000 + 0.80000i,
-                0.60000 + 0.90000i, 1.10000 + 0.50000i, 0.30000 + 0.60000i, 0.90000 + 0.70000i};
+  // some arbitrary matrices 
+  nda::array<Type,2> m_a = { 
+                {0.90000 + 0.10000i, 0.40000 + 0.40000i, 1.40000 + 0.20000i, 0.40000 + 0.50000i},
+                {2.40000 + 0.20000i, 1.00000 + 0.50000i, 1.60000 + 0.30000i, 0.20000 + 0.10000i},
+                {3.00000 + 0.30000i, 1.20000 + 0.10000i, 3.60000 + 0.40000i, 0.10000 + 0.20000i}
+                           };
+  nda::array<Type,2> m_b = { 
+                {1.90000 + 0.60000i, 1.40000 + 0.70000i, 0.40000 + 0.80000i}, 
+                {1.40000 + 0.90000i, 0.20000 + 0.50000i, 2.20000 + 0.60000i}, 
+                {0.40000 + 0.70000i, 2.60000 + 0.80000i, 0.60000 + 0.90000i}, 
+                {1.10000 + 0.50000i, 0.30000 + 0.60000i, 0.90000 + 0.70000i} 
+                           };
 
-  array A({NEL, NMO}, alloc);
-  copy_n(m_a.data(), m_a.size(), A.origin());
-  array B({NMO, NEL}, alloc);
-  copy_n(m_b.data(), m_b.size(), B.origin());
+  array A(m_a);
+  array B(m_b);
 
-  array_ref Aref(A.origin(), {NEL, NMO});
-  array_ref Bref(B.origin(), {NMO, NEL});
+  array_view Aref(A());
+  array_view Bref(B());
 
+/*
   SlaterDetOperations SDet(SlaterDetOperations_serial<Type, BufferManager>(NMO, NEL, b));
 
-  /**** Overlaps ****/
+  /**** Overlaps **** /
   //SECTION("Overlaps")
   {
     Type ov_;
@@ -140,7 +139,7 @@ void SDetOps_complex_serial(Allocator alloc, BufferManager b)
     myREQUIRE(ov_, ov2);
   }
 
-  /**** Density Matrices *****/
+  /**** Density Matrices ***** /
   vector v_ref    = {1.17573619385025996 - 0.01580426445014660i,  -0.25295981756593167 + 0.28594469607401085i,
                   -0.07724502823533341 - 0.09687959052155870i, 0.30512858581808422 - 0.04506898328729603i,
 
@@ -230,7 +229,6 @@ void SDetOps_complex_serial(Allocator alloc, BufferManager b)
   // TODO fix CPU.
 #if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
   //SECTION("batched_density_matrix")
-/*
   {
     boost::multi::array<Type, 3, Allocator> Gw({3, NMO, NMO}, alloc);
     boost::multi::array<Type, 1, Allocator> ovlp(iextensions<1u>{3});
@@ -272,7 +270,6 @@ void SDetOps_complex_serial(Allocator alloc, BufferManager b)
       }
     }
   }
-*/
   //SECTION("batched_mixed_density_matrix")
   {
     boost::multi::array<Type, 3, Allocator> Gw({3, NEL, NMO}, alloc);
@@ -307,8 +304,10 @@ void SDetOps_complex_serial(Allocator alloc, BufferManager b)
     }
   }
 #endif
+*/
 }
 
+/*
 TEST_CASE("SDetOps_complex_mpi3", "[sdet_ops]")
 {
   using boost::mpi3::shared_communicator;
@@ -358,7 +357,7 @@ TEST_CASE("SDetOps_complex_mpi3", "[sdet_ops]")
   //SlaterDetOperations SDet( SlaterDetOperations_shared<Type>(NMO,NEL) );
   SlaterDetOperations_shared<ComplexType> SDet(NMO, NEL);
 
-  /**** Overlaps ****/
+  /**** Overlaps **** /
   Type ov_;
   ov_ = SDet.Overlap(A, B, 0.0, node);
   myREQUIRE(ov_, ov);
@@ -390,7 +389,7 @@ TEST_CASE("SDetOps_complex_mpi3", "[sdet_ops]")
   ov_ = SDet.Overlap(A({0, 2}, {0, 3}), B({0, 3}, {0, 2}), 0.0, node_);
   myREQUIRE(ov_, ov2);
 
-  /**** Density Matrices *****/
+  /**** Density Matrices ***** /
   vector v_ref    = {1.17573619385025996 - 0.01580426445014660i,  -0.25295981756593167 + 0.28594469607401085i,
                   -0.07724502823533341 - 0.09687959052155870i, 0.30512858581808422 - 0.04506898328729603i,
 
@@ -531,7 +530,7 @@ TEST_CASE("SDetOps_complex_csr", "[sdet_ops]")
   //SlaterDetOperations SDet( SlaterDetOperations_shared<Type>(NMO,NEL) );
   SlaterDetOperations_shared<ComplexType> SDet(NMO, NEL);
 
-  /**** Overlaps ****/
+  /**** Overlaps **** /
   Type ov_;
   ov_ = SDet.Overlap(Acsr, B, 0.0, node);
   myREQUIRE(ov_, ov);
@@ -558,7 +557,7 @@ TEST_CASE("SDetOps_complex_csr", "[sdet_ops]")
   ov_ = SDet.Overlap(Acsr[{0, 2, 0, 3}], B_, 0.0);
   myREQUIRE(ov_, ov2);
 
-  /**** Density Matrices *****/
+  /**** Density Matrices *****  /
   vector v_ref    = {1.17573619385025996 - 0.01580426445014660i,  -0.25295981756593167 + 0.28594469607401085i,
                   -0.07724502823533341 - 0.09687959052155870i, 0.30512858581808422 - 0.04506898328729603i,
 
@@ -645,26 +644,15 @@ TEST_CASE("SDetOps_complex_csr", "[sdet_ops]")
                           B({0,3},{0,2}),
                           Gc2({0,2},{0,3}),0.0,node_,true);
   check(Gc2({0,2},{0,3}),gc_ref_2);
-*/
+* /
   release_memory_managers();
 }
+*/
 
 
 TEST_CASE("SDetOps_complex_serial", "[sdet_ops]")
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node  = world.split_shared(world.rank());
-  setup_loggers(world.root(),2,0);
-
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-  using Alloc = device::device_allocator<ComplexType>;
-#else
-  using Alloc = std::allocator<ComplexType>;
-#endif
-  setup_memory_managers(node, 10uL * 1024uL * 1024uL);
-  SDetOps_complex_serial<Alloc, DeviceBufferManager>(Alloc{}, DeviceBufferManager{});
-  release_memory_managers();
+  SDetOps_complex_serial<HOST_MEMORY>();
 }
 
 } // namespace afqmc

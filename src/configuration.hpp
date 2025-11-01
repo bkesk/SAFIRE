@@ -19,9 +19,6 @@
 
 #include "nda/nda.hpp"
 
-template<typename T>
-T* raw_pointer_cast(T* p) { return p; }
-
 using RealType = double;
 using SPRealType = float;
 using ComplexType = std::complex<RealType>;

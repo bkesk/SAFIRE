@@ -33,7 +33,7 @@
 
 #include "IO/ptree/ptree_utilities.hpp"
 
-#include"numerics/sparse/sparse.hpp"
+#include "numerics/sparse/sparse.hpp"
 
 namespace sfqmc
 {

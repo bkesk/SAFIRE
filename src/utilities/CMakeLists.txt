@@ -115,6 +115,7 @@ SET(UTILITIES
   mpi_context.cpp
   parser.cpp
   freemem.cpp
+  nda_addons/global_bucket.cpp
 #  ${GITREV_TMP}
 )
 ADD_LIBRARY(utils ${UTILITIES})
