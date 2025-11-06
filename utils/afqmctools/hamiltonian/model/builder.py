@@ -20,7 +20,7 @@ from afqmctools.utils.matrix import force_herm, is_hermitian
 
 def skip_empty_params(func):
     """
-    Decorator to skip over a function if the parameters are all zero.
+    Decorator to skip over a function if the parameters are all zero. None is interpreted as zero.
 
     Parameters
     ----------
@@ -30,12 +30,12 @@ def skip_empty_params(func):
     Notes
     -----
     This decorator is useful for functions that would attempt to build
-       an empty Hamiltonian component if the parameters are all zero.
+       an empty Hamiltonian component if the parameters are all zero. None is interpreted as zero.
     """
 
-    def wrapper(self,params,*args,**kwargs):
+    def wrapper(self, params, *args, **kwargs):
         """
-        Wrapper function to check if all parameters are zero before calling
+        Wrapper function to check if all parameters are zero before calling. None is interpreted as zero.
         the decorated function.
 
         Parameters
@@ -49,8 +49,10 @@ def skip_empty_params(func):
         kwargs : dict
             additional keyword arguments to pass to the function
         """
-
         params = np.array(params)
+        # The following line looks wrong, but is correct!
+        #   numpy properly handles the comparison with None behind the scenes!
+        params[params == None] = 0.0
         if not np.allclose(params,0.0):
             func(self,params,*args,**kwargs)
         elif kwargs.get("verbose",False):
