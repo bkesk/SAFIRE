@@ -74,11 +74,10 @@ We recommend going through them in order.
 
 |
 
-1. Hello AuxiliaryFields `🛠️ Under construction 🛠️`
+1. `Hello AuxiliaryFields<https://colab.research.google.com/drive/1idMenY_xhqim7QSoG5z9ryzZThoxi-cl>`_ `🧑‍💻 ready for edits 🧑‍💻`
 2. `Understanding the input file <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`_ `🧑‍💻 ready for edits 🧑‍💻` (note: this is the same as for molecules, lattice models)
-3. Writing a Hamiltonian file `🛠️ Under construction 🛠️`
-4. Writing a Trial wavefunction `🛠️ Under construction 🛠️`
-5. Computing Observables `🛠️ Under construction 🛠️`
+3. `Writing a Hamiltonian file and a Trial Wavefunction using CoQuí<https://colab.research.google.com/drive/1PTEkhUqMEDvvuJ7taCURlXSX7KcoLy0w>`_ `🧑‍💻 ready for edits 🧑‍💻`
+4. `Computing Observables<https://colab.research.google.com/drive/1e1gQavB-NdlP_eCiNbuys1VfrocOkJwu>`_ `🛠️ Under construction 🛠️`
 
 |
 
@@ -90,8 +89,8 @@ go through the entire workflow. We use Quantum Espresso to perform
 DFT calculations, and Coquí to generate a Hamiltonian and write trial wavefunctions.
 
 1. `Charge density in Si - CoQuí interface <https://colab.research.google.com/drive/1V2qDFA5PJkM2xeliDLsKuTrWR1FpqTal>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Carbon diamond PySCF interface <https://colab.research.google.com/drive/172tZtwLFCHI-bW6eIVXuLRgnJqPun8z6>`_ `🛠️ Under construction 🛠️`
-3. `Solid Na momentum distribution <https://colab.research.google.com/drive/1qNBPcToh58UJPeg9Qx6YxcIS6RPL5a2o>`_ `🛠️ Under construction 🛠️` : Paul is working on this
+2. `Carbon diamond PySCF interface <https://colab.research.google.com/drive/172tZtwLFCHI-bW6eIVXuLRgnJqPun8z6>`_ `🛠️ Under construction 🛠️` 
+3. `Solid Na momentum distribution <https://colab.research.google.com/drive/1qNBPcToh58UJPeg9Qx6YxcIS6RPL5a2o>`_ `🛠️ Under construction 🛠️ :  Paul is working on this`
 4. `Bulk modulous of MnO <https://colab.research.google.com/drive/1oJRRBTptrW_66NRWs7CdQix68Qgz9WuX>`_ `🛠️ Under construction 🛠️` 
 5. `Band gap of LiH <https://colab.research.google.com/drive/17x0SnUEhi-yEuyk_gMFbIGNr_SWGUi9g>`_ `🛠️ Under construction 🛠️` 
 6. `Magnetization of ? <https://colab.research.google.com/drive/1In-gtDJ6Ud3MwHJEJdQS-c66Y6F7wpud>`_ `🛠️ Under construction 🛠️` 
