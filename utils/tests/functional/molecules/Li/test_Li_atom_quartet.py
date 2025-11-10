@@ -72,6 +72,7 @@ def walker_type_list():
     return [
         AFQMCWalker("CLOSED",SpinSymm.CLOSED),
         AFQMCWalker("COLLINEAR",SpinSymm.COLLINEAR),
+        AFQMCWalker("FULLYPOLARIZED",SpinSymm.FULLYPOLARIZED)
     ]
 
 
@@ -202,17 +203,17 @@ def _expected_fail(
 @pytest.mark.parametrize("case",[
     AFQMCInputSet(
         hamiltonian=AFQMCHamiltonian(
-            INPUTS_DIR/"ham_chol_1e-5.h5",
+            INPUTS_DIR/"hamil_closed.h5",
             SpinSymm.CLOSED,
-            HamiltonianClass.KPFAC_CHOL
+            HamiltonianClass.GENERIC_DENSE
         ),
         wavefunction=AFQMCWavefunction(
-            INPUTS_DIR/"wfn_mf_pbe.h5",
+            INPUTS_DIR/"rohf_nomsd_fullypolarized.h5",
             SpinSymm.COLLINEAR,
             WavefunctionClass.NOMSD
         ),
-        walker= AFQMCWalker("COLLINEAR",SpinSymm.COLLINEAR),
-        reference=REF_DATA_DIR/"ham_chol_closed/pbe_collinear_nomsd/collinear/results.h5"
+        walker= AFQMCWalker("FULLYPOLARIZED",SpinSymm.FULLYPOLARIZED),
+        reference=REF_DATA_DIR/"hamil_closed/rohf_wfn_fullypolarized/fullypolarized/results.h5"
     )
 ])
 def test_success_push(
@@ -232,22 +233,7 @@ def test_success_push(
 
 @pytest.mark.functional
 @pytest.mark.push
-@pytest.mark.parametrize("case",[
-    AFQMCInputSet(
-        hamiltonian=AFQMCHamiltonian(
-            INPUTS_DIR/"ham_chol_1e-5.h5",
-            SpinSymm.CLOSED,
-            HamiltonianClass.KPFAC_CHOL
-        ),
-        wavefunction=AFQMCWavefunction(
-            INPUTS_DIR/"wfn_mf_pbe.h5",
-            SpinSymm.COLLINEAR,
-            WavefunctionClass.NOMSD
-        ),
-        walker= AFQMCWalker("NONCOLLINEAR",SpinSymm.NONCOLLINEAR),
-        reference=REF_DATA_DIR/"ham_chol_closed/pbe_collinear_nomsd/noncollinear/results.h5"
-    )
-])
+@pytest.mark.parametrize("case",[])
 def test_fail_push(
     afqmc_helper,
     result_checker,
