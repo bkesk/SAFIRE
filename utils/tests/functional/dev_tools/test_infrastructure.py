@@ -269,6 +269,17 @@ COMPATIBLE_SPIN_WFN_WALKER = TestRule(
     check_func=_compatible_spin_wfn_walker
 )
 
+COMPATIBLE_FULLYPOLARIZED_WFN = TestRule(
+    name="Fully Polarized Wavefunction Compatibility",
+    description="Ensures that fully polarized wavefunctions and walkers are only used together. "
+                "A fully polarized wavefunction requires a fully polarized walker, and vice versa.",
+    check_func=lambda case: (
+        (case.wavefunction.spin_symm == SpinSymm.FULLYPOLARIZED and
+         case.walker.spin_symm == SpinSymm.FULLYPOLARIZED) or
+        (case.wavefunction.spin_symm != SpinSymm.FULLYPOLARIZED and
+         case.walker.spin_symm != SpinSymm.FULLYPOLARIZED)
+    )
+)
 
 def get_all_rules() -> List[TestRule]:
     """
@@ -284,7 +295,8 @@ def get_all_rules() -> List[TestRule]:
         COMPATIBLE_SPIN_H_WFN,
         COMPATIBLE_SPIN_H_WALKER,
         COMPATIBLE_SPIN_WFN_WALKER,
-        NOT_CLOSED_THC_WITH_NONCOLLINEAR_WFN
+        NOT_CLOSED_THC_WITH_NONCOLLINEAR_WFN,
+        COMPATIBLE_FULLYPOLARIZED_WFN
     ]
 
 
