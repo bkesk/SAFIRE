@@ -39,8 +39,6 @@ template<typename Type, typename IndxType, typename IntType, MEMORY_SPACE MEM>
 void test_csr_blas()
 {
   using math::sparse::to_csr;
-  using math::sparse::T;
-  using math::sparse::H;
   decltype(nda::range::all) all;
   long m = 22;
   long n = 9;
@@ -80,11 +78,11 @@ void test_csr_blas()
   // test A*B with A csr
   {
     auto a = to_csr<MEM,IndxType,IntType>(Ah,0.0);
-    math::sparse::csrmv(Type(1.0),a,xd,Type(0.0),Axd); 
-    math::sparse::csrmv(Type(1.0),T(a),yd,Type(0.0),Atyd); 
-    math::sparse::csrmm(Type(1.0),a,Bd,Type(0.0),ABd); 
-    math::sparse::csrmm(Type(1.0),T(a),B2d,Type(0.0),AtB2d);  
-    math::sparse::csrmm(Type(1.0),H(a),B2d,Type(0.0),AhB2d); 
+    math::sparse::csrmv<'N'>(Type(1.0),a,xd,Type(0.0),Axd); 
+    math::sparse::csrmv<'T'>(Type(1.0),a,yd,Type(0.0),Atyd); 
+    math::sparse::csrmm<'N'>(Type(1.0),a,Bd,Type(0.0),ABd); 
+    math::sparse::csrmm<'T'>(Type(1.0),a,B2d,Type(0.0),AtB2d);  
+    math::sparse::csrmm<'H'>(Type(1.0),a,B2d,Type(0.0),AhB2d); 
 
     sfqmc::utils::ARRAY_EQUAL(Ax,nda::to_host(Axd));
     sfqmc::utils::ARRAY_EQUAL(Aty,nda::to_host(Atyd));
@@ -104,11 +102,11 @@ void test_csr_blas()
     auto a_full = to_csr<MEM,IndxType,IntType>(Ah,0.0);
     auto a = a_full(nda::range(5,15));
     auto B2d_r = B2d(nda::range(5,15),all);
-    math::sparse::csrmv(Type(1.0),a,xd,Type(0.0),Axd(nda::range(5,15))); 
-    math::sparse::csrmv(Type(1.0),T(a),yd(nda::range(5,15)),Type(0.0),Atyd);
-    math::sparse::csrmm(Type(1.0),a,Bd,Type(0.0),ABd(nda::range(5,15),all)); 
-    math::sparse::csrmm(Type(1.0),T(a),B2d_r,Type(0.0),AtB2d);
-    math::sparse::csrmm(Type(1.0),H(a),B2d_r,Type(0.0),AhB2d);
+    math::sparse::csrmv<'N'>(Type(1.0),a,xd,Type(0.0),Axd(nda::range(5,15))); 
+    math::sparse::csrmv<'T'>(Type(1.0),a,yd(nda::range(5,15)),Type(0.0),Atyd);
+    math::sparse::csrmm<'N'>(Type(1.0),a,Bd,Type(0.0),ABd(nda::range(5,15),all)); 
+    math::sparse::csrmm<'T'>(Type(1.0),a,B2d_r,Type(0.0),AtB2d);
+    math::sparse::csrmm<'H'>(Type(1.0),a,B2d_r,Type(0.0),AhB2d);
 
     sfqmc::utils::ARRAY_EQUAL(Ax(nda::range(5,15)),nda::to_host(Axd(nda::range(5,15))));
     sfqmc::utils::ARRAY_EQUAL(Aty,nda::to_host(Atyd));
@@ -120,14 +118,14 @@ void test_csr_blas()
   // now test A*B with B csr using B^T * T(A)  
   {    
     auto b = to_csr<MEM,IndxType,IntType>(Bh,0.0); 
-    math::sparse::csrmm(Type(1.0),T(b),nda::transpose(Ad),Type(0.0),nda::transpose(ABd));
+    math::sparse::csrmm<'T'>(Type(1.0),b,nda::transpose(Ad),Type(0.0),nda::transpose(ABd));
     sfqmc::utils::ARRAY_EQUAL(AB,nda::to_host(ABd));
 
-    math::sparse::csrmm(Type(1.0),Ad,b,Type(0.0),ABd);
+    math::sparse::csrmm<'N'>(Type(1.0),Ad,b,Type(0.0),ABd);
     sfqmc::utils::ARRAY_EQUAL(AB,nda::to_host(ABd));
 
     auto b_r = b(nda::range(5,15));
-    math::sparse::csrmm(Type(1.0),Ad(all,nda::range(5,15)),b_r,Type(0.0),ABd);
+    math::sparse::csrmm<'N'>(Type(1.0),Ad(all,nda::range(5,15)),b_r,Type(0.0),ABd);
     nda::blas::gemm(Type(1.0),Ah(all,nda::range(5,15)),Bh(nda::range(5,15),all),Type(0.0),AB); 
     sfqmc::utils::ARRAY_EQUAL(AB,nda::to_host(ABd));
   }

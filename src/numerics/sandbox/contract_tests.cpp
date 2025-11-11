@@ -43,7 +43,7 @@ namespace bdft_tests
 template<typename T>
 void ijk_jl_ikl(int N1=10, int N2=10, int N3=10)
 {
-  sfqmc::utils::TimerManager Timer;
+  sfqmc::TimerManager Timer;
 
   auto A = nda::array<T,3>::zeros({N1,N2,N3});
   auto B = nda::array<T,2>::zeros({N2,N3});
@@ -83,7 +83,7 @@ template<typename T>
 void ijk_jk_ik(int N1=10, int N2=10, int N3=10)
 {
   decltype(nda::range::all) all;
-  sfqmc::utils::TimerManager Timer;
+  sfqmc::TimerManager Timer;
 
   auto A = nda::array<T,3>::zeros({N1,N2,N3});
   auto B = nda::array<T,2>::zeros({N2,N3});

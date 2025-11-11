@@ -19,8 +19,7 @@
  */
 
 
-#ifndef NUMERICS_DETAILS_OPS_AUX_HPP
-#define NUMERICS_DETAILS_OPS_AUX_HPP
+#pragma once
 
 /*
  * Auxiliary functions 
@@ -30,7 +29,13 @@
 #include <type_traits>
 #include "nda/nda.hpp"
 
-namespace math::detail
+namespace math
+{
+
+constexpr bool is_valid_op(char op) { return ((op == 'N') or
+            (op == 'T') or (op == 'H') or (op == 'C')); };
+
+namespace detail
 {
 
 /***************************************************************************/
@@ -120,6 +125,6 @@ inline constexpr bool is_transpose = false;
 template<typename A>
 inline constexpr bool is_transpose<transpose_tag<A>> = true;
 
-} // math::detail
+} // detail
+} // math
 
-#endif

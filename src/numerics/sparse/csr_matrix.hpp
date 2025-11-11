@@ -18,10 +18,7 @@
  * ==========================================================================
  */
 
-
-
-#ifndef SPARSE_CSR_MATRIX_HPP
-#define SPARSE_CSR_MATRIX_HPP
+#pragma once
 
 #include <array>
 #include <cassert>
@@ -235,6 +232,30 @@ public:
     return data_(row_begin_(get<0>(indices)) + disp);
   }
 
+  template<class Pair = std::array<IndxType, 2>>
+  value_type get_value(Pair&& indices) const
+  {
+    using std::get;
+    assert(get<0>(indices) >= 0);
+    assert(get<0>(indices) < size1_);
+    // need a kernel for this!
+    if constexpr (mem_type == DEVICE_MEMORY)
+      sfqmc::utils::check(false,"Finish csr_matrix::emplace()");
+
+    auto loc   = std::lower_bound(jdata_.data() + row_begin_(get<0>(indices)),
+                                  jdata_.data() + row_end_(get<0>(indices)), get<1>(indices));
+    long disp  = std::distance(jdata_.data() + row_begin_(get<0>(indices)), loc);
+    long disp_ = std::distance(loc, jdata_.data() + row_end_(get<0>(indices)));
+
+    if ( not (disp_ > 0 and *loc == get<1>(indices)) )
+    {
+      sfqmc::utils::check(row_end_(get<0>(indices)) < row_begin_(get<0>(indices) + 1),
+                        "row size exceeded the maximum");
+      return value_type(0);
+    }
+    return data_(row_begin_(get<0>(indices)) + disp);
+  }
+
 public:
   template<class Pair = std::array<IndxType, 2>, class... Args>
   void emplace(Pair&& indices, Args&&... args)
@@ -374,7 +395,7 @@ protected:
       }
       operator value_type() const 
       {
-        return self_.self_.get({{self_.i_, j_}});
+        return self_.self_.get_value({{self_.i_, j_}});
       }  
     };
     using reference = element_reference;
@@ -456,9 +477,18 @@ public:
     return sub_matrix(r);
   }
 
+  template<std::integral Int>
+  auto& operator()(Int i, Int j) {
+    return this->get(std::array<IndxType, 2>{IndxType(i),IndxType(j)});
+  }
+
+  template<std::integral Int>
+  auto operator()(Int i, Int j) const {
+    return this->get_value(std::array<IndxType, 2>{IndxType(i),IndxType(j)});
+  }
+
 };
 
 } // namespace sparse
 } // namespace math
 
-#endif

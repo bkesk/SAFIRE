@@ -88,22 +88,13 @@ uint32_t find_alignment(T *p) {
     return sizeof(T);
 }
 
-template<typename A_t>
-requires(CSRMatrix<A_t> or math::detail::is_tagged_matrix<A_t>) 
-constexpr auto get_operation() {
-  constexpr char op_a = math::detail::op_tag<A_t>::value;
-  using value_t = std::decay_t<typename std::decay_t<A_t>::value_type>;
-  if constexpr (op_a == 'n' or op_a == 'N') 
-    return CUSPARSE_OPERATION_NON_TRANSPOSE; 
-  else if constexpr (op_a == 't' or op_a == 'T') 
+auto get_operation(char op) {
+  if (op == 'n' or op == 'N')
+    return CUSPARSE_OPERATION_NON_TRANSPOSE;
+  else if (op == 't' or op == 'T')
     return CUSPARSE_OPERATION_TRANSPOSE;
-  else if constexpr (op_a == 'c' or op_a == 'C' or op_a == 'h' or op_a == 'H') { 
-    if constexpr (::nda::is_complex_v<value_t>) { 
-      return CUSPARSE_OPERATION_CONJUGATE_TRANSPOSE; 
-    } else {
-      return CUSPARSE_OPERATION_TRANSPOSE;
-    }
-  }
+  else if (op == 'c' or op == 'C' or op == 'h' or op == 'H') 
+    return CUSPARSE_OPERATION_CONJUGATE_TRANSPOSE;
 }
 
 template<::nda::MemoryArrayOfRank<1> X>
@@ -144,6 +135,34 @@ auto cuDn(X& x) {
   }
 }
 
+// slow stride is always the batched one
+template<::nda::MemoryArrayOfRank<3> X>
+auto cuDn(X& x) {
+  static_assert(::nda::mem::have_device_compatible_addr_space<X>, "Memory space mismatch");
+  static_assert(std::decay_t<X>::is_stride_order_C() or std::decay_t<X>::is_stride_order_Fortran(), "Layout mismatch");
+  sfqmc::utils::check(x.indexmap().min_stride() == 1, "Stride mismatch");
+  if constexpr (std::is_const_v<std::remove_pointer_t<decltype(x.data())>>) {
+    cusparseConstDnMatDescr_t cuX;
+    if constexpr (std::decay_t<X>::is_stride_order_C()) {
+      CUSPARSE_CHECK( cusparseCreateConstDnMat, &cuX, x.extent(1), x.extent(2), x.strides()[1], x.data(), cusparse_datatype<::nda::get_value_t<X>>,CUSPARSE_ORDER_ROW);
+      CUSPARSE_CHECK( cusparseDnMatSetStridedBatch, cuX, x.extent(0), x.strides()[0]); 
+    } else {
+      CUSPARSE_CHECK( cusparseCreateConstDnMat, &cuX, x.extent(0), x.extent(1), x.strides()[1], x.data(), cusparse_datatype<::nda::get_value_t<X>>,CUSPARSE_ORDER_COL);
+      CUSPARSE_CHECK( cusparseDnMatSetStridedBatch, cuX, x.extent(2), x.strides()[2]); 
+    }
+    return cuX;
+  } else {
+    cusparseDnMatDescr_t cuX;
+    if constexpr (std::decay_t<X>::is_stride_order_C()) {
+      CUSPARSE_CHECK( cusparseCreateDnMat, &cuX, x.extent(1), x.extent(2), x.strides()[1], x.data(), cusparse_datatype<::nda::get_value_t<X>>,CUSPARSE_ORDER_ROW);
+      CUSPARSE_CHECK( cusparseDnMatSetStridedBatch, cuX, x.extent(0), x.strides()[0]); 
+    } else {
+      CUSPARSE_CHECK( cusparseCreateDnMat, &cuX, x.extent(0), x.extent(1), x.strides()[1], x.data(), cusparse_datatype<::nda::get_value_t<X>>,CUSPARSE_ORDER_COL);
+      CUSPARSE_CHECK( cusparseDnMatSetStridedBatch, cuX, x.extent(2), x.strides()[2]); 
+    }
+    return cuX;
+  }
+}
 
 template<typename csr>
 requires( CSRMatrix<csr> )

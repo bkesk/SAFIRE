@@ -19,11 +19,9 @@
  */
 
 
-#ifndef SPARSE_CSR_BLAS_HPP
-#define SPARSE_CSR_BLAS_HPP
+#pragma once
 
 #include "numerics/sparse/detail/concepts.hpp"
-#include "numerics/sparse/detail/ops_aux.hpp"
 #include <cassert>
 #include "numerics/sparse/detail/CPU/sparse.hpp"
 #if defined(ENABLE_CUDA)
@@ -32,6 +30,7 @@
 #endif
 
 #include "utilities/check.hpp"
+#include "numerics/detail/ops_aux.hpp"
 #include "nda/nda.hpp"
 #include "nda/blas.hpp"
 
@@ -39,154 +38,224 @@ namespace math::sparse
 {
 
 /***************************************************************************/
-/*                              blas/lapack tags                           */
-/***************************************************************************/
-
-//CSRMatrix
-template<CSRMatrix MA>
-auto normal(MA&& arg)
-{ return math::detail::normal_tag<MA>(std::forward<MA>(arg)); }
-
-template<CSRMatrix MA>
-auto transpose(MA&& arg)
-{ return math::detail::transpose_tag<MA>(std::forward<MA>(arg)); }
-
-template<CSRMatrix MA>
-auto dagger(MA&& arg)
-{ return math::detail::conjugate_transpose_tag<MA>(std::forward<MA>(arg)); }
-
-template<CSRMatrix MA>
-auto N(MA&& arg)
-{ return math::detail::normal_tag<MA>(std::forward<MA>(arg)); }
-
-template<CSRMatrix MA>
-auto T(MA&& arg)
-{ return math::detail::transpose_tag<MA>(std::forward<MA>(arg)); }
-
-template<CSRMatrix MA>
-auto H(MA&& arg)
-{ return math::detail::conjugate_transpose_tag<MA>(std::forward<MA>(arg)); }
-
-/***************************************************************************/
 /*                              blas                                       */
 /***************************************************************************/
 
-template<typename A_t, ::nda::MemoryVector X, ::nda:: MemoryVector Y>
-requires((CSRMatrix<A_t> or math::detail::is_tagged_matrix<A_t>) and 
-         ::nda::have_same_value_type_v<X, Y> and
+template<char op_A, CSRMatrix A, ::nda::MemoryVector X, ::nda:: MemoryVector Y>
+requires(::nda::have_same_value_type_v<X, Y> and
+         ::nda::mem::have_compatible_addr_space<A, Y, Y> and
          ::nda::is_blas_lapack_v<::nda::get_value_t<X>>)
-void csrmv(::nda::get_value_t<X> alpha, A_t const& a, X const &x, ::nda::get_value_t<X> beta, Y &&y) {  
-
-  using math::detail::arg;
-
-  char op_a = math::detail::op_tag<A_t>::value;
-
-  using A = std::decay_t<decltype(arg(a))>;
-  static_assert(::nda::mem::have_compatible_addr_space<A, X, Y>);
+void csrmv(typename A::value_type alpha, A const& a, X const &x, typename A::value_type beta, Y &&y) {  
+  using sfqmc::utils::check;
   static_assert( std::is_same_v<typename A::index_type,int> or std::is_same_v<typename A::index_type,long>, "Invalid type");
   static_assert( std::is_same_v<typename A::int_type,int> or std::is_same_v<typename A::int_type,long>, "Invalid type");
 
-  auto [m, n] = arg(a).shape();
+  check(math::is_valid_op(op_A), "Invalid operation: {}",op_A);
+  auto [m, n] = a.shape();
 
-  if(op_a == 'N') {
-    sfqmc::utils::check(m == y.extent(0), "Shape mismatch");
-    sfqmc::utils::check(n == x.extent(0), "Shape mismatch");
+  if(op_A == 'N') {
+    check(m == y.extent(0), "Shape mismatch");
+    check(n == x.extent(0), "Shape mismatch");
   } else {
-    sfqmc::utils::check(m == x.extent(0), "Shape mismatch");
-    sfqmc::utils::check(n == y.extent(0), "Shape mismatch");
+    check(m == x.extent(0), "Shape mismatch");
+    check(n == y.extent(0), "Shape mismatch");
   }
 
   // Must be lapack compatible
-  sfqmc::utils::check(x.indexmap().min_stride() == 1, "Stride mismatch");
-  sfqmc::utils::check(y.indexmap().min_stride() == 1, "Stride mismatch");
+  check(x.indexmap().min_stride() == 1, "Stride mismatch");
+  check(y.indexmap().min_stride() == 1, "Stride mismatch");
 
   if constexpr (::nda::mem::have_device_compatible_addr_space<A,X,Y>) {
 #if defined(ENABLE_DEVICE)
-    device::csrmv(alpha,a,x,beta,y);
+    device::csrmv(op_A,alpha,a,x,beta,y);
 #else
-    sfqmc::utils::check(false," csr_blas on device without gpu support! Compile for GPU. ");
+    check(false," csr_blas on device without gpu support! Compile for GPU. ");
 #endif
   } else {
-    cpu::csrmv(op_a, m, n, alpha, "GxxCxx", arg(a).values().data(), arg(a).columns().data(), 
-               arg(a).row_begin().data(), arg(a).row_end().data(), x.data(), beta, y.data());
+    cpu::csrmv(op_A, m, n, alpha, "GxxCxx", a.values().data(), a.columns().data(), 
+               a.row_begin().data(), a.row_end().data(), x.data(), beta, y.data());
   }  
 }
 
-template<typename T, typename A_t, ::nda::MemoryMatrix B, ::nda::MemoryMatrix C>
-requires((CSRMatrix<A_t> or math::detail::is_tagged_matrix<A_t>) and
-         (::nda::MemoryMatrix<B> or ::nda::blas::is_conj_array_expr<B>) and
-         ::nda::have_same_value_type_v<B, C> and
-         ::nda::is_blas_lapack_v<::nda::get_value_t<C>>)
-void csrmm(T alpha, B const& b, A_t const &a, T beta, C &&c) {
-  static_assert( std::is_same_v<T,::nda::get_value_t<B>>, "Type mismatch.");
-  static_assert((std::decay_t<B>::is_stride_order_C() and std::decay_t<C>::is_stride_order_C()) or
-                (std::decay_t<B>::is_stride_order_Fortran() and std::decay_t<C>::is_stride_order_Fortran()));
-
-  char op_a = math::detail::op_tag<A_t>::value;
-  sfqmc::utils::check(op_a == 'N' or op_a == 'T', "Error: No hermitian_tag allowed in csrmm(Dense,Sparse,Dense).");
-
-  auto bt = ::nda::transpose(b);
-  auto ct = ::nda::transpose(c);
- 
-  if(op_a == 'N') 
-   csrmm(alpha,transpose(a),bt,beta,ct);
-  else
-   csrmm(alpha,a,bt,beta,ct);
-
+template<char op_A, CSRMatrix A, ::nda::MemoryVector X, ::nda:: MemoryVector Y>
+requires(::nda::have_same_value_type_v<X, Y> and
+         ::nda::mem::have_compatible_addr_space<A, Y, Y> and
+         ::nda::is_blas_lapack_v<::nda::get_value_t<X>>)
+void csrmv(A const& a, X const &x, Y &&y)
+{
+  using T = typename A::value_type;
+  return csrmm<op_A>(T(1.0),a,x,T(0.0),std::forward<Y>(y));
 }
 
-template<typename T, typename A_t, ::nda::MemoryMatrix B, ::nda::MemoryMatrix C>
-requires((CSRMatrix<A_t> or math::detail::is_tagged_matrix<A_t>) and
-         (::nda::MemoryMatrix<B> or ::nda::blas::is_conj_array_expr<B>) and 
-         ::nda::have_same_value_type_v<B, C> and
+template<char op_A, CSRMatrix A, ::nda::MemoryMatrix B, ::nda::MemoryMatrix C>
+requires(::nda::have_same_value_type_v<B, C> and
+         ::nda::mem::have_compatible_addr_space<A, B, C> and
          ::nda::is_blas_lapack_v<::nda::get_value_t<C>>)
-void csrmm(T alpha, A_t const& a, B const &b, T beta, C &&c) {          
-  using math::detail::arg;
-  using A = std::decay_t<decltype(arg(a))>;
-  static_assert( std::is_same_v<T,::nda::get_value_t<B>>, "Type mismatch.");
-  static_assert( std::is_same_v<typename A::index_type,int> or std::is_same_v<typename A::index_type,long>, "Invalid type");
-  static_assert( std::is_same_v<typename A::int_type,int> or std::is_same_v<typename A::int_type,long>, "Invalid type");
-  static_assert(::nda::mem::have_compatible_addr_space<A, B, C>);
+void csrmm(typename A::value_type alpha, B const& b, A const &a, typename A::value_type beta, C &&c) {
+  static_assert( std::is_same_v<typename A::value_type,::nda::get_value_t<B>>, "Type mismatch.");
   static_assert((std::decay_t<B>::is_stride_order_C() and std::decay_t<C>::is_stride_order_C()) or
                 (std::decay_t<B>::is_stride_order_Fortran() and std::decay_t<C>::is_stride_order_Fortran()));
-    
-  char op_a = math::detail::op_tag<A_t>::value;
-  if(op_a == 'N') {
-    sfqmc::utils::check(arg(a).shape(0) == c.extent(0), "Shape mismatch");
-    sfqmc::utils::check(arg(a).shape(1) == b.extent(0), "Shape mismatch");
+
+  if constexpr (op_A == 'N' or op_A == 'T') {
+    auto bt = ::nda::transpose(b);
+    auto ct = ::nda::transpose(c);
+ 
+    if(op_A == 'N') 
+     csrmm<'T'>(alpha,a,bt,beta,ct);
+    else
+     csrmm<'N'>(alpha,a,bt,beta,ct);
   } else {
-    sfqmc::utils::check(arg(a).shape(0) == b.extent(0), "Shape mismatch");
-    sfqmc::utils::check(arg(a).shape(1) == c.extent(0), "Shape mismatch");
+    // either A or B needs to be copied and conjugated. Which one???
+    auto bdag = nda::make_regular(::nda::dagger(b));
+    auto ct = ::nda::transpose(c);
+
+    csrmm<'N'>(alpha,a,bdag,beta,ct);
+    c() = nda::conj(c());
   }
-  sfqmc::utils::check(b.shape(1) == c.extent(1), "Shape mismatch");
+}
+
+template<char op_A, CSRMatrix A, ::nda::MemoryMatrix B, ::nda::MemoryMatrix C>
+requires(::nda::have_same_value_type_v<B, C> and
+         ::nda::mem::have_compatible_addr_space<A, B, C> and
+         ::nda::is_blas_lapack_v<::nda::get_value_t<C>>)
+void csrmm(B const& b, A const &a, C &&c)
+{
+  using T = typename A::value_type;
+  return csrmm<op_A>(T(1.0),b,a,T(0.0),std::forward<C>(c));
+}
+
+// Note: cuSparse supports opB on csrmm, but MKL does not.
+//       Limiting current implementation to only op_A. 
+//       If needed, implement custom backend for op_B != 'N' on CPU and enable.
+
+template<char op_A, typename A, ::nda::MemoryMatrix B, ::nda::MemoryMatrix C>
+requires(::nda::have_same_value_type_v<B, C> and
+         ::nda::mem::have_compatible_addr_space<A, B, C> and
+         ::nda::is_blas_lapack_v<::nda::get_value_t<C>>)
+void csrmm(typename A::value_type alpha, A const& a, B const &b, typename A::value_type beta, C &&c) {          
+  using sfqmc::utils::check;
+  static_assert( std::is_same_v<typename A::index_type,int> or std::is_same_v<typename A::index_type,long>, "Invalid type");
+  static_assert( std::is_same_v<typename A::int_type,int> or std::is_same_v<typename A::int_type,long>, "Invalid type");
+  static_assert((nda::blas::has_C_layout<B> and nda::blas::has_C_layout<C>) or 
+                (nda::blas::has_F_layout<B> and nda::blas::has_F_layout<C>), "Layout mismatch"); 
+
+  auto [m, k] = a.shape();
+  auto n = c.extent(1);
+    
+  if(op_A == 'N') {
+    check(b.shape() == std::array<long,2>{k,n}, "Shape mismatch");
+    check(c.shape() == std::array<long,2>{m,n}, "Shape mismatch");
+  } else {
+    check(b.shape() == std::array<long,2>{m,n}, "Shape mismatch");
+    check(c.shape() == std::array<long,2>{k,n}, "Shape mismatch");
+  }
     
   // Must be lapack compatible
-  sfqmc::utils::check(b.indexmap().min_stride() == 1, "Stride mismatch");
-  sfqmc::utils::check(c.indexmap().min_stride() == 1, "Stride mismatch");
+  check(b.indexmap().min_stride() == 1, "Stride mismatch");
+  check(c.indexmap().min_stride() == 1, "Stride mismatch");
     
-  auto [m, k] = arg(a).shape();
-  auto n = c.extent(1);
     
   if constexpr (::nda::mem::have_device_compatible_addr_space<A,B,C>) {
 #if defined(ENABLE_DEVICE)
-    device::csrmm(alpha,a,b,beta,c);
+    device::csrmm(op_A,'N',alpha,a,b,beta,c);
 #else 
-    sfqmc::utils::check(false," csr_blas on device without gpu support! Compile for GPU. ");
+    check(false," csr_blas on device without gpu support! Compile for GPU. ");
 #endif
   } else {
     if constexpr (std::decay_t<B>::is_stride_order_C()) {
-      cpu::csrmm(op_a, m, n, k, alpha, "GxxCxx", arg(a).values().data(), arg(a).columns().data(), 
-                 arg(a).row_begin().data(), arg(a).row_end().data(), b.data(), b.strides()[0], 0, 
+      cpu::csrmm(op_A, m, n, k, alpha, "GxxCxx", a.values().data(), a.columns().data(), 
+                 a.row_begin().data(), a.row_end().data(), b.data(), b.strides()[0], 0, 
                  beta, c.data(), c.strides()[0], 0, 1);
     } else if (std::decay_t<B>::is_stride_order_Fortran()) {
-      cpu::csrmm(op_a, m, n, k, alpha, "GxxFxx", arg(a).values().data(), arg(a).columns().data(), 
-                 arg(a).row_begin().data(), arg(a).row_end().data(), b.data(), b.strides()[1], 0, 
+      cpu::csrmm(op_A, m, n, k, alpha, "GxxFxx", a.values().data(), a.columns().data(), 
+                 a.row_begin().data(), a.row_end().data(), b.data(), b.strides()[1], 0, 
                  beta, c.data(), c.strides()[1], 0, 1);
     }
   }
 }
 
+template<char op_A, typename A, ::nda::MemoryMatrix B, ::nda::MemoryMatrix C>
+requires(::nda::have_same_value_type_v<B, C> and
+         ::nda::mem::have_compatible_addr_space<A, B, C> and
+         ::nda::is_blas_lapack_v<::nda::get_value_t<C>>)
+void csrmm(A const& a, B const &b, C &&c)
+{
+  using T = typename A::value_type;
+  return csrmm<op_A>(T(1.0),a,b,T(0.0),std::forward<C>(c));
 }
 
+template<char op_A, CSRMatrix A, nda::MemoryArrayOfRank<3> B, nda::MemoryArrayOfRank<3> C>
+requires(::nda::have_same_value_type_v<B, C> and
+         ::nda::is_blas_lapack_v<::nda::get_value_t<C>> and
+         ::nda::mem::have_compatible_addr_space<A, B, C>) 
+void csrmm(typename A::value_type alpha, A const& a, B const &b, typename A::value_type beta, C &&c) {          
+  using sfqmc::utils::check;
+  static_assert( std::is_same_v<typename A::index_type,int> or std::is_same_v<typename A::index_type,long>, "Invalid type");
+  static_assert( std::is_same_v<typename A::int_type,int> or std::is_same_v<typename A::int_type,long>, "Invalid type");
+  static_assert((nda::blas::has_C_layout<B> and nda::blas::has_C_layout<C>) or 
+                (nda::blas::has_F_layout<B> and nda::blas::has_F_layout<C>), "Layout mismatch"); 
+
+  // Must be lapack compatible
+  check(b.indexmap().min_stride() == 1, "Stride mismatch");
+  check(c.indexmap().min_stride() == 1, "Stride mismatch");
+    
+  auto [m, k] = a.shape();
+  auto batchSize = ( nda::blas::has_C_layout<C> ? c.extent(0) : c.extent(2) );
+  auto n = ( nda::blas::has_C_layout<C> ? c.extent(2) : c.extent(1) );
+
+  if constexpr (nda::blas::has_C_layout<C>) {
+ 
+    if constexpr (op_A == 'N') {
+      check(b.shape() == std::array<long,3>{batchSize,k,n}, "Shape mismatch");
+      check(c.shape() == std::array<long,3>{batchSize,m,n}, "Shape mismatch");
+    } else {
+      check(b.shape() == std::array<long,3>{batchSize,m,n}, "Shape mismatch");
+      check(c.shape() == std::array<long,3>{batchSize,k,n}, "Shape mismatch");
+    }
+
+  } else {
+
+    if constexpr (op_A == 'N') {
+      check(b.shape() == std::array<long,3>{k,n,batchSize}, "Shape mismatch");
+      check(c.shape() == std::array<long,3>{m,n,batchSize}, "Shape mismatch");
+    } else {
+      check(b.shape() == std::array<long,3>{m,n,batchSize}, "Shape mismatch");
+      check(c.shape() == std::array<long,3>{k,n,batchSize}, "Shape mismatch");
+    }
+
+  }
+    
+  if constexpr (::nda::mem::have_device_compatible_addr_space<A,B,C>) {
+#if defined(ENABLE_DEVICE)
+    device::csrmm(op_A,alpha,a,b,beta,c);
+#else 
+    check(false," csr_blas on device without gpu support! Compile for GPU. ");
 #endif
+  } else {
+
+    if constexpr (nda::blas::has_C_layout<C>) {
+      // op(A) * B = C
+      cpu::csrmm(op_A, m, n, k, alpha, "GxxCxx", a.values().data(), a.columns().data(), 
+                 a.row_begin().data(), a.row_end().data(), b.data(), b.strides()[1], b.strides()[0], 
+                 beta, c.data(), c.strides()[1], c.strides()[0], batchSize);
+    } else if (std::decay_t<B>::is_stride_order_Fortran()) {
+      cpu::csrmm(op_A, m, n, k, alpha, "GxxFxx", a.values().data(), a.columns().data(),
+                 a.row_begin().data(), a.row_end().data(), b.data(), b.strides()[1], b.strides()[2],
+                 beta, c.data(), c.strides()[1], c.strides()[2], batchSize);
+    }
+  }
+
+}
+
+template<char op_A, CSRMatrix A, nda::MemoryArrayOfRank<3> B, nda::MemoryArrayOfRank<3> C>
+requires(::nda::have_same_value_type_v<B, C> and
+         ::nda::is_blas_lapack_v<::nda::get_value_t<C>> and
+         ::nda::mem::have_compatible_addr_space<A, B, C>)
+void csrmm(A const& a, B const &b, C &&c)
+{
+  using T = typename A::value_type;
+  return csrmm<op_A>(T(1.0),a,b,T(0.0),std::forward<C>(c));
+}
+
+}
 

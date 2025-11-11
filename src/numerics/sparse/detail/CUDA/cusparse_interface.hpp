@@ -34,6 +34,7 @@
 #include "utilities/check.hpp"
 
 #include "numerics/sparse/detail/CUDA/cusparse_aux.hpp"
+#include "numerics/detail/ops_aux.hpp"
 
 namespace math::sparse::device
 {
@@ -44,37 +45,34 @@ cusparseHandle_t &get_cusparse_handle_ptr();
 // MAM: csr_matrix stores row pointers in host, so right now pntrb/pntre are host pointers.
 //      They are copied to devide on the fly here. Write alternative routine that takes
 //      the (compact) arrays in device
-template<typename A_t, ::nda::MemoryVector X, ::nda:: MemoryVector Y>
-requires((CSRMatrix<A_t> or math::detail::is_tagged_matrix<A_t>) and
-         ::nda::have_same_value_type_v<X, Y>) 
-void csrmv(::nda::get_value_t<X> alpha, A_t const& a, X const &x, ::nda::get_value_t<X> beta, Y &&y)
+template<CSRMatrix A, ::nda::MemoryVector X, ::nda:: MemoryVector Y>
+requires(::nda::have_same_value_type_v<X, Y> and
+         ::nda::mem::have_device_compatible_addr_space<A,X,Y>) 
+void csrmv(char oper_A, A::value_type alpha, A const& a, X const &x, A::value_type beta, Y &&y)
 {
-  using math::detail::arg;
-
-  auto spA = arg(a);
-  auto [m, n] = arg(a).shape();
+  sfqmc::utils::check(math::is_valid_op(oper_A), "Invalid operation: {}",oper_A);
+  auto [m, n] = a.shape();
  
-  using csr = std::decay_t<decltype(spA)>;
-  constexpr MEMORY_SPACE MEM = csr::mem_type; 
-  using value_type = std::decay_t<typename csr::value_type>;
-  using int_type   = std::decay_t<typename csr::int_type>;
+  constexpr MEMORY_SPACE MEM = A::mem_type; 
+  using value_type = std::decay_t<typename A::value_type>;
+  using int_type   = std::decay_t<typename A::int_type>;
   static_assert( std::is_same_v<value_type,::nda::get_value_t<X>>, "value_type mismatch.");
   static_assert( std::is_same_v<value_type,::nda::get_value_t<Y>>, "value_type mismatch.");
 
   auto handle = get_cusparse_handle_ptr(); 
-  auto op_A = get_operation<A_t>();
   auto cuX = cuDn(x);  
   auto cuY = cuDn(y);  
 
-  memory::array<MEM,int_type,1> ofs(m+1,int_type(0));
-  auto cuA = cuCSR(spA,ofs);
+  memory::buffered_array<MEM,int_type,1> ofs(m+1,int_type(0));
+  auto op_A = get_operation(oper_A); 
+  auto cuA = cuCSR(a,ofs);
    
   // allocate an external buffer if needed
   size_t bufferSize = 0;
   CUSPARSE_CHECK( cusparseSpMV_bufferSize, handle, op_A, 
                   &alpha, cuA, cuX, &beta, cuY, cusparse_datatype<value_type>,
                   CUSPARSE_SPMV_ALG_DEFAULT, &bufferSize) 
-  memory::array<MEM,char,1> buffer(bufferSize,char(0));
+  memory::buffered_array<MEM,char,1> buffer(bufferSize,char(0));
 
   // execute preprocess (optional)
 //  CUSPARSE_CHECK( cusparseSpMV_preprocess, handle, op_A, 
@@ -92,52 +90,57 @@ void csrmv(::nda::get_value_t<X> alpha, A_t const& a, X const &x, ::nda::get_val
   arch::synchronize_if_set();
 }
 
-template<typename T, typename A_t, ::nda::MemoryMatrix B, ::nda::MemoryMatrix C> 
-requires((CSRMatrix<A_t> or math::detail::is_tagged_matrix<A_t>) and
-         (::nda::MemoryMatrix<B>) and   
+template<CSRMatrix A, typename B, typename C> 
+requires((::nda::MemoryMatrix<B> or ::nda::MemoryArrayOfRank<B,3>) and   
+         (::nda::MemoryMatrix<C> or ::nda::MemoryArrayOfRank<C,3>) and   
+         (::nda::get_rank<B> == ::nda::get_rank<C>) and
+         ::nda::mem::have_device_compatible_addr_space<A,X,Y> and 
          ::nda::have_same_value_type_v<B,C>)
-void csrmm(T alpha, A_t const& a, B const &b, T beta, C &&c) 
+void csrmm(char oper_A, char oper_B, A::value_type alpha, A const& a, B const &b, A::value_type beta, C &&c) 
 { 
-  using math::detail::arg;
-
-  auto spA = arg(a);
-  auto [m, n] = arg(a).shape();
+  sfqmc::utils::check(math::is_valid_op(oper_A), "Invalid operation: {}",oper_A);
+  auto [m, n] = a.shape();
   
-  using csr = std::decay_t<decltype(spA)>;
   constexpr MEMORY_SPACE MEM = csr::mem_type; 
-  using value_type = std::decay_t<typename csr::value_type>;
-  using int_type   = std::decay_t<typename csr::int_type>;
+  using value_type = std::decay_t<typename A::value_type>;
+  using int_type   = std::decay_t<typename A::int_type>;
 
-  if constexpr (std::is_same_v<::nda::get_value_t<B>,std::complex<T>>) {
+  if constexpr (std::is_same_v<::nda::get_value_t<B>,std::complex<value_type>>) {
     static_assert(std::decay_t<B>::is_stride_order_C() and std::decay_t<C>::is_stride_order_C(),
         "Mixed real/complex csrmm only with row-major matrices.");
     sfqmc::utils::check(b.indexmap().min_stride() == 1, "Stride mismatch");
     sfqmc::utils::check(c.indexmap().min_stride() == 1, "Stride mismatch");
-    memory::array_view< memory::get_memory_space<B>(), T, 2, typename B::layout_policy_t> b_(std::array<long,2>{b.extent(0),2*b.extent(1)},reinterpret_cast<const T*>(b.data()));
-    memory::array_view< memory::get_memory_space<C>(), T, 2, typename C::layout_policy_t> c_(std::array<long,2>{c.extent(0),2*c.extent(1)},reinterpret_cast<const T*>(c.data()));
-    csrmm(alpha,a,b_,beta,c_);
+    if constexpr (::nda::MemoryMatrix<B>) {
+      memory::array_view< memory::get_memory_space<B>(), value_type, 2, typename B::layout_policy_t> b_(std::array<long,2>{b.extent(0),2*b.extent(1)},reinterpret_cast<const value_type*>(b.data()));
+      memory::array_view< memory::get_memory_space<C>(), value_type, 2, typename C::layout_policy_t> c_(std::array<long,2>{c.extent(0),2*c.extent(1)},reinterpret_cast<const value_type*>(c.data()));
+      csrmm(alpha,a,b_,beta,c_);
+    } else {
+      memory::array_view< memory::get_memory_space<B>(), value_type, 3, typename B::layout_policy_t> b_(std::array<long,3>{b.extent(0),b.extent(1),2*b.extent(2)},reinterpret_cast<const value_type*>(b.data()));
+      memory::array_view< memory::get_memory_space<C>(), value_type, 3, typename C::layout_policy_t> c_(std::array<long,3>{c.extent(0),c.extent(1),2*c.extent(2)},reinterpret_cast<const value_type*>(c.data()));
+      csrmm(alpha,a,b_,beta,c_);
+    }
     return;
   }
 
-  static_assert( std::is_same_v<value_type,T>, "value_type mismatch.");
   static_assert( std::is_same_v<value_type,::nda::get_value_t<B>>, "value_type mismatch.");
   static_assert( std::is_same_v<value_type,::nda::get_value_t<C>>, "value_type mismatch.");
   
   auto handle = get_cusparse_handle_ptr();
-  auto op_A = get_operation<A_t>();
-  auto op_B = CUSPARSE_OPERATION_NON_TRANSPOSE; 
+  // not enabled yet. Take as argument if needed and implement custom backend in cpu.
+  auto op_A = get_operation(oper_A); 
+  auto op_B = get_operation(oper_B); 
   auto cuB = cuDn(b);
   auto cuC = cuDn(c);
   
-  memory::array<MEM,int_type,1> ofs(m+1,int_type(0));
-  auto cuA = cuCSR(spA,ofs);
+  memory::buffered_array<MEM,int_type,1> ofs(m+1,int_type(0));
+  auto cuA = cuCSR(a,ofs);
 
   // allocate an external buffer if needed
   size_t bufferSize = 0;
   CUSPARSE_CHECK( cusparseSpMM_bufferSize, handle, op_A, op_B, 
                   &alpha, cuA, cuB, &beta, cuC, cusparse_datatype<value_type>,
                   CUSPARSE_SPMM_CSR_ALG2, &bufferSize)
-  memory::array<MEM,char,1> buffer(bufferSize,char{0});
+  memory::buffered_array<MEM,char,1> buffer(bufferSize,char{0});
   
   // execute preprocess (optional)
   CUSPARSE_CHECK( cusparseSpMM_preprocess, handle, op_A, op_B, 
