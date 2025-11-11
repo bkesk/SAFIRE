@@ -68,7 +68,7 @@ if (BUILD_UNIT_TESTS)
 #      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/hubbard/4x4squareU1/wfn_uhf.h5
 #    )
 #  endif()
-#  SUBDIRS(SlaterDeterminantOperations/tests)
+  SUBDIRS(SlaterDeterminantOperations/tests)
 #  SUBDIRS(SlaterDeterminantOperations/time_propagation)
   SUBDIRS(Walkers/tests)
   SUBDIRS(Hamiltonians/tests)

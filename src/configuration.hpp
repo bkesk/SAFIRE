@@ -19,9 +19,6 @@
 
 #include "nda/nda.hpp"
 
-template<typename T>
-T* raw_pointer_cast(T* p) { return p; }
-
 using RealType = double;
 using SPRealType = float;
 using ComplexType = std::complex<RealType>;
@@ -72,6 +69,12 @@ inline auto memory_space_to_string(MEMORY_SPACE m)
 
 namespace memory 
 {
+
+template<typename A>
+constexpr MEMORY_SPACE get_memory_space()
+{
+  return HOST_MEMORY;
+}
 
 template<nda::Array a_t>
 constexpr MEMORY_SPACE get_memory_space()
@@ -152,6 +155,49 @@ auto to_memory_space(auto &&A)
     return to_memory_space<DEFAULT_MEMORY_SPACE>(A); 
   }
 }
+
+// Buffered Arrays
+
+namespace detail
+{
+
+  template<MEMORY_SPACE MEM>
+  using buffered_handle_t = nda::heap_basic<nda::mem::static_fallback<nda::mem::dynamic_bucket<to_nda_address_space(MEM)>>>;
+
+}
+
+  template<typename T, int N, typename Layout = nda::C_layout>
+  using host_buffered_array = nda::array<T,N,Layout,detail::buffered_handle_t<HOST_MEMORY>>;
+
+#if defined(ENABLE_DEVICE)
+
+  template<typename T, int N, typename Layout = nda::C_layout>
+  using device_buffered_array = nda::array<T,N,Layout,detail::buffered_handle_t<DEVICE_MEMORY>>;
+
+  template<typename T, int N, typename Layout = nda::C_layout>
+  using unified_buffered_array = nda::array<T,N,Layout,detail::buffered_handle_t<UNIFIED_MEMORY>>;
+
+  template<typename T, int N, typename Layout = nda::C_layout>
+  using default_buffered_array = device_buffered_array<T,N,Layout>;
+
+#else
+
+  template<typename T, int N, typename Layout = nda::C_layout>
+  using device_buffered_array = host_buffered_array<T,N,Layout>;
+
+  template<typename T, int N, typename Layout = nda::C_layout>
+  using unified_buffered_array = host_buffered_array<T,N,Layout>;
+
+  template<typename T, int N, typename Layout = nda::C_layout>
+  using default_buffered_array = host_buffered_array<T,N,Layout>;
+
+#endif
+
+  template<MEMORY_SPACE MEM, typename T, int N, typename Layout = nda::C_layout>
+  using buffered_array = std::conditional_t<MEM==HOST_MEMORY,    host_buffered_array<T,N,Layout>,
+                         std::conditional_t<MEM==DEVICE_MEMORY,  device_buffered_array<T,N,Layout>,
+                         std::conditional_t<MEM==UNIFIED_MEMORY, unified_buffered_array<T,N,Layout>,
+                                                                 default_buffered_array<T,N,Layout>>>>;
 
 }
 

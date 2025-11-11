@@ -19,8 +19,7 @@
  */
 
 
-#ifndef NUMERICS_SPARSE_DETAIL_CONCEPTS_HPP
-#define NUMERICS_SPARSE_DETAIL_CONCEPTS_HPP
+#pragma once
 
 #include <concepts>
 #include "nda/nda.hpp"
@@ -61,8 +60,21 @@ concept CSRMatrix = requires(A const& a) {
 
 }
 
-namespace nda::mem 
+namespace memory
 {
+
+template<math::sparse::CSRMatrix A>
+constexpr MEMORY_SPACE get_memory_space()
+{
+  return std::decay_t<A>::mem_type;
+}
+
+}
+
+namespace nda
+{
+
+namespace mem {
 
   template <math::sparse::CSRMatrix A>
   static constexpr AddressSpace get_addr_space<A> = to_nda_address_space(A::mem_type);
@@ -70,6 +82,7 @@ namespace nda::mem
   template <math::sparse::CSRVector A>
   static constexpr AddressSpace get_addr_space<A> = to_nda_address_space(A::mem_type);
 
-}
+} // mem
 
-#endif
+} // nda
+

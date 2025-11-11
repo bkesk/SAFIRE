@@ -43,7 +43,7 @@
 #include "numerics/distributed_array/nda.hpp"
 
 #define __TIME__H5__
-utils::TimerManager H5_Timer;
+sfqmc::TimerManager H5_Timer;
 #include "numerics/distributed_array/h5.hpp"
 
 namespace mpi3 = boost::mpi3;

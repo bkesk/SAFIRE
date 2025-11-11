@@ -53,7 +53,7 @@ void csrmv(const char transa,
            T* y)
 {
   if(not(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F')))
-    throw std::runtime_error("backup_impl::csrmm: Invalid matdescra");
+    throw std::runtime_error("backup_impl::csrmv: Invalid matdescra");
   auto p0   = *pntrb;
   if (transa == 'n' || transa == 'N')
   {
@@ -113,7 +113,7 @@ void csrmv(const char transa,
            std::complex<T>* y)
 {
   if(not(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F')))
-    throw std::runtime_error("backup_impl::csrmm: Invalid matdescra");
+    throw std::runtime_error("backup_impl::csrmv: Invalid matdescra");
   auto p0   = *pntrb;
   if (transa == 'n' || transa == 'N')
   {
