@@ -122,11 +122,13 @@ public:
       app_log(2, "BackPropagatedEstimator: nback_prop_steps[{}] = {} ( = measure_interval_multiplier[{}] * population_control_interval) \n", i, nback_prop_steps[i], i);
     }
     max_nback_prop = *std::max_element(nback_prop_steps.begin(), nback_prop_steps.end());
-    
+    min_nback_prop = *std::min_element(nback_prop_steps.begin(), nback_prop_steps.end());
+
     if ((equil_multiplier * _population_control_interval) % max_nback_prop != 0 )
       APP_ABORT("Error in BackPropagatedEstimator user input: 'equil_multiplier' must be evenly divisible by the maximum value in 'measure_interval_multiplier'");
-    nblocks_equil = (equil_multiplier *_population_control_interval )/ max_nback_prop; // Note: nback_prop is in steps, so we have to convert equil_multiplier to steps by multiplying by _population_control_interval
-    _measure_interval_for_handler = max_nback_prop;
+    // Note: nback_prop is in steps, so we have to convert equil_multiplier to steps by multiplying by _population_control_interval
+    nblocks_equil = (equil_multiplier *_population_control_interval )/ max_nback_prop;
+    _measure_interval_for_handler = min_nback_prop;
 
     /* 
     BP uses "blocks" internally, but we want the input
@@ -414,7 +416,7 @@ private:
   Propagator& prop0;
 
   int nrefs = 0;
-  int max_nback_prop = 0;
+  int min_nback_prop, max_nback_prop = 0;
   std::vector<int> nback_prop_steps;
   std::vector<int> nback_prop_interval_multipliers;
 
