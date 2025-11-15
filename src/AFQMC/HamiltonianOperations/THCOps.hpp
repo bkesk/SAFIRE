@@ -17,87 +17,74 @@
 #pragma once
 
 
-#include "AFQMC/config.h"
-#include "Numerics/ma_operations.hpp"
-
-#include "Utilities/check.hpp"
-#include "Utilities/FairDivide.hpp"
-#include "AFQMC/Utilities/taskgroup.h"
-#include "mpi3/shared_communicator.hpp"
-#include "AFQMC/Wavefunctions/Excitations.hpp"
-#include "Numerics/batched_operations.hpp"
+#include "configuration.hpp"
+#include "nda/nda.hpp"
+#include "nda/nda.hpp"
+#include "nda/tensor.hpp"
+#include "utilities/check.hpp"
+#include "utilities/mpi_context.h"
+#include "utilities/check_strides.hpp"
+#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/nda_functions.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
-// distribution:  size,  global,  offset
-//   - rotMuv:    {rotnmu,grotnmu},{grotnmu,grotnmu},{rotnmu0,0}
-//   - rotPiu:    {size_t(nspin*npol*NMO),grotnmu},{size_t(nspin*npol*NMO),grotnmu},{0,0}
-//   - rotcXau    {nel,grotnmu},{nel,grotnmu},{0,0}
-//   - Piu:       {size_t(nspin*npol*NMO),nmu},{size_t(nspin*npol*NMO),gnmu},{0,nmu0}
-//   - Luv:       {nmu,gnmu},{gnmu,gnmu},{nmu0,0}
-//   - cXau       {nel,nmu},{nel,gnmu},{nmu0,0}
 
-template<bool MP, bool REAL>
+template<MEMORY_SPACE _MEM, bool MP, bool REAL>
 class THCOps
 {
-  using communicator = boost::mpi3::shared_communicator;
+  static constexpr MEMORY_SPACE MEM = _MEM;
 
   using SPComplexType = typename to_working_precision<MP,ComplexType>::type;
   using SPRealType    = typename to_working_precision<MP,RealType   >::type; 
 
   using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
-  using SPValueType   = typename to_working_precision<MP,ValueType  >::type; 
+  using SPValueType   = typename to_working_precision<MP,ValueType>::type; 
 
 public:
   static const HamiltonianTypes HamOpType = THC;
   HamiltonianTypes getHamType() const { return HamOpType; }
 
   /*
-     * nup/ndown stands for number of active orbitals alpha/beta (instead of active electrons)
-     */
-  THCOps(communicator& c_,
-         int nmo_,
-         int naoa_,
-         int naob_,
+   * nup/ndown stands for number of alpha/beta electrons
+   */
+  THCOps(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> ctxt,
          WALKER_TYPES type,
-         int nmu0_,
-         int rotnmu0_,
-         mpi3CMatrix&& hij_,
-         mpi3CMatrix&& h1,
-         mpi3SPVMatrix&& rotmuv_,
-         mpi3SPVMatrix&& rotpiu_,
-         std::vector<mpi3SPCMatrix>&& rotpau_,
-         mpi3SPVMatrix&& luv_,
-         mpi3SPVMatrix&& piu_,
-         std::vector<mpi3SPCMatrix>&& pau_,
-         mpi3CMatrix&& v0_,
-         ComplexType e0_,
-         [[maybe_unused]] bool verbose = false)
-      : comm(std::addressof(c_)),
-        device_buffer_manager(),
-        shm_buffer_manager(),
-        NMO(nmo_),
-        nup(naoa_),
-        ndown(naob_),
-        nelec{nup, ndown},
-        nmu0(nmu0_),
-        gnmu(0),
-        rotnmu0(rotnmu0_),
-        grotnmu(0),
+         long nmo_,
+         long nup_, 
+         long ndn_, 
+         memory::shared_array<MEM,ComplexType,3>&& hij_,
+         memory::shared_array<MEM,ComplexType,3>&& haj_,
+         memory::shared_array<MEM,SPValueType,3>&& x_,
+         memory::shared_array<MEM,SPComplexType,5>&& y_,
+         memory::shared_array<MEM,SPValueType,2>&& l_,
+         std::optional<memory::shared_array<MEM,SPValueType,2>>&& z_,
+         std::optional<memory::shared_array<MEM,SPValueType,3>>&& x_rot_,
+         std::optional<memory::shared_array<MEM,SPComplexType,5>>&& y_rot_,
+         std::optional<memory::shared_array<MEM,SPValueType,2>>&& z_rot_,
+         memory::shared_array<MEM,ComplexType,3>&& v0_,
+         ComplexType e0_)
+      : mpi(ctxt), 
         walker_type(type),
+        NMO(nmo_),
+        nup(nup_),
+        ndown(ndn_),
+        nelec{nup, ndown},
         hij(std::move(hij_)),
-        haj(std::move(h1)),
-        rotMuv(std::move(rotmuv_)),
-        rotPiu(std::move(rotpiu_)),
-        rotcXau(move_vector<nodeArray<SPComplexType, 2>>(std::move(rotpau_))),
-        Luv(std::move(luv_)),
-        Piu(std::move(piu_)),
-        cXau(move_vector<nodeArray<SPComplexType, 2>>(std::move(pau_))),
-        vn0(std::move(v0_)),
+        haj(std::move(haj_)),
+        _Xsiu_(std::move(x_)),
+        _Ydsau_(std::move(y_)),
+        _Luv_(std::move(l_)),
+        _Zuv_(std::move(z_)),
+        _Xsiu_rot_(std::move(x_rot_)),
+        _Ydsau_rot_(std::move(y_rot_)),
+        _Zuv_rot_(std::move(z_rot_)),
+        v0(std::move(v0_)),
         E0(e0_)
   {
+/*
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     gnmu    = Luv.size(1);
@@ -138,16 +125,18 @@ public:
     utils::check(vn0.size(1) == NMO, " THC: Shape mismatch");
     utils::check(hij.size(0) == nspin * npol * NMO, " THC: Shape mismatch");
     utils::check(hij.size(1) == npol * NMO, " THC: Shape mismatch");
+*/
   }
 
   ~THCOps() {}
 
-  THCOps(THCOps const& other) = delete;
-  THCOps& operator=(THCOps const& other) = delete;
+  THCOps(THCOps const& other) = default;
+  THCOps& operator=(THCOps const& other) = default;
 
   THCOps(THCOps&& other) = default;
   THCOps& operator=(THCOps&& other) = default;
 
+/*
   boost::multi::array<ComplexType, 2> getOneBodyPropagatorMatrix(TaskGroup_& TG, double dt,
                                                                  boost::multi::array<ComplexType, 1> const& vMF)
   {
@@ -258,199 +247,159 @@ public:
     using std::fill_n;
     fill_n( v.origin(), v.size(), ContinuousChargePropagator );
   }
-
-  template<class Mat, class MatB>
-  void energy(Mat&& E,
-              MatB const& G,
-              int k,
+*/
+  void energy(nda::MemoryArrayOfRank<2> auto && E,
+              nda::MemoryArrayOfRank<2> auto const& G,
+              int idet,
               bool addH1  = true,
               bool addEJ  = true,
               bool addEXX = true)
   {
-    using std::copy_n;
-    using GType = typename std::decay_t<typename MatB::element>;
-    using sfqmc::afqmc::reinterpret_pointer_cast;
-    if (k > 0)
-      APP_ABORT(" Error: THC not yet implemented for multiple references.");
-    // G[nel][nmo]
-    utils::check(E.size(0) == G.size(0), "THC::energy: Size mismatch.");
-    utils::check(E.size(1) == 3, "THC::energy: Size mismatch.");
-    int nwalk = G.size(0);
+    using nda::range;
+    using GType = nda::get_value_t<decltype(G)>;
+    auto all = range::all;
+    int nwalk = G.extent(0);
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
+    utils::check(E.shape() == std::array<long,2>{nwalk,3}, "THC::energy: Size mismatch.");
+    utils::check(G.extent(1) == nel*npol*NMO, "THC::energy: Size mismatch.");
+    utils::check_strides(E,G);
+    // limiting G to contiguous arrays for simplicity now, reconsider if necessary
+    utils::check(G.is_contiguous(), "Layout mismatch");
 
     // addH1
-    ma::fill(E, ComplexType(0.0));
+    E() = ComplexType(0.0);
     if (addH1)
     {
-      ma::product(ComplexType(1.0), G, haj[k], ComplexType(0.0), E(E.extension(0), 0));
-      for (int i = 0; i < nwalk; i++)
-        E[i][0] += E0;
+      E(all,0) = E0; 
+      auto haj_2d = nda::reshape(haj(),std::array<long,2>{haj.extent(0),haj.extent(1)*haj.extent(2)});
+      nda::blas::gemv(ComplexType(1.0), G, haj_2d(idet,all), ComplexType(1.0), E(all,0));
     }
     if (not(addEJ || addEXX))
       return;
 
-    int nu    = rotMuv.size(0);
-    int nu0   = rotnmu0;
-    int nv    = rotMuv.size(1);
-    int nel_  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
-    RUNTIME_CHECK(G.size(1) == nel_ * npol * NMO, "");
-    using ma::T;
-    int u0, uN;
-    std::tie(u0, uN) = FairDivideBoundary(comm->rank(), nu, comm->size());
-    int v0, vN;
-    std::tie(v0, vN) = FairDivideBoundary(comm->rank(), nv, comm->size());
-    int k0, kN;
-    std::tie(k0, kN) = FairDivideBoundary(comm->rank(), npol*NMO, comm->size());
+    if (idet > 0)
+      APP_ABORT(" Error: THC not yet implemented for multiple references.");
+
+    // get array_views to the correct data and correct determinant
+    bool has_rot = _Xsiu_rot_.has_value();
+    const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_() );
+    const auto Ysau = ( has_rot ? (*_Ydsau_rot_)()(idet,nda::ellipsis{}) : _Ydsau_()(idet,nda::ellipsis{}) );
+    const auto Zuv = ( has_rot ? (*_Zuv_rot_)() : (*_Zuv_)() );
+
+    int nu = Zuv.extent(0);
+    long nstot = _Xsiu_().shape()[0];
+    long nptot = _Xsiu_().shape()[1]/NMO; 
 
     // calculate how many walkers can be done concurrently
     long mem_needs(0);
-    if (not std::is_same<GType, SPComplexType>::value)
-      mem_needs += G.num_elements();
+    if (not std::is_same_v<GType, SPComplexType>)
+      mem_needs += G.size();
     long Bytes = default_buffer_size_in_MB * 1024L * 1024L;
     Bytes -= mem_needs * long(sizeof(SPComplexType));
-    Bytes /= long((nu * nv + nv + nv * nup) * sizeof(SPComplexType));
+    Bytes /= long((nu * nu + nu + nu * nup) * sizeof(SPComplexType));
     int nwmax = std::min(nwalk, std::max(1, int(Bytes)));
-    ShmArray<SPComplexType, 1> Gbuff(iextensions<1u>{mem_needs},
-                                     shm_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-
-    const_sp_pointer Gptr(nullptr);
+    
+    memory::buffered_array<MEM,SPComplexType,1> Gbuff(mem_needs);
+    SPComplexType const* Gptr = nullptr;
     // setup origin of Gsp and copy_n_cast if necessary
-    if (std::is_same<GType, SPComplexType>::value)
+    if constexpr (std::is_same_v<GType, SPComplexType>)
     {
-      Gptr = reinterpret_pointer_cast<SPComplexType const>(make_device_ptr(G.origin()));
+      Gptr = reinterpret_cast<SPComplexType const*>(G.data()); 
     }
     else
     {
-      long i0, iN;
-      std::tie(i0, iN) = FairDivideBoundary(long(comm->rank()), long(G.num_elements()), long(comm->size()));
-      copy_n_cast(make_device_ptr(G.origin()) + i0, iN - i0, make_device_ptr(Gbuff.origin()) + i0);
-      Gptr = make_device_ptr(Gbuff.origin());
+      auto Gb = nda::reshape(Gbuff,G.shape());
+      nda::copy_cast(G,Gb);
+      Gptr = Gbuff.data(); 
     }
-    Array_cref<SPComplexType, 2> Gsp(Gptr, G.extensions());
-
-    // Guv[nspin][nu][nv]
-    ShmArray<SPComplexType, 3> Guv({nwmax, nu, nv},
-                                   shm_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-    // Guu[u]: summed over spin
-    ShmArray<SPComplexType, 2> Guu({nwmax, nv},
-                                   shm_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-
-    // Buffer space
-    ShmArray<SPComplexType, 3> Tav({nwmax, nup, nv},
-                                   shm_buffer_manager.get_generator().template get_allocator<SPComplexType>());
+    // fine because G is assumed contiguous, otherwise build nda::idx_map with custom strides
+    memory::array_view<MEM,const SPComplexType,3> G3d(std::array<long,3>{nwalk,nel,npol*NMO},Gptr);
 
     SPRealType scl = (walker_type == CLOSED ? 2.0 : 1.0);
     int iw(0);
     while (iw < nwalk)
     {
       int nw = std::min(nwmax, nwalk - iw);
-      ma::fill(Guu, SPComplexType(0.0));
+      // Guv[nspin][nu][nv]
+      memory::buffered_array<MEM,SPComplexType,3> Guv(nw,nu,nu);
+      // Guu[u]: summed over spin
+      memory::buffered_array<MEM,SPComplexType,2> Guu(nw,nu);
+      Guu() = SPComplexType(0.0);
       for (int ispin = 0; ispin < nspin; ++ispin)
       {
-        Guv_Guu(ispin, Gsp.sliced(iw, iw + nw), Guv, Guu, Tav, k);
-
-        // Gwuv = Gwuv * rotMuv
-        ma::term_by_term_matrix_matrix_strided( ma::TOp_MUL, nu, (vN-v0), SPValueType(1.0), 
-		ma::pointer_dispatch(rotMuv.origin()) + v0, nv, 0,
-		ma::pointer_dispatch(Guv.origin()) + v0, nv, Guv.stride(0), nw, 
-		ma::select_backend<ShmArray<SPComplexType, 3>>());
-        comm->barrier();
-
-        // R[w,u][b] = sum_v Guv[w,u][v] * rotcXau[b][v]
-        long i0, iN;
-        std::tie(i0, iN) = FairDivideBoundary(long(comm->rank()), long(nw * nu), long(comm->size()));
-        Array_ref<SPComplexType, 2> Rwub(make_device_ptr(Tav.origin()), {nw * nu, nelec[ispin]});
-        Array_ref<SPComplexType, 2> Guv2D(make_device_ptr(Guv.origin()), {nw * nu, nv});
-        ma::product(Guv2D.sliced(i0, iN), ma::T(rotcXau[k].sliced(ispin * nup, nup + ispin * ndown)), Rwub.sliced(i0, iN));
-        comm->barrier();
-
-        //T[w][b][k] = sum_u R[w][u][b] * Piu[k][u]
-        // need batching in this case
-        Array_ref<SPComplexType, 3> Rwub3D(Rwub.origin(), {nw, nu, nelec[ispin]});
-        Array_ref<SPComplexType, 3> Twbk(make_device_ptr(Guv.origin()), {nw, nelec[ispin], NMO});
-        Array_ref<SPComplexType, 2> Twbk2D(Twbk.origin(), {nw, nelec[ispin] * NMO});
-        std::vector<decltype(&(Rwub3D[0]))> vRwub;
-        std::vector<decltype(&(rotPiu({0, 1}, {0, 1})))> vPku;
-        std::vector<decltype(&(Twbk[0]({0, 1}, {0, 1})))> vTwbk;
-        vRwub.reserve(nw);
-        vPku.reserve(nw);
-        vTwbk.reserve(nw);
-        for (int w = 0; w < nw; ++w)
+        long is_ = long(ispin)%nstot; 
+        for (int p1 = 0; p1 < npol; ++p1)
         {
-          vRwub.emplace_back(&(Rwub3D[w]));
-          vPku.emplace_back(&(rotPiu({ispin*NMO+k0, ispin*NMO+kN}, {nu0, nu0 + nu})));
-          vTwbk.emplace_back(&(Twbk[w]({0, nelec[ispin]}, {k0, kN})));
-        }
-	if constexpr(REAL) {
-          // need to keep vPku on the left hand side in real build
-          if (Guv.num_elements() >= 2 * Twbk.num_elements())
+          long ip1_ = long(p1)%nptot; 
+          for (int p2 = 0; p2 < npol; ++p2)
           {
-            Array_ref<SPComplexType, 3> Twkb(Twbk.origin() + Twbk.num_elements(), {nw, NMO, nelec[ispin]});
-            std::vector<decltype(&(Twkb[0].sliced(0, 1)))> vTwkb;
-            vTwkb.reserve(nw);
-            for (int w = 0; w < nw; ++w)
-              vTwkb.emplace_back(&(Twkb[w].sliced(k0, kN)));
-            ma::BatchedProduct('N', 'N', vPku, vRwub, vTwkb);
-            for (int w = 0; w < nw; ++w)
-              ma::transpose(Twkb[w].sliced(k0, kN), Twbk[w]({0, nelec[ispin]}, {k0, kN}));
-          }
-          else
-          {
-            Array<SPComplexType, 3> Twkb({nw, (kN - k0), nelec[ispin]},
-                                         device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-            std::vector<decltype(&(Twkb[0]))> vTwkb;
-            vTwkb.reserve(nw);
-            for (int w = 0; w < nw; ++w)
-              vTwkb.emplace_back(&(Twkb[w]));
-            ma::BatchedProduct('N', 'N', vPku, vRwub, vTwkb);
-            for (int w = 0; w < nw; ++w)
-              ma::transpose(Twkb[w], Twbk[w]({0, nelec[ispin]}, {k0, kN}));
-          }
-	} else {
-          ma::BatchedProduct('T', 'T', vRwub, vPku, vTwbk);
-	}
-        comm->barrier();
+            // Buffer space
+            memory::buffered_array<MEM,SPComplexType,3> Tav(nw,nelec[ispin],nu);
+            Guv_Guu(ispin, p1, p2, G3d(range(iw, iw + nw), all, all), Guv, Guu, Tav, idet);
 
-        // E[w] = sum_bk T[w][bk] G[w][bk]
-        // move to batched_dot!!!
-        // or to batched_adotpby
-        std::tie(i0, iN) = FairDivideBoundary(long(comm->rank()), long(nelec[ispin] * NMO), long(comm->size()));
-        using ma::adotpby;
-        adotpby(SPComplexType(SPRealType(-0.5 * scl)), Gsp({0, nw}, {ispin * nelec[0] * NMO + i0, ispin * nelec[0] * NMO + iN}),
-                Twbk2D({0, nw}, {i0, iN}), ComplexType(1.0), E({iw, iw + nw}, 1));
-        comm->barrier();
+            if constexpr (MEM==HOST_MEMORY) {
+              for(int i=0; i<nw; ++i)
+                Guv(i,nda::ellipsis{}) *= Zuv();
+            } else {
+              nda::tensor::elementwise(SPComplexType(1.0),Guv,"wuv",
+                                       SPComplexType(1.0),Zuv,"uv",nda::tensor::op::MUL);
+            }
+
+            // R[w,u][b] = sum_v Guv[w,u][v] * rotcXau[b][v]
+            auto Yau = Ysau(ispin,p2,range(nelec[ispin]),all);
+            nda::tensor::contract(Yau,"av",Guv,"wuv",Tav,"wau"); 
+
+            // reuse Guv memory
+            memory::array_view<MEM,SPComplexType,3> Twbi(std::array<long,3>{nw,nelec[ispin],NMO},Guv.data());
+            //T[w][b][k] = sum_u R[w][u][b] * Piu[k][u]
+	    if constexpr(REAL) {
+              auto Xiu = Xsiu(is_,range(ip1_*NMO,(ip1_+1)*NMO),all);
+              auto Ta4d = memory::to_real_view(Tav);
+              auto Tb4d = memory::to_real_view(Twbi);
+              nda::tensor::contract(Ta4d,"wauc",Xiu,"iu",Tb4d,"waic"); 
+	    } else {
+              auto Xiu = Xsiu(is_,range(ip1_*NMO,(ip1_+1)*NMO),all);
+              nda::tensor::contract(Tav,"wau",Xiu,"iu",Twbi,"wai"); 
+            }
+
+            // E[w] = sum_ai T[w][a][i] * G[w][a][i] 
+            auto Gwai = G3d(range(iw, iw + nw),range(ispin*nup,nup+ispin*ndown),range(p1*NMO,(p1+1)*NMO)); 
+            memory::buffered_array<MEM,SPComplexType,1> Ew(nw);
+            nda::tensor::contract(SPComplexType(-0.5*scl),Twbi,"wai",Gwai,"wai",SPComplexType(0.0),Ew,"w"); 
+
+            if constexpr (MEM==HOST_MEMORY) 
+              E(range(iw, iw + nw), 1) += Ew();
+            else
+              utils::check(false,"finish");
+          }
+        }
       }
-      comm->barrier();
       if (addEJ)
       {
-        Array<SPComplexType, 2> Twu({nw, (uN - u0)},
-                                    device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
+        memory::buffered_array<MEM,SPComplexType,2> Twu(nw,nu);
+        memory::buffered_array<MEM,SPComplexType,1> Ew(nw);
 	if constexpr (REAL) {
-          // need to keep rotMuv on the left hand side in real build
-          Array<SPComplexType, 2> Tuw({(uN - u0), nw},
-                                    device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-          ShmArray<SPComplexType, 2> Gvw({nv, nw},
-                                       shm_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-          ma::transpose(Guu({0, nw}, {v0, vN}), Gvw.sliced(v0, vN));
-          comm->barrier();
-          ma::product(rotMuv.sliced(u0, uN), Gvw, Tuw);
-          ma::transpose(Tuw, Twu);
+          // use strategy in Guv_Guu
+          utils::check(false,"finish");
 	} else {
-          ma::product(Guu.sliced(0, nw), ma::T(rotMuv.sliced(u0, uN)), Twu);
+          nda::blas::gemm(Guu,Zuv,Twu);
 	}
-        comm->barrier();
-        using ma::adotpby;
-        adotpby(SPComplexType(SPRealType(0.5 * scl * scl)), Guu({0, nw}, {nu0 + u0, nu0 + uN}), Twu, ComplexType(0.0),
-                E({iw, iw + nw}, 2));
-
+        nda::tensor::contract(SPComplexType(SPRealType(0.5 * scl * scl)),Guu,"wu",Twu,"wu",
+                              SPComplexType(0.0),Ew,"w"); 
+// NEED ACCUMULATE WITH CASTING
+        if constexpr (MEM==HOST_MEMORY) 
+          E(range(iw, iw + nw), 2) += Ew();
+        else
+          utils::check(false,"finish");
       }
-      comm->barrier();
+      mpi->comm.barrier();
       iw += nw;
     }
-    comm->barrier();
+    mpi->comm.barrier();
   }
-
+/*
   template<class Mat, class MatB, class MatC>
   void energy([[maybe_unused]] SpinTypes spin_component,
               [[maybe_unused]] Mat&& E,
@@ -675,7 +624,7 @@ public:
         }
       }
       comm->barrier();
-*/
+* /
   }
 
   template<class... Args>
@@ -946,20 +895,6 @@ public:
     else
     {
       APP_ABORT(" Error: THC not yet implemented for multiple references.");
-/*
-      Array_ref<SPComplexType, 2> Guu(make_device_ptr(SM_TMats.origin()) + cnt, {nu, nwalk});
-      Guu_from_full(Gsp, Guu);
-      if constexpr (REAL) {
-        ma::product(SPRealType(a), T(Luv(Luv.extension(0), {c0, cN})), Guu, SPRealType(c), vsp.sliced(c0, cN));
-      } else {
-        // reinterpret as RealType matrices with 2x the columns
-        Array_ref<SPRealType, 2> Luv_R(reinterpret_pointer_cast<SPRealType>(make_device_ptr(Luv.origin())),
-                                     {Luv.size(0), 2 * Luv.size(1)});
-        Array_ref<SPRealType, 2> Guu_R(reinterpret_pointer_cast<SPRealType>(Guu.origin()), {nu, 2 * nwalk});
-        Array_ref<SPRealType, 2> vsp_R(reinterpret_pointer_cast<SPRealType>(vsp.origin()), {vsp.size(0), 2 * vsp.size(1)});
-        ma::product(SPRealType(a), T(Luv_R(Luv_R.extension(0), {c0, cN})), Guu_R, SPRealType(c), vsp_R.sliced(c0, cN));
-      }
-*/
     }
     if (not std::is_same<vType, SPComplexType>::value)
     {
@@ -974,11 +909,14 @@ public:
     APP_ABORT(" Error: generalizedFockMatrix not implemented for this hamiltonian.");
   }
 
+*/
   bool distribution_over_cholesky_vectors() const { return false; }
-  int number_of_ke_vectors() const { return rotMuv.size(0); }
-  int local_number_of_cholesky_vectors() const { return ( REAL ? Luv.size(1) : 2 * Luv.size(1) ); }
-  int global_number_of_cholesky_vectors() const { return ( REAL ? Luv.size(1) : 2 * Luv.size(1) ); }
-  int global_origin_cholesky_vector() const { return 0; }
+  int number_of_ke_vectors() const { 
+    utils::check(_Zuv_.has_value() or _Zuv_rot_.has_value(), "Missing Zuv/Zuv_rot.");
+    if(_Zuv_.has_value()) return _Zuv_->extent(0);
+    else return _Zuv_rot_->extent(0); 
+  }
+  int number_of_cholesky_vectors() const { return ( REAL ? _Luv_().extent(1) : 2 * _Luv_().extent(1) ); }
 
   // transpose=true means G[nwalk][ik], false means G[ik][nwalk]
   bool transposed_G_for_vbias() const { return true; }
@@ -990,9 +928,9 @@ public:
   // add nspin_in_basis to allow for a spin independent basis too
   bool spin_dependent_vHS() const 
   { return ((walker_type == COLLINEAR) or (walker_type == NONCOLLINEAR)); } 
-
-  boost::multi::array<ComplexType, 2> getHSPotentials() 
-  { return boost::multi::array<ComplexType, 2>{}; }
+/*
+  nda::array<ComplexType, 2> getHSPotentials() 
+  { return nda::array<ComplexType, 2>{}; }
 
 protected:
   // Guu[nu][nwalk]
@@ -1118,82 +1056,60 @@ protected:
   // G[w][nel*nmo]
   // Guv[w][nu][nv]
   // Guu[w][v], accumulated on this routine, sum over spin is outside
-  // Twav[w][nup][nv]
-  template<class MatA, class MatB, class MatC, class MatD>
-  void Guv_Guu(int ispin, MatA const& G, MatB&& Guv, MatC&& Guu, MatD&& T3Dbuff, int k)
+  // Twav[w][nel][nv]
+  void Guv_Guu(int ispin, int p1, int p2, nda::MemoryArrayOfRank<3> auto const& G, 
+         nda::MemoryArrayOfRank<3> auto && Guv, nda::MemoryArrayOfRank<2> auto && Guu, 
+         nda::MemoryArrayOfRank<3> auto && Twav, int idet)
   {
-    using ma::T;
-    static_assert(std::decay<MatA>::type::dimensionality == 2, "Wrong dimensionality");
-    static_assert(std::decay<MatB>::type::dimensionality == 3, "Wrong dimensionality");
-    static_assert(std::decay<MatC>::type::dimensionality == 2, "Wrong dimensionality");
-    static_assert(std::decay<MatD>::type::dimensionality == 3, "Wrong dimensionality");
+    using nda::range;
+    auto all = range::all;
+    long nstot = _Xsiu_().shape()[0]; 
+    long nptot = _Xsiu_().shape()[1]/NMO; 
+    long ip_ = long(p2)%nptot;
+    nda::range M_rng(ip_*NMO,(ip_+1)*NMO);
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
-    int nu   = int(rotMuv.size(0)); // potentially distributed over nodes
-    int nv   = int(rotMuv.size(1)); // not distributed over nodes
-    int nw   = int(G.size(0));
-    utils::check(rotPiu.size(1) == nv, "THC::Guv_Guu: Size mismatch.");
-    int v0, vN;
-    std::tie(v0, vN) = FairDivideBoundary(comm->rank(), nv, comm->size());
-    int k0, kN;
-    std::tie(k0, kN) = FairDivideBoundary(comm->rank(), NMO, comm->size());
-    int nu0          = rotnmu0;
+    bool has_rot = _Xsiu_rot_.has_value();
+    const auto Xiu = ( has_rot ? (*_Xsiu_rot_)()(ispin%nstot,M_rng,all) : 
+                                  _Xsiu_()(ispin%nstot,M_rng,all) );
+    const auto Yau = ( has_rot ? (*_Ydsau_rot_)()(idet,ispin,p1,nda::range(nelec[ispin]),all) : 
+                                 _Ydsau_()(idet,ispin,p1,nda::range(nelec[ispin]),all) );
+    int nw   = int(G.extent(0));
 
-    utils::check(G.size(1) == nel * npol * NMO, "THC::Guv_Guu: Size mismatch");
-
-    auto Twav = T3Dbuff({0,nw},{0,nelec[ispin]},{v0,vN});
     // G3d[w][a][j]
-    auto G3d = G.rotated().partitioned(nel).unrotated();
+    utils::check(G.shape() == std::array<long,3>{nw,nel,npol*NMO}, "THC::Guv_Guu: Shape mismatch");
+    utils::check(Twav.extent(1) == nelec[ispin], "THC::Guv_Guu: Twav size mismatch.");
 
-    // transposing intermediary to make dot products faster in the next step
     if constexpr (REAL) {
-      ShmArray<SPComplexType, 3> Gja({nw, NMO, nelec[ispin]},
-                                   shm_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-      Array_ref<SPComplexType, 3> Twva(make_device_ptr(Guv.origin()), {nw, nv, nelec[ispin]});
-      // Gwaj -> Gwja
-      for( int iw=0; iw<nw; iw++) 
-        ma::transpose(G3d[iw]({ispin*nup,nup+ispin*ndown}, {k0, kN}), Gja[iw].sliced(k0, kN));
-      comm->barrier();
-      // Twva[w][v][a] = sum_j X[j][v] * G[w][a][j] 
-      ma::productStridedBatched(SPValueType(1.0),T(rotPiu({ispin*NMO, (ispin+1)*NMO},{v0, vN})),
-                                T(G3d({0,nw},{ispin * nup, nup + ispin * ndown},{0,NMO})),
-                                SPValueType(0.0),Twva({0,nw},{v0,vN},{0,nelec[ispin]}));
-      // Twva -> Twav 
-      for (int iw = 0; iw < nw; ++iw)
-        ma::transpose(Twva[iw]({v0,vN},{0,nelec[ispin]}), Twav[iw]({0,nelec[ispin]},{v0,vN}));
-    } else {
+      static_assert(std::decay_t<decltype(G)>::is_stride_order_C(), "Stride mismatch");
+      static_assert(std::decay_t<decltype(Twav)>::is_stride_order_C(), "Stride mismatch");
+      auto G4d = memory::to_real_view(G);
+      auto T4d = memory::to_real_view(Twav);
+      // choose electron range compatible with ispin
+      auto Gwaic = G4d(all,nda::range(ispin*nup,nup+ispin*ndown),range(p2*NMO,(p2+1)*NMO),all);
       // Twav[w][a][v] = sum_j G[w][a][j] X[j][v]
-      ma::productStridedBatched(G3d({0,nw},{ispin * nup, nup + ispin * ndown},{0,NMO}),
-                                rotPiu({ispin*NMO, (ispin+1)*NMO},{v0, vN}), Twav);
+      nda::tensor::contract(Gwaic,"wajc",Xiu,"jv",T4d,"wavc");
+    } else {
+      auto Gwai = G(all,nda::range(ispin*nup,nup+ispin*ndown),range(p2*NMO,(p2+1)*NMO));
+      // Twav[w][a][v] = sum_j G[w][a][j] X[j][v]
+      nda::tensor::contract(Gwai,"wai",Xiu,"iv",Twav,"wav");
     }
-    comm->barrier();
     // G[w][u][v] = sum_a X[a][u] Twav[w][a][v]
-    ma::productStridedBatched(T(rotcXau[k]({ispin * nup, nup + ispin * ndown},{nu0,nu0 + nu})),
-                              Twav, Guv({0,nw},{0, nu},{v0, vN}));
-    comm->barrier();
+    nda::tensor::contract(Yau,"au",Twav,"wav",Guv,"wuv");
 
-    // Gwv = Gwvv, in range v={nu0,nu0+nu}
-    using ma::get_diagonal_strided;
-    //  needs distribution
-    if (comm->root())
-    {
-      get_diagonal_strided(Guv({0, nw}, {0, nu}, {nu0, nu0 + nu}), Guu({0, nw}, {nu0, nu0 + nu}));
-      // dispatch these through ma_blas_extensions!!!
-      // Gwv = sum_a Twav Pva
-      // Gwu[w][u] = sum_a T1[w][a][u] * rotcXau[a][u]
-      if (nu0 > 0) // calculate Guu from u={0,nu0}
-        ma::dot('T','T','N',SPComplexType(1.0),T3Dbuff({0,nw},{0,nelec[ispin]},{0,nu0}),
-                            rotcXau[0]({ispin*nup,nup+ispin*ndown},{0,nu0}),
-                            SPComplexType(1.0),Guu({0,nw},{0, nu0}));
-      if (nu0 + nu < nv) // calculate Guu from u={nu0+nu,nv}
-        ma::dot('T','T','N',SPComplexType(1.0),T3Dbuff({0,nw},{0,nelec[ispin]},{nu0 + nu,nv}),
-                            rotcXau[0]({ispin*nup,nup+ispin*ndown},{nu0 + nu,nv}),
-                            SPComplexType(1.0),Guu({0,nw},{nu0 + nu,nv}));
+    // Gwv = Gwvv, 
+    if(p1==p2) {
+      if constexpr (MEM==HOST_MEMORY) {
+        for(int i=0; i<nw; i++)
+          Guu(i,all) += nda::diagonal(Guv(i,all,all));
+      } else {
+        utils::check(false, "finish");
+      }
     }
-    comm->barrier();
+    mpi->comm.barrier();
   }
-
-  /*
+/*
+  / *
     // since this is for energy, only compact is accepted
     // Computes Guv and Guu for a single walker
     // As opposed to the other Guu routines,
@@ -1246,54 +1162,46 @@ protected:
     }
 */
 protected:
-  communicator* comm;
+  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
-  DeviceBufferManager device_buffer_manager;
-  LocalTGBufferManager shm_buffer_manager;
-
-  long default_buffer_size_in_MB = 4L * 1024L;
+  WALKER_TYPES walker_type;
 
   int NMO, nup, ndown;
   int nelec[2];
 
-  int nmu0, gnmu, rotnmu0, grotnmu;
+  // H1[nspin][npol*NMO][npol*NMO]
+  memory::shared_array<MEM,ComplexType,3> hij;
 
-  WALKER_TYPES walker_type;
+  // half rotated one body hamiltonian: [ndet][nup+ndn][npol*NMO]
+  memory::shared_array<MEM,ComplexType,3> haj;
 
-  // bare one body hamiltonian
-  mpi3CMatrix hij;
+  // Xsiu[nspin][npol*NMO][nu]
+  memory::shared_array<MEM,SPValueType,3> _Xsiu_;
 
-  // (potentially half rotated) one body hamiltonian
-  nodeArray<ComplexType, 2> haj;
+  // Ydsau[ndet][nspin][ipol][nup][nu]
+  memory::shared_array<MEM,SPComplexType,5> _Ydsau_;
 
-  /************************************************/
-  // Used in the calculation of the energy
-  // Coulomb matrix elements of interpolating vectors
-  nodeArray<SPValueType, 2> rotMuv;
+  // Luv[nu][nv]
+  memory::shared_array<MEM,SPValueType,2> _Luv_;
 
-  // Orbitals at interpolating points
-  nodeArray<SPValueType, 2> rotPiu;
+  // Zuv[nu][nv]
+  std::optional<decltype(_Luv_)> _Zuv_;
 
-  // Half-rotated Orbitals at interpolating points
-  std::vector<nodeArray<SPComplexType, 2>> rotcXau;
-  /************************************************/
+  // Xsiu_rot[nspin][npol*NMO][nu_rot]
+  std::optional<decltype(_Xsiu_)> _Xsiu_rot_;
 
-  /************************************************/
-  // Following 3 used in calculation of vbias and vHS
-  // Cholesky factorization of Muv
-  nodeArray<SPValueType, 2> Luv;
+  // Ydsau_rot[ndet][nspin][ipol][nup][nu_rot]
+  std::optional<decltype(_Ydsau_)> _Ydsau_rot_; 
 
-  // Orbitals at interpolating points
-  nodeArray<SPValueType, 2> Piu;
+  // Zuv_rot[nu_rot][nu_rot]
+  std::optional<decltype(_Luv_)> _Zuv_rot_; 
 
-  // Half-rotated Orbitals at interpolating points
-  std::vector<nodeArray<SPComplexType, 2>> cXau;
-  /************************************************/
-
-  // one-body piece of Hamiltonian factorization
-  mpi3CMatrix vn0;
+  // v0(i,l) = -0.5 * sum_j <ij|jl>
+  memory::shared_array<MEM,ComplexType,3> v0;
 
   ComplexType E0;
+
+  long default_buffer_size_in_MB = 4L * 1024L;
 };
 
 } // namespace afqmc

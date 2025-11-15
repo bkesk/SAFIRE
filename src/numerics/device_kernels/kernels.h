@@ -27,10 +27,8 @@
 
 #include "numerics/device_kernels/cuda/argmax_min.cuh"
 #include "numerics/device_kernels/cuda/copy_select.cuh"
+#include "numerics/device_kernels/cuda/copy_cast.cuh"
 #include "numerics/device_kernels/cuda/complex_tools.cuh"
-//#include "numerics/device_kernels/cuda/symmetry_tools.cuh"
-//#include "numerics/device_kernels/cuda/kpoint_tools.cuh"
-//#include "numerics/device_kernels/cuda/potentials.cuh"
 
 #endif
 

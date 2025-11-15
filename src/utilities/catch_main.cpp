@@ -34,6 +34,21 @@ std::string UTEST_HAMIL, UTEST_WFN;
 int main(int argc, char* argv[])
 {
   boost::mpi3::environment env(argc, argv);
+  auto world = boost::mpi3::environment::get_world_instance();
+
+  int output_level=2, debug_level=2;
+  if(const char* env_p = std::getenv("OUTPUT_LEVEL")) {
+    output_level = std::atoi(env_p);
+    if(output_level < 0) output_level=2;
+    if(output_level > 5) output_level=2;
+  }
+  if(const char* env_p = std::getenv("DEBUG_LEVEL")) {
+    debug_level = std::atoi(env_p);
+    if(debug_level < 0) debug_level=2;
+    if(debug_level > 5) debug_level=2;
+  }
+  sfqmc::arch::init(world.root(),output_level,debug_level);
+
   Catch::Session session;
   using namespace Catch::clara;
   // Build command line parser.

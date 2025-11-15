@@ -148,12 +148,18 @@ namespace math {
       auto mpi() const { return _mpi; }
       mpi3::shared_window<value_type>& win() { return *_win; }
 
+      auto extent(long i) const { return _shape[i]; }
       auto const& shape() const { return _shape; }
       auto const& global_shape() const { return _shape; }
       auto size() const { return _size; }
+      auto data() { return (value_type*) _win->base(0); }
+      auto data() const { return (value_type const*) _win->base(0); }
 
       auto local() { return Array_view_t(_shape, (value_type*) _win->base(0)); }
       auto local() const { return Array_view_t(_shape, (value_type*) _win->base(0)); }
+
+      auto operator()() { return this->local(); }
+      auto operator()() const { return this->local(); }
 
     protected:
       std::shared_ptr<sfqmc::utils::mpi_context_t<mpi3::communicator,mpi3::shared_communicator>> _mpi;

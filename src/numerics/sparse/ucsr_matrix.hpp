@@ -215,6 +215,7 @@ public:
   // accessor functions
   auto shape() const { return std::array<long,2>{size1_,size2_}; } 
   auto shape(long i) const { return (i==0?size1_:size2_); } 
+  auto extent(long i) const { return (i==0?size1_:size2_); } 
   auto capacity()  const { return row_begin_(size1_)-row_begin_(0); } 
   auto capacity(long i)  const { return row_begin_(i+1)-row_begin_(i); } 
   auto values() const { return data_(); }
@@ -258,22 +259,10 @@ public:
     }
   }
 
-  template<typename integer_type = IndxType, typename value_type = ValType>
-  void emplace(std::tuple<integer_type, integer_type, value_type> const& val)
-  {
-    using std::get;
-    emplace({get<0>(val), get<1>(val)}, static_cast<ValType>(get<2>(val)));
-  }
   template<class Pair = std::array<IndxType, 2>, class... Args>
   void emplace_back(Pair&& indices, Args&&... args)
   {
     emplace(std::forward<Pair>(indices), std::forward<Args>(args)...);
-  }
-  template<typename integer_type = IndxType, typename value_type = ValType>
-  void emplace_back(std::tuple<integer_type, integer_type, value_type> const& val)
-  {
-    using std::get;
-    emplace({get<0>(val), get<1>(val)}, static_cast<ValType>(get<2>(val)));
   }
   // resets to empty state
   void clear()

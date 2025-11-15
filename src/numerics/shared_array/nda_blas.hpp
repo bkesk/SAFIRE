@@ -19,8 +19,7 @@
  */
 
 
-#ifndef NUMERICS_SHARED_ARRAY_NDA_BLAS_HPP
-#define NUMERICS_SHARED_ARRAY_NDA_BLAS_HPP
+#pragma once
 
 #include "configuration.hpp"
 #include "mpi3/communicator.hpp"
@@ -147,4 +146,3 @@ void gemm(A_t const& A, B_t const& B, C_t && C)
 
 }
 
-#endif

@@ -270,7 +270,7 @@ void test_csr_matrix()
     small[2][1] = 3;
     small[3][3] = 1;
 
-    auto A_ = math::sparse::to_mat(small);
+    auto A_ = math::sparse::to_array<Type>(small);
     check(A_,small);
   }
 

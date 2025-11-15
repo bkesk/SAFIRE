@@ -19,8 +19,7 @@
  */
 
 
-#ifndef NUMERICS_NDA_FUNCTIONS_HPP
-#define NUMERICS_NDA_FUNCTIONS_HPP
+#pragma once 
 
 /*
  * Collection of functions of nda arrays.
@@ -286,6 +285,29 @@ void copy_select(bool expand, int indx, V1 const& m, V2 const& s, T alpha, V3 co
   }
 }
 
+// A(...) = T(B(...)), where T = get_value_t<decltype(A)>
+template<MemoryArray A_t, MemoryArray B_t>
+requires( get_rank<A_t> == get_rank<B_t> and 
+       ((std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C()) or
+        (std::decay_t<A_t>::is_stride_order_Fortran() and std::decay_t<B_t>::is_stride_order_Fortran())))
+void copy_cast(A_t const& A, B_t && B) {
+  sfqmc::utils::check(A.shape() == B.shape(), "Shape mismatch");
+  if constexpr (std::is_same_v<get_value_t<A_t>,get_value_t<B_t>>) {
+    B() = A();
+  } else {
+    if constexpr (nda::mem::have_device_compatible_addr_space<A_t,B_t>) {
+#if defined(ENABLE_DEVICE)
+      kernels::device::copy_cast(A,B);
+#else
+      sfqmc::utils::check(false,"Error: Missing device function copy_cast.");
+#endif
+    } else {
+      B() = A();
+    }
+  } 
+
+}
+
 template<MemoryArray Arr>
 void zero_imag(Arr && A) 
 {
@@ -356,4 +378,3 @@ auto to_cutensor(Arr&& A) {
 
 }
 
-#endif

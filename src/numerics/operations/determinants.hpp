@@ -21,13 +21,13 @@
 namespace math
 {
 
+// Important to accumulate on res/ovlp!!!
 namespace detail {
 template<typename T, typename A, typename I, typename V>  
 void log_determinant_from_getrf_impl(long n, long batchSize, A const& a, I const& pivot, V && res) { 
   static const auto pi = imag(std::log(T(-1)));
   T minus = T(-1.0);
   for (int b = 0; b != batchSize; ++b ) { 
-    res(b) = T(0.0);
     for (int i = 0, ip = 1; i != n; i++, ip++) {
       if(pivot(b,i) == ip)
         res(b) += std::log(static_cast<T>(a(b,i,i)));
@@ -51,10 +51,7 @@ void log_determinant_from_getrf_impl(long n, long batchSize, A const& a, I const
 
 template<typename T, typename A, typename I, typename V>
 void log_determinant_from_geqrf_impl(long n, long batchSize, A const& a, I && scl, V && res) {
-  static const auto pi = imag(std::log(T(-1)));
-  const T minus = T(-1.);
   for (int b = 0; b != batchSize; ++b ) {
-    res(b) = 0; 
     for (int i = 0; i != n; i++) {
       if(std::real(a(b,i,i)) < 0)
         scl(b,i) = T(-1.);

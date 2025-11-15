@@ -23,6 +23,8 @@
 #include "nda/nda.hpp"
 #include "nda/h5.hpp"
 
+#include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
+
 namespace sfqmc
 {
 namespace afqmc
@@ -36,13 +38,13 @@ struct TEST_DATA
   T Xsum, Vsum;
 };
 
-inline int read_nmo_from_hdf(std::string fileName, std::string format)
+inline int read_nmo_from_hdf(std::string fileName)
 {
-  app_log(1, "Reading NMO from hamil file: {} of format {} ", fileName, format);
   int NMO(0);
   h5::file file(fileName,'r');
   h5::group grp(file);
-
+  auto format = get_hamiltonian_format(grp);
+  app_log(1, "Reading NMO from hamil file: {} of format {} ", fileName, format);
   if (format == "std")
   {
     utils::check(grp.has_subgroup("Hamiltonian"), "Missing Hamiltonian dataset.");
@@ -58,105 +60,92 @@ inline int read_nmo_from_hdf(std::string fileName, std::string format)
   return NMO;
 }
 
-/*
 inline std::tuple<int, int, int> read_info_from_wfn(std::string fileName, std::string type)
 {
 
   app_log(1, "Reading info from wfn file: {} of type {} ", fileName, type);
-
-  hdf_archive dump;
-  if (!dump.open(fileName, H5F_ACC_RDONLY))
-    APP_ABORT(" Error opening wavefunction file in read_info_from_wfn.");
-  if (dump.push("Wavefunction", false)<0)
-    APP_ABORT("Error in read_info_from_wfn(): Group not Wavefunction found. ");
-  
-  
-  if (type == "any")
-  {
-    if (!dump.push("NOMSD") and !dump.push("PHMSD"))
-      APP_ABORT("Error in read_info_from_wfn(): Group");
-  } else if (dump.push(type, false)<0) {
-    APP_ABORT("Error in read_info_from_wfn(): Group");
+  h5::file file(fileName,'r');
+  h5::group grp(file);
+  h5::group wgrp = grp.open_group("Wavefunction");
+  std::string dset = type;
+  if(type == "any") {
+    if( wgrp.has_dataset("NOMSD") )
+      type = "NOMSD";
+    else if( wgrp.has_dataset("PHMSD") )
+      type = "PHMSD";
+    else
+      utils::check(false,"Missing NOMSD/PHMSD datasets in Wavefunction.");
   }
+  h5::group mgrp = wgrp.open_group(dset);
   std::vector<int> Idata(5);
-  if (!dump.readEntry(Idata, "dims"))
-  {
-    std::cerr << " Error in read_info_from_wfn: Problems reading dims. ";
-    APP_ABORT("");
-  }
-  dump.pop();
-
+  h5::h5_read(mgrp,dset,Idata);
   return std::make_tuple(Idata[0], Idata[1], Idata[2]);
 }
 
 template<typename T>
 TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_type = "")
 {
-  hdf_archive dump;
+  h5::file file(fileName,'r');
+  h5::group grp(file);
   int nmo = 0, nup = 0, ndn = 0;
-  if (!dump.open(fileName, H5F_ACC_RDONLY))
+  if (grp.has_key("Hamiltonian"))
   {
-    std::cerr << " Error opening integral file in " <<fileName;
-    APP_ABORT("");
-  }
-  if (dump.push("Hamiltonian", false)>=0)
-  {
+    h5::group hgrp = grp.open_group("Hamiltonian");
     std::vector<int> Idata(8);
-    if (!dump.readEntry(Idata, "dims"))
-    {
-      std::cerr << " Error in read_test_results_from_hdf: Problems reading dims. ";
-      APP_ABORT("");
-    }
-    dump.pop();
+    h5::h5_read(hgrp,"dims",Idata);
     nmo = Idata[3];
     nup = Idata[4];
     ndn = Idata[5];
-  } else if(dump.push("System", false)>=0) {
+  } else if(grp.has_key("System")) {
+    h5::group sgrp = grp.open_group("System");
+    h5::group bgrp = sgrp.open_group("BZ");
     int nkpts, nbnd;
     double nel;
-    if (!dump.push("BZ"))
-      APP_ABORT("Error in read_test_results_from_hdf: Problems reading /System/BZ/");
-    if (!dump.readAttributeEntry(nkpts, "number_of_kpoints"))
-      APP_ABORT("Error in read_test_results_from_hdf: Problems reading 'number_of_kpoints' attribute from /System/BZ.");
-    dump.pop(); // BZ
-    if (!dump.readAttributeEntry(nbnd, "number_of_bands"))
-      APP_ABORT("Error in read_test_results_from_hdf: Problems reading 'number_of_bands' atrribute from /System.");
-    if (!dump.readAttributeEntry(nel, "number_of_elec"))
-      APP_ABORT("Error in read_test_results_from_hdf: Problems reading 'number_of_elec' atrribute from /System.");
-    dump.pop();
+    h5::h5_read_attribute(bgrp,"number_of_kpoints",nkpts);
+    h5::h5_read_attribute(sgrp,"number_of_bands",nbnd);
+    h5::h5_read_attribute(sgrp,"number_of_elec",nel);
     std::vector<int> dims(5);
-    if(dump.readEntry(dims,"Wavefunction/NOMSD/dims")) {
-      nmo = dims[0];
-      nup = dims[1];
-      ndn = dims[2];
-    } else if(dump.readEntry(dims,"Wavefunction/PHMSD/dims")) {
-      nmo = dims[0];
-      nup = dims[1];
-      ndn = dims[2];
-    } else { // no wfn info, set from nelec and polarization
-      // only closed shell for now, finish!
-      nup = int(nel/2.0)*nkpts;
-      ndn = nup*nkpts; 
-      nmo = nbnd*nkpts;
-    }
+    // values based on System.
+    nup = int(nel/2.0)*nkpts;
+    ndn = nup*nkpts; 
+    nmo = nbnd*nkpts;
+    // If Wavefunction is present, overwrite from data there
+    if(grp.has_key("Wavefunction")) {
+      h5::group wgrp = grp.open_group("Wavefunction");
+      if(wgrp.has_key("NOMSD")) {
+        h5::group ngrp = grp.open_group("NOMSD");
+        std::vector<int> Idata(5);
+        h5::h5_read(ngrp,"dims",Idata);
+        nmo = dims[0];
+        nup = dims[1];
+        ndn = dims[2];
+      } else if(wgrp.has_key("PHMSD")) {
+        h5::group ngrp = grp.open_group("PHMSD");
+        std::vector<int> Idata(5);
+        h5::h5_read(ngrp,"dims",Idata);
+        nmo = dims[0];
+        nup = dims[1];
+        ndn = dims[2];
+      } 
+    }   
   } else {
-    std::cerr << " Error in read_test_results_from_hdf(): Invalid h5 format. ";
-    APP_ABORT("");
+    utils::check(false," Error in read_test_results_from_hdf(): Invalid h5 format. ");
   }
   T E0(0), E1(0), E2(0), Xsum(0), Vsum(0);
-  if (dump.push("TEST_RESULTS", false)>=0)
+  if (grp.has_key("TEST_RESULTS"))
   { 
-    dump.read(E0, wfn_type + "_E0");
-    dump.read(E1, wfn_type + "_E1");
-    dump.read(E2, wfn_type + "_E2");
-    dump.read(Xsum, wfn_type + "_Xsum");
-    dump.read(Vsum, wfn_type + "_Vsum");
-    dump.pop();
+    h5::group tgrp = grp.open_group("TEST_RESULTS");
+    h5::h5_read(tgrp,wfn_type + "_E0",E0);
+    h5::h5_read(tgrp,wfn_type + "_E1",E1);
+    h5::h5_read(tgrp,wfn_type + "_E2",E2);
+    h5::h5_read(tgrp,wfn_type + "_Xsum",Xsum);
+    h5::h5_read(tgrp,wfn_type + "_Vsum",Vsum);
   }
 
   return TEST_DATA<T>{nmo, nup, ndn, E0, E1, E2, Xsum, Vsum};
 }
 
+/*
 // Create a fake output hdf5 filename for unit tests.
 inline std::string create_test_hdf(std::string& wfn_file, std::string& hamil_file)
 {
