@@ -59,6 +59,7 @@ template<bool MP, MEMORY_SPACE MEM>
 void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                  std::string hamil_file, std::string wfn_file)
 {
+  using SPComplexType = typename to_working_precision<MP,ComplexType>::type;
   using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   using matrix_t = memory::array<MEM,ComplexType,2>;
@@ -167,27 +168,23 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     app_log(1," ETotal: {}", eloc_h(0,0)+eloc_h(0,1)+eloc_h(0,2)); 
   }
 
-/*
   double dt = 0.01;
-  auto nCV      = HOps.local_number_of_cholesky_vectors();
+  auto nCV  = HOps.number_of_cholesky_vectors();
 
-  CMatrix X({nCV, 1}, ComplexType(0.0), alloc_);
+  memory::array<MEM,SPComplexType,2> X(nCV, nwalk);
+  X() = SPComplexType(0.0);
+  if (HOps.transposed_G_for_vbias())
   {
-    int nc = 1, nr = NEL * npol * NMO;
-    if (HOps.transposed_G_for_vbias())
-    {
-      nr = 1;
-      nc = NEL * npol * NMO;
-    }
-    boost::multi::array_ref<ComplexType, 2, pointer> Gw(make_device_ptr(G.origin()), {nr, nc});
-    HOps.vbias(Gw, X, dt);
+    HOps.vbias(G2d, X, dt);
+  } else {
+    HOps.vbias(Gt2d, X, dt);
   }
-  TG.TG_local().barrier();
   ComplexType Xsum = 0, Xsum2 = 0;
-  for (int i = 0; i < X.size(0); i++)
+  auto X_h = nda::to_host(X);
+  for (int i = 0; i < nCV; i++)
   {
-    Xsum += X[i][0];
-    Xsum2 += ComplexType(0.5) * X[i][0] * X[i][0];
+    Xsum += X_h(i,0);
+    Xsum2 += ComplexType(0.5) * X_h(i,0) * X_h(i,0);
   }
   if (std::abs(file_data.Xsum) > 1e-8)
   {
@@ -196,27 +193,18 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   }
   else
   {
-    app_log(1," Xsum: {}", ComplexType(Xsum));
-    app_log(1," Xsum2 (EJ): {}", ComplexType(Xsum2) / dt);
+    app_log(1," Xsum: {}", Xsum);
+    app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
   }
 
-  int vdim1 = (HOps.transposed_vHS() ? 1 : NMO * NMO);
-  int vdim2 = (HOps.transposed_vHS() ? NMO * NMO : 1);
-  CMatrix vHS({vdim1, vdim2}, alloc_);
-  TG.TG_local().barrier();
-  HOps.vHS(X, vHS, dt);
-  TG.TG_local().barrier();
+  auto vHS_dims = HOps.vHS_dims();
+  auto vHS = HOps.vHS(X,dt);
+  REQUIRE( vHS.shape() == std::array<long,4>{vHS_dims[0],nwalk,vHS_dims[1]*NMO,NMO} );
+  auto vHS_h = nda::to_host(vHS);
   ComplexType Vsum = 0;
-  if (HOps.transposed_vHS())
-  {
-    for (int i = 0; i < vHS.size(1); i++)
-      Vsum += vHS[0][i];
-  }
-  else
-  {
-    for (int i = 0; i < vHS.size(0); i++)
-      Vsum += vHS[i][0];
-  }
+  for (int i = 0; i < vHS.extent(2); i++)
+    for (int j = 0; j < vHS.extent(3); j++)
+      Vsum += vHS_h(0,0,i,j);
   if (std::abs(file_data.Vsum) > 1e-8)
   {
     REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
@@ -224,9 +212,10 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   }
   else
   {
-    app_log(1," Vsum: {}", ComplexType(Vsum));
+    app_log(1," Vsum: {}", Vsum);
   }
 
+/*
   // Generalised Fock matrix. only implemented on Real3IndexFactorization_batched_v2 
 #if !defined(ENABLE_DEVICE)
   return;

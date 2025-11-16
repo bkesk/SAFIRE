@@ -255,6 +255,7 @@ public:
               bool addEJ  = true,
               bool addEXX = true)
   {
+    memory::check_memory_space<MEM>(E,G); 
     using nda::range;
     using GType = nda::get_value_t<decltype(G)>;
     auto all = range::all;
@@ -278,9 +279,6 @@ public:
     }
     if (not(addEJ || addEXX))
       return;
-
-    if (idet > 0)
-      APP_ABORT(" Error: THC not yet implemented for multiple references.");
 
     // get array_views to the correct data and correct determinant
     bool has_rot = _Xsiu_rot_.has_value();
@@ -394,10 +392,8 @@ public:
         else
           utils::check(false,"finish");
       }
-      mpi->comm.barrier();
       iw += nw;
     }
-    mpi->comm.barrier();
   }
 /*
   template<class Mat, class MatB, class MatC>
@@ -638,271 +634,221 @@ public:
   {
     APP_ABORT(" Error: ph_excited_energy not implemented yet. ");
   }
+*/
 
-  template<class MatA,
-           class MatB,
-           typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 1)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 1)>,
-           typename = void>
-  void vHS(MatA const& X, MatB&& v, double dt, double a = 1., double c = 0.)
+  // returns v[nwalk, nspin_in_basis*npol_in_basis, NMO, NMO]
+  // no spin-orbit vHS yet
+  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt, double a = 1.) 
   {
+    memory::check_memory_space<MEM>(X);
+    using nda::range;
+    using XType = nda::get_value_t<decltype(X)>;
+    auto all = range::all;
+    int nchol = ( REAL ? _Luv_().extent(1) : 2 * _Luv_().extent(1) );
+    int nwalk = X.extent(1);
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
-    vHS(X.partitioned(X.size(0)), v.partitioned(nspin), dt, a, c);
-  }
+    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+    long nstot = _Xsiu_().shape()[0];
+    long nptot = _Xsiu_().shape()[1]/NMO;
+    utils::check_strides(X);
+    // limiting X/v to contiguous arrays for simplicity now, reconsider if necessary
+    utils::check(X.is_contiguous(), "Layout mismatch");
+    utils::check(X.shape() == std::array<long,2>{nchol,nwalk}, "THC::vbias: Size mismatch.");
 
-  template<class MatA,
-           class MatB,
-           typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 2)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 2)>>
-  void vHS(MatA&& X, MatB&& v, double dt, double a = 1., double c = 0.)
-  {
-    using ma::T;
-    using XType = typename std::decay_t<typename std::decay_t<MatA>::element>;
-    using vType = typename std::decay_t<MatB>::element;
-    using sfqmc::afqmc::reinterpret_pointer_cast;
+    // Note: Allocate first, to make better use of memory pool
+    // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
+    memory::array<MEM,SPComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
+    v() = SPComplexType(0.0);
+
     // scale a by sqrt(dt)
     a *= std::sqrt(dt);
-    //int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
-    int nwalk   = X.size(1);
-    int nchol = ( REAL ? Luv.size(1) : 2 * Luv.size(1) );
-    int nu   = Piu.size(1);
-    utils::check(Luv.size(0) == nu, "THC::vHS: Shape mismatch.");
-    utils::check(X.size(0) == nchol, "THC::vHS: Shape mismatch.");
-    utils::check(v.size(0) == nspin * nwalk, "THC::vHS: Shape mismatch: v.size:{} nspin:{} nwalk:{}",
-                 v.size(0), nspin, nwalk);
-    utils::check(v.size(1) == NMO * NMO, "THC::vHS: Shape mismatch.");
-   
-    size_t memory_needs = nu * nwalk;
-    if (not std::is_same<XType, SPComplexType>::value)
-      memory_needs += X.num_elements();
-    if (not std::is_same<vType, SPComplexType>::value)
-      memory_needs += v.num_elements();
 
+    // get array_views to the correct data and correct determinant
+    bool has_rot = _Xsiu_rot_.has_value();
+    const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_() );
+    const auto Luv = _Luv_(); 
+    int nu = Luv.extent(0);
+
+    size_t mem_needs = 0; 
+    if (not std::is_same_v<XType, SPComplexType>)
+      mem_needs += X.size();
     // calculate how many walkers can be done concurrently
     long Bytes = default_buffer_size_in_MB * 1024L * 1024L;
-    // memory_needs = X, v, Tuw
-    Bytes -= size_t(memory_needs * sizeof(SPComplexType)); // substract other needs
+    // memory_needs = X, Tuw
+    Bytes -= size_t(mem_needs * sizeof(SPComplexType)); // substract other needs
     Bytes /= size_t(NMO * nu * sizeof(SPComplexType));
     int nwmax = std::min(nwalk, std::max(1, int(Bytes)));
-    memory_needs += nwmax * NMO * nu;
-    ShmArray<SPComplexType, 1> SM_TMats(iextensions<1u>{memory_needs},
-                                        shm_buffer_manager.get_generator().template get_allocator<SPComplexType>());
 
+    memory::buffered_array<MEM,SPComplexType,1> buff(mem_needs);
     size_t cnt(0);
-    const_sp_pointer Xptr(nullptr);
-    sp_pointer vptr(nullptr);
-    // setup origin of vsp and copy_n_cast if necessary
-    if (std::is_same<vType, SPComplexType>::value)
+    SPComplexType * Xptr = nullptr;
+    // setup origin of X and copy_n_cast if necessary
+    if constexpr (std::is_same_v<XType, SPComplexType>)
     {
-      vptr = reinterpret_pointer_cast<SPComplexType>(make_device_ptr(v.origin()));
+      Xptr = reinterpret_cast<SPComplexType*>(X.data());
     }
     else
     {
-      long i0, iN;
-      std::tie(i0, iN) = FairDivideBoundary(long(comm->rank()), long(v.num_elements()), long(comm->size()));
-      vptr             = make_device_ptr(SM_TMats.origin());
-      cnt += size_t(v.num_elements());
-      if (std::abs(c) > 1e-12)
-        copy_n_cast(make_device_ptr(v.origin()) + i0, iN - i0, vptr + i0);
+      Xptr = buff.data();
+      cnt += size_t(X.size());
+      memory::array_view<MEM,SPComplexType,2> Xb(X.shape(),buff.data());
+      nda::copy_cast(X,Xb);
     }
-    // setup origin of Xsp and copy_n_cast if necessary
-    if (std::is_same<XType, SPComplexType>::value)
-    {
-      Xptr = reinterpret_pointer_cast<SPComplexType const>(make_device_ptr(X.origin()));
-    }
-    else
-    {
-      long i0, iN;
-      std::tie(i0, iN) = FairDivideBoundary(long(comm->rank()), long(X.num_elements()), long(comm->size()));
-      copy_n_cast(make_device_ptr(X.origin()) + i0, iN - i0, make_device_ptr(SM_TMats.origin()) + cnt + i0);
-      Xptr = make_device_ptr(SM_TMats.origin()) + cnt;
-      cnt += size_t(X.num_elements());
-    }
-    // setup array references
-    Array_cref<SPComplexType, 2> Xsp(Xptr, X.extensions());
-    Array_ref<SPComplexType, 2> vsp(vptr, v.extensions());
+    // X in SPComplexType
+    memory::array_view<MEM,SPComplexType,2> Xsp(X.shape(),Xptr);
 
-    auto v3d = vsp.partitioned(nspin);
-    utils::check(v3d.size(0) == nspin and v3d.size(1) == nwalk and v3d.size(2) == NMO * NMO, 
-        "THC::vHS: Internal shape mismatch - oh oh!");
+    // work array
+    memory::buffered_array<MEM,SPComplexType,2> Twu(nwmax,nu);
+    auto Xsp_r = memory::to_real_view(Xsp);
+    auto Twu_r = memory::to_real_view(Twu);
+    memory::array_view<MEM,const SPRealType,2> Luv2(std::array<long,2>{nu,nchol},reinterpret_cast<SPRealType const*>(Luv.data()));
 
-    int u0, uN;
-    std::tie(u0, uN) = FairDivideBoundary(comm->rank(), nu, comm->size());
-    Array_ref<SPComplexType, 2> Tuw(make_device_ptr(SM_TMats.origin()) + cnt, {nu, nwalk});
-    // O[nwalk * nmu * nmu]
-    if constexpr(REAL) {
-      ma::product(Luv.sliced(u0, uN), Xsp, Tuw.sliced(u0, uN));
-    } else {
-      // reinterpret as RealType matrices with 2x the columns
-      Array_ref<SPRealType, 2> Luv_R(reinterpret_pointer_cast<SPRealType>(make_device_ptr(Luv.origin())),
-                                   {Luv.size(0), 2 * Luv.size(1)});
-      Array_cref<SPRealType, 2> X_R(reinterpret_pointer_cast<SPRealType const>(Xsp.origin()), {Xsp.size(0), 2 * Xsp.size(1)});
-      Array_ref<SPRealType, 2> Tuw_R(reinterpret_pointer_cast<SPRealType>(Tuw.origin()), {nu, 2 * nwalk});
-      ma::product(Luv_R.sliced(u0, uN), X_R, Tuw_R.sliced(u0, uN));
-    }
-    comm->barrier();
-    int k0, kN;
-    std::tie(k0, kN) = FairDivideBoundary(comm->rank(), NMO, comm->size());
+    // T[u][w] = sum_v L[u][v] * X[v][w] 
+    nda::tensor::contract(Xsp_r,"vwc",Luv2,"uv",Twu_r,"wuc");
+
+    // v[w][is*npol+ip][i][j] = sum_u conj(X[is][ip*NMO+i][u]) * X[is][ip*NMO+j][u] * T[u][w] 
     int iw(0);
     while (iw < nwalk)
     {
       int nw = std::min(nwmax, nwalk - iw);
-      for( int is=0, m0=0; is<nspin; ++is, m0+=NMO) {
-        if constexpr (REAL) {
-          // Qwui[w][u][i] = Piu[i][u] * T[u][w]
-          // v[w][i][j] = sum_u Piu[i][u] Qwui[w][u][j] // using batched blas
-          Array_ref<SPComplexType, 3> Qwui(Tuw.origin() + Tuw.num_elements(), {nw, nu, NMO});
-          ma::element_wise_Aij_Bjk_Ckji(Piu.sliced(m0+k0,m0+kN), 
-                                        Tuw.rotated().sliced(iw,iw+nw).unrotated(),
-                                        Qwui.rotated(2).sliced(k0,kN).unrotated(2)); 
-          comm->barrier();
-          Array_ref<SPComplexType, 3> v_(v3d[is][iw].origin(), {nw, NMO, NMO});
-          std::vector<decltype(&(Piu.sliced(0, 1)))> vPiu;
-          std::vector<decltype(&(Qwui[0]))> vQui;
-          std::vector<decltype(&(v_[0].sliced(0, 1)))> vVij;
-          vPiu.reserve(nw);
-          vQui.reserve(nw);
-          vVij.reserve(nw);
-          for (int w = 0; w < nw; ++w)
-          {
-            vPiu.emplace_back(&(Piu.sliced(m0+k0, m0+kN)));
-            vQui.emplace_back(&(Qwui[w]));
-            vVij.emplace_back(&(v_[w].sliced(k0, kN)));
+      memory::buffered_array<MEM,SPComplexType,3> Qwiu(nw,NMO,nu);
+      for( int is=0; is<nstot; ++is) {
+        for( int ip=0; ip<nptot; ++ip) {
+       
+          auto Xiu = Xsiu(is,range(ip*NMO,(ip+1)*NMO),all); 
+          if constexpr (REAL) {
+
+            auto Qwiu_r = memory::to_real_view(Qwiu);
+            // Qwiu[w][i][u] = T[w][u] * conj(Piu[i][u])
+            if constexpr (MEM==HOST_MEMORY) {
+              for(int iw=0; iw<nw; ++iw)
+                for(int i=0; i<NMO; ++i)
+                  Qwiu(iw,i,all) = Twu(iw,all) * Xiu(i,all);
+            } else {
+              nda::tensor::elementwise(Twu_r,"wuc",Xiu,"iu",Qwiu_r,"wiuc",nda::tensor::op::MUL); 
+            }
+            
+            auto vij = v(is,range(iw,iw+nw),range(ip*NMO,(ip+1)*NMO),all);
+            auto vij_r = memory::to_real_view(vij);
+            nda::tensor::contract(SPRealType(a),Qwiu_r,"wiuc",Xiu,"ju",
+                                  SPRealType(0.0),vij_r,"wijc");
+
+          } else {
+ 
+            // Qwiu[w][i][u] = T[w][u] * conj(Piu[i][u])
+            if constexpr (MEM==HOST_MEMORY) {
+              for(int iw=0; iw<nw; ++iw)
+                for(int i=0; i<NMO; ++i)
+                  Qwiu(iw,i,all) = Twu(iw,all) * nda::conj(Xiu(i,all));
+            } else {
+              nda::tensor::elementwise(Twu,"wu",nda::conj(Xiu),"iu",Qwiu,"wiu",nda::tensor::op::MUL); 
+            }
+
+            auto vij = v(is,range(iw,iw+nw),range(ip*NMO,(ip+1)*NMO),all);
+            nda::tensor::contract(SPComplexType(SPRealType(a)),Qwiu,"wiu",Xiu,"ju",
+                                  SPComplexType(0.0),vij,"wij");
+
           }
-          ma::BatchedProduct('N', 'N', SPRealType(a), vPiu, vQui, SPRealType(c), vVij);
-        } else {
-          // Qwiu[w][i][u] = T[u][w] * conj(Piu[i][u])
-          // v[w][i][k] = sum_u Qwiu[w][i][u] * Piu[k][u]
-          Array_ref<SPComplexType, 2> Qwiu(Tuw.origin() + Tuw.num_elements(), {nw * NMO, nu});
-          ma::element_wise_Aij_Bjk_Ckij('C',Piu.sliced(m0+k0,m0+kN), 
-                          Tuw.rotated().sliced(iw,iw+nw).unrotated(),
-                          Qwiu.partitioned(nw).rotated().sliced(k0,kN).unrotated());
-          comm->barrier();
-          // v[w][i][j] = sum_u Qwiu[w][i][u] * Piu[j][u]
-          Array_ref<SPComplexType, 2> v_(v3d[is][iw].origin(), {nw * NMO, NMO});
-          int wk0, wkN;
-          std::tie(wk0, wkN) = FairDivideBoundary(comm->rank(), nw * NMO, comm->size());
-          ma::product(SPComplexType(SPRealType(a)), Qwiu.sliced(wk0, wkN), T(Piu.sliced(m0,m0+NMO)), 
-                      SPComplexType(SPRealType(c)), v_.sliced(wk0, wkN));
         }
       }
       iw += nw;
-      comm->barrier();
     }
-    if (not std::is_same<vType, SPComplexType>::value)
-    {
-      long i0, iN;
-      std::tie(i0, iN) = FairDivideBoundary(long(comm->rank()), long(v.num_elements()), long(comm->size()));
-      copy_n_cast(vsp.origin() + i0, iN - i0, make_device_ptr(v.origin()) + i0);
-    }
-    comm->barrier();
+    return v;
   }
 
-  template<class MatA,
-           class MatB,
-           typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 1)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 1)>,
-           typename = void>
-  void vbias(MatA const& G, MatB&& v, double dt, double a = 1., double c = 0., int k = 0)
+  void vbias(nda::MemoryArrayOfRank<2> auto const& G, 
+             nda::MemoryArrayOfRank<2> auto && v, 
+             double dt, double a = 1., double c = 0., int idet = 0, int ispin=0)
   {
-    using GType = typename std::decay_t<typename MatA::element>;
-    using vType = typename std::decay<MatB>::type::element;
-    boost::multi::array_ref<vType, 2, decltype(v.origin())> v_(v.origin(), {v.size(0), 1});
-    boost::multi::array_ref<GType const, 2, decltype(G.origin())> G_(G.origin(), {1, G.size(0)});
-    vbias(G_, v_, dt, a, c, k);
-  }
+    memory::check_memory_space<MEM>(G,v);
+    using nda::range;
+    using GType = nda::get_value_t<decltype(G)>;
+    using vType = nda::get_value_t<decltype(v)>; 
+    auto all = range::all;
+    int nchol = ( REAL ? _Luv_().extent(1) : 2 * _Luv_().extent(1) );
+    int nwalk = G.extent(0);
+    int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
+    utils::check_strides(G,v);
+    // limiting G to contiguous arrays for simplicity now, reconsider if necessary
+    utils::check(G.is_contiguous(), "Layout mismatch");
+    utils::check(v.is_contiguous(), "Layout mismatch");
+    utils::check(v.shape() == std::array<long,2>{nchol,nwalk}, "THC::vbias: Size mismatch.");
+    if(haj.extent(0) == 1) // ndet==1, G half rotated
+      utils::check(G.extent(1) == nel*npol*NMO, "THC::vbias: Size mismatch.");
+    else // ndet>1, full G 
+      utils::check(G.extent(1) == npol*NMO*npol*NMO, "THC::vbias: Size mismatch.");
+    utils::check(idet >= 0 and idet < haj.extent(0), "Invalid: idet:{}",idet);
 
-  template<class MatA,
-           class MatB,
-           typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 2)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 2)>>
-  void vbias(MatA const& G, MatB&& v, double dt, double a = 1., double c = 0., int k = 0)
-  {
-    using GType = typename std::decay_t<typename MatA::element>;
-    using vType = typename std::decay<MatB>::type::element;
-    using sfqmc::afqmc::reinterpret_pointer_cast;
     // scale a by sqrt(dt)
     a *= std::sqrt(dt);
-    if (k > 0)
-      APP_ABORT(" Error: THC not yet implemented for multiple references.");
-    int nwalk = G.size(0);
-    int nu    = Piu.size(1);
-    int nchol = ( REAL ? Luv.size(1) : 2 * Luv.size(1) );
-    utils::check(v.size(1) == nwalk, "THC::vbias: Size mismatch.");
-    utils::check(v.size(0) == nchol, "THC::vbias: Size mismatch.");
-    using ma::T;
-    int c0, cN;
-    std::tie(c0, cN) = FairDivideBoundary(comm->rank(), nchol, comm->size());
 
-    size_t memory_needs = nwalk * nu;
-    if (not std::is_same<GType, SPComplexType>::value)
-      memory_needs += G.num_elements();
-    if (not std::is_same<vType, SPComplexType>::value)
-      memory_needs += v.num_elements();
-    ShmArray<SPComplexType, 1> SM_TMats(iextensions<1u>{memory_needs},
-                                        shm_buffer_manager.get_generator().template get_allocator<SPComplexType>());
+    // get array_views to the correct data and correct determinant
+    const auto Luv = _Luv_(); 
+    int nu = Luv.extent(0);
+
+    size_t mem_needs = 0; 
+    if (not std::is_same_v<GType, SPComplexType>)
+      mem_needs += G.size();
+    if (not std::is_same_v<vType, SPComplexType>)
+      mem_needs += v.size();
+    memory::buffered_array<MEM,SPComplexType,1> buff(mem_needs);
     size_t cnt(0);
-    const_sp_pointer Gptr(nullptr);
-    sp_pointer vptr(nullptr);
+    SPComplexType const* Gptr = nullptr;
+    SPComplexType * vptr = nullptr;
     // setup origin of Gsp and copy_n_cast if necessary
-    if (std::is_same<GType, SPComplexType>::value)
+    if (std::is_same_v<GType, SPComplexType>)
     {
-      Gptr = reinterpret_pointer_cast<SPComplexType const>(make_device_ptr(G.origin()));
+      Gptr = reinterpret_cast<SPComplexType const*>(G.data());
     }
     else
     {
-      long i0, iN;
-      std::tie(i0, iN) = FairDivideBoundary(long(comm->rank()), long(G.size(0)), long(comm->size()));
-      Array_ref<SPComplexType, 2> Gsp(make_device_ptr(SM_TMats.origin()), G.extensions());
-      ma::copy_n_cast(G.sliced(i0,iN),Gsp.sliced(i0,iN));
-      cnt += size_t(G.num_elements());
-      Gptr = make_device_ptr(SM_TMats.origin());
+      Gptr = buff.data();
+      cnt += size_t(G.size());
+      memory::array_view<MEM,SPComplexType,2> Gb(G.shape(),buff.data());
+      nda::copy_cast(G,Gb);
     }
     // setup origin of vsp and copy_n_cast if necessary
     if (std::is_same<vType, SPComplexType>::value)
     {
-      vptr = reinterpret_pointer_cast<SPComplexType>(make_device_ptr(v.origin()));
+      vptr = reinterpret_cast<SPComplexType*>(v.data());
     }
     else
     {
-      long i0, iN;
-      std::tie(i0, iN) = FairDivideBoundary(long(comm->rank()), long(v.num_elements()), long(comm->size()));
-      vptr             = make_device_ptr(SM_TMats.origin()) + cnt;
-      cnt += size_t(v.num_elements());
-      if (std::abs(c) > 1e-12)
-        copy_n_cast(make_device_ptr(v.origin()) + i0, iN - i0, vptr + i0);
-    }
-    // setup array references
-    Array_cref<SPComplexType, 2> Gsp(Gptr, G.extensions());
-    Array_ref<SPComplexType, 2> vsp(vptr, v.extensions());
-
-    if (haj.size() == 1)
-    {
-      Array_ref<SPComplexType, 2> Guu(make_device_ptr(SM_TMats.origin()) + cnt, {nu, nwalk});
-      Guu_from_compact(Gsp, Guu);
-      if constexpr (REAL) {
-        ma::product(SPRealType(a), T(Luv(Luv.extension(0), {c0, cN})), Guu, SPRealType(c), vsp.sliced(c0, cN));
-      } else {	
-        // reinterpret as RealType matrices with 2x the columns
-        Array_ref<SPRealType, 2> Luv_R(reinterpret_pointer_cast<SPRealType>(make_device_ptr(Luv.origin())),
-                                     {Luv.size(0), 2 * Luv.size(1)});
-        Array_ref<SPRealType, 2> Guu_R(reinterpret_pointer_cast<SPRealType>(Guu.origin()), {nu, 2 * nwalk});
-        Array_ref<SPRealType, 2> vsp_R(reinterpret_pointer_cast<SPRealType>(vsp.origin()), {vsp.size(0), 2 * vsp.size(1)});
-        ma::product(SPRealType(a), T(Luv_R(Luv_R.extension(0), {c0, cN})), Guu_R, SPRealType(c), vsp_R.sliced(c0, cN));
+      vptr = buff.data()+cnt;
+      cnt += size_t(v.size());
+      if (std::abs(c) > 1e-12) {
+        memory::array_view<MEM,SPComplexType,2> vb(v.shape(),vptr);
+        nda::copy_cast(v,vb);
       }
     }
+    // fine because G is assumed contiguous, otherwise build nda::idx_map with custom strides
+    memory::array_view<MEM,SPComplexType,2> vsp(v.shape(),vptr);
+
+    if (haj.extent(0) == 1)
+    {
+      memory::array_view<MEM,const SPComplexType,3> G3d(std::array<long,3>{nwalk,nel,npol*NMO},Gptr);
+      memory::buffered_array<MEM,SPComplexType,2> Guu(nwalk,nu);
+      Guu_from_compact(G3d, Guu, idet);
+      auto Guu_3d= memory::to_real_view(Guu);
+      auto vsp_3d = memory::to_real_view(vsp);
+      memory::array_view<MEM,const SPRealType,2> Luv2(std::array<long,2>{nu,nchol},reinterpret_cast<SPRealType const*>(Luv.data()));
+      nda::tensor::contract(SPRealType(a),Luv2,"uv",Guu_3d,"wuc",SPRealType(c),vsp_3d,"vwc");
+    }
     else
     {
+      // multideterminant is not half-rotated, so use Likn
+      // which spin???
+      memory::array_view<MEM,const SPComplexType,3> G3d(std::array<long,3>{nwalk,npol*NMO,npol*NMO},Gptr);
       APP_ABORT(" Error: THC not yet implemented for multiple references.");
     }
-    if (not std::is_same<vType, SPComplexType>::value)
+    if constexpr (not std::is_same_v<vType, SPComplexType>)
     {
-      copy_n_cast(make_device_ptr(vsp[c0].origin()), vsp.size(1) * (cN - c0), make_device_ptr(v[c0].origin()));
+      nda::copy_cast(vsp,v);
     }
-    comm->barrier();
   }
-
+/*
   template<class Mat, class MatB>
   void generalizedFockMatrix([[maybe_unused]] Mat&& G, [[maybe_unused]] MatB&& Fp, [[maybe_unused]] MatB&& Fm)
   {
@@ -910,6 +856,11 @@ public:
   }
 
 */
+  
+  /// Returns the number of spins and polarizations in the VHS potential.
+  auto vHS_dims() const {
+    return std::array<int,2>{_Xsiu_().shape()[0],_Xsiu_().shape()[1]/NMO};
+  }
   bool distribution_over_cholesky_vectors() const { return false; }
   int number_of_ke_vectors() const { 
     utils::check(_Zuv_.has_value() or _Zuv_rot_.has_value(), "Missing Zuv/Zuv_rot.");
@@ -921,87 +872,60 @@ public:
   // transpose=true means G[nwalk][ik], false means G[ik][nwalk]
   bool transposed_G_for_vbias() const { return true; }
   bool transposed_G_for_E() const { return true; }
-  // transpose=true means vHS[nwalk][ik], false means vHS[ik][nwalk]
-  bool transposed_vHS() const { return true; }
 
   bool fast_ph_energy() const { return false; }
   // add nspin_in_basis to allow for a spin independent basis too
   bool spin_dependent_vHS() const 
   { return ((walker_type == COLLINEAR) or (walker_type == NONCOLLINEAR)); } 
-/*
   nda::array<ComplexType, 2> getHSPotentials() 
   { return nda::array<ComplexType, 2>{}; }
 
 protected:
   // Guu[nu][nwalk]
-  template<class MatA, class MatB>
-  void Guu_from_compact(MatA const& G, MatB&& Guu)
+  void Guu_from_compact(nda::MemoryArrayOfRank<3> auto const& G,
+               nda::MemoryArrayOfRank<2> auto && Guu,
+               int idet)
   {
-    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+    using nda::range;
+    auto all = range::all;
+    long nstot = _Xsiu_().shape()[0];
+    long nptot = _Xsiu_().shape()[1]/NMO;
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
-    int nu   = int(Piu.size(1));
-    int u0, uN;
-    std::tie(u0, uN) = FairDivideBoundary(comm->rank(), nu, comm->size());
-    int nw           = G.size(0);
+    bool has_rot = _Xsiu_rot_.has_value();
+    const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_());
+    const auto Ysau = ( has_rot ? (*_Ydsau_rot_)()(idet,nda::ellipsis{}) :
+                                 _Ydsau_()(idet,nda::ellipsis{}) );
+    long nw   = G.extent(0);
+    long nu   = Xsiu.extent(2);
 
-    utils::check(G.size(0) == Guu.size(1), "THC::Guu_from_compact: Size mismatch");
-    utils::check(G.size(1) == nel * npol * NMO, "THC::Guu_from_compact: Size mismatch");
-    utils::check(Guu.size(0) == nu, "THC::Guu_from_compact: Size mismatch");
-
-    ma::fill(Guu, SPComplexType(0.0));
-
-    ComplexType a = (walker_type == CLOSED) ? ComplexType(2.0) : ComplexType(1.0);
     // G3d[w][a][j]
-    auto G3d = G.rotated().partitioned(nel).unrotated();
-
-    if(walker_type == COLLINEAR) {
-
-      for( int is=0; is<nspin; is++ ) {
+    utils::check(G.shape() == std::array<long,3>{nw,nel,npol*NMO}, "THC::Guv_Guu: Shape mismatch");
+    utils::check(Guu.shape() == std::array<long,2>{nw,nu}, "THC::Guv_Guu: Shape mismatch");
+    Guu() = SPComplexType(0.0);
+    ComplexType a = (walker_type == CLOSED) ? ComplexType(2.0) : ComplexType(1.0);
+    for( int is=0; is<nspin; is++ ) {
+      for( int ip=0; ip<npol; ip++ ) {
         
-        Array<SPComplexType, 3> T1({nw, nelec[is], (uN - u0)},
-                   device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-        comm->barrier();
-      
-        // transposing intermediary to make dot products faster in the next step
+        memory::buffered_array<MEM,SPComplexType,3> Twau(nw,nelec[is],nu);    
+        auto Xiu = Xsiu(is%nstot,range(ip%nptot*NMO,(ip%nptot+1)*NMO),all);
+        auto Yau = Ysau(is%nstot,ip%nptot,range(nelec[is]),all);
+
         if constexpr (REAL) {
-          APP_ABORT("Finish THC<REAL=True>");
+          auto G4d = memory::to_real_view(G);
+          auto Gwaic = G4d(all,range(is*nup,nup+is*ndown),range(ip*NMO,(ip+1)*NMO),all); 
+          auto T4d = memory::to_real_view(Twau);
+          nda::tensor::contract(Gwaic,"waic",Xiu,"iu",T4d,"wauc");
         } else {
-          ma::productStridedBatched(G3d({0,nw},{is*nup, nup+is*ndown},{0,NMO}),
-                                    Piu({is*NMO,(is+1)*NMO}, {u0, uN}), T1);
+          auto Gwai = G(all,range(is*nup,nup+is*ndown),range(ip*NMO,(ip+1)*NMO)); 
+          nda::tensor::contract(Gwai,"wai",Xiu,"iu",Twau,"wau");
         }
         // Gwu[w][u] = a * sum_a T1[w][a][u] * cXau[a][u]
-        ma::dot('T','T','T',SPComplexType(a),T1,
-                            cXau[0]({is*nup, nup+is*ndown},{u0,uN}),
-                            SPComplexType(1.0),Guu.sliced(u0,uN));
-        comm->barrier();
+        nda::tensor::contract(SPComplexType(a),Twau,"wau",Yau,"au",SPComplexType(1.0),Guu,"wu");
       
-      } // is<nspin
-
-    } else if(walker_type == NONCOLLINEAR) {
-
-      APP_ABORT("THC:: Finish NONCOLLINEAR");
-
-    } else {
-
-      Array<SPComplexType, 3> T1({nw, nup, (uN - u0)},
-                 device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-      comm->barrier();
-
-      // transposing intermediary to make dot products faster in the next step
-      if constexpr (REAL) {
-        APP_ABORT("Finish THC<REAL=True>");
-      } else {
-        ma::productStridedBatched(G3d,Piu({0, NMO}, {u0, uN}), T1);
-      }
-      // Gwu[w][u] = a * sum_a T1[w][a][u] * cXau[a][u]
-      ma::dot('T','T','T',SPComplexType(a),T1,
-                          cXau[0]({0,nup},{u0,uN}),
-                          SPComplexType(0.0),Guu.sliced(u0,uN));
-      comm->barrier();
-
-    } // walker_type
-
+      } // npol 
+    } // nspin 
   }
 
 /*
@@ -1049,8 +973,6 @@ protected:
   }
 */
 
-  // MAM: Not yet working for non-collinear, need to deal with off-diagonal sectors Gss'uv
-  // since this is for energy, only compact is accepted
   // Computes Guv and Guu for a set of walkers
   // rotMuv is partitioned along 'u'
   // G[w][nel*nmo]
@@ -1066,14 +988,14 @@ protected:
     long nstot = _Xsiu_().shape()[0]; 
     long nptot = _Xsiu_().shape()[1]/NMO; 
     long ip_ = long(p2)%nptot;
-    nda::range M_rng(ip_*NMO,(ip_+1)*NMO);
+    range M_rng(ip_*NMO,(ip_+1)*NMO);
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
     bool has_rot = _Xsiu_rot_.has_value();
     const auto Xiu = ( has_rot ? (*_Xsiu_rot_)()(ispin%nstot,M_rng,all) : 
                                   _Xsiu_()(ispin%nstot,M_rng,all) );
-    const auto Yau = ( has_rot ? (*_Ydsau_rot_)()(idet,ispin,p1,nda::range(nelec[ispin]),all) : 
-                                 _Ydsau_()(idet,ispin,p1,nda::range(nelec[ispin]),all) );
+    const auto Yau = ( has_rot ? (*_Ydsau_rot_)()(idet,ispin,p1,range(nelec[ispin]),all) : 
+                                 _Ydsau_()(idet,ispin,p1,range(nelec[ispin]),all) );
     int nw   = int(G.extent(0));
 
     // G3d[w][a][j]
@@ -1086,11 +1008,11 @@ protected:
       auto G4d = memory::to_real_view(G);
       auto T4d = memory::to_real_view(Twav);
       // choose electron range compatible with ispin
-      auto Gwaic = G4d(all,nda::range(ispin*nup,nup+ispin*ndown),range(p2*NMO,(p2+1)*NMO),all);
+      auto Gwaic = G4d(all,range(ispin*nup,nup+ispin*ndown),range(p2*NMO,(p2+1)*NMO),all);
       // Twav[w][a][v] = sum_j G[w][a][j] X[j][v]
       nda::tensor::contract(Gwaic,"wajc",Xiu,"jv",T4d,"wavc");
     } else {
-      auto Gwai = G(all,nda::range(ispin*nup,nup+ispin*ndown),range(p2*NMO,(p2+1)*NMO));
+      auto Gwai = G(all,range(ispin*nup,nup+ispin*ndown),range(p2*NMO,(p2+1)*NMO));
       // Twav[w][a][v] = sum_j G[w][a][j] X[j][v]
       nda::tensor::contract(Gwai,"wai",Xiu,"iv",Twav,"wav");
     }
@@ -1106,7 +1028,6 @@ protected:
         utils::check(false, "finish");
       }
     }
-    mpi->comm.barrier();
   }
 /*
   / *

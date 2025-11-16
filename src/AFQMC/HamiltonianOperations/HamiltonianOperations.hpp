@@ -150,13 +150,15 @@ public:
   {
     std::visit([&](auto&& a) { a.generalizedFockMatrix(std::forward<Args>(args)...); }, var);
   }
+*/
 
   template<class... Args>
-  void vHS(Args&&... args)
+  auto vHS(Args&&... args)
   {
-    std::visit([&](auto&& s) { s.vHS(std::forward<Args>(args)...); }, var);
+    return std::visit([&](auto&& s) { return s.vHS(std::forward<Args>(args)...); }, var);
   }
 
+/*
   template<class... Args>
   std::tuple<dev_csr_Matrix<ComplexType> const*, dev_csr_Matrix<ComplexType> const*> vHS_sparse(Args&&... args)
   {
@@ -220,6 +222,7 @@ public:
   { 
     std::visit([&](auto&& s) { s.ph_excited_energy(std::forward<Args>(args)...); }, var);
   }
+*/
 
   template<class... Args>
   void vbias(Args&&... args)
@@ -227,14 +230,9 @@ public:
     std::visit([&](auto&& s) { s.vbias(std::forward<Args>(args)...); }, var);
   }
 
-  int local_number_of_cholesky_vectors() const
+  int number_of_cholesky_vectors() const
   {
-    return std::visit([&](auto&& a) { return a.local_number_of_cholesky_vectors(); }, var);
-  }
-
-  int global_origin_cholesky_vector() const
-  {
-    return std::visit([&](auto&& a) { return a.global_origin_cholesky_vector(); }, var);
+    return std::visit([&](auto&& a) { return a.number_of_cholesky_vectors(); }, var);
   }
 
   int number_of_ke_vectors() const
@@ -242,31 +240,23 @@ public:
     return std::visit([&](auto&& a) { return a.number_of_ke_vectors(); }, var);
   }
 
-  int global_number_of_cholesky_vectors() const
+  auto vHS_dims() const
   {
-    return std::visit([&](auto&& a) { return a.global_number_of_cholesky_vectors(); }, var);
+    return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
   }
 
-  bool distribution_over_cholesky_vectors() const
-  {
-    return std::visit([&](auto&& a) { return a.distribution_over_cholesky_vectors(); }, var);
-  }
-*/
-
+// MAM: try to eliminate this!!!
   bool transposed_G_for_vbias() const
   {
     return std::visit([&](auto&& a) { return a.transposed_G_for_vbias(); }, var);
   }
 
+// MAM: try to eliminate this!!!
   bool transposed_G_for_E() const
   {
     return std::visit([&](auto&& a) { return a.transposed_G_for_E(); }, var);
   }
 
-  bool transposed_vHS() const
-  {
-    return std::visit([&](auto&& a) { return a.transposed_vHS(); }, var);
-  }
 /*
   HamiltonianTypes getHamType() const
   {

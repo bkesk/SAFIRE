@@ -90,6 +90,15 @@ constexpr MEMORY_SPACE get_memory_space()
   return HOST_MEMORY; 
 }
 
+template<MEMORY_SPACE MEM, typename... Args>
+constexpr void check_memory_space(nda::Array auto && a, Args... rest)
+{
+  constexpr MEMORY_SPACE M = get_memory_space<std::decay_t<decltype(a)>>();
+  static_assert(MEM == M, "Memory space mismatch");
+  if constexpr (sizeof...(Args))
+    check_memory_space<MEM>(rest...); 
+} 
+
 template<typename T, int N, typename Layout = nda::C_layout>
 using host_array = nda::array<T,N,Layout>;
 template<typename T, int N, typename Layout = nda::C_stride_layout>
