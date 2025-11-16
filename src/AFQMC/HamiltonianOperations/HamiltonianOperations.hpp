@@ -63,22 +63,21 @@ namespace detail
 } // namespace detail
 */
 
-template<MEMORY_SPACE _MEM_, bool MP>
+template<MEMORY_SPACE _MEM_>
 class HamiltonianOperations 
 {
 
 public:
 
   constexpr static MEMORY_SPACE MEM = _MEM_;
-  using SPComplexType = typename to_working_precision<MP, ComplexType>::type;
 
   HamiltonianOperations()  
   {
     APP_ABORT(" Error: Calling default constructor of HamiltonianOperations. ");
   } 
 
-  explicit HamiltonianOperations(THCOps<MEM,MP,true>&& other) : var(std::move(other)) {} 
-  explicit HamiltonianOperations(THCOps<MEM,MP,false>&& other) : var(std::move(other)) {} 
+  explicit HamiltonianOperations(THCOps<MEM,true>&& other) : var(std::move(other)) {} 
+  explicit HamiltonianOperations(THCOps<MEM,false>&& other) : var(std::move(other)) {} 
 
 /*
   // host only !
@@ -107,8 +106,8 @@ public:
 #endif
 // GPU enabled
 */
-  explicit HamiltonianOperations(THCOps<MEM,MP,true> const& other) = delete;
-  explicit HamiltonianOperations(THCOps<MEM,MP,false> const& other) = delete;
+  explicit HamiltonianOperations(THCOps<MEM,true> const& other) = delete;
+  explicit HamiltonianOperations(THCOps<MEM,false> const& other) = delete;
 /*
   explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
   explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
@@ -124,14 +123,14 @@ public:
   HamiltonianOperations& operator=(HamiltonianOperations const& other) = default;
   HamiltonianOperations& operator=(HamiltonianOperations&& other) = default;
 
-/*
   template<class... Args>
-  boost::multi::array<ComplexType, 2> getOneBodyPropagatorMatrix(Args&&... args)
+  nda::array<ComplexType, 3> getOneBodyPropagatorMatrix(Args&&... args)
   {
     return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); },
                                 var);
   }
 
+/*
   template<class... Args>
   void write2hdf(Args&&... args)
   {
@@ -282,7 +281,7 @@ public:
   
   private:
 
-    std::variant<THCOps<MEM, MP,true>, THCOps<MEM, MP,false>> var;
+    std::variant<THCOps<MEM,true>, THCOps<MEM,false>> var;
 };
 
 } // namespace afqmc

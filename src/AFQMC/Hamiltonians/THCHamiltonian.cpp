@@ -52,16 +52,13 @@ namespace afqmc
 // Zrot: /Interaction/half_rotated_coulomb_matrix:      [Nq][Nu][Nv]
 
 // PsiT[idet][ispin][ik] -> csr_mat( nup/ndn, NMO )
-template<MEMORY_SPACE MEM, bool MP, bool REAL> HamiltonianOperations<MEM,MP> 
+template<MEMORY_SPACE MEM, bool REAL> HamiltonianOperations<MEM> 
 THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
                std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
                nda::array<PsiT_Matrix<MEM>,2> const& PsiT)
 {
   using nda::range;
-  using SPComplexType = typename to_working_precision<MP,ComplexType>::type;
-
   using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
-  using SPValueType   = typename to_working_precision<MP,ValueType  >::type;
 
   std::string base_error(" Error in THCHamiltonian::getHamiltonianOperations():\n   ");
 
@@ -230,19 +227,19 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   // with half rotation:
   // Xrot: /Interaction/collocation_matrix_half_rotated:  [nspins,nkpts,nbnd,Nu]
   // Zrot: /Interaction/half_rotated_coulomb_matrix:      [Nq][Nu][Nv]
-  auto Xsiu = memory::make_shared_array<MEM,SPValueType,3>(mpi,
+  auto Xsiu = memory::make_shared_array<MEM,ValueType,3>(mpi,
                       {nspin_in_file,npol_in_file*NMO,nu});
-  auto Luv = memory::make_shared_array<MEM,SPValueType,2>(mpi,{nu,nv});
+  auto Luv = memory::make_shared_array<MEM,ValueType,2>(mpi,{nu,nv});
   std::optional<decltype(Luv)> Zuv = std::nullopt;
   // half-rotated 
   std::optional<decltype(Xsiu)> Xsiu_rot = std::nullopt;
   std::optional<decltype(Luv)> Zuv_rot = std::nullopt;
   if(have_rot_coul) {
-    Xsiu_rot = std::make_optional(memory::make_shared_array<MEM,SPValueType,3>(mpi,
+    Xsiu_rot = std::make_optional(memory::make_shared_array<MEM,ValueType,3>(mpi,
                       {nspin_in_file,npol_in_file*NMO,nu_rot}));
-    Zuv_rot = std::make_optional(memory::make_shared_array<MEM,SPValueType,2>(mpi,{nu_rot,nu_rot}));
+    Zuv_rot = std::make_optional(memory::make_shared_array<MEM,ValueType,2>(mpi,{nu_rot,nu_rot}));
   } else {
-    Zuv = std::make_optional(memory::make_shared_array<MEM,SPValueType,2>(mpi,{nu,nu}));
+    Zuv = std::make_optional(memory::make_shared_array<MEM,ValueType,2>(mpi,{nu,nu}));
   }
   if (mpi->comm.root())
   {
@@ -287,12 +284,12 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   mpi->comm.barrier();
 
   // Y = PsiT*conj(X): (since PsiT is already conjugated/transposed) 
-  auto Ydsau = memory::make_shared_array<MEM,SPComplexType,5>(mpi,
+  auto Ydsau = memory::make_shared_array<MEM,ComplexType,5>(mpi,
                       {ndet,nspin,npol,nup,nu});
   if constexpr (MEM == HOST_MEMORY)
-    if(mpi->node_comm.root()) Ydsau() = SPComplexType(0.0);
+    if(mpi->node_comm.root()) Ydsau() = ComplexType(0.0);
   else
-    Ydsau() = SPComplexType(0.0);
+    Ydsau() = ComplexType(0.0);
   std::optional<decltype(Ydsau)> Ydsau_rot = std::nullopt;
   mpi->comm.barrier();
   
@@ -305,7 +302,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       long nel = (is==0 ? nup : ndn);
       auto Aai = math::sparse::to_array<ComplexType>(PsiT(id,is));
       // need to loop over npol since npol_in_file might be != than npol 
-      if constexpr (REAL or MP) {
+      if constexpr (REAL) {
         auto Yau = matrix_t(nel,nu);
         auto Xiu = matrix_t(NMO,nu);
         for(long ip=0; ip<npol; ++ip) 
@@ -345,35 +342,34 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   //         = -0.5 sum_j,u,v ma::conj(Piu(s,i,u)) ma::conj(Piu(s,j,v)) Muv Piu(s,j,u) Piu(s,l,v)
   //         = -0.5 sum_u,v ma::conj(Piu(s,i,u)) W(s,u,v) Piu(s,l,v), where
   // W(s,u,v) = Muv(u,v) * sum_j Piu(s,j,u) ma::conj(Piu(s,j,v))
-  auto v0 = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{nspin, NMO, NMO});
+  auto v0 = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{nspin_in_file*npol_in_file, NMO, NMO});
   auto [u0, u1] = itertools::chunk_range(0, nu, mpi->comm.size(), mpi->comm.rank());
   // Note: If this uses too much memory, distribute "u" axis over nodes, then construct
   // W(s,u,v) on shared memory and distribute calculation of v0 over node on a single array. 
   if(have_rot_coul) {
     utils::check(false, "Finish");
   } else {
-    memory::buffered_array<MEM,SPValueType,3> vt(v0.shape());
-    vt() = SPValueType(0.0);
+    memory::buffered_array<MEM,ValueType,3> vt(v0.shape());
+    vt() = ValueType(0.0);
     {
-      memory::buffered_array<MEM,SPValueType,2> Wuv((u1-u0),nu);
-      memory::buffered_array<MEM,SPValueType,2> Tvi((u1-u0),NMO);
-      Wuv() = SPValueType(0.0);
-      Tvi() = SPValueType(0.0);
-      for(long is=0; is<nspin; is++) {
-        for(long ip=0; ip<npol; ip++) {
+      memory::buffered_array<MEM,ValueType,2> Wuv((u1-u0),nu);
+      memory::buffered_array<MEM,ValueType,2> Tiv(NMO,(u1-u0));
+      Wuv() = ValueType(0.0);
+      Tiv() = ValueType(0.0);
+      for(long is=0, isp=0; is<nspin_in_file; is++) {
+        for(long ip=0; ip<npol_in_file; ip++, isp++) {
           if(u0==u1) continue;
-          long ip_ = ip%npol_in_file;
-          auto Xiu = Xsiu()(is%nspin_in_file,range(ip_*NMO,(ip_+1)*NMO),range(u0,u1));
-          auto Xiv = Xsiu()(is%nspin_in_file,range(ip_*NMO,(ip_+1)*NMO),all);
+          auto Xiu = Xsiu()(is,range(ip*NMO,(ip+1)*NMO),range(u0,u1));
+          auto Xiv = Xsiu()(is,range(ip*NMO,(ip+1)*NMO),all);
           auto Zu = (*Zuv)()(range(u0,u1),all);
-          nda::blas::gemm(nda::dagger(Xiu),Xiv,Wuv);    // Wuv is conjugated at this point
+          nda::tensor::contract(Xiu, "iu", nda::conj(Xiv), "iv", Wuv, "uv");
           if constexpr (MEM==HOST_MEMORY) 
-            Wuv() = Zu() * nda::conj(Wuv());
+            Wuv() = Zu() * Wuv();
           else
-            nda::tensor::elementwise(Zu, "uv", nda::conj(Wuv), "uv", nda::tensor::op::MUL);
-          nda::blas::gemm(nda::transpose(Wuv),nda::transpose(Xiu),Tvi);
-          nda::blas::gemm(SPValueType(-0.5),nda::transpose(Tvi),nda::transpose(Xiv),
-                          SPValueType(-0.5),vt(is,all,all));
+            nda::tensor::elementwise(Zu, "uv", Wuv, "uv", nda::tensor::op::MUL);
+          nda::tensor::contract(nda::conj(Xiu), "iu", Wuv, "uv", Tiv, "iv");
+          nda::tensor::contract(ValueType(-0.5),Tiv, "iv", Xiv, "jv", 
+                                ValueType(0.0),vt(isp,all,all), "ij");
         }
       }
     } 
@@ -405,12 +401,12 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   mpi->comm.barrier();
 
   ComplexType E0 = NuclearCoulombEnergy + FrozenCoreEnergy;
-  return HamiltonianOperations<MEM,MP>(THCOps<MEM, MP, REAL>(mpi,type,NMO,nup,ndn,
+  return HamiltonianOperations<MEM>(THCOps<MEM, REAL>(mpi,type,NMO,nup,ndn,
      std::move(H1),std::move(haj),std::move(Xsiu),std::move(Ydsau),std::move(Luv),std::move(Zuv),
      std::move(Xsiu_rot),std::move(Ydsau_rot),std::move(Zuv_rot),std::move(v0),E0)); 
 }
 
-template<MEMORY_SPACE MEM, bool MP> HamiltonianOperations<MEM,MP> 
+template<MEMORY_SPACE MEM> HamiltonianOperations<MEM> 
 THCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
                nda::array<PsiT_Matrix<MEM>,2> const& PsiT)
@@ -445,26 +441,19 @@ THCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   mpi->comm.broadcast_n(&Real, 1, 0);
 
   if(Real) 
-    return getHamiltonianOperations_impl<MEM,MP,true>(type, mpi, PsiT); 
+    return getHamiltonianOperations_impl<MEM,true>(type, mpi, PsiT); 
   else
-    return getHamiltonianOperations_impl<MEM,MP,false>(type, mpi, PsiT);
+    return getHamiltonianOperations_impl<MEM,false>(type, mpi, PsiT);
 }
 
-template HamiltonianOperations<HOST_MEMORY,true> 
-  THCHamiltonian::getHamiltonianOperations<HOST_MEMORY,true>(WALKER_TYPES, 
-     std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 
-     nda::array<PsiT_Matrix<HOST_MEMORY>,2>const&);
-template HamiltonianOperations<HOST_MEMORY,false> 
-  THCHamiltonian::getHamiltonianOperations<HOST_MEMORY,false>(WALKER_TYPES, 
+//template HamiltonianOperations<HOST_MEMORY,true> 
+template HamiltonianOperations<HOST_MEMORY> 
+  THCHamiltonian::getHamiltonianOperations<HOST_MEMORY>(WALKER_TYPES, 
      std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 
      nda::array<PsiT_Matrix<HOST_MEMORY>,2>const&);
 #if defined(ENABLE_DEVICE)
-template HamiltonianOperations<DEVICE_MEMORY,true> 
-  THCHamiltonian::getHamiltonianOperations<DEVICE_MEMORY,true>(WALKER_TYPES, 
-     std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 
-     nda::array<PsiT_Matrix<DEVICE_MEMORY>,2>const&);
-template HamiltonianOperations<DEVICE_MEMORY,false> 
-  THCHamiltonian::getHamiltonianOperations<DEVICE_MEMORY,false>(WALKER_TYPES, 
+template HamiltonianOperations<DEVICE_MEMORY> 
+  THCHamiltonian::getHamiltonianOperations<DEVICE_MEMORY>(WALKER_TYPES, 
      std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 
      nda::array<PsiT_Matrix<DEVICE_MEMORY>,2>const&);
 #endif

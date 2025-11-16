@@ -55,11 +55,10 @@ namespace sfqmc
 {
 using namespace afqmc;
 
-template<bool MP, MEMORY_SPACE MEM>
+template<MEMORY_SPACE MEM>
 void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                  std::string hamil_file, std::string wfn_file)
 {
-  using SPComplexType = typename to_working_precision<MP,ComplexType>::type;
   using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   using matrix_t = memory::array<MEM,ComplexType,2>;
@@ -126,7 +125,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
         OrbMat(i,all,range(nup,nel)) = T();
     }
   }
-  auto HOps=ham.getHamiltonianOperations<MEM,MP>(wtype, mpi, psi);
+  auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);
 
   memory::array<MEM,ComplexType,3> G(nwalk, nel, npol * NMO);
   memory::array<MEM,ComplexType,1> ovlp(nwalk,ComplexType(0.0)); 
@@ -171,8 +170,8 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   double dt = 0.01;
   auto nCV  = HOps.number_of_cholesky_vectors();
 
-  memory::array<MEM,SPComplexType,2> X(nCV, nwalk);
-  X() = SPComplexType(0.0);
+  memory::array<MEM,ComplexType,2> X(nCV, nwalk);
+  X() = ComplexType(0.0);
   if (HOps.transposed_G_for_vbias())
   {
     HOps.vbias(G2d, X, dt);
@@ -196,6 +195,9 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     app_log(1," Xsum: {}", Xsum);
     app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
   }
+
+  auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(all,0));
+  REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
 
   auto vHS_dims = HOps.vHS_dims();
   auto vHS = HOps.vHS(X,dt);
@@ -327,11 +329,9 @@ TEST_CASE("ham_ops_basic_serial", "[hamiltonian_operations]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  ham_ops_basic_serial<false,HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-  ham_ops_basic_serial<true,HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+  ham_ops_basic_serial<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #if defined(ENABLE_DEVICE)
-  ham_ops_basic_serial<false,DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-  ham_ops_basic_serial<true,DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+  ham_ops_basic_serial<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #endif
 }
 

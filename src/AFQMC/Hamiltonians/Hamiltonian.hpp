@@ -61,11 +61,11 @@ public:
     return std::visit([&](auto&& a) { return a.getNuclearCoulombEnergy(); }, var);
   }
 
-  template<MEMORY_SPACE MEM, bool MP, class... Args>
-  HamiltonianOperations<MEM,MP> getHamiltonianOperations(Args&&... args)
+  template<MEMORY_SPACE MEM, class... Args>
+  HamiltonianOperations<MEM> getHamiltonianOperations(Args&&... args)
   {
       return std::visit([&](auto&& a) { 
-	return a.template getHamiltonianOperations<MEM,MP>(std::forward<Args>(args)...); }, var);
+	return a.template getHamiltonianOperations<MEM>(std::forward<Args>(args)...); }, var);
   }
 
   HamiltonianTypes getHamType()

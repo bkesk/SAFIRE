@@ -69,8 +69,8 @@ public:
 
   ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
-  template<MEMORY_SPACE MEM, bool MP>
-  HamiltonianOperations<MEM,MP> getHamiltonianOperations(WALKER_TYPES type,
+  template<MEMORY_SPACE MEM>
+  HamiltonianOperations<MEM> getHamiltonianOperations(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, 
                  nda::array<PsiT_Matrix<MEM>,2> const& PsiT);
 
@@ -105,8 +105,8 @@ protected:
 
   std::string fileName;
 
-  template<MEMORY_SPACE MEM, bool MP, bool REAL> 
-  HamiltonianOperations<MEM,MP> getHamiltonianOperations_impl(WALKER_TYPES type,
+  template<MEMORY_SPACE MEM, bool REAL> 
+  HamiltonianOperations<MEM> getHamiltonianOperations_impl(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, 
                  nda::array<PsiT_Matrix<MEM>,2> const& PsiT);
 
