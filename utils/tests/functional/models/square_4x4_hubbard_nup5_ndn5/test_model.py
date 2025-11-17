@@ -63,6 +63,11 @@ def hamil_type_dictionary():
             SpinSymm.COLLINEAR,
             HamiltonianClass.MODEL
         ),
+        "ham_collinear_cont_spin" :  AFQMCHamiltonian(
+            INPUTS_DIR/"ham_collinear_cont_spin.h5",
+            SpinSymm.COLLINEAR,
+            HamiltonianClass.MODEL
+        ),
         "ham_noncollinear" :  AFQMCHamiltonian(
             INPUTS_DIR/"ham_noncollinear.h5",
             SpinSymm.NONCOLLINEAR,
