@@ -54,6 +54,11 @@ namespace math {
       static_assert ( Array_view_t::layout_t::is_stride_order_Fortran()
         or Array_view_t::layout_t::is_stride_order_C(), "Ordering mismatch.");
     public:
+      /* 
+       * Default constructor returns a shared_array in uninitialized state.
+       */
+      shared_array() = default;
+
       shared_array(std::shared_ptr<sfqmc::utils::mpi_context_t<mpi3::communicator,mpi3::shared_communicator>> ctxt,
                    std::array<long, rank> shape):
           _mpi(ctxt),
@@ -94,6 +99,7 @@ namespace math {
       ~shared_array() = default; 
 
       void check_and_init() {
+        abort_if_empty();
         sfqmc::utils::check(_win->base(0) != nullptr, "shm::shared_array: win.base(0) == nullptr");
         sfqmc::utils::check(_win->size(0) == _size, "shm::shared_array: win.size(0) has incorrect dimension");
         if (_mpi->node_comm.size() > 1) {
@@ -104,6 +110,7 @@ namespace math {
       }
 
       void set_zero() {
+        if (is_empty()) return; 
         node_sync();
         auto[origin_i, end_i] = itertools::chunk_range(0, _size, _mpi->node_comm.size(), _mpi->node_comm.rank());
         ::nda::range i_range(origin_i, end_i);
@@ -116,6 +123,7 @@ namespace math {
       }
 
       void all_reduce() {
+        if (is_empty()) return; 
         node_sync();
         if (_mpi->node_comm.root()) {
           // split all_reduce() to avoid mpi count overflow
@@ -129,6 +137,7 @@ namespace math {
       }
 
       void broadcast_to_nodes(int src_node) {
+        if (is_empty()) return; 
         node_sync();
         if (_mpi->node_comm.root()) {
           for (size_t shift=0; shift<_size; shift+=size_t(1e9)) {
@@ -141,25 +150,44 @@ namespace math {
       }
 
       void node_sync() {
+        if (is_empty()) return; 
         _mpi->node_comm.barrier();
         _win->sync();
       }
 
-      auto mpi() const { return _mpi; }
-      mpi3::shared_window<value_type>& win() { return *_win; }
+      auto mpi() const { abort_if_empty(); return _mpi; }
+      mpi3::shared_window<value_type>& win() { abort_if_empty(); return *_win; }
 
+      auto extent(long i) const { return _shape[i]; }
       auto const& shape() const { return _shape; }
       auto const& global_shape() const { return _shape; }
       auto size() const { return _size; }
+      auto data() { abort_if_empty(); return (value_type*) _win->base(0); }
+      auto data() const { abort_if_empty(); return (value_type const*) _win->base(0); }
 
-      auto local() { return Array_view_t(_shape, (value_type*) _win->base(0)); }
-      auto local() const { return Array_view_t(_shape, (value_type*) _win->base(0)); }
+      auto local() { abort_if_empty(); return Array_view_t(_shape, (value_type*) _win->base(0)); }
+      auto local() const { abort_if_empty(); return Array_view_t(_shape, (value_type*) _win->base(0)); }
+
+      auto operator()() { return this->local(); }
+      auto operator()() const { return this->local(); }
 
     protected:
       std::shared_ptr<sfqmc::utils::mpi_context_t<mpi3::communicator,mpi3::shared_communicator>> _mpi;
-      mpi3::size_t _size;
-      std::array<long, rank> _shape;
+      mpi3::size_t _size = 0;
+      std::array<long, rank> _shape = {0};
       std::unique_ptr<mpi3::shared_window<value_type>> _win;
+
+      bool is_empty() const {
+        return (_size==0 or not is_initialized());
+      }
+
+      bool is_initialized() const {
+        return (bool(_mpi) or bool(_win));
+      }
+
+      void abort_if_empty() const {
+        sfqmc::utils::check(is_initialized(), "Error in shared_array: Calling with uninitialized array.");
+      }
 
     };
 

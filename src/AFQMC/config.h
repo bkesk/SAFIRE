@@ -134,8 +134,8 @@ public:
   AFQMCInfo()
       : name(""),
         NMO(-1),
-        NAEA(-1),
-        NAEB(-1),
+        nup(-1),
+        ndown(-1),
         MS2(-99),
         ISYM(-1)
   {}
@@ -143,8 +143,8 @@ public:
   AFQMCInfo(std::string nm, int nmo_, int naea_, int naeb_)
       : name(nm),
         NMO(nmo_),
-        NAEA(naea_),
-        NAEB(naeb_),
+        nup(naea_),
+        ndown(naeb_),
         MS2(-99),
         ISYM(-1)
   {}
@@ -162,7 +162,7 @@ public:
   int NMO;
 
   // number of active electrons alpha/beta
-  int NAEA, NAEB;
+  int nup, ndown;
 
   // ms2
   int MS2 = -1;
@@ -175,8 +175,8 @@ public:
   {
     name           = a.name;
     NMO            = a.NMO;
-    NAEA           = a.NAEA;
-    NAEB           = a.NAEB;
+    nup            = a.nup;
+    ndown          = a.ndown;
     MS2            = a.MS2;
     ISYM           = a.ISYM;
   }
@@ -184,7 +184,7 @@ public:
   // no fully spin polarized yet, not sure what it will break
   bool checkAFQMCInfoState()
   {
-    if ( NAEA < 1 || NAEB < 0 ) 
+    if ( nup < 1 || ndown < 0 ) 
       return false;
     return true;
   }
@@ -194,8 +194,8 @@ public:
     out << "AFQMC info: "
         << "name: " << name << ""
         << "NMO: "      << NMO << ""
-        << "NAEA: " << NAEA << ""
-        << "NAEB: " << NAEB << std::endl; 
+        << "nup: " << nup << ""
+        << "ndown: " << ndown << std::endl; 
 // FIX        << "MS2: " << MS2 << std::endl; 
   }
 
@@ -203,11 +203,11 @@ public:
   {
     name = pt.get<std::string>("name");
     NMO      = pt.get<int>("NMO", -1);
-    NAEA     = pt.get<int>("NAEA", -1);
-    NAEB     = pt.get<int>("NAEB", -1);
+    nup     = pt.get<int>("nup", -1);
+    ndown     = pt.get<int>("ndown", -1);
     MS2      = pt.get<int>("MS2", -99);
     ISYM      = pt.get<int>("ISYM", -1);
-    // fix! either specify MS2 or NAEA/NAEB, but not both
+    // fix! either specify MS2 or nup/ndown, but not both
     // right now MS2 is not a useful option
     return true;
   }

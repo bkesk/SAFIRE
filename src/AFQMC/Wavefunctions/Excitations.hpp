@@ -67,18 +67,18 @@ size_t find_excitation(Vector const& abij, Vector& v)
 }
 
 template<class excitations>
-std::map<int, int> find_active_space(bool single_list, WALKER_TYPES walker_type, excitations const& abij, int NMO, int NAEA, int NAEB)
+std::map<int, int> find_active_space(bool single_list, WALKER_TYPES walker_type, excitations const& abij, int NMO, int nup, int ndown)
 {
   int npol = ( (walker_type == NONCOLLINEAR) ? 2 : 1 );
   if( walker_type == NONCOLLINEAR )
-    RUNTIME_CHECK(NAEB == 0, "");
+    RUNTIME_CHECK(ndown == 0, "");
   std::map<int, int> mo2active;
   for (int i = 0; i < 2 * NMO; i++)
     mo2active[i] = -1;
   std::vector<size_t> count(2 * NMO);
   // reference first
   auto refc = abij.reference_configuration();
-  for (int i = 0; i < NAEA + NAEB; i++, ++refc)
+  for (int i = 0; i < nup + ndown; i++, ++refc)
     ++count[*refc];
   auto nex = abij.maximum_excitation_number();
   for (int n = 1; n < nex[0]; ++n)
@@ -318,14 +318,14 @@ public:
 #if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
         dev_i_allocator_(devalloc_),
 #endif
-        NAEA(na_),
-        NAEB(nb_),
+        nup(na_),
+        ndown(nb_),
         configurations(1, number_of_configurations, c_allocator_),
-        reference(1, NAEA + NAEB, i_allocator_),
+        reference(1, nup + ndown, i_allocator_),
         unique_alpha(unique_alpha_counts.size(), unique_alpha_counts, i_allocator_),
         unique_beta(unique_beta_counts.size(), unique_beta_counts, i_allocator_)
 #if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-        ,reference_dev(1, NAEA + NAEB, dev_i_allocator_, std::allocator<int>{}),
+        ,reference_dev(1, nup + ndown, dev_i_allocator_, std::allocator<int>{}),
         unique_alpha_dev(unique_alpha_counts.size(), unique_alpha_counts, 
                         dev_i_allocator_,std::allocator<int>{}),
         unique_beta_dev(unique_beta_counts.size(), unique_beta_counts, 
@@ -354,8 +354,8 @@ public:
 #if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
         dev_i_allocator_(other.dev_i_allocator_),
 #endif
-        NAEA(other.NAEA),
-        NAEB(other.NAEB),
+        nup(other.nup),
+        ndown(other.ndown),
         configurations(std::move(other.configurations)),
         reference(std::move(other.reference)),
         unique_alpha(std::move(other.unique_alpha)),
@@ -386,8 +386,8 @@ public:
 #if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
         dev_i_allocator_(dev_alloc_),
 #endif
-        NAEA(other.NAEA),
-        NAEB(other.NAEB),
+        nup(other.nup),
+        ndown(other.ndown),
         configurations(other.configurations),
         reference(other.reference),
         unique_alpha(other.unique_alpha),
@@ -474,12 +474,12 @@ public:
 
   typename Excitation_Iterator::const_reference reference_configuration(int spin = 0) const
   {
-    return raw_pointer_cast(reference.values(0)) + (spin == 0 ? 0 : NAEA);
+    return raw_pointer_cast(reference.values(0)) + (spin == 0 ? 0 : nup);
   }
 
   typename Excitation_Iterator::reference reference_configuration(int spin = 0)
   {
-    return raw_pointer_cast(reference.values(0)) + (spin == 0 ? 0 : NAEA);
+    return raw_pointer_cast(reference.values(0)) + (spin == 0 ? 0 : nup);
   }
 
   configuration_type const* configurations_begin() const { return raw_pointer_cast(configurations.values(0)); }
@@ -595,8 +595,8 @@ public:
   template<class Vector>
   void get_alpha_configuration(size_t index, Vector& confg) const
   {
-    RUNTIME_CHECK(confg.size() >= NAEA, "");
-    std::copy_n(raw_pointer_cast(reference.values(0)), NAEA, confg.data());
+    RUNTIME_CHECK(confg.size() >= nup, "");
+    std::copy_n(raw_pointer_cast(reference.values(0)), nup, confg.data());
     if (index == 0)
       return;
     // could use lower bound
@@ -617,8 +617,8 @@ public:
   template<class Vector>
   void get_beta_configuration(size_t index, Vector& confg) const
   {
-    RUNTIME_CHECK(confg.size() >= NAEB, "");
-    std::copy_n(raw_pointer_cast(reference.values(0)) + NAEA, NAEB, confg.data());
+    RUNTIME_CHECK(confg.size() >= ndown, "");
+    std::copy_n(raw_pointer_cast(reference.values(0)) + nup, ndown, confg.data());
     if (index == 0)
       return;
     // could use lower bound
@@ -671,7 +671,7 @@ public:
       unique_alpha_dev = unique_alpha;   
       unique_beta_dev = unique_beta;    
     }
-    return reference_dev.values(0) + (ispin == 0 ? 0 : NAEA);
+    return reference_dev.values(0) + (ispin == 0 ? 0 : nup);
   }
 #else
   auto get_excitation_list_device(int ispin, int iex)
@@ -687,14 +687,14 @@ public:
 
   auto get_reference_configuration_device(int ispin)
   {
-    return raw_pointer_cast(reference.values(0)) + (ispin == 0 ? 0 : NAEA);
+    return raw_pointer_cast(reference.values(0)) + (ispin == 0 ? 0 : nup);
   }
 #endif
   
 
 private:
   // using array_of_seq until I switch to Boost.Multi to be able to use shared_allocator
-  int NAEA, NAEB;
+  int nup, ndown;
   confg_aos configurations;
   index_aos reference;
   index_aos unique_alpha;

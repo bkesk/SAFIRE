@@ -68,7 +68,7 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
   TGwfn.Global().broadcast_value(write_hdf);
 
   if (type == COLLINEAR)
-    RUNTIME_CHECK(PsiT.size() % 2 == 0, "");
+    utils::check(PsiT.size() % 2 == 0, "");
   int nspins = ((type != COLLINEAR) ? 1 : 2);
   int ndet   = PsiT.size() / nspins;
 
@@ -460,14 +460,14 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
         {
           { // Alpha
             auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[2 * nd], Q);
-            RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][Q], "");
+            utils::check(Psi.size(0) == nocc_per_kp[nd][Q], "");
             boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + Q].origin()),
                                                           {nocc_per_kp[nd][Q], nmo_per_kp[Q]});
             ma::product(Psi, H1[Q]({0, nmo_per_kp[Q]}, {0, nmo_per_kp[Q]}), haj_r);
           }
           { // Beta
             auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[2 * nd + 1], Q);
-            RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][nkpts + Q], "");
+            utils::check(Psi.size(0) == nocc_per_kp[nd][nkpts + Q], "");
             boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + Q].origin()) +
                                                               nocc_per_kp[nd][Q] * nmo_per_kp[Q],
                                                           {nocc_per_kp[nd][nkpts + Q], nmo_per_kp[Q]});
@@ -477,7 +477,7 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
         else
         {
           auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[nd], Q);
-          RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][Q], "");
+          utils::check(Psi.size(0) == nocc_per_kp[nd][Q], "");
           boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + Q].origin()),
                                                         {nocc_per_kp[nd][Q], nmo_per_kp[Q]});
           ma::product(ComplexType(2.0), Psi, H1[Q]({0, nmo_per_kp[Q]}, {0, nmo_per_kp[Q]}), ComplexType(0.0), haj_r);
@@ -491,7 +491,7 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
           auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[2 * nd], Q);
           int ne0  = std::accumulate(raw_pointer_cast(nocc_per_kp[nd].origin()), raw_pointer_cast(nocc_per_kp[nd].origin()) + Q, 0);
           int ni0  = std::accumulate(nmo_per_kp.begin(), nmo_per_kp.begin() + Q, 0);
-          RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][Q], "");
+          utils::check(Psi.size(0) == nocc_per_kp[nd][Q], "");
           ma::product(ma::H(Piu({ni0, ni0 + nmo_per_kp[Q]}, {0, nmu})), ma::T(Psi),
                       cPua[2 * nd]({0, nmu}, {ne0, ne0 + Psi.size(0)}));
           ma::product(ma::H(rotPiu({ni0, ni0 + nmo_per_kp[Q]}, {0, rotnmu})), ma::T(Psi),
@@ -500,10 +500,10 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
           Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[2 * nd + 1], Q);
           ne0 = std::accumulate(raw_pointer_cast(nocc_per_kp[nd].origin()) + nkpts,
                                 raw_pointer_cast(nocc_per_kp[nd].origin()) + nkpts + Q, 0);
-          RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][nkpts + Q], "");
+          utils::check(Psi.size(0) == nocc_per_kp[nd][nkpts + Q], "");
           ma::product(ma::H(Piu({ni0, ni0 + nmo_per_kp[Q]}, {0, nmu})), ma::T(Psi),
                       cPua[2 * nd + 1]({0, nmu}, {ne0, ne0 + Psi.size(0)}));
-          RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][nkpts + Q], "");
+          utils::check(Psi.size(0) == nocc_per_kp[nd][nkpts + Q], "");
           ma::product(ma::H(rotPiu({ni0, ni0 + nmo_per_kp[Q]}, {0, rotnmu})), ma::T(Psi),
                       rotcPua[2 * nd + 1]({0, rotnmu}, {ne0, ne0 + Psi.size(0)}));
         }
@@ -512,7 +512,7 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
           int ne0  = std::accumulate(raw_pointer_cast(nocc_per_kp[nd].origin()), raw_pointer_cast(nocc_per_kp[nd].origin()) + Q, 0);
           int ni0  = std::accumulate(nmo_per_kp.begin(), nmo_per_kp.begin() + Q, 0);
           auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[nd], Q);
-          RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][Q], "");
+          utils::check(Psi.size(0) == nocc_per_kp[nd][Q], "");
           ma::product(ma::H(Piu({ni0, ni0 + nmo_per_kp[Q]}, {0, nmu})), ma::T(Psi),
                       cPua[nd]({0, nmu}, {ne0, ne0 + Psi.size(0)}));
           ma::product(ma::H(rotPiu({ni0, ni0 + nmo_per_kp[Q]}, {0, rotnmu})), ma::T(Psi),
@@ -605,7 +605,7 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
           KK2Q[KI][KK] = Q;
           break;
         }
-      RUNTIME_CHECK(KK2Q[KI][KK] >= 0, "");
+      utils::check(KK2Q[KI][KK] >= 0, "");
     }
 
   // LIJ[I][J][Q][n] = sum_u u[KI][i][u] u[KJ][j][u] LQGun[Q][G][u][n]
@@ -959,7 +959,7 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
             { // Alpha
 // change get_PsiK to cast to the value_type of the result
               auto Psi = get_PsiK<boost::multi::array<SPComplexType,2>>(nmo_per_kp,PsiT[2*nd],K);
-              RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][K], "");
+              utils::check(Psi.size(0) == nocc_per_kp[nd][K], "");
               boost::multi::array_ref<SPComplexType,2> Likn(raw_pointer_cast(LQKikn[Q][K].origin()),
                                                            {nmo_per_kp[K],nmo_per_kp[QKtok2[Q][K]]*nchol_per_kp[Q]});
               boost::multi::array_ref<SPComplexType,2> Lakn(raw_pointer_cast(LQKank[nq0+Q][K].origin()),
@@ -978,7 +978,7 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
             { // Beta
 // change get_PsiK to cast to the value_type of the result
               auto Psi = get_PsiK<boost::multi::array<SPComplexType,2>>(nmo_per_kp,PsiT[2*nd+1],K);
-              RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][nkpts+K], "");
+              utils::check(Psi.size(0) == nocc_per_kp[nd][nkpts+K], "");
               boost::multi::array_ref<SPComplexType,2> Likn(raw_pointer_cast(LQKikn[Q][K].origin()),
                                                            {nmo_per_kp[K],nmo_per_kp[QKtok2[Q][K]]*nchol_per_kp[Q]});
               boost::multi::array_ref<SPComplexType,2> Lakn(raw_pointer_cast(LQKank[nq0+nkpts+1+Q][K].origin()),
@@ -997,7 +997,7 @@ HamiltonianOperations KPTHCHamiltonian::getHamiltonianOperations(bool pureSD,
           } else {
 // change get_PsiK to cast to the value_type of the result
             auto Psi = get_PsiK<boost::multi::array<SPComplexType,2>>(nmo_per_kp,PsiT[nd],K);
-            RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][K], "");
+            utils::check(Psi.size(0) == nocc_per_kp[nd][K], "");
             boost::multi::array_ref<SPComplexType,2> Likn(raw_pointer_cast(LQKikn[Q][K].origin()),
                                                          {nmo_per_kp[K],nmo_per_kp[QKtok2[Q][K]]*nchol_per_kp[Q]});
             boost::multi::array_ref<SPComplexType,2> Lakn(raw_pointer_cast(LQKank[nq0+Q][K].origin()),

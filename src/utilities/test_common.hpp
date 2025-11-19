@@ -101,6 +101,7 @@ void ARRAY_EQUAL(Arr1&& A_, Arr2&& B_, double m=1e-8, double eps=1e-8)
 { 
   static_assert(nda::get_rank<std::decay_t<Arr1>> == 
 	        nda::get_rank<std::decay_t<Arr2>>, "Rank mismatch.");
+  REQUIRE(A_.size() == B_.size()); 
   auto A = nda::to_host(A_());
   auto B = nda::to_host(B_());
   auto itA = A.begin();

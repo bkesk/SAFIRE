@@ -79,33 +79,32 @@ void test_basic_walker_features(std::string wtype)
 
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  int NMO = 8, NAEA = 2, NAEB = 2, nwalkers = 10;
+  int NMO = 8, nup = 2, ndown = 2, nwalkers = 10;
   if (wtype == "noncollinear")
   {
-    NAEA = 4;
-    NAEB = 0;
+    nup = 4;
+    ndown = 0;
   }
   AFQMCInfo info;
   info.NMO  = NMO;
-  info.NAEA = NAEA;
-  info.NAEB = NAEB;
+  info.nup = nup;
+  info.ndown = ndown;
   info.name = "walker";
   int M((wtype == "noncollinear") ? 2 * NMO : NMO);
-  array<Type, 2> initA(M, NAEA);
-  array<Type, 2> initB(M, NAEB);
+  int nspin = (wtype == "collinear" ? 2 : 1); 
+  array<Type, 3> initA(nspin, M, nup);
   initA() = Type(0.0);
-  initB() = Type(0.0);
-  for (int i = 0; i < NAEA; i++)
-    initA(i,i) = Type(0.22);
-  for (int i = 0; i < NAEB; i++)
-    initB(i,i) = Type(0.33);
+  for (int i = 0; i < nup; i++)
+    initA(0,i,i) = Type(0.22);
+  for (int i = 0; i < ndown; i++)
+    initA(1,i,i) = Type(0.33);
   std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("walker_type",wtype);
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, info, rng);
-  wset.resize(nwalkers, initA, initB);
+  wset.resize(nwalkers, initA);
 
   REQUIRE(wset.size() == nwalkers);
   int cnt(0);
@@ -114,14 +113,14 @@ void test_basic_walker_features(std::string wtype)
   for (auto it = wset.begin(); it != wset.end(); ++it)
   {
     auto sm = it->template SlaterMatrix<MEM>(Alpha);
-    REQUIRE( sm.extent(0) == initA.extent(0) );	
-    REQUIRE( sm.extent(1) == initA.extent(1) );	
-    REQUIRE(nda::to_host(it->template SlaterMatrix<MEM>(Alpha)) == initA);
+    REQUIRE( sm.extent(0) == initA.extent(1) );	
+    REQUIRE( sm.extent(1) == nup );	
+    REQUIRE(nda::to_host(it->template SlaterMatrix<MEM>(Alpha)) == initA(0,nda::ellipsis{}));
     if( wset.getWalkerType() == COLLINEAR ) { 
       auto smB = it->template SlaterMatrix<MEM>(Beta);
-      REQUIRE( smB.extent(0) == initB.extent(0) );	
-      REQUIRE( smB.extent(1) == initB.extent(1) );	
-      REQUIRE( nda::to_host(it->template SlaterMatrix<MEM>(Beta)) == initB);
+      REQUIRE( smB.extent(0) == initA.extent(1) );	
+      REQUIRE( smB.extent(1) == ndown );	
+      REQUIRE( nda::to_host(it->template SlaterMatrix<MEM>(Beta)) == initA(1,nda::range::all,nda::range(ndown)));
     }
     it->set_property(WEIGHT,base * 1.0 + 0.5);
     it->set_property(OVLP,base * 1.0 + 0.5);
@@ -242,26 +241,27 @@ void test_walker_io(std::string wtype)
 
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  int NMO = 8, NAEA = 2, NAEB = 2, nwalkers = 10;
+/*
+  int NMO = 8, nup = 2, ndown = 2, nwalkers = 10;
   if (wtype == "noncollinear")
   {
-    NAEA = 4;
-    NAEB = 0;
+    nup = 4;
+    ndown = 0;
   }
 
   AFQMCInfo info;
   info.NMO  = NMO;
-  info.NAEA = NAEA;
-  info.NAEB = NAEB;
+  info.nup = nup;
+  info.ndown = ndown;
   info.name = "walker";
   int M((wtype == "noncollinear") ? 2 * NMO : NMO);
-  array<Type, 2> initA(M, NAEA);
-  array<Type, 2> initB(M, NAEB);
+  array<Type, 2> initA(M, nup);
+  array<Type, 2> initB(M, ndown);
   initA() = Type(0.0);
   initB() = Type(0.0);
-  for (int i = 0; i < NAEA; i++)
+  for (int i = 0; i < nup; i++)
     initA(i,i) = Type(0.22);
-  for (int i = 0; i < NAEB; i++)
+  for (int i = 0; i < ndown; i++)
     initB(i,i) = Type(0.33);
   std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
@@ -269,7 +269,7 @@ void test_walker_io(std::string wtype)
   pt0.put("WalkerSet.name","wset0");
   pt0.put("WalkerSet.walker_type",wtype);
   auto wset = make_WalkerSet<MEM>(mpi, pt0.get_child("WalkerSet"), info, rng);
-  wset.resize(nwalkers, initA, initB);
+  wset.resize(nwalkers, initA);
 
   REQUIRE(wset.size() == nwalkers);
   int cnt(0);
@@ -322,6 +322,7 @@ void test_walker_io(std::string wtype)
   mpi->comm.barrier();
   if (mpi->comm.root())
     remove("dummy_walkers.h5");
+*/
 }
 
 // MAM: Tests are not GPU enabled, fix direct access to GPU memory

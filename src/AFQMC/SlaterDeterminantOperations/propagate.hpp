@@ -256,6 +256,34 @@ void Propagate_pol(long npol, S_t && SM, P_t const& P1, V_t const& V, int order 
   detail::apply_P1(P1,SM,TMN,TA);
 }
 
+// Propagate a WalkerSet
+// P1(nspin)(npol*NMO,npol*NMO): The matrix can be csr_matrix or nda::MemoryMatrix
+// V: vHS[nspin][nw][npol*NMO][npol*NMO]
+template<typename WlkSet, typename P_t, nda::MemoryArrayOfRank<4> V_t>
+requires( std::decay_t<V_t>::is_stride_order_C() and 
+          (nda::MemoryArrayOfRank<P_t,3> or nda::MemoryArrayOfRank<P_t,1>)) 
+void PropagateWlkSet(WlkSet& wset, P_t const& P1, V_t const& V, int order = 6, char TA = 'N')
+{
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<V_t>();
+  int nwalk        = wset.size();
+  auto walker_type = wset.getWalkerType();
+  bool npol      = (walker_type == NONCOLLINEAR ? 2 : 1);
+  bool nspin     = (walker_type == COLLINEAR ? 2 : 1);
+  utils::check(V.extent(0) == nspin, "Size mismatch");
+  utils::check(V.extent(1) == nwalk, "Size mismatch");
+  utils::check(P1.extent(0) == nspin, "Size mismatch");
+
+  if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
+    Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0,nda::ellipsis{}),V(0,nda::ellipsis{}),order,TA);
+    if(walker_type==COLLINEAR)
+      Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1,nda::ellipsis{}),V(1,nda::ellipsis{}),order,TA);
+  } else {
+    Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0),V(0,nda::ellipsis{}),order,TA);
+    if(walker_type==COLLINEAR)
+      Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1),V(1,nda::ellipsis{}),order,TA);
+  }
+}
+
 } // namespace det_ops 
 
 } // namespace afqmc

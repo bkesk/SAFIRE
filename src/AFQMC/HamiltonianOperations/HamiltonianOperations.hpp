@@ -23,7 +23,7 @@
 //#include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
 //#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
 //#endif
-//#include "AFQMC/HamiltonianOperations/THCOps.hpp"
+#include "AFQMC/HamiltonianOperations/THCOps.hpp"
 //#include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
 //#include "AFQMC/HamiltonianOperations/Real3IndexFactorization_batched_v2.hpp"
 //#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
@@ -63,19 +63,21 @@ namespace detail
 } // namespace detail
 */
 
-template<MEMORY_SPACE _MEM_, bool MP>
+template<MEMORY_SPACE _MEM_>
 class HamiltonianOperations 
 {
 
 public:
 
   constexpr static MEMORY_SPACE MEM = _MEM_;
-  using SPComplexType = typename to_working_precision<MP, ComplexType>::type;
 
   HamiltonianOperations()  
   {
     APP_ABORT(" Error: Calling default constructor of HamiltonianOperations. ");
   } 
+
+  explicit HamiltonianOperations(THCOps<MEM,true>&& other) : var(std::move(other)) {} 
+  explicit HamiltonianOperations(THCOps<MEM,false>&& other) : var(std::move(other)) {} 
 
 /*
   // host only !
@@ -87,8 +89,6 @@ public:
   explicit HamiltonianOperations(KP3IndexFactorization<MP>&& other) : Base::variant(std::move(other)) {}
 #endif
   // GPU enabled
-  explicit HamiltonianOperations(THCOps<MP,true>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(THCOps<MP,false>&& other) : Base::variant(std::move(other)) {}
   explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix_<device_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
  explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix_<device_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
   explicit HamiltonianOperations(Real3IndexFactorization_batched_v2<MP,true>&& other) : Base::variant(std::move(other)) {}
@@ -105,52 +105,59 @@ public:
   explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix<shared_allocator<SPComplexType>>> const& other) = delete;
 #endif
 // GPU enabled
-  explicit HamiltonianOperations(THCOps<MP,true> const& other) = delete;
-  explicit HamiltonianOperations(THCOps<MP,false> const& other) = delete;
+*/
+  explicit HamiltonianOperations(THCOps<MEM,true> const& other) = delete;
+  explicit HamiltonianOperations(THCOps<MEM,false> const& other) = delete;
+/*
   explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
   explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
   explicit HamiltonianOperations(Real3IndexFactorization_batched_v2<MP,true> const& other) = delete;
   explicit HamiltonianOperations(Real3IndexFactorization_batched_v2<MP,false> const& other) = delete;
   explicit HamiltonianOperations(KP3IndexFactorization_batched<MP,Matrix_<device_allocator<SPComplexType>>> const& other) = delete;
   explicit HamiltonianOperations(KP3IndexFactorization_batched<MP,Matrix_<shared_allocator<SPComplexType>>> const& other) = delete;
+*/
 
-  HamiltonianOperations(HamiltonianOperations const& other) = delete;
+  HamiltonianOperations(HamiltonianOperations const& other) = default;
   HamiltonianOperations(HamiltonianOperations&& other)      = default;
 
-  HamiltonianOperations& operator=(HamiltonianOperations const& other) = delete;
+  HamiltonianOperations& operator=(HamiltonianOperations const& other) = default;
   HamiltonianOperations& operator=(HamiltonianOperations&& other) = default;
 
   template<class... Args>
-  boost::multi::array<ComplexType, 2> getOneBodyPropagatorMatrix(Args&&... args)
+  auto getOneBodyPropagatorMatrix(Args&&... args)
   {
-    return boost::apply_visitor([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); },
-                                *this);
+    return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); },
+                                var);
   }
 
+/*
   template<class... Args>
   void write2hdf(Args&&... args)
   {
-    boost::apply_visitor([&](auto&& a) { a.write2hdf(std::forward<Args>(args)...); }, *this);
+    std::visit([&](auto&& a) { a.write2hdf(std::forward<Args>(args)...); }, var);
   }
-
+*/
   template<class... Args>
   void energy(Args&&... args)
   {
-    boost::apply_visitor([&](auto&& a) { a.energy(std::forward<Args>(args)...); }, *this);
+    std::visit([&](auto&& a) { a.energy(std::forward<Args>(args)...); }, var);
   }
 
+/*
   template<class... Args>
   void generalizedFockMatrix(Args&&... args)
   {
-    boost::apply_visitor([&](auto&& a) { a.generalizedFockMatrix(std::forward<Args>(args)...); }, *this);
+    std::visit([&](auto&& a) { a.generalizedFockMatrix(std::forward<Args>(args)...); }, var);
   }
+*/
 
   template<class... Args>
-  void vHS(Args&&... args)
+  auto vHS(Args&&... args)
   {
-    boost::apply_visitor([&](auto&& s) { s.vHS(std::forward<Args>(args)...); }, *this);
+    return std::visit([&](auto&& s) { return s.vHS(std::forward<Args>(args)...); }, var);
   }
 
+/*
   template<class... Args>
   std::tuple<dev_csr_Matrix<ComplexType> const*, dev_csr_Matrix<ComplexType> const*> vHS_sparse(Args&&... args)
   {
@@ -206,87 +213,63 @@ public:
   template<class... Args>
   void ph_reference_energy(Args&&... args)
   { 
-    boost::apply_visitor([&](auto&& s) { s.ph_reference_energy(std::forward<Args>(args)...); }, *this);
+    std::visit([&](auto&& s) { s.ph_reference_energy(std::forward<Args>(args)...); }, var);
   }
 
   template<class... Args>
   void ph_excited_energy(Args&&... args)
   { 
-    boost::apply_visitor([&](auto&& s) { s.ph_excited_energy(std::forward<Args>(args)...); }, *this);
+    std::visit([&](auto&& s) { s.ph_excited_energy(std::forward<Args>(args)...); }, var);
   }
+*/
 
   template<class... Args>
   void vbias(Args&&... args)
   {
-    boost::apply_visitor([&](auto&& s) { s.vbias(std::forward<Args>(args)...); }, *this);
+    std::visit([&](auto&& s) { s.vbias(std::forward<Args>(args)...); }, var);
   }
 
-  int local_number_of_cholesky_vectors() const
+  int number_of_cholesky_vectors() const
   {
-    return boost::apply_visitor([&](auto&& a) { return a.local_number_of_cholesky_vectors(); }, *this);
-  }
-
-  int global_origin_cholesky_vector() const
-  {
-    return boost::apply_visitor([&](auto&& a) { return a.global_origin_cholesky_vector(); }, *this);
+    return std::visit([&](auto&& a) { return a.number_of_cholesky_vectors(); }, var);
   }
 
   int number_of_ke_vectors() const
   {
-    return boost::apply_visitor([&](auto&& a) { return a.number_of_ke_vectors(); }, *this);
+    return std::visit([&](auto&& a) { return a.number_of_ke_vectors(); }, var);
   }
 
-  int global_number_of_cholesky_vectors() const
+  auto vHS_dims() const
   {
-    return boost::apply_visitor([&](auto&& a) { return a.global_number_of_cholesky_vectors(); }, *this);
-  }
-
-  bool distribution_over_cholesky_vectors() const
-  {
-    return boost::apply_visitor([&](auto&& a) { return a.distribution_over_cholesky_vectors(); }, *this);
-  }
-
-
-  bool transposed_G_for_vbias() const
-  {
-    return boost::apply_visitor([&](auto&& a) { return a.transposed_G_for_vbias(); }, *this);
-  }
-
-  bool transposed_G_for_E() const
-  {
-    return boost::apply_visitor([&](auto&& a) { return a.transposed_G_for_E(); }, *this);
-  }
-
-  bool transposed_vHS() const
-  {
-    return boost::apply_visitor([&](auto&& a) { return a.transposed_vHS(); }, *this);
+    return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
   }
 
   HamiltonianTypes getHamType() const
   {
-    return boost::apply_visitor([&](auto&& a) { return a.getHamType(); }, *this);
+    return std::visit([&](auto&& a) { return a.getHamType(); }, var);
   }
 
+/*
   template<class... Args>
   boost::multi::array<ComplexType, 2> getHSPotentials()
   {
-    return boost::apply_visitor([&](auto&& a) { return a.getHSPotentials(); }, *this);
+    return std::visit([&](auto&& a) { return a.getHSPotentials(); }, var);
   }
 
   template<class... Args>
   void getFieldTypes(Args&&... args)
   {
-    boost::apply_visitor([&](auto&& a) { a.getFieldTypes(std::forward<Args>(args)...); }, *this);
+    std::visit([&](auto&& a) { a.getFieldTypes(std::forward<Args>(args)...); }, var);
   }
 
   bool spin_dependent_vHS() const { 
-    return boost::apply_visitor([&](auto&& a) { return a.spin_dependent_vHS(); }, *this);
+    return std::visit([&](auto&& a) { return a.spin_dependent_vHS(); }, var);
   }
 */
   
   private:
 
-//    std::variant<THCOps<MEM, MP,true>> var;
+    std::variant<THCOps<MEM,true>, THCOps<MEM,false>> var;
 };
 
 } // namespace afqmc

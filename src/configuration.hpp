@@ -16,6 +16,7 @@
 #include<complex>
 #include "config.h"
 #include "config.0.h"
+#include "IO/AppAbort.hpp"
 
 #include "nda/nda.hpp"
 
@@ -88,6 +89,22 @@ constexpr MEMORY_SPACE get_memory_space()
     return UNIFIED_MEMORY;
   return HOST_MEMORY; 
 }
+
+template<MEMORY_SPACE MEM, typename... Args>
+constexpr void check_memory_space(nda::Array auto && a, Args... rest)
+{
+  constexpr MEMORY_SPACE M = get_memory_space<std::decay_t<decltype(a)>>();
+  static_assert(MEM == M, "Memory space mismatch");
+  if constexpr (sizeof...(Args))
+    check_memory_space<MEM>(rest...); 
+} 
+
+// default computation backend
+#if defined(ENABLE_DEVICE)
+inline constexpr std::string default_compute = "gpu";
+#else
+inline constexpr std::string default_compute = "cpu";
+#endif
 
 template<typename T, int N, typename Layout = nda::C_layout>
 using host_array = nda::array<T,N,Layout>;
@@ -198,6 +215,49 @@ namespace detail
                          std::conditional_t<MEM==DEVICE_MEMORY,  device_buffered_array<T,N,Layout>,
                          std::conditional_t<MEM==UNIFIED_MEMORY, unified_buffered_array<T,N,Layout>,
                                                                  default_buffered_array<T,N,Layout>>>>;
+
+// routine to return an array_view to the provided array, but converted to 
+// real type (with remove_complex_t<T>) with an extra dimension. Only works
+// for C or Fortran arrays with min_stride==1.  
+// should this be somewhere???
+  template<nda::MemoryArray A_t>
+  auto to_real_view(A_t && a) {
+    using A = std::decay_t<A_t>;
+    // don't use nda::get_value_t, which removes qualifiers 
+    using value_type = typename A::value_type;  
+    using real_t = nda::remove_complex_t<value_type>;
+    constexpr int rank = nda::get_rank<A>;
+    constexpr MEMORY_SPACE MEM = get_memory_space<A>();
+
+    if constexpr (nda::is_complex_v<value_type>) {
+      static_assert(A::is_stride_order_C() or A::is_stride_order_Fortran(), "Stride order mismatch");
+      if(a.indexmap().min_stride() != 1)
+        sfqmc::APP_ABORT(std::source_location::current(), "Strides mismatch");
+      if constexpr (A::is_stride_order_C()) {
+        std::array<long,rank+1> shape;
+        std::copy_n(a.shape().begin(),rank,shape.begin());
+        shape[rank] = 2;
+        std::array<long,rank+1> str;
+        std::transform(a.strides().begin(),a.strides().end(),str.begin(),
+            [](auto const& x) {return 2*x;} );
+        str[rank] = 1;
+        nda::idx_map<rank+1, 0, nda::C_stride_order<rank+1>, nda::layout_prop_e::none> idxm(shape,str);
+        return memory::array_view<MEM,real_t,rank+1>(idxm, reinterpret_cast<real_t*>(a.data()));
+      } else {
+        std::array<long,rank+1> shape;
+        std::copy_n(a.shape().begin(),rank,shape.begin()+1);
+        shape[0] = 2;
+        std::array<long,rank+1> str;
+        std::transform(a.strides().begin(),a.strides().end(),str.begin()+1,
+            [](auto const& x) {return 2*x;} );
+        str[0] = 1;
+        nda::idx_map<rank+1, 0, nda::Fortran_stride_order<rank+1>, nda::layout_prop_e::none> idxm(shape,str);    
+        return memory::array_view<MEM,real_t,rank+1,nda::F_stride_layout>(idxm, reinterpret_cast<real_t*>(a.data()));
+      }
+    } else {
+      return a();
+    }
+  }
 
 }
 

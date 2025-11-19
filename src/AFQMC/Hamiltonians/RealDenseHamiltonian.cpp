@@ -73,7 +73,7 @@ RealDenseHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   int H1_SHAPE = 2;
   
   if (type == COLLINEAR)
-    RUNTIME_CHECK(PsiT.size() % 2 == 0, "");
+    utils::check(PsiT.size() % 2 == 0, "");
   int nspins = ((type != COLLINEAR) ? 1 : 2);
   int npol   = ((type == NONCOLLINEAR) ? 2 : 1);
   int ndet   = PsiT.size() / nspins;

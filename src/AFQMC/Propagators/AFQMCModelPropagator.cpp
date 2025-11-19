@@ -104,12 +104,12 @@ void AFQMCModelPropagator<SP>::generateP1(double dt, WALKER_TYPES walker_type)
 
     if(external_H1)
       APP_ABORT(" Error: Spin dependent propagator (P1) with CLOSED walker not yet working.");
-    RUNTIME_CHECK(H1.size(0) == NMO && H1.size(1) == NMO, "");
+    utils::check(H1.size(0) == NMO && H1.size(1) == NMO, "");
     P1s[0] = generate1BodyPropagator<P1shm>(TG, 1e-8, H1, printP1eV);
 
   } else if (walker_type == COLLINEAR) {
 
-    RUNTIME_CHECK(H1.size(0) == 2*NMO && H1.size(1) == NMO, "");
+    utils::check(H1.size(0) == 2*NMO && H1.size(1) == NMO, "");
     auto&& H1a(H1.sliced(0,NMO));
     auto&& H1b(H1.sliced(NMO,2*NMO));
     if (external_H1) {
@@ -122,7 +122,7 @@ void AFQMCModelPropagator<SP>::generateP1(double dt, WALKER_TYPES walker_type)
 
   } else if (walker_type == NONCOLLINEAR) {
 
-    RUNTIME_CHECK(H1.size(0) == 2*NMO && H1.size(1) == 2*NMO, "");
+    utils::check(H1.size(0) == 2*NMO && H1.size(1) == 2*NMO, "");
     if (external_H1) {
       // scale H1ext by dt
       auto&& H1a(H1({0,NMO},{0,NMO}));

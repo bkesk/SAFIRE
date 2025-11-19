@@ -74,9 +74,9 @@ void test_read_phmsd(boost::mpi3::communicator& world)
     auto TGwfn = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
 
     int NMO;
-    int NAEA;
-    int NAEB;
-    std::tie(NMO, NAEA, NAEB) = read_info_from_wfn(UTEST_WFN, "PHMSD");
+    int nup;
+    int ndown;
+    std::tie(NMO, nup, ndown) = read_info_from_wfn(UTEST_WFN, "PHMSD");
     WALKER_TYPES walker_type = afqmc::getWalkerType(UTEST_WFN, "PHMSD");
     hdf_archive dump;
     if (!dump.open(UTEST_WFN, H5F_ACC_RDONLY))
@@ -90,13 +90,13 @@ void test_read_phmsd(boost::mpi3::communicator& world)
     std::vector<PsiT_Matrix> PsiT_MO; 
     std::vector<int> occbuff;
     std::vector<ComplexType> coeffs;
-    read_ph_wavefunction_hdf(dump, coeffs, occbuff, ndets_to_read, walker_type, TGwfn.Node(), NMO, NAEA, NAEB, PsiT_MO,
+    read_ph_wavefunction_hdf(dump, coeffs, occbuff, ndets_to_read, walker_type, TGwfn.Node(), NMO, nup, ndown, PsiT_MO,
                              wfn_type);
-    boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, NAEA + NAEB});
-    ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, TGwfn.Node(), NMO, NAEA, NAEB);
+    boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, nup + ndown});
+    ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, TGwfn.Node(), NMO, nup, ndown);
     using std::get;
     auto cit = abij.configurations_begin();
-    std::vector<int> configa(NAEA), configb(NAEB);
+    std::vector<int> configa(nup), configb(ndown);
     // Is it fortuitous that the order of determinants is the same?
     for (int nd = 0; nd < ndets_to_read; nd++, ++cit)
     {
@@ -107,13 +107,13 @@ void test_read_phmsd(boost::mpi3::communicator& world)
       abij.get_configuration(1, beta_ix, configb);
       std::sort(configa.begin(), configa.end());
       std::sort(configb.begin(), configb.end());
-      for (int i = 0; i < NAEA; i++)
+      for (int i = 0; i < nup; i++)
       {
         REQUIRE(configa[i] == occs[nd][i]);
       }
-      for (int i = 0; i < NAEB; i++)
+      for (int i = 0; i < ndown; i++)
       {
-        REQUIRE(configb[i] == occs[nd][i + NAEA]);
+        REQUIRE(configb[i] == occs[nd][i + nup]);
       }
       REQUIRE(std::abs(coeffs[nd]) == std::abs(ci));
     }
@@ -171,14 +171,14 @@ void test_phmsd(boost::mpi3::communicator& world)
 
     int nwalk                 = 1;
     int NMO;
-    int NAEA;
-    int NAEB;
-    std::tie(NMO, NAEA, NAEB) = read_info_from_wfn(UTEST_WFN, "PHMSD");
+    int nup;
+    int ndown;
+    std::tie(NMO, nup, ndown) = read_info_from_wfn(UTEST_WFN, "PHMSD");
     // Test overlap.
     //wfn.Overlap(wset);
     WALKER_TYPES type = afqmc::getWalkerType(UTEST_WFN, "PHMSD");
     std::map<std::string, AFQMCInfo> InfoMap;
-    InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, NAEA, NAEB}));
+    InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
 
     int npol = ((type == NONCOLLINEAR) ? 2 : 1);
 
@@ -218,22 +218,22 @@ void test_phmsd(boost::mpi3::communicator& world)
     auto initial_guess = WfnFac.getInitialGuess("wfn0");
     REQUIRE(initial_guess.size(0) == 2);
     REQUIRE(initial_guess.size(1) == npol*NMO);
-    REQUIRE(initial_guess.size(2) == NAEA);
+    REQUIRE(initial_guess.size(2) == nup);
 
-    wset.resize(nwalk, initial_guess[0], initial_guess[1](initial_guess.extension(1), {0, NAEB}));
+    wset.resize(nwalk, initial_guess[0], initial_guess[1](initial_guess.extension(1), {0, ndown}));
     // 1. Test Overlap Explicitly
     // 1.a Get raw occupancies and coefficients from file.
     std::vector<ComplexType> coeffs;
     std::vector<int> buff;
-    getBasicWavefunction(buff, coeffs, NAEA + NAEB);
+    getBasicWavefunction(buff, coeffs, nup + ndown);
     int ndets = coeffs.size();
-    boost::multi::array_ref<int, 2> occs(buff.data(), {ndets, NAEA + NAEB});
+    boost::multi::array_ref<int, 2> occs(buff.data(), {ndets, nup + ndown});
     // 1.b Compute overlap of trial wavefunction compotents.
     boost::multi::array<ComplexType, 2> Orbs({npol*NMO, npol*NMO});
     for (int i = 0; i < npol*NMO; i++)
       Orbs[i][i] = ComplexType(1.0);
-    boost::multi::array<ComplexType, 2, Allocator> TrialA({NAEA, npol*NMO}, ComplexType(0.0), alloc_);
-    boost::multi::array<ComplexType, 2, Allocator> TrialB({NAEB, npol*NMO}, ComplexType(0.0), alloc_);
+    boost::multi::array<ComplexType, 2, Allocator> TrialA({nup, npol*NMO}, ComplexType(0.0), alloc_);
+    boost::multi::array<ComplexType, 2, Allocator> TrialB({ndown, npol*NMO}, ComplexType(0.0), alloc_);
     auto sdet = wfn.getSlaterDetOperations();
     ComplexType ovlp_sum = ComplexType(0.0);
     ComplexType logovlp(0.0);
@@ -242,14 +242,14 @@ void test_phmsd(boost::mpi3::communicator& world)
     {
       // Construct slater matrix from given set of occupied orbitals.
       ComplexType ovlpa, ovlpb = ComplexType(1.0);
-      boost::multi::array_ref<int, 1> oa(occs[idet].origin(), {NAEA});
-      getSlaterMatrix(TrialA, oa, NAEA);
+      boost::multi::array_ref<int, 1> oa(occs[idet].origin(), {nup});
+      getSlaterMatrix(TrialA, oa, nup);
       ovlpa = sdet->Overlap(TrialA, *wset[0].SlaterMatrix(Alpha), logovlp);
       if(type == COLLINEAR) {
-        boost::multi::array_ref<int, 1> ob(occs[idet].origin() + NAEA, {NAEB});
-        for (int i = 0; i < NAEB; i++)
+        boost::multi::array_ref<int, 1> ob(occs[idet].origin() + nup, {ndown});
+        for (int i = 0; i < ndown; i++)
           ob[i] -= NMO;
-        getSlaterMatrix(TrialB, ob, NAEB);
+        getSlaterMatrix(TrialB, ob, ndown);
         ovlpb = sdet->Overlap(TrialB, *wset[0].SlaterMatrix(Beta), logovlp);
       }
       ovlp_sum += ma::conj(coeffs[idet]) * ovlpa * ovlpb;

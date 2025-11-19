@@ -207,7 +207,7 @@ void AFQMCModelPropagator<SP>::step_denseP2(int nsteps_, WlkSet& wset, RealType 
       else
       {
         local_energy_walker_update(wset, dt, apply_constrain, Eshift, new_overlaps, new_energies, MFfactor[ni],
-                                   hybrid_weight[ni], work, lower_cutoff_scale, upper_cutoff_scale);
+                                   work, lower_cutoff_scale, upper_cutoff_scale);
       }
       if (wset.getBPPos() >= 0 && wset.getBPPos() < wset.NumBackProp())
         wset.advanceBPPos();
@@ -385,7 +385,7 @@ void AFQMCModelPropagator<SP>::step_sparseP2(int nsteps_, WlkSet& wset, RealType
       else
       {
         local_energy_walker_update(wset, dt, apply_constrain, Eshift, new_overlaps, new_energies, MFfactor[ni],
-                                   hybrid_weight[ni], work, lower_cutoff_scale, upper_cutoff_scale);
+                                   work, lower_cutoff_scale, upper_cutoff_scale);
       }
       if (wset.getBPPos() >= 0 && wset.getBPPos() < wset.NumBackProp())
         wset.advanceBPPos();
@@ -430,22 +430,22 @@ void AFQMCModelPropagator<SP>::BackPropagate_denseP2(int nbpsteps, int nStabaliz
   C4Tensor_ref vHS4D(make_device_ptr(vHS.origin()), vhs4d_ext);
 
   auto&& Fields = *wset.getFields();
-  RUNTIME_CHECK(Fields.size(0) >= nbpsteps, "");
-  RUNTIME_CHECK(Fields.size(1) == globalnCV, "");
-  RUNTIME_CHECK(Fields.size(2) == nwalk, "");
+  utils::check(Fields.size(0) >= nbpsteps, "");
+  utils::check(Fields.size(1) == globalnCV, "");
+  utils::check(Fields.size(2) == nwalk, "");
 
   int nrow(NMO * npol);
   int ncol(NAEA + ((walker_type == CLOSED) ? 0 : NAEB));
-  RUNTIME_CHECK(Refs.size(0) == nwalk, "");
+  utils::check(Refs.size(0) == nwalk, "");
   int nrefs = Refs.size(1);
-  RUNTIME_CHECK(Refs.size(2) == nrow * ncol, "");
+  utils::check(Refs.size(2) == nrow * ncol, "");
 
   int nx = 1;
   if (walker_type == COLLINEAR)
     nx = 2;
 
-  RUNTIME_CHECK(logdetR.size(0) == nwalk, "");
-  RUNTIME_CHECK(logdetR.size(1) == nrefs * nx, "");
+  utils::check(logdetR.size(0) == nwalk, "");
+  utils::check(logdetR.size(1) == nrefs * nx, "");
   ma::fill(logdetR, ComplexType(0.0, 0.0));
 
   for (int i = 0; i < nwalk; i++)
@@ -530,22 +530,22 @@ void AFQMCModelPropagator<SP>::BackPropagate_sparseP2(int nbpsteps, int nStabali
                    buffer_manager.get_generator().template get_allocator<SPComplexType>());
 
   auto&& Fields = *wset.getFields();
-  RUNTIME_CHECK(Fields.size(0) >= nbpsteps, "");
-  RUNTIME_CHECK(Fields.size(1) == globalnCV, "");
-  RUNTIME_CHECK(Fields.size(2) == nwalk, "");
+  utils::check(Fields.size(0) >= nbpsteps, "");
+  utils::check(Fields.size(1) == globalnCV, "");
+  utils::check(Fields.size(2) == nwalk, "");
 
   int nrow(NMO * npol);
   int ncol(NAEA + ((walker_type == CLOSED) ? 0 : NAEB));
-  RUNTIME_CHECK(Refs.size(0) == nwalk, "");
+  utils::check(Refs.size(0) == nwalk, "");
   int nrefs = Refs.size(1);
-  RUNTIME_CHECK(Refs.size(2) == nrow * ncol, "");
+  utils::check(Refs.size(2) == nrow * ncol, "");
 
   int nx = 1;
   if (walker_type == COLLINEAR)
     nx = 2;
 
-  RUNTIME_CHECK(logdetR.size(0) == nwalk, "");
-  RUNTIME_CHECK(logdetR.size(1) == nrefs * nx, "");
+  utils::check(logdetR.size(0) == nwalk, "");
+  utils::check(logdetR.size(1) == nrefs * nx, "");
   ma::fill(logdetR, ComplexType(0.0, 0.0));
 
   for (int i = 0; i < nwalk; i++)
@@ -772,7 +772,7 @@ void AFQMCModelPropagator<SP>::Orthogonalize_impl(WlkSet& wset, CMat&& logdetR)
   auto walker_type = wset.getWalkerType();
   const int nspin = ( (walker_type == COLLINEAR) ? 2 : 1 );
   int nw_tot = wset.size();
-  RUNTIME_CHECK(logdetR.size(0) == nw_tot, "");
+  utils::check(logdetR.size(0) == nw_tot, "");
   double LogOverlapFactor(wset.getLogOverlapFactor());
   int w0, w1;
   std::tie(w0, w1) = FairDivideBoundary(TG.getLocalTGRank(), nw_tot, TG.getNCoresPerTG());
@@ -781,7 +781,7 @@ void AFQMCModelPropagator<SP>::Orthogonalize_impl(WlkSet& wset, CMat&& logdetR)
                 device_buffer_manager.get_generator().template get_allocator<ComplexType>());
   if (walker_type != COLLINEAR)
   {
-    RUNTIME_CHECK(logdetR.size(1) == 1, "");
+    utils::check(logdetR.size(1) == 1, "");
     auto SM = wset.SlaterMatrices(Alpha);
     for (int iw = w0; iw < w1; iw += nbatch__)
     {
@@ -793,7 +793,7 @@ void AFQMCModelPropagator<SP>::Orthogonalize_impl(WlkSet& wset, CMat&& logdetR)
   }
   else
   {
-    RUNTIME_CHECK(logdetR.size(1) == 2, "");
+    utils::check(logdetR.size(1) == 2, "");
     auto SMup = wset.SlaterMatrices(Alpha);
     auto SMdn = wset.SlaterMatrices(Beta);
     for (int iw = w0; iw < w1; iw += nbatch__)
@@ -861,7 +861,7 @@ void AFQMCModelPropagator<SP>::Orthogonalize_excited_impl(WlkSet& wset)
   int nbatch__ = std::min(w1-w0, (nbatched_qr <= 0 ? w1-w0 : nbatched_qr));
   if (walker_type != COLLINEAR)
   { 
-    RUNTIME_CHECK(numExcitations.first > 0, ""); 
+    utils::check(numExcitations.first > 0, ""); 
     int nexmax(maxOccupExtendedMat.first);
     auto SM = wset.SlaterMatrices(Alpha);
     for (int iw = w0; iw < w1; iw += nbatch__)
@@ -1037,9 +1037,9 @@ void AFQMCModelPropagator<SP>::assemble_X(size_t nsteps,
   ma::fill(MF, ComplexType(0));
 
   // sanity checks
-  RUNTIME_CHECK(not ( uniformRNptr == nullptr ), "");  
-  RUNTIME_CHECK((uniformRNptr-uniformRNbuffer.origin()) <= uniformRNbuffer.size(), "");  
-  RUNTIME_CHECK((uniformRNptr-uniformRNbuffer.origin())+rn_needed <= uniformRNbuffer.size(), "");  
+  utils::check(not ( uniformRNptr == nullptr ), "");  
+  utils::check((uniformRNptr-uniformRNbuffer.origin()) <= uniformRNbuffer.size(), "");  
+  utils::check((uniformRNptr-uniformRNbuffer.origin())+rn_needed <= uniformRNbuffer.size(), "");  
 
 // leaving compiler switch until I decide how to do this better
 // basically hide this decision somewhere based on the value of pointer!!!

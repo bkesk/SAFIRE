@@ -118,7 +118,7 @@ SET(UTILITIES
 #  ${GITREV_TMP}
 )
 ADD_LIBRARY(utils ${UTILITIES})
-TARGET_LINK_LIBRARIES(utils PUBLIC qmcio)
+TARGET_LINK_LIBRARIES(utils PUBLIC qmcio arch_lib)
 
 if(BUILD_UNIT_TESTS)
   ADD_LIBRARY(catch_main catch_main.cpp)

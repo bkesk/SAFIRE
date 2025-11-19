@@ -99,7 +99,6 @@ public:
                       ptree pt_in,
                       afqmc::TaskGroup_& tg_,
                       Wavefunction& wfn_,
-                      IVec&& ftypes,
                       utils::DeviceRandomGenerator_t* r)
       : AFQMCInfo(info),
         TG(tg_),
@@ -111,7 +110,7 @@ public:
         H1ext({2, 1, 1}, shared_allocator<ComplexType>{TG.Node()}),
         P1d({0,0,0},make_node_allocator<ComplexType>(TG)),
         vMF(iextensions<1u>{wfn.local_number_of_cholesky_vectors()}),
-        FieldTypes(std::move(ftypes)),
+        FieldTypes(wfn.getFieldTypes(FieldTypes)),
         rng(r),
         uniformRNptr(nullptr),
 	rng_block_size(vMF.size(0)),

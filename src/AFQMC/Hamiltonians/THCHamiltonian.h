@@ -49,7 +49,6 @@ public:
       : AFQMCInfo(info), 
         NuclearCoulombEnergy(nucE),
         FrozenCoreEnergy(fzcE),
-	cutoff_cholesky(1e-6), 
 	fileName("")
   {
     // convert user input to verbose input
@@ -59,7 +58,6 @@ public:
     // initialize using verbose input
     fileName  = pt.get<std::string>("filename");
     name      = pt.get<std::string>("name");
-    cutoff_cholesky = pt.get<double>("cutoff_cholesky");
   }
 
   ~THCHamiltonian() {}
@@ -71,10 +69,10 @@ public:
 
   ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
-  template<MEMORY_SPACE MEM, bool MP>
-  HamiltonianOperations<MEM,MP> getHamiltonianOperations(WALKER_TYPES type,
+  template<MEMORY_SPACE MEM>
+  HamiltonianOperations<MEM> getHamiltonianOperations(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, 
-                 nda::array<PsiT_Matrix<MEM>,2>& PsiT);
+                 nda::array<PsiT_Matrix<MEM>,2> const& PsiT);
 
   HamiltonianTypes getHamType()
   {
@@ -85,16 +83,13 @@ public:
   {
     // read inputs with default options
     std::string name, filename;
-    double cutoff_cholesky;
     name      = pt0.get<std::string>("name", "ham0");
     filename  = pt0.get<std::string>("filename");
-    cutoff_cholesky = pt0.get<double>("cutoff_cholesky", 1e-6);
     // validate inputs
     // create verbose internal inputs
     ptree pt1;
     pt1.put("name", name);
     pt1.put("filename", filename);
-    pt1.put("cutoff_cholesky", cutoff_cholesky);
     std::unordered_set<std::string> pass_through_keys = {
       "system"
     };
@@ -108,14 +103,12 @@ protected:
   ComplexType NuclearCoulombEnergy;
   ComplexType FrozenCoreEnergy;
 
-  RealType cutoff_cholesky;
-
   std::string fileName;
 
-  template<MEMORY_SPACE MEM, bool MP, bool REAL> 
-  HamiltonianOperations<MEM,MP> getHamiltonianOperations_impl(WALKER_TYPES type,
+  template<MEMORY_SPACE MEM, bool REAL> 
+  HamiltonianOperations<MEM> getHamiltonianOperations_impl(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, 
-                 nda::array<PsiT_Matrix<MEM>,2>& PsiT);
+                 nda::array<PsiT_Matrix<MEM>,2> const& PsiT);
 
 };
 

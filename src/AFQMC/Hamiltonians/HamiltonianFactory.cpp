@@ -53,8 +53,8 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   AFQMCInfo& AFinfo = InfoMap[info];
 
   int NMO  = AFinfo.NMO;
-  int nup = AFinfo.NAEA;
-  int ndown = AFinfo.NAEB;
+  int nup = AFinfo.nup;
+  int ndown = AFinfo.ndown;
 
   std::string filename = pt.get<std::string>("filename");
   std::string format;  // only meaningful at root

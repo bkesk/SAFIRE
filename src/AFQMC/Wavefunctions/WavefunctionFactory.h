@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_WAVEFUNCTIONFACTORY_H
-#define SFQMC_AFQMC_WAVEFUNCTIONFACTORY_H
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -24,7 +23,6 @@
 #include <boost/optional.hpp>
 
 #include "AFQMC/config.h"
-#include "AFQMC/Utilities/taskgroup.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
@@ -36,8 +34,7 @@ namespace afqmc
 class WavefunctionFactory
 {
 public:
-  WavefunctionFactory(std::map<std::string, AFQMCInfo>& info, bool prec) : 
-	InfoMap(info), mixed_precision(prec) 
+  WavefunctionFactory(std::map<std::string, AFQMCInfo>& info) : InfoMap(info) 
   {
     // initialize in fromHDF5
   }
@@ -56,7 +53,8 @@ public:
     std::string name          = pt0.get<std::string>("name");
     std::string info          = pt0.get<std::string>("system");
     std::string filename      = pt0.get<std::string>("filename");
-    std::string restart_file  = pt0.get<std::string>("restart_file", "");
+//    std::string restart_file  = pt0.get<std::string>("restart_file", "");
+    std::string compute       = pt0.get<std::string>("compute", memory::default_compute); 
     bool rediag        = pt0.get<bool>("rediag", false);
     // validate inputs
     // create verbose internal inputs
@@ -64,9 +62,10 @@ public:
     pt1.put("name", name);
     pt1.put("system", info);
     pt1.put("filename", filename);
-    pt1.put("restart_file", restart_file);
+//    pt1.put("restart_file", restart_file);
     pt1.put("rediag", rediag);
     pt1.put("ndets_to_read", ndets_to_read);
+    pt1.put("compute", compute);
     // optional parameters 
     if( auto val = pt0.get_optional<int>("algorithm") )
       pt1.put("algorithm", *val);
@@ -98,27 +97,24 @@ public:
   }
 
   // returns a pointer to the base Wavefunction class associated with a given ID
-  Wavefunction& getWavefunction(TaskGroup_& TGprop,
-                                TaskGroup_& TGwfn,
+  auto& getWavefunction(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                                 const std::string& ID,
                                 WALKER_TYPES walker_type,
                                 Hamiltonian* h,
-                                RealType cutvn = 1e-6,
                                 int targetNW   = 1)
   {
     auto xml = wfnBlocks.find(ID);
     if (xml == wfnBlocks.end())
     {
       app_log(1,"failed to find {}", ID);
-      APP_ABORT(" Error in WavefunctionFactory::getWavefunction(string&): Missing wfn block. ");
+      utils::check(false," Error in WavefunctionFactory::getWavefunction(string&): Missing wfn block. ");
     }
     auto w0 = wavefunctions.find(ID);
     if (w0 == wavefunctions.end())
     {
       auto neww = wavefunctions.insert(
-          std::make_pair(ID, buildWavefunction(TGprop, TGwfn, xml->second, walker_type, h, cutvn, targetNW)));
-      if (!neww.second)
-        APP_ABORT(" Error: Problems building new wavefunction in WavefunctionFactory::getWavefunction(string&). ");
+          std::make_pair(ID, buildWavefunction(mpi,xml->second, walker_type, h, targetNW)));
+      utils::check(neww.second," Error: Problems building new wavefunction in WavefunctionFactory::getWavefunction(string&). ");
       return (neww.first)->second;
     }
     else
@@ -132,7 +128,7 @@ public:
     if (xml == wfnBlocks.end())
     {
       app_log(1,"failed to find {}", ID);
-      APP_ABORT("Error: failed to find Wavefunction with above name.");
+      utils::check(false,"Error: failed to find Wavefunction with above name.");
     }
     return xml->second;
   }
@@ -144,20 +140,33 @@ public:
     if (xml == wfnBlocks.end())
     {
       app_log(1,"failed to find {}", ID);
-      APP_ABORT("Error: failed to find Wavefunction with above name.");
+      utils::check(false,"Error: failed to find Wavefunction with above name.");
     }
     return xml->second;
   }
 
   // returns the xmlNodePtr associated with ID
-  boost::multi::array<ComplexType, 3>& getInitialGuess(const std::string& ID)
+  auto getInitialGuess(const std::string& ID) 
   {
     auto mat = initial_guess.find(ID);
     if (mat == initial_guess.end())
     {
       APP_ABORT(" Error: Missing initial guess in WavefunctionFactory. ");
     }
-    return mat->second;
+    // return view
+    return mat->second();
+  }
+
+  // returns the xmlNodePtr associated with ID
+  auto getInitialGuess(const std::string& ID) const
+  {
+    auto mat = initial_guess.find(ID);
+    if (mat == initial_guess.end())
+    {
+      APP_ABORT(" Error: Missing initial guess in WavefunctionFactory. ");
+    }
+    // return view
+    return mat->second();
   }
 
   // adds a xml block from which a Wavefunction can be built
@@ -173,81 +182,68 @@ protected:
   // reference to container of AFQMCInfo objects
   std::map<std::string, AFQMCInfo>& InfoMap;
 
-  // defines working precision
-  bool mixed_precision;
-
   // generates a new Wavefunction and returns the pointer to the base class
-  Wavefunction buildWavefunction(TaskGroup_& TGprop,
-                                 TaskGroup_& TGwfn,
+  Wavefunction buildWavefunction(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                                  ptree pt,
                                  WALKER_TYPES walker_type,
                                  Hamiltonian* h,
-                                 RealType cutvn,
                                  int targetNW)
   {
-    std::string fwf_type = pt.get<std::string>("filetype", "hdf5");
+    std::string compute  = pt.get<std::string>("compute", memory::default_compute);
 
     app_log(1,"\n****************************************************");
     app_log(1,"               Initializing Wavefunction ");
     app_log(1,"\n****************************************************");
 
-    if (fwf_type == "hdf5")
-      return fromHDF5(TGprop, TGwfn, pt, walker_type, *h, cutvn, targetNW);
+    if (compute == "cpu")
+      return fromHDF5<HOST_MEMORY>(mpi, pt, walker_type, *h, targetNW);
+#if defined(ENABLE_DEVICE)
+    else if (compute == "gpu")
+      return fromHDF5<DEVICE_MEMORY>(mpi, pt, walker_type, *h, targetNW);
+#endif
     else
     {
-      app_error("Unknown Wavefunction filetype in WavefunctionFactory::buildWavefunction(): {}",
-		    fwf_type);
-      APP_ABORT(" Error: Unknown Wavefunction filetype in WavefunctionFactory::buildWavefunction(). ");
+      utils::check(false," Error: Invalid Wavefunction compute in WavefunctionFactory::buildWavefunction(). ");
     }
     return Wavefunction{};
   }
 
-  Wavefunction fromHDF5(TaskGroup_& TGprop,
-                        TaskGroup_& TGwfn,
+  template<MEMORY_SPACE MEM>
+  Wavefunction fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                         ptree pt,
                         WALKER_TYPES walker_type,
                         Hamiltonian& h,
-                        RealType cutvn,
                         int targetNW);
-  template<bool MP>
-  HamiltonianOperations<MP> getHamOps(std::string const& restart_file,
-                                  WALKER_TYPES type,
-                                  int NMO,
-                                  int NAEA,
-                                  int NAEB,
-                                  std::vector<PsiT_Matrix>& PsiT,
-                                  TaskGroup_& TGprop,
-                                  TaskGroup_& TGwfn,
-                                  Hamiltonian& h);
-  void getInitialGuess(hdf_archive& dump, std::string& name, int NMO, int NAEA, int NAEB, WALKER_TYPES walker_type);
-  int getExcitation(boost::multi::array_ref<int, 1>& deti,
-                    boost::multi::array_ref<int, 1>& detj,
+
+  void getInitialGuess(h5::group grp, std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type);
+/*
+  int getExcitation(nda::MemoryVector& deti,
+                    nda::MemoryVector& detj,
                     std::vector<int>& excit,
                     int& perm);
-  void computeVariationalEnergyPHMSD(TaskGroup_& TG,
-                                     Hamiltonian& ham,
-                                     boost::multi::array_ref<int, 2>& occs,
+  void computeVariationalEnergyPHMSD(Hamiltonian& ham,
+                                     nda::MemoryMatrix& occs,
                                      std::vector<ComplexType>& coeff,
                                      int ndets,
-                                     int NAEA,
-                                     int NAEB,
+                                     int nup,
+                                     int ndown,
                                      int NMO,
                                      bool recomputeCI);
-  ComplexType slaterCondon0(Hamiltonian& ham, boost::multi::array_ref<int, 1>& det, int NMO);
-  ComplexType slaterCondon1(Hamiltonian& ham, std::vector<int>& excit, boost::multi::array_ref<int, 1>& det, int NMO);
+  ComplexType slaterCondon0(Hamiltonian& ham, nda::MemoryVector auto& det, int NMO);
+  ComplexType slaterCondon1(Hamiltonian& ham, std::vector<int>& excit, nda::MemoryVector auto& det, int NMO);
   ComplexType slaterCondon2(Hamiltonian& ham, std::vector<int>& excit, int NMO);
 
-  void build_PsiT_MO_phmsd(TaskGroup_& TGwfn, WALKER_TYPES walker_type, int NPOL, int NMO, int NAEA, 
-	int NAEB, int ndets, std::vector<ComplexType>& coeffs, 
+  void build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int NPOL, int NMO, int nup, 
+	int ndown, int ndets, std::vector<ComplexType>& coeffs, 
         std::vector<int>& occbuff, std::vector<PsiT_Matrix>& PsiT_MO);
+*/
 
   std::map<std::string, ptree> wfnBlocks;
 
   std::map<std::string, Wavefunction> wavefunctions;
 
-  std::map<std::string, boost::multi::array<ComplexType, 3>> initial_guess;
+  std::map<std::string, memory::shared_array<HOST_MEMORY, ComplexType, 3>> initial_guess;
 };
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

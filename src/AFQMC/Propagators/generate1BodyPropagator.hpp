@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_GENERATEPROPAGATOR_HPP
-#define SFQMC_AFQMC_GENERATEPROPAGATOR_HPP
+#pragma once
 
 #include <cstdlib>
 #include <algorithm>
@@ -25,11 +24,9 @@
 #include <numeric>
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
 #include "AFQMC/config.h"
-#include "Numerics/ma_operations.hpp"
-#include "Numerics/csr_blas.hpp"
-#include "SparseMatrix/csr_matrix_construct.hpp"
+#include "utilities/check.hpp"
+#include "numerics/sparse/sparse.hpp"
 
 namespace sfqmc
 {
@@ -37,15 +34,14 @@ namespace afqmc
 {
 // Input H1(i,j) = h(i,j) + sum_n vMF(n)*CholMat(i,j,n) + vn0(i,j)
 // Output: sparse 1 body propagator = exp(-0.5 * H1) (factor of dt included in H1)
-template<class P_Type, class MultiArray2D>
-P_Type generate1BodyPropagator(TaskGroup_& TG,
-                               RealType cut,
-                               MultiArray2D const& H1,
+template<class P_Type>
+P_Type generate1BodyPropagator(RealType cut,
+                               nda::MemoryMatrix auto const& H1,
                                bool printP1eV = false)
 {
-  RUNTIME_CHECK(H1.dimensionality == 2, "");
-  RUNTIME_CHECK(H1.size(0) == H1.size(1), "");
-  RUNTIME_CHECK(H1.stride(1) == 1, "");
+  utils::check(H1.dimensionality == 2, "");
+  utils::check(H1.size(0) == H1.size(1), "");
+  utils::check(H1.stride(1) == 1, "");
   int NMO = H1.size(0);
   if (TG.TG_local().root())
   {
@@ -80,13 +76,13 @@ P_Type generate1BodyPropagator(TaskGroup_& TG,
                                MultiArray2DB const& H1ext,
                                bool printP1eV = false)
 {
-  RUNTIME_CHECK(H1.dimensionality == 2, "");
-  RUNTIME_CHECK(H1.size(0) == H1.size(1), "");
-  RUNTIME_CHECK(H1.stride(1) == 1, "");
-  RUNTIME_CHECK(H1ext.dimensionality == 2, "");
-  RUNTIME_CHECK(H1ext.size(0) == H1ext.size(1), "");
-  RUNTIME_CHECK(H1ext.stride(1) == 1, "");
-  RUNTIME_CHECK(H1.size(0) == H1ext.size(1), "");
+  utils::check(H1.dimensionality == 2, "");
+  utils::check(H1.size(0) == H1.size(1), "");
+  utils::check(H1.stride(1) == 1, "");
+  utils::check(H1ext.dimensionality == 2, "");
+  utils::check(H1ext.size(0) == H1ext.size(1), "");
+  utils::check(H1ext.stride(1) == 1, "");
+  utils::check(H1.size(0) == H1ext.size(1), "");
   int NMO = H1.size(0);
   if (TG.TG_local().root())
   {
@@ -120,4 +116,3 @@ P_Type generate1BodyPropagator(TaskGroup_& TG,
 
 } // namespace afqmc
 } // namespace sfqmc
-#endif

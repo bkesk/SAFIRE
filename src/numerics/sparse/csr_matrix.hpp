@@ -285,19 +285,6 @@ public:
     jdata_(row_end_(get<0>(indices))) = index_type(get<1>(indices));
     ++row_end_(get<0>(indices));
   }
-  // adaptors to emplace/emplace_back 
-  template<typename integer_type = IndxType, typename value_type = ValType>
-  void emplace(std::tuple<integer_type, integer_type, value_type> const& val)
-  {
-    using std::get;
-    emplace({get<0>(val), get<1>(val)}, static_cast<ValType>(get<2>(val)));
-  }
-  template<typename integer_type = IndxType, typename value_type = ValType>
-  void emplace_back(std::tuple<integer_type, integer_type, value_type> const& val)
-  {
-    using std::get;
-    emplace_back({get<0>(val), get<1>(val)}, static_cast<ValType>(get<2>(val)));
-  }
 
   template<class Pair = std::array<IndxType, 2>>
   value_type get_value(Pair&& indices)
@@ -486,6 +473,9 @@ public:
   auto operator()(Int i, Int j) const {
     return this->get_value(std::array<IndxType, 2>{IndxType(i),IndxType(j)});
   }
+
+  auto operator()() { return *this; }
+  auto operator()() const { return *this; }
 
 };
 

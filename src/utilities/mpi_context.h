@@ -82,7 +82,7 @@ struct mpi_context_t {
   } 
 
   template<typename Op, bool use_gpu = true>
-  void all_reduce(nda::Array auto&& A, Op& op)
+  void all_reduce(nda::Array auto&& A, Op&& op)
   {
     utils::check(A.is_contiguous(),"mpi_context_t::broadcast: Array must be contiguous.");
 #if defined(ENABLE_NCCL)

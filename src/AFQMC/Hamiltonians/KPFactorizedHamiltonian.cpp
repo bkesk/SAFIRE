@@ -82,7 +82,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_shared(WALKER_TYPES type,
   bool unfold_ibz = false;
 
   if (type == COLLINEAR)
-    RUNTIME_CHECK(PsiT.size() % 2 == 0, "");
+    utils::check(PsiT.size() % 2 == 0, "");
   int nspins = ((type != COLLINEAR) ? 1 : 2);
   int ndet   = PsiT.size() / nspins;
   int npol   = ((type == NONCOLLINEAR) ? 2 : 1);
@@ -588,14 +588,14 @@ KPFactorizedHamiltonian::getHamiltonianOperations_shared(WALKER_TYPES type,
         {
           { // Alpha
             auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[2 * nd], K);
-            RUNTIME_CHECK(Psi.size(0) == na, "");
+            utils::check(Psi.size(0) == na, "");
             boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + K].origin()), {na, ni});
             if (na > 0)
               ma::product(Psi, H1[K]({0, ni}, {0, ni}), haj_r);
           }
           { // Beta
             auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[2 * nd + 1], K);
-            RUNTIME_CHECK(Psi.size(0) == nb, "");
+            utils::check(Psi.size(0) == nb, "");
             boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + K].origin()) + na * ni, {nb, ni});
             if (nb > 0)
               ma::product(Psi, H1[K+(nspins_H1-1)*nkpts]({0, ni}, {0, ni}), haj_r);
@@ -605,7 +605,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_shared(WALKER_TYPES type,
         {
           RealType scl = (type == CLOSED ? 2.0 : 1.0);
           auto Psi     = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[nd], K, npol == 2);
-          RUNTIME_CHECK(Psi.size(0) == na, "");
+          utils::check(Psi.size(0) == na, "");
           boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + K].origin()), {na, npol * ni});
           if (na > 0)
             ma::product(ComplexType(scl), Psi, H1[K]({0, npol * ni}, {0, npol * ni}), ComplexType(0.0), haj_r);
@@ -636,7 +636,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_shared(WALKER_TYPES type,
           {
             { // Alpha
               auto Psi = get_PsiK<boost::multi::array<SPComplexType, 2>>(nmo_per_kp, PsiT[2 * nd], K);
-              RUNTIME_CHECK(Psi.size(0) == nocc_per_kp[nd][K], "");
+              utils::check(Psi.size(0) == nocc_per_kp[nd][K], "");
               if (Q <= Qm)
               {
                 Sp3Tensor_ref Likn(raw_pointer_cast(LQKikn[Q][K].origin()), {ni, nk, nchol});
@@ -652,7 +652,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_shared(WALKER_TYPES type,
             }
             { // Beta
               auto Psi = get_PsiK<boost::multi::array<SPComplexType, 2>>(nmo_per_kp, PsiT[2 * nd + 1], K);
-              RUNTIME_CHECK(Psi.size(0) == nb, "");
+              utils::check(Psi.size(0) == nb, "");
               if (Q <= Qm)
               {
                 Sp3Tensor_ref Likn(raw_pointer_cast(LQKikn[Q][K].origin()), {ni, nk, nchol});
@@ -670,7 +670,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_shared(WALKER_TYPES type,
           else
           {
             auto Psi = get_PsiK<SpMatrix>(nmo_per_kp, PsiT[nd], K, npol == 2);
-            RUNTIME_CHECK(Psi.size(0) == na, "");
+            utils::check(Psi.size(0) == na, "");
             if (Q <= Qm)
             {
               Sp3Tensor_ref Likn(raw_pointer_cast(LQKikn[Q][K].origin()), {ni, nk, nchol});
@@ -718,7 +718,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_shared(WALKER_TYPES type,
             }
             { // Beta
               auto PsiQK = get_PsiK<boost::multi::array<SPComplexType, 2>>(nmo_per_kp, PsiT[2 * nd + 1], QK);
-              RUNTIME_CHECK(PsiQK.size(0) == nb, "");
+              utils::check(PsiQK.size(0) == nb, "");
               Sp3Tensor_ref Lbnl(raw_pointer_cast(LQKbnl[nq0 + number_of_symmetric_Q + Qmap[Q] - 1][QK].origin()),
                                  {nb, nchol, ni});
               ma_rotate::getLank_from_Lkin(PsiQK, Likn, Lbnl, buff);
@@ -727,7 +727,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_shared(WALKER_TYPES type,
           else
           {
             auto PsiQK = get_PsiK<SpMatrix>(nmo_per_kp, PsiT[nd], QK, npol == 2);
-            RUNTIME_CHECK(PsiQK.size(0) == na, "");
+            utils::check(PsiQK.size(0) == na, "");
             Sp3Tensor_ref Lbnl(raw_pointer_cast(LQKbnl[nq0 + Qmap[Q] - 1][QK].origin()), {na, nchol, npol * ni});
             ma_rotate::getLank_from_Lkin(PsiQK, Likn, Lbnl, buff, npol == 2);
           }
@@ -941,7 +941,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
   TGwfn.Global().broadcast_value(write_hdf);
 
   if (type == COLLINEAR)
-    RUNTIME_CHECK(PsiT.size() % 2 == 0, "");
+    utils::check(PsiT.size() % 2 == 0, "");
   int nspins = ((type != COLLINEAR) ? 1 : 2);
   int ndet   = PsiT.size() / nspins;
   int npol   = ((type == NONCOLLINEAR) ? 2 : 1);
@@ -1165,7 +1165,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
             app_error(" Problems reading /Hamiltonian/KPFactorized/L{}", Q);
             APP_ABORT(base_error);
           }
-          RUNTIME_CHECK(L_.size(0) == nkpts, "");
+          utils::check(L_.size(0) == nkpts, "");
           Sp4Tensor_ref L2(raw_pointer_cast(LQKikn[Q].origin()), {nkpts, nmo_max, nmo_max, nchol_max});
           for (int K = 0; K < nkpts; ++K)
           {
@@ -1380,7 +1380,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
         {
           { // Alpha
             auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[2 * nd], K);
-            RUNTIME_CHECK(Psi.size(0) == na, "");
+            utils::check(Psi.size(0) == na, "");
             boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + K].origin()),
                                                           {nocc_max, nmo_max});
             if (na > 0)
@@ -1388,7 +1388,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
           }
           { // Beta
             auto Psi = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[2 * nd + 1], K);
-            RUNTIME_CHECK(Psi.size(0) == nb, "");
+            utils::check(Psi.size(0) == nb, "");
             boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + K].origin()) + nocc_max * nmo_max,
                                                           {nocc_max, nmo_max});
             if (nb > 0)
@@ -1399,7 +1399,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
         {
           RealType scl = (type == CLOSED ? 2.0 : 1.0);
           auto Psi     = get_PsiK<boost::multi::array<ComplexType, 2>>(nmo_per_kp, PsiT[nd], K, npol == 2);
-          RUNTIME_CHECK(Psi.size(0) == na, "");
+          utils::check(Psi.size(0) == na, "");
           boost::multi::array_ref<ComplexType, 2> haj_r(raw_pointer_cast(haj[nd * nkpts + K].origin()),
                                                         {nocc_max, npol * nmo_max});
           if (na > 0) {
@@ -1432,7 +1432,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
           {
             { // Alpha
               auto Psi = get_PsiK<boost::multi::array<SPComplexType, 2>>(nmo_per_kp, PsiT[2 * nd], K);
-              RUNTIME_CHECK(Psi.size(0) == na, "");
+              utils::check(Psi.size(0) == na, "");
               if (Q <= Qm)
               {
                 Sp3Tensor_ref Likn(raw_pointer_cast(LQKikn[Q][K].origin()), {nmo_max, nmo_max, nchol_max});
@@ -1450,7 +1450,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
             }
             { // Beta
               auto Psi = get_PsiK<boost::multi::array<SPComplexType, 2>>(nmo_per_kp, PsiT[2 * nd + 1], K);
-              RUNTIME_CHECK(Psi.size(0) == nb, "");
+              utils::check(Psi.size(0) == nb, "");
               if (Q <= Qm)
               {
                 Sp3Tensor_ref Likn(raw_pointer_cast(LQKikn[Q][K].origin()), {nmo_max, nmo_max, nchol_max});
@@ -1470,7 +1470,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
           else
           {
             auto Psi = get_PsiK<SpMatrix>(nmo_per_kp, PsiT[nd], K, npol == 2);
-            RUNTIME_CHECK(Psi.size(0) == na, "");
+            utils::check(Psi.size(0) == na, "");
             if (Q <= Qm)
             {
               Sp3Tensor_ref Likn(raw_pointer_cast(LQKikn[Q][K].origin()), {nmo_max, nmo_max, nchol_max});
@@ -1511,14 +1511,14 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
           {
             { // Alpha
               auto PsiQK = get_PsiK<boost::multi::array<SPComplexType, 2>>(nmo_per_kp, PsiT[2 * nd], QK);
-              RUNTIME_CHECK(PsiQK.size(0) == na, "");
+              utils::check(PsiQK.size(0) == na, "");
               Sp3Tensor_ref Lbnl(raw_pointer_cast(LQKbnl[nq0 + Qmap[Q] - 1][QK].origin()), {nocc_max, nchol_max, nmo_max});
               Sp3Tensor_ref Lbln(raw_pointer_cast(LQKbln[nq0 + Qmap[Q] - 1][QK].origin()), {nocc_max, nmo_max, nchol_max});
               ma_rotate_padded::getLakn_Lank_from_Lkin(PsiQK, Likn, Lbln, Lbnl, buff);
             }
             { // Beta
               auto PsiQK = get_PsiK<boost::multi::array<SPComplexType, 2>>(nmo_per_kp, PsiT[2 * nd + 1], QK);
-              RUNTIME_CHECK(PsiQK.size(0) == nb, "");
+              utils::check(PsiQK.size(0) == nb, "");
               Sp3Tensor_ref Lbnl(raw_pointer_cast(LQKbnl[nq0 + number_of_symmetric_Q + Qmap[Q] - 1][QK].origin()),
                                  {nocc_max, nchol_max, nmo_max});
               Sp3Tensor_ref Lbln(raw_pointer_cast(LQKbln[nq0 + number_of_symmetric_Q + Qmap[Q] - 1][QK].origin()),
@@ -1529,7 +1529,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations_batched(WALKER_TYPES type,
           else
           {
             auto PsiQK = get_PsiK<SpMatrix>(nmo_per_kp, PsiT[nd], QK, npol == 2);
-            RUNTIME_CHECK(PsiQK.size(0) == na, "");
+            utils::check(PsiQK.size(0) == na, "");
             Sp3Tensor_ref Lbnl(raw_pointer_cast(LQKbnl[nq0 + Qmap[Q] - 1][QK].origin()),
                                {nocc_max, nchol_max, npol * nmo_max});
             Sp3Tensor_ref Lbln(raw_pointer_cast(LQKbln[nq0 + Qmap[Q] - 1][QK].origin()),

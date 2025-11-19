@@ -65,8 +65,8 @@ void PHMSD<MP>::energy_shared_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov)
 
   long nexcit[2] = {long(abij.number_of_unique_excitations()[0]), 
                     long(abij.number_of_unique_excitations()[1])};
-  std::vector<int> confg(NAEA);
-  IVector confg_dev(iextensions<1u>{NAEA}); 
+  std::vector<int> confg(nup);
+  IVector confg_dev(iextensions<1u>{nup}); 
 
   // 1. calculate eneries for unique determinants
   //    - Emsd[spin][nd_unique][iw][{0:E1, 1:EXX, 2:--}]
@@ -77,7 +77,7 @@ void PHMSD<MP>::energy_shared_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov)
     int w0, w1;
     std::tie(w0, w1) = FairDivideBoundary(TG.TG_local().rank(), nwalk, TG.TG_local().size());
     auto SM=wset.SlaterMatrices(Alpha);
-    confg.resize(NAEA);
+    confg.resize(nup);
     auto Gdims     = dm_dims(false, SpinTypes(0));
     auto Gdims_ref = dm_dims_ref(false, SpinTypes(0));
     int nr = Gdims.first * Gdims.second, nc = nwalk;
@@ -146,7 +146,7 @@ void PHMSD<MP>::energy_shared_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov)
     for (int spin = 0; spin < nspins; ++spin)
     {
       auto SM=wset.SlaterMatrices( (spin == 0 ? Alpha : Beta) );
-      confg.resize((spin == 0) ? NAEA : NAEB);
+      confg.resize((spin == 0) ? nup : ndown);
       auto Gdims     = dm_dims(false, SpinTypes(spin));
       auto Gdims_ref = dm_dims_ref(false, SpinTypes(spin));
       int nr = Gdims.first * Gdims.second, nc = nwalk;
@@ -338,8 +338,8 @@ void PHMSD<MP>::energy_shared_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
 
   long nexcit[2] = {long(abij.number_of_unique_excitations()[0]), 
                     long(abij.number_of_unique_excitations()[1])};
-  std::vector<int> confg(NAEA);
-  IVector confg_dev(iextensions<1u>{NAEA}); 
+  std::vector<int> confg(nup);
+  IVector confg_dev(iextensions<1u>{nup}); 
 
   if (walker_type != COLLINEAR)
   {
@@ -362,9 +362,9 @@ void PHMSD<MP>::energy_shared_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
     Static3Tensor GB0({nbatch__, GBdims0.first, GBdims0.second}, 
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
-    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), NAEA}, 
+    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), nup}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
-    Static3Tensor QQ0inv1_buff({nbatch__, OrbMats[1].size(0), NAEB}, 
+    Static3Tensor QQ0inv1_buff({nbatch__, OrbMats[1].size(0), ndown}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
 
     auto SMup=wset.SlaterMatrices(Alpha);
@@ -402,7 +402,7 @@ void PHMSD<MP>::energy_shared_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
 #endif
 
       SDetOp.BatchedMixedDensityMatrixForWoodbury(OrbMats[1], SMdn.sliced(iw,iw+nb), GB,
-            LogOverlapFactor, overlaps[1].sliced(0,nb), refc_dev.origin()+NAEA, local_QQ0inv1, true);
+            LogOverlapFactor, overlaps[1].sliced(0,nb), refc_dev.origin()+nup, local_QQ0inv1, true);
 #if defined(ENABLE_CUDA)
       calculate_overlaps(0, 1, 1, abij, local_QQ0inv1, Ovlps[1].sliced(0,nexcit[1]));
 #else
@@ -439,7 +439,7 @@ void PHMSD<MP>::energy_shared_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
         ma::add(ComplexType(1.0), eloc, ComplexType(1.0), E.sliced(iw, iw+nb), E.sliced(iw, iw+nb));
 
         // 4a. calculate R matrices and evaluate E, KEright 
-        ph_excited_energies_first_step(NAEA, OrbMats[0].size(0), abij, wgt, 
+        ph_excited_energies_first_step(nup, OrbMats[0].size(0), abij, wgt, 
                     local_QQ0inv0, eloc, KEright.sliced(0,nexcit[0]), HamOp);
         ma::add(ComplexType(1.0), eloc, ComplexType(1.0), E.sliced(iw, iw+nb), E.sliced(iw, iw+nb));
 
@@ -482,7 +482,7 @@ void PHMSD<MP>::energy_shared_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
         ma::axpy(ComplexType(1.0), tmp, E({iw, iw+nb}, 2));
 
         //4b. calculate R matrices and evaluate E, KEright 
-        ph_excited_energies_second_step(NAEB, OrbMats[1].size(0), abij, wgt, 
+        ph_excited_energies_second_step(ndown, OrbMats[1].size(0), abij, wgt, 
                             local_QQ0inv1, eloc, KEright.sliced(0, nexcit[1]),  HamOp);
         ma::add(ComplexType(1.0), eloc, ComplexType(1.0), E.sliced(iw, iw+nb), E.sliced(iw, iw+nb));
       }
@@ -577,7 +577,7 @@ void PHMSD<MP>::MixedDensityMatrix_impl(const WlkSet& wset, MatG&& G, TVec&& Ov,
     // storage for reference Green functions
     Static3Tensor GA0({nbatch__, Gdims0.first, Gdims0.second}, 
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
-    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), NAEA}, 
+    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), nup}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
 
     auto SM=wset.SlaterMatrices(Alpha);
@@ -613,7 +613,7 @@ void PHMSD<MP>::MixedDensityMatrix_impl(const WlkSet& wset, MatG&& G, TVec&& Ov,
         // Ov[iw] = sum_u Ovlps[0][u][iw]   
         ma::accumulate(0, Ovlps[0]({0, nexcit[0]},{iw,iw+nb}), Ov.sliced(iw,iw+nb)); 
 
-        Static3Tensor Ra({nb, NAEA, long(OrbMats[0].size(0))}, ComplexType(0.0), 
+        Static3Tensor Ra({nb, nup, long(OrbMats[0].size(0))}, ComplexType(0.0), 
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
 #if defined(ENABLE_CUDA)
         calculate_R(0, 1, 0, abij, local_QQ0inv0, Ovlps[0]({0, nexcit[0]},{iw,iw+nb}), Ra);
@@ -695,9 +695,9 @@ void PHMSD<MP>::MixedDensityMatrix_impl(const WlkSet& wset, MatG&& G, TVec&& Ov,
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
     Static3Tensor GB0({nbatch__, GBdims0.first, GBdims0.second},
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
-    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), NAEA}, 
+    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), nup}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
-    Static3Tensor QQ0inv1_buff({nbatch__, OrbMats[1].size(0), NAEB}, 
+    Static3Tensor QQ0inv1_buff({nbatch__, OrbMats[1].size(0), ndown}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
 
     auto SMup=wset.SlaterMatrices(Alpha);
@@ -723,7 +723,7 @@ void PHMSD<MP>::MixedDensityMatrix_impl(const WlkSet& wset, MatG&& G, TVec&& Ov,
 #endif
 
       SDetOp.BatchedMixedDensityMatrixForWoodbury(OrbMats[1], SMdn.sliced(iw,iw+nb), GB,
-            LogOverlapFactor, overlaps[1].sliced(0,nb), refc_dev.origin()+NAEA, local_QQ0inv1, true);
+            LogOverlapFactor, overlaps[1].sliced(0,nb), refc_dev.origin()+nup, local_QQ0inv1, true);
 #if defined(ENABLE_CUDA)
       calculate_overlaps(0, 1, 1, abij, local_QQ0inv1, Ovlps[1].sliced(0,nexcit[1]));
 #else
@@ -747,7 +747,7 @@ void PHMSD<MP>::MixedDensityMatrix_impl(const WlkSet& wset, MatG&& G, TVec&& Ov,
         // Ov[iw] = sum_u W[u][iw]  
         ma::accumulate(0, wgt, Ov.sliced(iw,iw+nb));
 
-        Static3Tensor Ra({nb, NAEA, long(OrbMats[0].size(0))}, ComplexType(0.0), 
+        Static3Tensor Ra({nb, nup, long(OrbMats[0].size(0))}, ComplexType(0.0), 
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
 #if defined(ENABLE_CUDA)
         calculate_R(0, 1, 0, abij, local_QQ0inv0, wgt, Ra);
@@ -805,7 +805,7 @@ void PHMSD<MP>::MixedDensityMatrix_impl(const WlkSet& wset, MatG&& G, TVec&& Ov,
         // W[u][iw] *= Ovlps[0][u][iw]   
         ma::elementwise(ma::TOp_MUL, Ovlps[1]({0,nexcit[1]},{iw,iw+nb}), wgt);
 
-        Static3Tensor Rb({nb, NAEB, long(OrbMats[1].size(0))}, ComplexType(0.0),
+        Static3Tensor Rb({nb, ndown, long(OrbMats[1].size(0))}, ComplexType(0.0),
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
 #if defined(ENABLE_CUDA)
         calculate_R(0, 1, 1, abij, local_QQ0inv1, wgt, Rb);
@@ -1019,7 +1019,7 @@ void PHMSD<MP>::Overlap(const WlkSet& wset, TVec&& Ov)
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
     StaticMatrix ovlp_list({maxn_unique_confg, nbatch__}, ComplexType(0.0),
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
-    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), NAEA}, 
+    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), nup}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
 
     auto SM=wset.SlaterMatrices(Alpha);
@@ -1069,9 +1069,9 @@ void PHMSD<MP>::Overlap(const WlkSet& wset, TVec&& Ov)
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
     Static3Tensor ovlp_list({2, maxn_unique_confg, nbatch__}, ComplexType(0.0),
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
-    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), NAEA}, 
+    Static3Tensor QQ0inv0_buff({nbatch__, OrbMats[0].size(0), nup}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
-    Static3Tensor QQ0inv1_buff({nbatch__, OrbMats[1].size(0), NAEB}, 
+    Static3Tensor QQ0inv1_buff({nbatch__, OrbMats[1].size(0), ndown}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
 
     auto SMup=wset.SlaterMatrices(Alpha);
@@ -1095,7 +1095,7 @@ void PHMSD<MP>::Overlap(const WlkSet& wset, TVec&& Ov)
 
       // beta
       SDetOp.BatchedOverlapForWoodbury(OrbMats[1], SMdn.sliced(iw,iw+nb), LogOverlapFactor, 
-                ov0[1].sliced(0,nb), refc_dev.origin() + NAEA, local_QQ0inv1);
+                ov0[1].sliced(0,nb), refc_dev.origin() + nup, local_QQ0inv1);
 #if defined(ENABLE_CUDA)
       calculate_overlaps(0, 1, 1, abij, local_QQ0inv1, ovlp_list[1].sliced(0,nexcit[1]));
 #else
@@ -1231,8 +1231,8 @@ void PHMSD<MP>::accumulate_estimators(int iav, WlkSet& wset, TVec& wgt,
 
   long nexcit[2] = {long(abij.number_of_unique_excitations()[0]),
                     long(abij.number_of_unique_excitations()[1])};
-  std::vector<int> confg(NAEA);
-  IVector confg_dev(iextensions<1u>{NAEA});
+  std::vector<int> confg(nup);
+  IVector confg_dev(iextensions<1u>{nup});
 
   if (walker_type != COLLINEAR)
   {
@@ -1264,15 +1264,15 @@ void PHMSD<MP>::accumulate_estimators(int iav, WlkSet& wset, TVec& wgt,
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
       for(int ispin=0; ispin<nspins; ispin++) { 
 
-        Static3Tensor QQ0inv({nb, OrbMats[ispin].size(0), (ispin==0?NAEA:NAEB)}, 
+        Static3Tensor QQ0inv({nb, OrbMats[ispin].size(0), (ispin==0?nup:ndown)}, 
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
 
         if(ispin==0)
           SDetOp.BatchedOverlapForWoodbury(OrbMats[ispin], SMup.sliced(iw,iw+nb), LogOverlapFactor,
-                overlaps, refc_dev.origin() + ispin*NAEA, QQ0inv);
+                overlaps, refc_dev.origin() + ispin*nup, QQ0inv);
         else
           SDetOp.BatchedOverlapForWoodbury(OrbMats[ispin], SMdn.sliced(iw,iw+nb), LogOverlapFactor,
-                overlaps, refc_dev.origin() + ispin*NAEA, QQ0inv);
+                overlaps, refc_dev.origin() + ispin*nup, QQ0inv);
 #if defined(ENABLE_CUDA)
         calculate_overlaps(0, 1, ispin, abij, QQ0inv, Ovlps[ispin]({0,nexcit[ispin]},{iw,iw+nb}));
 #else
@@ -1315,15 +1315,15 @@ void PHMSD<MP>::accumulate_estimators(int iav, WlkSet& wset, TVec& wgt,
                      buffer_manager.get_generator().template get_allocator<ComplexType>());
         
         SDetOp.BatchedMixedDensityMatrixForWoodbury(OrbMats[ispin], SM.sliced(iw,iw+nb), GA,
-            LogOverlapFactor, overlaps, refc_dev.origin() + ispin*NAEA, QQ0inv, true);
+            LogOverlapFactor, overlaps, refc_dev.origin() + ispin*nup, QQ0inv, true);
 
 /*
          //
          if( ispin==0 ) {
-           ph_excited_properties_first_step(NAEA, OrbMats[0].size(0), abij, ph_wgt[0],
+           ph_excited_properties_first_step(nup, OrbMats[0].size(0), abij, ph_wgt[0],
                     QQ0inv, properties);       
          } else {
-           ph_excited_properties_second_step(NAEB, OrbMats[1].size(0), abij, ph_wgt[1],
+           ph_excited_properties_second_step(ndown, OrbMats[1].size(0), abij, ph_wgt[1],
                     QQ0inv, properties);       
          }
 */
@@ -1364,16 +1364,16 @@ void PHMSD<MP>::G_MF(Mat&& Gmf)
 
   Matrix<ComplexType> ovlps({nspins, maxn_unique_confg}, ComplexType(0.0));
 
-  std::vector<int> exct(2 * NAEA);
-  std::vector<int> Iwork(2 * NAEA);
-  std::vector<int> confg(NAEA);
-  std::vector<int> confgB(NAEA);
+  std::vector<int> exct(2 * nup);
+  std::vector<int> Iwork(2 * nup);
+  std::vector<int> confg(nup);
+  std::vector<int> confgB(nup);
   TG.Node().barrier();
 
   // 1. Overlaps
   for (int spin = 0, nc = 0; spin < nspins; ++spin)
   {
-    confg.resize((spin == 0) ? NAEA : NAEB);
+    confg.resize((spin == 0) ? nup : ndown);
     auto Gdims_ref = dm_dims_ref(false, SpinTypes(spin));
     StaticMatrix SM_({Gdims_ref.second, Gdims_ref.first}, ComplexType(0.0),
                       buffer_manager.get_generator().template get_allocator<ComplexType>());
@@ -1408,7 +1408,7 @@ void PHMSD<MP>::G_MF(Mat&& Gmf)
   for (int spin = 0, is0=0; spin < nspins; ++spin)
   {
     int other_spin    = 1 - spin;
-    confg.resize((spin == 0) ? NAEA : NAEB);
+    confg.resize((spin == 0) ? nup : ndown);
     auto Gdims     = dm_dims(false, SpinTypes(spin));
     auto Gdims_ref = dm_dims_ref(false, SpinTypes(spin));
     StaticMatrix G2D_({Gdims_ref.first, Gdims_ref.second}, 
@@ -1456,7 +1456,7 @@ void PHMSD<MP>::G_MF(Mat&& Gmf)
     StaticMatrix orbs({2, Gdims.second}, ComplexType(0.0),
                       buffer_manager.get_generator().template get_allocator<ComplexType>());
     ComplexType dummy(0.0);
-    confgB.resize((spin == 0) ? NAEA : NAEB);
+    confgB.resize((spin == 0) ? nup : ndown);
     if(walker_type == COLLINEAR) 
     {
       for (int nd = 0; nd < int(abij.number_of_unique_excitations()[other_spin]); ++nd)
@@ -1585,16 +1585,16 @@ void PHMSD<MP>::vMF(Vec&& v, double dt)
 
   Matrix<ComplexType> ovlps({nspins, maxn_unique_confg}, ComplexType(0.0));
 
-  std::vector<int> exct(2 * NAEA);
-  std::vector<int> Iwork(2 * NAEA);
-  std::vector<int> confg(NAEA);
-  std::vector<int> confgB(NAEA);
+  std::vector<int> exct(2 * nup);
+  std::vector<int> Iwork(2 * nup);
+  std::vector<int> confg(nup);
+  std::vector<int> confgB(nup);
   TG.Node().barrier();
 
   // 1. Overlaps
   for (int spin = 0, nc = 0; spin < nspins; ++spin)
   {
-    confg.resize((spin == 0) ? NAEA : NAEB);
+    confg.resize((spin == 0) ? nup : ndown);
     auto Gdims_ref = dm_dims_ref(false, SpinTypes(spin));
     StaticMatrix SM_({Gdims_ref.second, Gdims_ref.first}, ComplexType(0.0),
                       buffer_manager.get_generator().template get_allocator<ComplexType>());
@@ -1629,7 +1629,7 @@ void PHMSD<MP>::vMF(Vec&& v, double dt)
   for (int spin = 0, is0=0; spin < nspins; ++spin)
   {
     int other_spin    = 1 - spin;
-    confg.resize((spin == 0) ? NAEA : NAEB);
+    confg.resize((spin == 0) ? nup : ndown);
     auto Gdims     = dm_dims(false, SpinTypes(spin));
     auto Gdims_ref = dm_dims_ref(false, SpinTypes(spin));
     StaticMatrix G2D_({Gdims_ref.first, Gdims_ref.second}, 
@@ -1677,7 +1677,7 @@ void PHMSD<MP>::vMF(Vec&& v, double dt)
     StaticMatrix orbs({2, Gdims.second}, ComplexType(0.0),
                       buffer_manager.get_generator().template get_allocator<ComplexType>());
     ComplexType dummy(0.0);
-    confgB.resize((spin == 0) ? NAEA : NAEB);
+    confgB.resize((spin == 0) ? nup : ndown);
     if(walker_type == COLLINEAR) 
     {
       for (int nd = 0; nd < int(abij.number_of_unique_excitations()[other_spin]); ++nd)

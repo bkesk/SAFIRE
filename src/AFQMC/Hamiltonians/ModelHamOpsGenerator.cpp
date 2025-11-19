@@ -74,7 +74,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   std::string base_error("Error in ModelHamOpsGenerator::getHamiltonianOperations(): ");
 
   if (type == COLLINEAR)
-    RUNTIME_CHECK(PsiT.size() % 2 == 0, "");
+    utils::check(PsiT.size() % 2 == 0, "");
   int npol = ((type == NONCOLLINEAR) ? 2 : 1);
 
   // generate trial wavefunctions in appropriate form
@@ -82,7 +82,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   std::vector<PsiC_Mat_Type> PsiC;
   PsiC.reserve(PsiT.size());
   for(auto const& v: PsiT) {
-    RUNTIME_CHECK(v.size(1) == npol*NMO, "");
+    utils::check(v.size(1) == npol*NMO, "");
     PsiC.emplace_back( PsiC_Mat_Type{{v.size(1), v.size(0)}, TGwfn.Node()} );
     // hide this behind some templated routine, since PsiT_Matrix is hard wired
     // to be a sparse matrix, this can be done for now
@@ -355,7 +355,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   addComponent<MP,REAL>( TGwfn, type, ContinuousSpinPropagator  , collect_U[1], 
 		collect_J[1], Hams, n2IJ, IJ2n);
   // note: collect_J[2] should be empty
-  RUNTIME_CHECK(collect_J[2].num_non_zero_elements() == 0, "");
+  utils::check(collect_J[2].num_non_zero_elements() == 0, "");
   addComponent<MP,REAL>( TGwfn, type, DiscreteChargePropagator, collect_U[2], 
 		collect_J[2], Hams, n2IJ, IJ2n);
   addComponent<MP,REAL>( TGwfn, type, DiscreteSpinPropagator, collect_U[3], 
