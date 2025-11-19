@@ -139,6 +139,13 @@ auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr)
   }
 }
 
+// Useful routine, does nothing
+template<typename... Args> 
+auto to_array(nda::MemoryMatrix auto const& view)
+{
+  return view();
+}
+
 template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
 auto HDF2CSR(h5::group grp)
 {

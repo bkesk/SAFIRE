@@ -40,8 +40,13 @@ class THCOps
   using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
 
 public:
-  static const HamiltonianTypes HamOpType = THC;
-  HamiltonianTypes getHamType() const { return HamOpType; }
+  static constexpr HamiltonianTypes HamOpType = THC;
+  constexpr HamiltonianTypes getHamType() const { return THC; }
+
+  THCOps()
+  {
+    utils::check(false,"Default constructor for THCOps disabled.");
+  }
 
   /*
    * nup/ndown stands for number of alpha/beta electrons
@@ -115,7 +120,7 @@ public:
   THCOps& operator=(THCOps&& other) = default;
 
   nda::array<ComplexType,3> getOneBodyPropagatorMatrix(double dt,
-                                                       nda::array<ComplexType,1> const& vMF)
+                                                       nda::MemoryVector auto const& vMF)
   {
     using nda::range;
     auto all = range::all;
@@ -147,9 +152,8 @@ public:
             for (int j = 0 ; j < NMO; j++)
             {
               if(p1==p2) {
-//                H1(is,p1*NMO+i,p2*NMO+j) = v(is_,0,p1_*NMO+i,j) + 
-//                                           dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,i,j));
-                H1(is,p1*NMO+i,p2*NMO+j) = vexx()(is_*nptot+p1_,i,j); 
+                H1(is,p1*NMO+i,p2*NMO+j) = v(is_,0,p1_*NMO+i,j) + 
+                                           dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,i,j));
               } else {
                 // only spin-orbit terms here coming from hij
                 H1(is,p1*NMO+i,p2*NMO+j) = dt * hij()(is_,p1_*NMO+i,p2_*NMO+j); 
@@ -206,6 +210,7 @@ public:
     utils::check_strides(E,G);
     // limiting G to contiguous arrays for simplicity now, reconsider if necessary
     utils::check(G.is_contiguous(), "Layout mismatch");
+    RealType scl = (walker_type == CLOSED ? 2.0 : 1.0);
 
     // addH1
     E() = ComplexType(0.0);
@@ -213,7 +218,8 @@ public:
     {
       E(all,0) = E0; 
       auto haj_2d = nda::reshape(haj(),std::array<long,2>{haj.extent(0),haj.extent(1)*haj.extent(2)});
-      nda::blas::gemv(ComplexType(1.0), G, haj_2d(idet,all), ComplexType(1.0), E(all,0));
+      nda::tensor::contract(ComplexType(scl), G, "wi", haj_2d(idet,all), "i", 
+                            ComplexType(1.0), E(all,0), "w");
     }
     if (not(addEJ || addEXX))
       return;
@@ -236,7 +242,6 @@ public:
     // fine because G is assumed contiguous, otherwise build nda::idx_map with custom strides
     memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel,npol*NMO},G.data());
 
-    RealType scl = (walker_type == CLOSED ? 2.0 : 1.0);
     int iw(0);
     while (iw < nwalk)
     {
@@ -346,15 +351,15 @@ public:
       APP_ABORT(" Error: Single reference implementation currently in THCOps::fast_energy.");
     if (walker_type != CLOSED)
       APP_ABORT(" Error: THCOps::fast_energy requires walker_type==CLOSED.");
-    /*
+    / *
        * E[nspins][maxn_unique_confg][nwalk][3]
        * Ov[nspins][maxn_unique_confg][nwalk]
        * GrefA[nwalk][nup][NMO]
        * GrefB[nwalk][ndown][NMO]
        * QQ0A[nwalk][nup][NAEA]
        * QQ0B[nwalk][nup][NAEA]
-       */
-    /*
+       * /
+    / *
       static_assert(std::decay<MatE>::type::dimensionality==4, "Wrong dimensionality");
       static_assert(std::decay<MatO>::type::dimensionality==3, "Wrong dimensionality");
       static_assert(std::decay<MatG>::type::dimensionality==3, "Wrong dimensionality");
@@ -559,7 +564,7 @@ public:
 
   // returns v[nwalk, nspin_in_basis*npol_in_basis, NMO, NMO]
   // no spin-orbit vHS yet
-  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt, double a = 1.) 
+  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
   {
     memory::check_memory_space<MEM>(X);
     using nda::range;
@@ -578,8 +583,8 @@ public:
     memory::array<MEM,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
     v() = ComplexType(0.0);
 
-    // scale a by sqrt(dt)
-    a *= std::sqrt(dt);
+    // scale by sqrt(dt)
+    RealType a(std::sqrt(dt));
 
     // get array_views to the correct data and correct determinant
     bool has_rot = _Xsiu_rot_.has_value();
@@ -625,7 +630,7 @@ public:
             
             auto vij = v(is,range(iw,iw+nw),range(ip*NMO,(ip+1)*NMO),all);
             auto vij_r = memory::to_real_view(vij);
-            nda::tensor::contract(RealType(a),Qwiu_r,"wiuc",Xiu,"ju",
+            nda::tensor::contract(a,Qwiu_r,"wiuc",Xiu,"ju",
                                   RealType(0.0),vij_r,"wijc");
 
           } else {
@@ -640,7 +645,7 @@ public:
             }
 
             auto vij = v(is,range(iw,iw+nw),range(ip*NMO,(ip+1)*NMO),all);
-            nda::tensor::contract(ComplexType(RealType(a)),Qwiu,"wiu",Xiu,"ju",
+            nda::tensor::contract(ComplexType(a),Qwiu,"wiu",Xiu,"ju",
                                   ComplexType(0.0),vij,"wij");
 
           }
@@ -651,9 +656,7 @@ public:
     return v;
   }
 
-  void vbias(nda::MemoryArrayOfRank<2> auto const& G, 
-             nda::MemoryArrayOfRank<2> auto && v, 
-             double dt, double a = 1., double c = 0., int idet = 0, int ispin=0)
+  void vbias(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto && v, double dt)
   {
     memory::check_memory_space<MEM>(G,v);
     using nda::range;
@@ -671,11 +674,10 @@ public:
     if(haj.extent(0) == 1) // ndet==1, G half rotated
       utils::check(G.extent(1) == nel*npol*NMO, "THC::vbias: Size mismatch.");
     else // ndet>1, full G 
-      utils::check(G.extent(1) == npol*NMO*npol*NMO, "THC::vbias: Size mismatch.");
-    utils::check(idet >= 0 and idet < haj.extent(0), "Invalid: idet:{}",idet);
+      utils::check(G.extent(1) == nspin*npol*NMO*npol*NMO, "THC::vbias: Size mismatch.");
 
     // scale a by sqrt(dt)
-    a *= std::sqrt(dt);
+    RealType a(std::sqrt(dt));
 
     // get array_views to the correct data and correct determinant
     const auto Luv = _Luv_(); 
@@ -685,18 +687,18 @@ public:
     {
       memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel,npol*NMO},G.data());
       memory::buffered_array<MEM,ComplexType,2> Guu(nwalk,nu);
-      Guu_from_compact(G3d, Guu, idet);
+      Guu_from_compact(G3d, Guu, 0);
       auto Guu_3d= memory::to_real_view(Guu);
       auto v_3d = memory::to_real_view(v);
       memory::array_view<MEM,const RealType,2> Luv2(std::array<long,2>{nu,nchol},reinterpret_cast<RealType const*>(Luv.data()));
-      nda::tensor::contract(RealType(a),Luv2,"uv",Guu_3d,"wuc",RealType(c),v_3d,"vwc");
+      nda::tensor::contract(a,Luv2,"uv",Guu_3d,"wuc",RealType(0.0),v_3d,"vwc");
     }
     else
     {
+      utils::check(false," Error: THC not yet implemented for multiple references.");
       // multideterminant is not half-rotated, so use Likn
       // which spin???
-      memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,npol*NMO,npol*NMO},G.data());
-      APP_ABORT(" Error: THC not yet implemented for multiple references.");
+      memory::array_view<MEM,const ComplexType,4> G3d(std::array<long,4>{nwalk,nspin,npol*NMO,npol*NMO},G.data());
     }
   }
 /*
@@ -720,14 +722,10 @@ public:
   }
   int number_of_cholesky_vectors() const { return ( REAL ? _Luv_().extent(1) : 2 * _Luv_().extent(1) ); }
 
-  // transpose=true means G[nwalk][ik], false means G[ik][nwalk]
-  bool transposed_G_for_vbias() const { return true; }
-  bool transposed_G_for_E() const { return true; }
-
   bool fast_ph_energy() const { return false; }
   // add nspin_in_basis to allow for a spin independent basis too
   bool spin_dependent_vHS() const 
-  { return ((walker_type == COLLINEAR) or (walker_type == NONCOLLINEAR)); } 
+  { return (_Xsiu_().shape()[0] > 0) or (_Xsiu_().shape()[1]/NMO > 0); } 
   nda::array<ComplexType, 2> getHSPotentials() 
   { return nda::array<ComplexType, 2>{}; }
 

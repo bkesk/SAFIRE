@@ -474,6 +474,9 @@ public:
     return this->get_value(std::array<IndxType, 2>{IndxType(i),IndxType(j)});
   }
 
+  auto operator()() { return *this; }
+  auto operator()() const { return *this; }
+
 };
 
 } // namespace sparse

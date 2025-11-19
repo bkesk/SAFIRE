@@ -68,8 +68,8 @@ public:
 
 protected:
   // number of rows/columns
-  long size1_;
-  long size2_;
+  long size1_=0;
+  long size2_=0;
   // values
   larray<value_type> data_;
   // columns 
@@ -216,8 +216,14 @@ public:
   auto shape() const { return std::array<long,2>{size1_,size2_}; } 
   auto shape(long i) const { return (i==0?size1_:size2_); } 
   auto extent(long i) const { return (i==0?size1_:size2_); } 
-  auto capacity()  const { return row_begin_(size1_)-row_begin_(0); } 
-  auto capacity(long i)  const { return row_begin_(i+1)-row_begin_(i); } 
+  auto capacity()  const { 
+    if(size1_*size2_==0) return int_type(0); 
+    else return row_begin_(size1_)-row_begin_(0);  
+  }
+  auto capacity(long i)  const { 
+    if(size1_*size2_==0) return int_type(0); 
+    else return row_begin_(i+1)-row_begin_(i); 
+  } 
   auto values() const { return data_(); }
   auto columns() const { return jdata_(); }
   auto row_begin() const { return row_begin_(); }

@@ -67,7 +67,6 @@ public:
     nStep = pt.get<int>("steps");
     measure_interval_multiplier = pt.get<int>("measure_interval_multiplier");
     nPopulation = pt.get<int>("population_control_interval");
-    fix_bias = pt.get<int>("fix_bias");
     nStabilize = pt.get<int>("walker_ortho_interval");
     nCheckpoint = pt.get<int>("checkpoint_interval");
     samplePeriod = pt.get<int>("sample_interval");
@@ -87,13 +86,12 @@ public:
   {
     // read inputs with default options
     std::string hdf_write_file;
-    int steps, measure_interval, measure_interval_multiplier, nPopulation, fix_bias, ortho, checkpoint;
+    int steps, measure_interval, measure_interval_multiplier, nPopulation, ortho, checkpoint;
     double weight_reset, timestep, dshift;
     hdf_write_file = pt0.get<std::string>("hdf_write_file", "");
     steps         = pt0.get<int>("steps", 1);
     nPopulation = pt0.get<int>("population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL);
     measure_interval_multiplier = pt0.get<int>("measure_interval_multiplier",DEFAULT_MEASURE_INTERVAL_MULTIPLIER);
-    fix_bias      = pt0.get<int>("fix_bias", 1);
     ortho         = pt0.get<int>("walker_ortho_interval", DEFAULT_WALKER_ORTHO_INTERVAL);
     checkpoint    = pt0.get<int>("checkpoint_interval", -1);
     //sample_period = pt0.get<int>("sample_interval", -1); // KE: commented until relevant feature is implemented
@@ -117,7 +115,6 @@ public:
     pt1.put("steps", steps);
     pt1.put("population_control_interval", nPopulation);
     pt1.put("measure_interval_multiplier", measure_interval_multiplier);
-    pt1.put("fix_bias", fix_bias);
     pt1.put("walker_ortho_interval", ortho);
     pt1.put("checkpoint_interval", checkpoint);
     pt1.put("sample_interval", -1); // KE: hardcoded until relevant feature is implemented
@@ -162,7 +159,6 @@ protected:
   int measure_interval_multiplier;
   int _measure_interval; // determined as `_measure_interval = measure_interval_multiplier*nPopulation`
   int nPopulation;
-  int fix_bias;
 
   int nCheckpoint;
   int nStabilize;

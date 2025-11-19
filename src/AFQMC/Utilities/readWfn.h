@@ -63,13 +63,13 @@ void getCommonInput(h5::group& g,
                     int& ndets_to_read,
                     nda::array<ComplexType,1>& ci,
                     WALKER_TYPES& walker_type);
-/*
+
 WALKER_TYPES getWalkerType(std::string filename);
 WALKER_TYPES getWalkerType(std::string filename, std::string type);
 
 std::string getWavefunctionType(std::string filename);
 std::tuple<int,int,int,int> getWavefunctionDims(std::string filename);
-*/
+
 
 template<MEMORY_SPACE MEM>
 auto read_nomsd_wavefunction(h5::group& grp,int ndets,

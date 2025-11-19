@@ -129,7 +129,7 @@ public:
         acta2mo(std::move(acta2mo_)),
         actb2mo(std::move(actb2mo_)),
         abij(std::move(abij_)),
-        refc_dev(iextensions<1u>{NAEA+NAEB}),
+        refc_dev(iextensions<1u>{nup+ndown}),
         OpSpinDetCouplings(move_vector<local_csr_Matrix<ComplexType>>(std::move(op_spin_det_coupling_))),
         OpSpinDetCouplings_sp(make_vector<local_csr_Matrix<SPComplexType>>(OpSpinDetCouplings,
                                 make_node_allocator<SPComplexType>(TG))),
@@ -159,7 +159,7 @@ public:
 
     // setup device structures
     using std::copy_n;
-    copy_n(abij.reference_configuration(), NAEA+NAEB, refc_dev.origin());
+    copy_n(abij.reference_configuration(), nup+ndown, refc_dev.origin());
 
     compact_G_for_vbias     = true;
     transposed_G_for_vbias_ = HamOp.transposed_G_for_vbias();
@@ -194,11 +194,11 @@ public:
     // check that refc is appropriate for the selected algorithm
     if(energy_algorithm==1) {
       auto refc=abij.reference_configuration();
-      for(int i=0; i<NAEA; i++)
+      for(int i=0; i<nup; i++)
         if( refc[i] != i ) 
           APP_ABORT(" Error: PHMSD algorithm=1 requires refc[i]==i.\n\n");
-      for(int i=0; i<NAEB; i++)
-        if( refc[NAEA+i] != i ) 
+      for(int i=0; i<ndown; i++)
+        if( refc[nup+i] != i ) 
           APP_ABORT(" Error: PHMSD algorithm=1 requires refc[i]==i.\n\n");
     }
   }
@@ -501,7 +501,7 @@ public:
     {
       TG.Node().barrier(); // for safety
       int nrow(NMO * ((walker_type == NONCOLLINEAR) ? 2 : 1));
-      int ncol(NAEA + NAEB); //careful here, spins are stored contiguously
+      int ncol(nup + ndown); //careful here, spins are stored contiguously
       RefOrbMats = mpi3CMatrix({ndet, nrow * ncol}, RefOrbMats.get_allocator());
       TG.Node().barrier(); // for safety
       if (TG.Node().root())
@@ -513,28 +513,28 @@ public:
         ma::Matrix2MAREF('H', OrbMats[0], OA_);
         if (OrbMats.size() > 1)
           ma::Matrix2MAREF('H', OrbMats[1], OB_);
-        std::vector<int> Ac(NAEA);
-        std::vector<int> Bc(NAEB);
+        std::vector<int> Ac(nup);
+        std::vector<int> Bc(ndown);
         for (int i_det = 0; i_det < ndet; ++i_det)
         {
           auto c=abij.configuration(i_det);
           abij.get_configuration(0, std::get<0>(*c), Ac);
           abij.get_configuration(1, std::get<1>(*c), Bc);
-          boost::multi::array_ref<ComplexType, 2> A_(raw_pointer_cast(RefOrbMats[i_det].origin()), {NMO, NAEA});
-          boost::multi::array_ref<ComplexType, 2> B_(A_.origin() + A_.num_elements(), {NMO, NAEB});
+          boost::multi::array_ref<ComplexType, 2> A_(raw_pointer_cast(RefOrbMats[i_det].origin()), {NMO, nup});
+          boost::multi::array_ref<ComplexType, 2> B_(A_.origin() + A_.num_elements(), {NMO, ndown});
           for (int i = 0, ia = 0; i < NMO; ++i)
-            for (int a = 0; a < NAEA; ++a, ia++)
+            for (int a = 0; a < nup; ++a, ia++)
               A_[i][a] = OA_[i][Ac[a]];
           if (OrbMats.size() > 1)
           {
             for (int i = 0, ia = 0; i < NMO; ++i)
-              for (int a = 0; a < NAEB; ++a, ia++)
+              for (int a = 0; a < ndown; ++a, ia++)
                 B_[i][a] = OB_[i][Bc[a]];
           }
           else if(walker_type == COLLINEAR)
           {
             for (int i = 0, ia = 0; i < NMO; ++i)
-              for (int a = 0; a < NAEB; ++a, ia++)
+              for (int a = 0; a < ndown; ++a, ia++)
                 B_[i][a] = OA_[i][Bc[a]];
           }
         }
@@ -716,13 +716,13 @@ protected:
     switch (walker_type)
     {
     case CLOSED: // closed-shell RHF
-      return (full) ? (arr{NMO, NMO}) : (arr{NAEA, NMO});
+      return (full) ? (arr{NMO, NMO}) : (arr{nup, NMO});
       break;
     case COLLINEAR:
-      return (full) ? (arr{NMO, NMO}) : ((sp == Alpha) ? (arr{NAEA, NMO}) : (arr{NAEB, NMO}));
+      return (full) ? (arr{NMO, NMO}) : ((sp == Alpha) ? (arr{nup, NMO}) : (arr{ndown, NMO}));
       break;
     case NONCOLLINEAR:
-      return (full) ? (arr{2 * NMO, 2 * NMO}) : (arr{NAEA, 2 * NMO});
+      return (full) ? (arr{2 * NMO, 2 * NMO}) : (arr{nup, 2 * NMO});
       break;
     default:
       APP_ABORT(" Error: Unknown walker_type in dm_size. ");

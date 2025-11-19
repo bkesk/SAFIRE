@@ -21,10 +21,9 @@
 #include <random>
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
+#include "utilities/check.hpp"
 
 #include "AFQMC/config.h"
-#include "AFQMC/Utilities/taskgroup.h"
 #include "PropagatorFactory.h"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 
@@ -32,58 +31,33 @@ namespace sfqmc
 {
 namespace afqmc
 {
-Propagator PropagatorFactory::buildAFQMCPropagator(TaskGroup_& TG,
-                                                   ptree pt,
-                                                   Wavefunction& wfn,
-                                                   utils::DeviceRandomGenerator_t* rng)
+template<MEMORY_SPACE MEM>
+Propagator PropagatorFactory::buildAFQMCPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, Wavefunction& wfn, std::shared_ptr<utils::DeviceRandomGenerator_t> rng)
 {
-  // allocator for local memory
-
   std::string info = pt.get<std::string>("system", "");
 
-  if (InfoMap.find(info) == InfoMap.end())
-    APP_ABORT("ERROR: Undefined system in PropagatorFactory. ");
+  utils::check(InfoMap.find(info) != InfoMap.end(),"ERROR: Undefined system in PropagatorFactory. ");
   AFQMCInfo& AFinfo = InfoMap[info];
 
   // Add spin_dependent here based on type in HamOps
   if( wfn.getHamType() == ModelHamiltonian ) {
     // move the call to get FieldTypes to inside propagator constructor
-    boost::multi::array<int, 1> FieldTypes(iextensions<1u>{wfn.local_number_of_cholesky_vectors()});
-    wfn.getFieldTypes(FieldTypes);
-    if( TG.getNGroupsPerTG() > 1 ) 
-      APP_ABORT(" Error: nnodes > 1 not allowed with model Hamiltonians. ");
-    if(mixed_precision) {
-      return Propagator(AFQMCModelPropagator<true>(AFinfo, pt, TG, wfn, std::move(FieldTypes), rng)); 
-    } else {
-      return Propagator(AFQMCModelPropagator<false>(AFinfo, pt, TG, wfn, std::move(FieldTypes), rng)); 
-    }
+    utils::check(false,"finish");
+//    return Propagator(AFQMCModelPropagator<MEM>(AFinfo, pt, mpi, wfn, rng)); 
+    return Propagator{};
   } else {  
-    if (TG.getNGroupsPerTG() == 1)
-      if(mixed_precision) {
-        return Propagator(AFQMCBasePropagator<true>(AFinfo, pt, TG, wfn, rng));
-      } else {	
-        return Propagator(AFQMCBasePropagator<false>(AFinfo, pt, TG, wfn, rng));
-      }
-    else
-    {
-      if (wfn.distribution_over_cholesky_vectors()) {
-        // use specialized distributed algorithm for case
-        // when vbias doesn't need reduction over TG
-        if(mixed_precision) {
-          return Propagator(AFQMCDistributedPropagatorDistCV<true>(AFinfo, pt, TG, wfn, rng));
-        } else {
-          return Propagator(AFQMCDistributedPropagatorDistCV<false>(AFinfo, pt, TG, wfn, rng));
-	}
-      } else {
-        if(mixed_precision) {
-          return Propagator(AFQMCDistributedPropagator<true>(AFinfo, pt, TG, wfn, rng));
-        } else {
-          return Propagator(AFQMCDistributedPropagator<false>(AFinfo, pt, TG, wfn, rng));
-	}
-      }
-    }
+    return Propagator(AFQMCBasePropagator<MEM>(AFinfo, pt, mpi, wfn, rng));
   }
+  return Propagator{};
 }
+
+template Propagator 
+PropagatorFactory::buildAFQMCPropagator<HOST_MEMORY>(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,Wavefunction&,std::shared_ptr<utils::DeviceRandomGenerator_t>);
+
+#if defined(ENABLE_DEVICE)
+template Propagator 
+PropagatorFactory::buildAFQMCPropagator<DEVICE_MEMORY>(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,Wavefunction&,std::shared_ptr<utils::DeviceRandomGenerator_t>);
+#endif
 
 
 } // namespace afqmc

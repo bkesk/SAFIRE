@@ -33,7 +33,7 @@ namespace afqmc
 template<typename T>
 struct TEST_DATA
 {
-  int NMO, NAEA, NAEB;
+  int NMO, nup, ndown;
   T E0, E1, E2;
   T Xsum, Vsum;
 };
@@ -62,23 +62,21 @@ inline int read_nmo_from_hdf(std::string fileName)
 
 inline std::tuple<int, int, int> read_info_from_wfn(std::string fileName, std::string type)
 {
-
   app_log(1, "Reading info from wfn file: {} of type {} ", fileName, type);
   h5::file file(fileName,'r');
   h5::group grp(file);
   h5::group wgrp = grp.open_group("Wavefunction");
-  std::string dset = type;
   if(type == "any") {
-    if( wgrp.has_dataset("NOMSD") )
+    if( wgrp.has_key("NOMSD") )
       type = "NOMSD";
-    else if( wgrp.has_dataset("PHMSD") )
+    else if( wgrp.has_key("PHMSD") )
       type = "PHMSD";
     else
       utils::check(false,"Missing NOMSD/PHMSD datasets in Wavefunction.");
   }
-  h5::group mgrp = wgrp.open_group(dset);
+  h5::group mgrp = wgrp.open_group(type);
   std::vector<int> Idata(5);
-  h5::h5_read(mgrp,dset,Idata);
+  h5::h5_read(mgrp,"dims",Idata);
   return std::make_tuple(Idata[0], Idata[1], Idata[2]);
 }
 

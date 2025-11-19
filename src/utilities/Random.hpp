@@ -20,11 +20,30 @@
 #include "utilities/check.hpp"
 #include "AFQMC/Utilities/type_conversion.hpp"
 
+#if defined(ENABLE_CUDA)
+
+#endif
+
 namespace sfqmc {
 namespace utils
 {
 
 using RandomGenerator_t = std::mt19937;
+
+#if defined(ENABLE_CUDA)
+using DeviceRandomGenerator_t = curandGenerator_t;
+inline DeviceRandomGenerator_t make_device_rng(RandomGenerator_t::result_type iseed)
+{
+  unsigned long long int v(iseed);
+  return ::sfqmc::cuda::make_device_rng(v);
+}
+#else
+using DeviceRandomGenerator_t = std::mt19937;
+inline DeviceRandomGenerator_t make_device_rng(RandomGenerator_t::result_type iseed)
+{
+  return DeviceRandomGenerator_t{iseed};
+}
+#endif
 
 // Return Nth primer number
 template<typename UInt>

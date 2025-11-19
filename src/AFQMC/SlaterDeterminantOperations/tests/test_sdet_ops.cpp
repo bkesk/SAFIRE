@@ -285,7 +285,8 @@ void SDetOps()
     array Q(B);
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     memory::array<MEM,Type,1> oref(nwalk,Type(0.0));
-    det_ops::orthogonalize(Q);
+    memory::array<MEM,Type,1> ldet(nwalk,Type(0.0));
+    det_ops::orthogonalize(Q,ldet);
     det_ops::Log_Overlap(Q, Q, ovlp);
     ARRAY_EQUAL(oref,ovlp);
   }

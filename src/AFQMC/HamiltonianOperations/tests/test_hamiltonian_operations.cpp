@@ -14,7 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-//#undef NDEBUG
+#undef NDEBUG
 
 #include "catch2/catch.hpp"
 
@@ -77,8 +77,8 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
 
   int NMO              = file_data.NMO;
-  int nup              = file_data.NAEA;
-  int ndown            = file_data.NAEB;
+  int nup              = file_data.nup;
+  int ndown            = file_data.ndown;
 
   std::map<std::string, AFQMCInfo> InfoMap;
   InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
@@ -137,20 +137,10 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   ARRAY_EQUAL(ovlp,nda::array<ComplexType,1>(nwalk,ComplexType(0.0)));
   // 2d views and transposed copies just in case
   auto G2d = nda::reshape(G,std::array<long,2>{nwalk,nel*npol * NMO});
-  memory::array<MEM,ComplexType,2> Gt2d(nel*npol * NMO, nwalk);
-  if constexpr (MEM==HOST_MEMORY)
-    Gt2d = nda::transpose(G2d);
-  else
-    nda::tensor::elementwise(G2d,"ij",Gt2d,"ji");
 
   // Energy
   memory::array<MEM,ComplexType,2> Eloc(nwalk, 3);
-  if(HOps.transposed_G_for_E())
-  {
-    HOps.energy(Eloc, G2d, 0);
-  } else {
-    HOps.energy(Eloc, Gt2d, 0);
-  }
+  HOps.energy(Eloc, G2d, 0);
   auto eloc_h = nda::to_host(Eloc);
   if (std::abs(file_data.E0 + file_data.E1) > 1e-8) {
     ARRAY_EQUAL(eloc_h(all,0), nda::array<ComplexType,1>(nwalk,file_data.E0 + file_data.E1)); 
@@ -172,12 +162,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
 
   memory::array<MEM,ComplexType,2> X(nCV, nwalk);
   X() = ComplexType(0.0);
-  if (HOps.transposed_G_for_vbias())
-  {
-    HOps.vbias(G2d, X, dt);
-  } else {
-    HOps.vbias(Gt2d, X, dt);
-  }
+  HOps.vbias(G2d, X, dt);
   ComplexType Xsum = 0, Xsum2 = 0;
   auto X_h = nda::to_host(X);
   for (int i = 0; i < nCV; i++)

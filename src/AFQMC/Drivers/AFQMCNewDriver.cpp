@@ -60,7 +60,7 @@ bool AFQMCNewDriver::run(WalkerSet& wset)
   AFQMCTimer.start(block_timer);
   for (int iStep = 0; iStep < nStep; ++iStep, ++step_tot)
   {
-    prop0.Propagate(1, wset, Eshift, dt, fix_bias);
+    prop0.Propagate(wset, Eshift, dt);
     total_time += dt;
 
     if ((step_tot + 1) % nStabilize == 0)

@@ -165,7 +165,7 @@ inline void calculate_R(int rank,
   {
     auto refc   = abij.reference_configuration(spin);
     ComplexType w(weights[0]);
-    // Wrong if NAEB < NAEA!!! FIX FIX FIX
+    // Wrong if ndown < nup!!! FIX FIX FIX
     for (int i = 0; i < NEL; ++i)
       R[i][refc[i]] += w;
   }

@@ -16,6 +16,7 @@
   
 #pragma once
   
+#include "AFQMC/Walkers/WalkerConfig.hpp"
 #include "AFQMC/config.h"
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp" 
@@ -52,8 +53,7 @@ void orthogonalize(A_t && A, B_t && log_detR)
   nda::lapack::geqrf(nda::transpose(Q),tau,work);
 
   // log(Det)
-  log_detR() = Type(0.); 
-  math::log_determinant_from_geqrf(Q,scl,log_detR);
+  math::log_determinant_from_geqrf(Q,scl,log_detR(nda::range(Nw)));
   
   // Q
   nda::lapack::gqr(nda::transpose(Q),tau,work);
@@ -70,17 +70,35 @@ void orthogonalize(A_t && A, B_t && log_detR)
   }
 }
 
-template<nda::MemoryArrayOfRank<3> A_t>
-requires( nda::mem::have_compatible_addr_space<A_t> and std::decay_t<A_t>::is_stride_order_C() )
-void orthogonalize(A_t && A)
-{ 
-  constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
-  using Type = nda::get_value_t<A_t>;
-  static_assert( nda::is_complex_v<Type>, "Type mismatch");
-  auto [Nw, M, Nel] = A.shape();
-  if(A.size()==0) return;
-  memory::buffered_array<MEM,Type,1> ldet(Nw,Type(0.));
-  orthogonalize(std::forward<A_t>(A),ldet);
+template<typename WlkSet, nda::MemoryVector Vec>
+requires( not nda::Array<WlkSet> )
+void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true) 
+{
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<Vec>();
+  utils::check(MEM == wset.get_memory_space(), "Memory space mismatch");
+  memory::check_memory_space<MEM>(ldet);
+  auto walker_type = wset.getWalkerType();
+  const int nspin = ( (walker_type == COLLINEAR) ? 2 : 1 );
+  const int nwalk = wset.size();
+  utils::check(ldet.size() >= nwalk, "Size mismatch");
+  ldet() = ComplexType(0.0);
+  if(importance_sampling) {
+    orthogonalize( wset.template SlaterMatrices<MEM>(Alpha), ldet);
+    if(walker_type == COLLINEAR)
+      orthogonalize( wset.template SlaterMatrices<MEM>(Beta), ldet);
+  } else {
+    double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
+    orthogonalize( wset.template SlaterMatrices<MEM>(Alpha), ldet);
+    if(walker_type == COLLINEAR)
+      orthogonalize( wset.template SlaterMatrices<MEM>(Beta), ldet);
+    memory::buffered_array<MEM,ComplexType,1> wgt(nwalk);
+    wset.getProperty(WEIGHT, wgt);
+    auto wgt_h = nda::to_host(wgt);
+    auto ldet_h = nda::to_host(ldet);
+    wgt_h() *= nda::exp(scl*ldet_h());
+    wgt() = wgt_h();
+    wset.setProperty(WEIGHT, wgt);
+  }
 }
 
 } // namespace det_ops 

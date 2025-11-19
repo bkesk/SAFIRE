@@ -124,7 +124,7 @@ public:
   HamiltonianOperations& operator=(HamiltonianOperations&& other) = default;
 
   template<class... Args>
-  nda::array<ComplexType, 3> getOneBodyPropagatorMatrix(Args&&... args)
+  auto getOneBodyPropagatorMatrix(Args&&... args)
   {
     return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); },
                                 var);
@@ -244,24 +244,12 @@ public:
     return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
   }
 
-// MAM: try to eliminate this!!!
-  bool transposed_G_for_vbias() const
-  {
-    return std::visit([&](auto&& a) { return a.transposed_G_for_vbias(); }, var);
-  }
-
-// MAM: try to eliminate this!!!
-  bool transposed_G_for_E() const
-  {
-    return std::visit([&](auto&& a) { return a.transposed_G_for_E(); }, var);
-  }
-
-/*
   HamiltonianTypes getHamType() const
   {
     return std::visit([&](auto&& a) { return a.getHamType(); }, var);
   }
 
+/*
   template<class... Args>
   boost::multi::array<ComplexType, 2> getHSPotentials()
   {

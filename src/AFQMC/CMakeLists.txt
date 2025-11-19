@@ -11,10 +11,10 @@ set (AFQMC_SRCS
 #  Drivers/AFQMCNewDriver.cpp
 #  Drivers/AFQMCDriver.cpp
 #  Drivers/CSAFQMCDriver.cpp
-#  Propagators/AFQMCBasePropagator.cpp
+  Propagators/AFQMCBasePropagator.cpp
 #  Propagators/AFQMCModelPropagator.cpp
-#  Propagators/PropagatorFactory.cpp
-#  Wavefunctions/WavefunctionFactory.cpp
+  Propagators/PropagatorFactory.cpp
+  Wavefunctions/WavefunctionFactory.cpp
 #  Hamiltonians/KPFactorizedHamiltonian.cpp
 #  Hamiltonians/RealDenseHamiltonian.cpp
 #  Hamiltonians/RealDenseHamiltonian_v2.cpp
@@ -35,7 +35,7 @@ set (AFQMC_SRCS
 #endif(ENABLE_CUDA)
 
 add_library(afqmc ${AFQMC_SRCS})
-target_link_libraries(afqmc PUBLIC utils qmcio numerics)# Boost::boost)
+target_link_libraries(afqmc PUBLIC utils qmcio numerics)
 
 if (BUILD_UNIT_TESTS)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/extern/catch)
@@ -73,8 +73,8 @@ if (BUILD_UNIT_TESTS)
   SUBDIRS(Walkers/tests)
   SUBDIRS(Hamiltonians/tests)
   SUBDIRS(HamiltonianOperations/tests)
-#  SUBDIRS(Wavefunctions/tests)
-#  SUBDIRS(Propagators/tests)
+  SUBDIRS(Wavefunctions/tests)
+  SUBDIRS(Propagators/tests)
 #  SUBDIRS(Drivers/tests)
 #  SUBDIRS(Estimators/tests)
 endif()

@@ -27,6 +27,9 @@
 #include "IO/app_loggers.h"
 #include "readWfn.h"
 
+#include "nda/nda.hpp"
+#include "nda/h5.hpp"
+
 #include "numerics/sparse/sparse.hpp"
 
 namespace sfqmc
@@ -34,67 +37,51 @@ namespace sfqmc
 namespace afqmc
 {
 
-/*
 std::tuple<int,int,int,int> getWavefunctionDims(std::string filename)
 {
-  hdf_archive dump;
-  if (!dump.open(filename, H5F_ACC_RDONLY))
-    APP_ABORT(" Error opening wavefunction file in getWavefunctionDims. ");
-  if (dump.push("Wavefunction", false)<0)
-    APP_ABORT(" Error in getWavefunctionDims: Group Wavefunction not found. ");
-  if (dump.push("NOMSD",false)>=0) {
-  } else if (dump.push("PHMSD",false)>=0) {
-  } else 
-    APP_ABORT(" Error in getWavefunctionDims: Missing NOMSD/PHMSD block.");
+  h5::file file(filename,'r');
+  h5::group grp(file);
+  h5::group wgrp = grp.open_group("Wavefunction");
+  std::string name;
+  if (wgrp.has_key("NOMSD")) {
+    name = std::string("NOMSD");
+  } else if (wgrp.has_key("PHMSD")) {
+    name = std::string("PHMSD");
+  } else {
+    utils::check(false, "Error in getWavefunctionDims: Missing NOMSD/PHMSD block."); 
+  }
+  h5::group ngrp = wgrp.open_group(name);
   std::vector<int> dims(5);
-  if (!dump.readEntry(dims, "dims"))
-    APP_ABORT(" Error in getWavefunctionDims Problems reading dims. ");
-  dump.pop();
-  dump.pop();
-  dump.close();
+  h5::h5_read(ngrp,"dims",dims);
   return std::make_tuple(dims[4],dims[0],dims[1],dims[2]);
 }
 
 std::string getWavefunctionType(std::string filename)
 {
   std::string type;
-  hdf_archive dump;
-  if (!dump.open(filename, H5F_ACC_RDONLY))
-    APP_ABORT(" Error opening wavefunction file in getWavefunctionType. ");
-  if (dump.push("Wavefunction", false)<0)
-    APP_ABORT(" Error in getWavefunctionType: Group Wavefunction not found. ");
-  if (dump.push("NOMSD",false)>=0) {
-    type = "NOMSD";
-  } else if (dump.push("PHMSD",false)>=0) {
-    type = "PHMSD";
+  h5::file file(filename,'r');
+  h5::group grp(file);
+  h5::group wgrp = grp.open_group("Wavefunction");
+  if (wgrp.has_key("NOMSD")) {
+    type = std::string("NOMSD");
+  } else if (wgrp.has_key("PHMSD")) {
+    type = std::string("PHMSD");
   } else {
-    APP_ABORT(" Error in getWavefunctionType: Missing NOMSD/PHMSD block."); 
+    utils::check(false, "Error in getWavefunctionType: Missing NOMSD/PHMSD block."); 
   }
-  dump.pop();
-  dump.pop();
-  dump.close();
   return type;
 }
 
 WALKER_TYPES getWalkerType(std::string filename, std::string type)
 {
-  hdf_archive dump;
-  if (!dump.open(filename, H5F_ACC_RDONLY))
-    APP_ABORT(" Error opening wavefunction file in read_info_from_wfn. ");
-  if (dump.push("Wavefunction", false)<0)
-    APP_ABORT(" Error in getWalkerTypeHDF5: Group Wavefunction found. ");
-  if (dump.push(type, false)<0)
-    APP_ABORT(" Error in getWalkerTypeHDF5: Group " + type + " not found. ");
-
+  h5::file file(filename,'r');
+  h5::group grp(file);
+  h5::group wgrp = grp.open_group("Wavefunction");
+  utils::check(wgrp.has_key(type), "Error in getWavefunctionDims: Missing wfn type:{}",type);
+  h5::group ngrp = wgrp.open_group(type);
   std::vector<int> Idata(5);
-  if (!dump.readEntry(Idata, "dims"))
-    APP_ABORT(" Error in getWalkerTypeHDF5: Problems reading dims. ");
-
-  dump.pop();
-  dump.pop();
-  dump.close();
+  h5::h5_read(ngrp,"dims",Idata);
   int wfn_type = Idata[3];
-
   if (wfn_type == 1)
     return CLOSED;
   else if (wfn_type == 2)
@@ -109,37 +96,33 @@ WALKER_TYPES getWalkerType(std::string filename, std::string type)
 
 WALKER_TYPES getWalkerType(std::string filename)
 {
-  hdf_archive dump;
-  if (!dump.open(filename, H5F_ACC_RDONLY))
-    APP_ABORT(" Error opening wavefunction file in read_info_from_wfn. ");
-  if (dump.push("Wavefunction", false)<0)
-    APP_ABORT(" Error in getWalkerTypeHDF5: Group Wavefunction found. ");
-  if (dump.push("NOMSD", false)) {
-  } else if (dump.push("PHMSD", false)) {
+  h5::file file(filename,'r');
+  h5::group grp(file);
+  h5::group wgrp = grp.open_group("Wavefunction");
+  std::string type;
+  if (wgrp.has_key("NOMSD")) {
+    type = std::string("NOMSD");
+  } else if (wgrp.has_key("PHMSD")) {
+    type = std::string("PHMSD");
   } else {
-    APP_ABORT(" Error in getWalkerType: Wavefunction type not found. ");
+    utils::check(false, "Error in getWavefunctionType: Missing NOMSD/PHMSD block.");
   }
-
+  h5::group ngrp = wgrp.open_group(type);
   std::vector<int> Idata(5);
-  if (!dump.readEntry(Idata, "dims"))
-    APP_ABORT(" Error in getWalkerTypeHDF5: Problems reading dims. ");
-
-  dump.pop();
-  dump.pop();
-  dump.close();
+  h5::h5_read(ngrp,"dims",Idata);
   int wfn_type = Idata[3];
-
   if (wfn_type == 1)
     return CLOSED;
   else if (wfn_type == 2)
     return COLLINEAR;
   else if (wfn_type == 3)
     return NONCOLLINEAR;
-  else if (wfn_type == 4)
+  else if (wfn_type ==4)
     return FULLYPOLARIZED;
   else
     return UNDEFINED_WALKER_TYPE;
 }
+/*
 
 void read_ph_wavefunction_hdf(hdf_archive& dump,
                               std::vector<ComplexType>& ci_coeff,

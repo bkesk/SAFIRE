@@ -16,25 +16,28 @@
 
 #undef NDEBUG
 
-#include "catch_amalgamated.hpp"
+#include "catch2/catch.hpp"
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-
-#include "io/ptree/ptree_utilities.hpp"
-#include "hdf/hdf_archive.h"
-#include "Utilities/Random.hpp"
-#include "Memory/device_rng.hpp"
-#include "Utilities/app_loggers.h"
+#include "IO/AppAbort.hpp"
+#include "IO/app_loggers.h"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/Timer.hpp"
+#include "utilities/test_common.hpp"
+#include "utilities/check.hpp"
 
 #include <string>
 #include <vector>
 #include <complex>
 #include <iomanip>
 
+#include "nda/nda.hpp"
+#include "nda/tensor.hpp"
+#include "nda/h5.hpp"
+
 #include "AFQMC/Utilities/test_utils.hpp"
-#include "AFQMC/Utilities/AFQMCTimer.h"
-#include "Memory/buffer_managers.h"
+#include "AFQMC/Utilities/readWfn.h" 
 
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
@@ -42,10 +45,7 @@
 #include "AFQMC/Propagators/PropagatorFactory.h"
 #include "AFQMC/Walkers/WalkerSet.hpp"
 
-#include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
-
-#include "SparseMatrix/csr_matrix_construct.hpp"
-#include "Numerics/ma_blas.hpp"
+#include "numerics/sparse/sparse.hpp"
 
 using std::cerr;
 using std::complex;
@@ -61,349 +61,126 @@ namespace sfqmc
 {
 using namespace afqmc;
 
-template<bool MP>
-void propg_fac_shared(boost::mpi3::communicator& world)
+template<MEMORY_SPACE MEM>
+void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+             std::string hamil_file, std::string wfn_file, bool dense_trial)
 {
-  if (not file_exists(UTEST_HAMIL) || not file_exists(UTEST_WFN))
-  {
-    APP_ABORT(" Hamiltonian or wavefunction file not found. Run unit test with --hamil /path/to/hamil.h5 and --wfn /path/to/wfn.h5.");
-  }
-  else
-  {
-    // Global Task Group
-    afqmc::GlobalTaskGroup gTG(world);
+  using sfqmc::utils::ARRAY_EQUAL;
+  using nda::range;
+  auto all = range::all;
+  utils::check(utils::file_exists(hamil_file),
+               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
+  utils::check(utils::file_exists(wfn_file),
+               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
-    hdf_archive dump;
-    if (!dump.open(UTEST_HAMIL, H5F_ACC_RDONLY))
+  int NMO = read_nmo_from_hdf(hamil_file);
+  auto[wfn_NMO,nup, ndown] = read_info_from_wfn(wfn_file,"any");
+  utils::check(NMO == wfn_NMO, "Error: NMO != wfn_NMO.");
+  WALKER_TYPES type         = getWalkerType(wfn_file);
+  int nspin                 = (type == COLLINEAR) ? 2 : 1;
+  int npol                  = (type == NONCOLLINEAR) ? 2 : 1;
+
+  std::map<std::string, AFQMCInfo> InfoMap;
+  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
+
+  ptree ham_pt;
+  ham_pt.put("name","ham0");
+  ham_pt.put("system","info0");
+  ham_pt.put("filename",hamil_file);
+
+  HamiltonianFactory HamFac(InfoMap);
+  HamFac.push("ham0", ham_pt);
+  Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
+
+  int nwalk = 11; 
+  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  std::shared_ptr<utils::DeviceRandomGenerator_t> rng_dev = std::make_shared<utils::DeviceRandomGenerator_t>(utils::make_device_rng(777));
+
+  ptree wlk_pt;
+  wlk_pt.put("name","wset0");
+  if(type == CLOSED) wlk_pt.put("walker_type","closed");
+  else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
+  else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
+  else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
+  auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
+
+  ptree wfn_pt;
+  wfn_pt.put("name","wfn0");
+  wfn_pt.put("system","info0");
+  wfn_pt.put("filename",wfn_file);
+  wfn_pt.put("dense_trial",dense_trial);
+
+  WavefunctionFactory WfnFac(InfoMap);
+  WfnFac.push("wfn0", wfn_pt);
+  Wavefunction& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
+
+  auto initial_guess = WfnFac.getInitialGuess("wfn0");
+  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+  wset.resize(nwalk, initial_guess);
+
+  ptree prop_pt;
+  prop_pt.put("name","prop0");
+  prop_pt.put("system","info0");
+
+  PropagatorFactory PropgFac(InfoMap);
+  PropgFac.push("prop0", prop_pt);
+  Propagator& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
+
+  std::cout << setprecision(8);
+  wfn.Energy(wset);
+  {
+    ComplexType eav = 0, ov = 0;
+    for (auto it = wset.begin(); it != wset.end(); ++it)
     {
-      APP_ABORT(" Error opening integral file in SparseGeneralHamiltonian. ");
+      eav += it->get_property(WEIGHT) * (it->energy());
+      ov += it->get_property(WEIGHT);
     }
-    auto format = get_hamiltonian_format(dump,gTG.Global());
-    dump.close();
-
-    int NMO, wfn_NMO, NAEA, NAEB;
-    NMO = read_nmo_from_hdf(UTEST_HAMIL,format);
-    std::tie(wfn_NMO,NAEA, NAEB) = read_info_from_wfn(UTEST_WFN,"any");
-    CHECK(NMO == wfn_NMO);
-    WALKER_TYPES type         = afqmc::getWalkerType(UTEST_WFN);
-    int NPOL                  = (type == NONCOLLINEAR) ? 2 : 1;
-
-    std::map<std::string, AFQMCInfo> InfoMap;
-    InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, NAEA, NAEB}));
-
-    ptree ham_pt;
-    ham_pt.put("name","ham0");
-    ham_pt.put("system","info0");
-    ham_pt.put("filename",UTEST_HAMIL);
-
-    HamiltonianFactory HamFac(InfoMap);
-    HamFac.push("ham0", ham_pt);
-    Hamiltonian& ham = HamFac.getHamiltonian(gTG, "ham0");
-
-    auto TG   = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
-    int nwalk = 11; // choose prime number to force non-trivial splits in shared routines
-    utils::RandomGenerator_t rng;
-    auto rng_dev = utils::make_device_rng(777);
-
-    ptree wlk_pt;
-    wlk_pt.put("name","wset0");
-    if(type == CLOSED) wlk_pt.put("walker_type","closed");
-    else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
-    else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
-    else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
-    WalkerSet wset(TG, wlk_pt, InfoMap["info0"], &rng);
-
-    ptree wfn_pt;
-    wfn_pt.put("name","wfn0");
-    wfn_pt.put("system","info0");
-    wfn_pt.put("filename",UTEST_WFN);
-    wfn_pt.put("dense_trial","yes");
-
-    WavefunctionFactory WfnFac(InfoMap, MP);
-    WfnFac.push("wfn0", wfn_pt);
-    Wavefunction& wfn = WfnFac.getWavefunction(TG, TG, "wfn0", type, &ham, 1e-6, nwalk);
-
-    auto initial_guess = WfnFac.getInitialGuess("wfn0");
-    REQUIRE(initial_guess.size(0) == 2);
-    REQUIRE(initial_guess.size(1) == NPOL * NMO);
-    REQUIRE(initial_guess.size(2) == NAEA);
-    wset.resize(nwalk, initial_guess[0], initial_guess[1]({0, NPOL * NMO},{0, NAEB}));
-
-    ptree prop_pt;
-    prop_pt.put("name","prop0");
-    prop_pt.put("system","info0");
-
-    PropagatorFactory PropgFac(InfoMap, MP);
-    PropgFac.push("prop0", prop_pt);
-    Propagator& prop = PropgFac.getPropagator(TG, "prop0", wfn, &rng_dev);
-
-std::cout<<" serial prop test: " <<NPOL <<" " <<NMO <<" " <<NAEA <<" " <<NAEB <<" " <<nwalk <<std::endl;
-
-    std::cout << setprecision(12);
+    app_log(1," Initial Energy: {}", (eav / ov).real()); 
+  }
+  double tot_time = 0;
+  RealType dt     = 0.01;
+  RealType Eshift = std::abs(wset[0].get_property(OVLP));
+  for (int i = 0; i < 10; i++)
+  {
+    prop.Propagate(wset, Eshift, dt);
     wfn.Energy(wset);
+    ComplexType eav = 0, ov = 0;
+    for (auto it = wset.begin(); it != wset.end(); ++it)
     {
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      app_log(1," Initial Energy: {}", (eav / ov).real()); 
+      eav += it->get_property(WEIGHT) * (it->energy());
+      ov += it->get_property(WEIGHT);
     }
-    double tot_time = 0;
-    RealType dt     = 0.01;
-    RealType Eshift = std::abs(ComplexType(*wset[0].overlap()));
-    for (int i = 0; i < 4; i++)
-    {
-      prop.Propagate(2, wset, Eshift, dt, 1);
-      wfn.Energy(wset);
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      tot_time += 2 * dt;
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-      prop.Orthogonalize(wset);
-    }
-    for (int i = 0; i < 4; i++)
-    {
-      prop.Propagate(4, wset, Eshift, dt, 1);
-      wfn.Energy(wset);
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      tot_time += 4 * dt;
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-      prop.Orthogonalize(wset);
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-      prop.Propagate(4, wset, Eshift, dt, 2);
-      wfn.Energy(wset);
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      tot_time += 4 * dt;
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-      prop.Orthogonalize(wset);
-    }
-    for (int i = 0; i < 4; i++)
-    {
-      prop.Propagate(5, wset, Eshift, 2 * dt, 2);
-      wfn.Energy(wset);
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      tot_time += 5 * 2 * dt;
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-      prop.Orthogonalize(wset);
-    }
-    if(TG.Global().root()) AFQMCTimer.print_all();
+    tot_time += dt;
+    app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
+    prop.Orthogonalize(wset);
   }
-}
-template<bool MP>
-void propg_fac_distributed(boost::mpi3::communicator& world, int ngrp)
-{
-  if (not file_exists(UTEST_HAMIL) || not file_exists(UTEST_WFN))
+  for (int i = 0; i < 10; i++)
   {
-    APP_ABORT(" Hamiltonian or wavefunction file not found. Run unit test with --hamil /path/to/hamil.h5 and --wfn /path/to/wfn.h5.");
-  }
-  else
-  {
-    // Global Task Group
-    afqmc::GlobalTaskGroup gTG(world);
-
-    hdf_archive dump;
-    if (!dump.open(UTEST_HAMIL, H5F_ACC_RDONLY))
-    {
-      APP_ABORT(" Error opening integral file in SparseGeneralHamiltonian. ");
-    }
-    auto format = get_hamiltonian_format(dump,gTG.Global());
-    dump.close();
-
-    int NMO, wfn_NMO, NAEA, NAEB;
-    NMO = read_nmo_from_hdf(UTEST_HAMIL,format);
-    std::tie(wfn_NMO,NAEA, NAEB) = read_info_from_wfn(UTEST_WFN,"any");
-    CHECK(NMO == wfn_NMO);
-    WALKER_TYPES type         = afqmc::getWalkerType(UTEST_WFN);
-    int NPOL                  = (type == NONCOLLINEAR) ? 2 : 1;
-
-    std::map<std::string, AFQMCInfo> InfoMap;
-    InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, NAEA, NAEB}));
-
-    ptree ham_pt;
-    ham_pt.put("name","ham0");
-    ham_pt.put("system","info0");
-    ham_pt.put("filename",UTEST_HAMIL);
-
-    HamiltonianFactory HamFac(InfoMap);
-    HamFac.push("ham0", ham_pt);
-    Hamiltonian& ham = HamFac.getHamiltonian(gTG, "ham0");
-
-    auto TG     = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
-    auto TGprop = TaskGroup_(gTG, std::string("WfnTG"), ngrp, gTG.getTotalCores());
-    //int nwalk = 4; // choose prime number to force non-trivial splits in shared routines
-    int nwalk = 11; // choose prime number to force non-trivial splits in shared routines
-    utils::RandomGenerator_t rng;
-    auto rng_dev = utils::make_device_rng(777);
-    Watch Time;
-
-    ptree wlk_pt;
-    wlk_pt.put("name","wset0");
-    if(type == CLOSED) wlk_pt.put("walker_type","closed");
-    else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
-    else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
-    else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
-    WalkerSet wset(TG, wlk_pt, InfoMap["info0"], &rng);
-
-    ptree wfn_pt;
-    wfn_pt.put("name","wfn0");
-    wfn_pt.put("system","info0");
-    wfn_pt.put("filename",UTEST_WFN);
-
-    WavefunctionFactory WfnFac(InfoMap, MP);
-    WfnFac.push("wfn0", wfn_pt);
-    Wavefunction& wfn = WfnFac.getWavefunction(TGprop, TGprop, "wfn0", type, &ham, 1e-6, nwalk);
-
-    auto initial_guess = WfnFac.getInitialGuess("wfn0");
-    REQUIRE(initial_guess.size(0) == 2);
-    REQUIRE(initial_guess.size(1) == NPOL * NMO);
-    REQUIRE(initial_guess.size(2) == NAEA);
-    wset.resize(nwalk, initial_guess[0], initial_guess[1]({0,NPOL*NMO},{0,NAEB}));
-
-    ptree prop_pt;
-    prop_pt.put("name","prop0");
-    prop_pt.put("system","info0");
-    prop_pt.put("nnodes",std::to_string(gTG.getTotalNodes()));
-
-    PropagatorFactory PropgFac(InfoMap, MP);
-    PropgFac.push("prop0", prop_pt);
-    Propagator& prop = PropgFac.getPropagator(TGprop, "prop0", wfn, &rng_dev);
-
-std::cout<<" dist prop test: " <<NPOL <<" " <<NMO <<" " <<NAEA <<" " <<NAEB <<" " <<nwalk <<std::endl;
-
+    prop.Propagate(wset, Eshift, 2 * dt);
     wfn.Energy(wset);
+    ComplexType eav = 0, ov = 0;
+    for (auto it = wset.begin(); it != wset.end(); ++it)
     {
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      app_log(1," Initial Energy: {}", (eav / ov).real());
+      eav += it->get_property(WEIGHT) * (it->energy());
+      ov += it->get_property(WEIGHT);
     }
-    double tot_time = 0;
-    RealType dt     = 0.01;
-    RealType Eshift = std::abs(ComplexType(*wset[0].overlap()));
-    Time.reset();
-    for (int i = 0; i < 4; i++)
-    {
-      prop.Propagate(2, wset, Eshift, dt, 1);
-      wfn.Energy(wset);
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      tot_time += 2 * dt;
-      prop.Orthogonalize(wset);
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-    }
-    for (int i = 0; i < 4; i++)
-    {
-      prop.Propagate(4, wset, Eshift, dt, 1);
-      wfn.Energy(wset);
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      tot_time += 4 * dt;
-      prop.Orthogonalize(wset);
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-      prop.Propagate(4, wset, Eshift, dt, 2);
-      wfn.Energy(wset);
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      tot_time += 4 * dt;
-      prop.Orthogonalize(wset);
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-    }
-    for (int i = 0; i < 4; i++)
-    {
-      prop.Propagate(5, wset, Eshift, 2 * dt, 2);
-      wfn.Energy(wset);
-      ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
-      {
-        eav += *it->weight() * (it->energy());
-        ov += *it->weight();
-      }
-      tot_time += 5 * 2 * dt;
-      prop.Orthogonalize(wset);
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-    }
-
-    if(TG.Global().root()) AFQMCTimer.print_all();
+    tot_time += 2 * dt;
+    app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
+    prop.Orthogonalize(wset);
   }
 }
 
-TEST_CASE("propg_fac_shared", "[propagator_factory]")
+TEST_CASE("propg_fac", "[propagator_factory]")
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node = world.split_shared(world.rank());
-  setup_loggers(world.root(),2,0);
+  auto& mpi = utils::make_unit_test_mpi_context();
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
+  propg_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
+  propg_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
+
+#if defined(ENABLE_DEVICE)
+  propg_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
+  propg_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
 #endif
-  setup_memory_managers(node, 10uL * 1024uL * 1024uL);
-  setup_AFQMC_timer();
-
-  propg_fac_shared<false>(world);
-  propg_fac_shared<true>(world);
-  release_memory_managers();
-}
-TEST_CASE("propg_fac_distributed", "[propagator_factory]")
-{
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node = world.split_shared(world.rank());
-  setup_loggers(world.root(),2,0);
-
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  int ngrp(world.size());
-  arch::INIT(node);
-#else
-  int ngrp(world.size() / node.size());
-#endif
-  setup_memory_managers(node, 10uL * 1024uL * 1024uL);
-  setup_AFQMC_timer();
-
-  propg_fac_distributed<false>(world, ngrp);
-  propg_fac_distributed<true>(world, ngrp);
-  release_memory_managers();
 }
 
 } // namespace sfqmc

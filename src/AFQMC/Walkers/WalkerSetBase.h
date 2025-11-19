@@ -64,7 +64,7 @@ class WalkerSetBase : public AFQMCInfo
 protected:
 
 public:
-  static const MEMORY_SPACE MEM    = _MEM_;
+  static constexpr MEMORY_SPACE MEM    = _MEM_;
 
 public:
   // contiguous_walker = true means that all the data of a walker is continguous in memory
@@ -246,8 +246,7 @@ public:
    * Capacity is increased if necessary.
    * Target Populations are set to n.
    */
-  template<class MatA, class MatB>
-  void resize(int n, MatA&& A, MatB&& B);
+  void resize(int n, nda::MemoryArrayOfRank<3> auto const& A);
 
   /*
    * Resizes back propagation buffers.

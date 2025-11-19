@@ -136,27 +136,27 @@ void WalkerSetBase<_M_>::setup()
   Branching_timer = AFQMCTimer.add("WalkerSetBase::branching");
 
   // careful! These are only used to calculate memory needs and access points/partitionings
-  int ncol = NAEA;
+  int ncol = nup;
   int nrow = NMO;
   // wlk_descriptor: {nmo, naea, naeb, nback_prop, nCV, nRefs, nHist}
   if (walkerType == CLOSED)
   {
-    wlk_desc = {NMO, NAEA, 0, 0, 0, 0, 0};
+    wlk_desc = {NMO, nup, 0, 0, 0, 0, 0};
   }
   else if (walkerType == COLLINEAR)
   {
-    wlk_desc = {NMO, NAEA, NAEB, 0, 0, 0, 0};
-    ncol += NAEB;
+    wlk_desc = {NMO, nup, ndown, 0, 0, 0, 0};
+    ncol += ndown;
   }
   else if (walkerType == NONCOLLINEAR)
   {
-    wlk_desc = {2 * NMO, NAEA + NAEB, 0, 0, 0, 0, 0};
+    wlk_desc = {2 * NMO, nup + ndown, 0, 0, 0, 0, 0};
     nrow += NMO;
-    ncol += NAEB;
+    ncol += ndown;
   }
   else if (walkerType == FULLYPOLARIZED)
   {
-    wlk_desc = {NMO, NAEA, 0, 0, 0, 0, 0};
+    wlk_desc = {NMO, nup, 0, 0, 0, 0, 0};
   }
   else
   {
@@ -413,13 +413,11 @@ void WalkerSetBase<_M_>::popControl(std::vector<ComplexType>& curData, bool skip
  * Target Populations are set to n.
 */
 template<MEMORY_SPACE _M_>
-template<class MatA, class MatB>
-void WalkerSetBase<_M_>::resize(int n, MatA&& A, MatB&& B)
+void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<3> auto const& A)
 { 
   auto all = nda::range::all;
-  utils::check(A.shape() == std::array<long,2>{wlk_desc[0],wlk_desc[1]} , "Size mismatch.");
-  if (walkerType == COLLINEAR)
-    utils::check(B.shape() == std::array<long,2>{wlk_desc[0],wlk_desc[2]} , "Size mismatch.");
+  int nspin = (walkerType == COLLINEAR ? 2 : 1);
+  utils::check(A.shape() == std::array<long,3>{nspin,wlk_desc[0],wlk_desc[1]} , "Size mismatch.");
   reserve(n);
   if (n > tot_num_walkers)
   { 
@@ -429,9 +427,9 @@ void WalkerSetBase<_M_>::resize(int n, MatA&& A, MatB&& B)
     { 
       walker_buffer(pos,all) = ComplexType(0.0);
       reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
-      w0.template SlaterMatrix<_M_>(Alpha) = A;
+      w0.template SlaterMatrix<_M_>(Alpha) = A(0,nda::ellipsis{});
       if (walkerType == COLLINEAR)
-        w0.template SlaterMatrix<_M_>(Beta) = B;
+        w0.template SlaterMatrix<_M_>(Beta) = A(1,all,nda::range(wlk_desc[2]));
       pos++;
     }
     auto r = nda::range(tot_num_walkers,n); 
@@ -466,18 +464,18 @@ void WalkerSetBase<_M_>::resize_bp(int nbp, int nCV, int nref)
   wlk_desc[4] = nCV;
   wlk_desc[5] = nref;
   wlk_desc[6] = 3 * nbp;
-  int ncol    = NAEA;
+  int ncol    = nup;
   int nrow    = NMO;
   if (walkerType != CLOSED and walkerType != FULLYPOLARIZED)
   {
     if (walkerType == COLLINEAR)
     {
-      ncol += NAEB;
+      ncol += ndown;
     }
     else if (walkerType == NONCOLLINEAR)
     {
       nrow += NMO;
-      ncol += NAEB;
+      ncol += ndown;
     }
     else
     {

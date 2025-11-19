@@ -77,5 +77,15 @@ void init()
 	    world.rank(),node.rank(),devn);
 }
 
+curandGenerator_t make_device_rng(unsigned long long int iseed)
+{
+  curandGenerator_t rng;
+  utils::check( CURAND_STATUS_SUCCESS == curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_MT19937),
+                "Error code returned by curandCreateGenerator.");
+  utils::check( CURAND_STATUS_SUCCESS == curandSetPseudoRandomGeneratorSeed(rng, iseed),
+                "Error code returned by curandSetPseudoRandomGeneratorSeed.");
+  return rng;
+}
+
 } // cufa
 } // sfqmc

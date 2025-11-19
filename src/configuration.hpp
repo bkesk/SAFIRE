@@ -99,6 +99,13 @@ constexpr void check_memory_space(nda::Array auto && a, Args... rest)
     check_memory_space<MEM>(rest...); 
 } 
 
+// default computation backend
+#if defined(ENABLE_DEVICE)
+inline constexpr std::string default_compute = "gpu";
+#else
+inline constexpr std::string default_compute = "cpu";
+#endif
+
 template<typename T, int N, typename Layout = nda::C_layout>
 using host_array = nda::array<T,N,Layout>;
 template<typename T, int N, typename Layout = nda::C_stride_layout>

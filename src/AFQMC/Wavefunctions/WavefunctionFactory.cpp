@@ -17,41 +17,34 @@
 #include <random>
 #include <boost/optional.hpp>
 
-#include "hdf/hdf_archive.h"
 #include "AFQMC/Utilities/readWfn.h"
-#include "SparseMatrix/csr_hdf5_readers.hpp"
 #include "WavefunctionFactory.h"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
-#include "AFQMC/SlaterDeterminantOperations/SlaterDetOperations.hpp"
-#include "AFQMC/Wavefunctions/NOMSD.hpp"
-#include "AFQMC/Wavefunctions/PHMSD.hpp"
-//#include "AFQMC/HamiltonianOperations/HamOpsIO.hpp"
-#include "AFQMC/Wavefunctions/Excitations.hpp"
-#include "Memory/buffer_managers.h"
+//#include "AFQMC/Wavefunctions/NOMSD.hpp"
+//#include "AFQMC/Wavefunctions/PHMSD.hpp"
+//#include "AFQMC/Wavefunctions/Excitations.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
 
-Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
-                                           TaskGroup_& TGwfn,
+template<MEMORY_SPACE MEM>
+Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                                            ptree pt_in,
                                            WALKER_TYPES walker_type,
                                            Hamiltonian& h,
-                                           [[maybe_unused]] RealType cutvn,
                                            int targetNW)
 {
   ptree pt = interpret_inputs(pt_in);
 
   std::string info = pt.get<std::string>("system");
   if (InfoMap.find(info) == InfoMap.end())
-    APP_ABORT("ERROR: Undefined system in WavefunctionFactory. ");
+    utils::check(false,"ERROR: Undefined system in WavefunctionFactory. ");
 
   bool dense_trial;
   std::string name          = pt.get<std::string>("name");
   std::string filename      = pt.get<std::string>("filename");
-  std::string restart_file  = pt.get<std::string>("restart_file");
   bool recompute_ci  = pt.get<bool>("rediag");
   int ndets_to_read  = pt.get<int>("ndets_to_read");
   boost::optional<bool> dense_trial_opt;// = pt.get_optional<bool>("dense_trial");
@@ -62,76 +55,51 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
   ComplexType NCE     = 0.0;
 
   int NMO  = AFinfo.NMO;
-  int NAEA = AFinfo.NAEA;
-  int NAEB = AFinfo.NAEB;
-  int NPOL = (walker_type == NONCOLLINEAR) ? 2 : 1;
-  if ((walker_type == NONCOLLINEAR) && (NAEB != 0))
-    APP_ABORT(" Error in Wavefunctions/WavefunctionFactory::fromHDF5: noncollinear && NAEB!=0. \n\n\n ");
+  int nup = AFinfo.nup;
+  int ndown = AFinfo.ndown;
+  int nspin = (walker_type == COLLINEAR) ? 2 : 1;
+  int npol = (walker_type == NONCOLLINEAR) ? 2 : 1;
+  utils::check((walker_type != NONCOLLINEAR) or (ndown == 0),
+    " Error in Wavefunctions/WavefunctionFactory::fromHDF5: noncollinear && ndown!=0. \n\n\n ");
 
   std::vector<int> excitations;
-  std::string type          = "";
-  if(TGwfn.Global()) { 
-    type = afqmc::getWavefunctionType(filename); 
-    io::tolower(type);
+  std::string wfn_type          = "";
+  if(mpi->comm.root()) { 
+    wfn_type = afqmc::getWavefunctionType(filename); 
+    io::tolower(wfn_type);
   }
-  TGwfn.Global().broadcast_n(type.data(),type.size(),0); 
+  mpi->comm.broadcast_n(wfn_type.data(),wfn_type.size(),0); 
 
-  using Alloc = shared_allocator<ComplexType>;
-  // HOps, ci, PsiT, NCE
-  hdf_archive dump(TGwfn.Global());
-  if (!dump.open(filename, H5F_ACC_RDONLY))
-    APP_ABORT(" Error hdf5 file in WavefunctionFactory. ");
-  if (dump.push("Wavefunction", false)<0)
-    APP_ABORT(" Error in WavefunctionFactory: Group Wavefunction not found. ");
+  // everyone reading for now, change it problematic
+  h5::file file(filename,'r');
+  h5::group grp(file);
+  h5::group wgrp = grp.open_group("Wavefunction");
 
-  if (type == "nomsd")
+  if (wfn_type == "nomsd")
   {
     app_log(1," Wavefunction type: NOMSD");
-    if (dump.push("NOMSD", false)<0)
-      APP_ABORT(" Error in WavefunctionFactory: Group NOMSD not found.");
-    std::vector<ComplexType> ci;
+    h5::group ngrp = wgrp.open_group("NOMSD");
+    nda::array<ComplexType,1> ci;
 
     // Read common trial wavefunction input options.
     WALKER_TYPES input_wtype;
-    getCommonInput(dump, NMO, NAEA, NAEB, ndets_to_read, ci, input_wtype, TGwfn.Global().root());
+    getCommonInput(ngrp, NMO, nup, ndown, ndets_to_read, ci, input_wtype);
     
     // validation blocks
-    if (input_wtype == NONCOLLINEAR and walker_type != NONCOLLINEAR)
-      APP_ABORT("Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers.");
+    utils::check(input_wtype != NONCOLLINEAR or walker_type == NONCOLLINEAR,
+        "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers.");
     
     NCE = h.getNuclearCoulombEnergy();
 
-    TGwfn.Global().broadcast_n(ci.data(), ci.size());
-    TGwfn.Global().broadcast_value(NCE);
+    //mpi->comm.broadcast_n(ci.data(), ci.size());
+    //mpi->comm.broadcast_value(NCE);
 
     // Create Trial wavefunction.
-    int nd     = (walker_type == COLLINEAR ? 2 * ndets_to_read : ndets_to_read);
-    int ndread = nd;
-    if (walker_type == COLLINEAR and input_wtype == CLOSED)
-      ndread = ndets_to_read;
-    std::vector<PsiT_Matrix> PsiT;
-    PsiT.reserve(nd);
-    //using Alloc = shared_allocator<ComplexType>; // be careful, this might be necessary for GPU
-    for (int i = 0; i < ndread; ++i)
-    {
-      if (dump.push(std::string("PsiT_") + std::to_string(i), false)<0)
-        APP_ABORT(" Error in WavefunctionFactory: Group PsiT not found. ");
-      PsiT.emplace_back(csr_hdf5::HDF2CSR<PsiT_Matrix, Alloc>(dump, TGwfn.Node())); //,Alloc(TGwfn.Node())));
-      dump.pop();
-      if (walker_type == COLLINEAR and input_wtype == CLOSED)
-      {
-        if (NAEA != NAEB)
-          APP_ABORT(" Error: NAEA!=NAEB when initializing collinear wfn from closed shell file.");
-        // read them again
-        if (dump.push(std::string("PsiT_") + std::to_string(i), false)<0)
-          APP_ABORT(" Error in WavefunctionFactory: Group PsiT not found. ");
-        PsiT.emplace_back(csr_hdf5::HDF2CSR<PsiT_Matrix, Alloc>(dump, TGwfn.Node())); //,Alloc(TGwfn.Node())));
-        dump.pop();
-      }
-    }
+    auto PsiT = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,nup,ndown);
+    utils::check(PsiT.shape() == std::array<long,2>{ndets_to_read,nspin}, "Shape mismatch");
 
     // Set initial walker's Slater matrix.
-    getInitialGuess(dump, name, NMO, NAEA, NAEB, walker_type);
+    getInitialGuess(ngrp, mpi, name, NMO, nup, ndown, walker_type);
 
     // if not set, get default based on HamTYpe
     // use sparse trial only on KP runs
@@ -144,115 +112,48 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
       dense_trial = *dense_trial_opt;
     }
 
-#if !defined(ENABLE_DEVICE)
-    if (TGwfn.TG_local().size() > 1)
+    auto HOps = h.getHamiltonianOperations<MEM>(walker_type, mpi, PsiT);
+    if (dense_trial)
     {
-      SlaterDetOperations SDetOp(SlaterDetOperations_shared<ComplexType>(NPOL * NMO, NAEA));
-      if (dense_trial)
-      {
-        using MType = Matrix_<node_allocator<ComplexType>>;
-        std::vector<MType> PsiT_;
-        PsiT_.reserve(PsiT.size());
-        auto alloc_shared_(make_node_allocator<ComplexType>(TGwfn));
-        for (auto& v : PsiT)
-        {
-          PsiT_.emplace_back(MType({v.size(0), v.size(1)}, alloc_shared_));
-          ma::Matrix2MAREF('N', v, PsiT_.back());
-        }
-        if(mixed_precision) {
-          auto HOps(getHamOps<true>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT, 
-		TGprop, TGwfn, h));
-          TGwfn.Node().barrier();
-          return Wavefunction(NOMSD<true,MType>(AFinfo, pt, TGwfn, std::move(SDetOp), 
-					 std::move(HOps), std::move(ci),
-                                         std::move(PsiT_), walker_type, NCE, targetNW));
-	} else {
-          auto HOps(getHamOps<false>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT, 
-		TGprop, TGwfn, h));
-          TGwfn.Node().barrier();
-          return Wavefunction(NOMSD<false,MType>(AFinfo, pt, TGwfn, std::move(SDetOp),
-                                         std::move(HOps), std::move(ci),
-                                         std::move(PsiT_), walker_type, NCE, targetNW));
-        }
+      using MType = memory::shared_array<MEM,ComplexType,2>; 
+      nda::array<MType,2> PsiT_dense(ndets_to_read,nspin);
+      // insert empty matrices 
+      for(int id=0; id<ndets_to_read; ++id)
+        for(int is=0; is<nspin; ++is)
+          PsiT_dense(id,is) = memory::make_shared_array<MEM,ComplexType,2>(mpi,PsiT(id,is).shape());
+      mpi->comm.barrier();
+      if constexpr (MEM==HOST_MEMORY) {
+        if(mpi->node_comm.root()) 
+          for(int id=0; id<ndets_to_read; ++id)
+            for(int is=0; is<nspin; ++is)
+              PsiT_dense(id,is)() = math::sparse::to_array<ComplexType>(PsiT(id,is));
+      } else {
+        for(int id=0; id<ndets_to_read; ++id)
+          for(int is=0; is<nspin; ++is)
+            PsiT_dense(id,is)() = math::sparse::to_array<ComplexType>(PsiT(id,is));
       }
-      else
-      {
-        if(mixed_precision) {
-          auto HOps(getHamOps<true>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT, 
-		TGprop, TGwfn, h));
-          TGwfn.Node().barrier();	
-          return Wavefunction(NOMSD<true, local_csr_Matrix<ComplexType>>(AFinfo, pt, TGwfn, 
-						std::move(SDetOp), std::move(HOps), std::move(ci),
-						std::move(PsiT), walker_type, NCE, targetNW));
-	} else {
-          auto HOps(getHamOps<false>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT, 
-		TGprop, TGwfn, h));
-          TGwfn.Node().barrier();
-          return Wavefunction(NOMSD<false, local_csr_Matrix<ComplexType>>(AFinfo, pt, TGwfn, 
-                                                std::move(SDetOp), std::move(HOps), std::move(ci),
-                                                std::move(PsiT), walker_type, NCE, targetNW));
-	}
-      }
+      mpi->comm.barrier();
+      return Wavefunction(NOMSD<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+                                     std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
     }
     else
-#endif
     {
-      SlaterDetOperations SDetOp(
-          SlaterDetOperations_serial<ComplexType, DeviceBufferManager>(NPOL * NMO, NAEA, DeviceBufferManager{}));
-      if (dense_trial)
-      {
-        using MType = Matrix_<node_allocator<ComplexType>>;
-        std::vector<MType> PsiT_;
-        PsiT_.reserve(PsiT.size());
-        auto alloc_shared_(make_node_allocator<ComplexType>(TGwfn));
-        for (auto& v : PsiT)
-        {
-          PsiT_.emplace_back(MType({v.size(0), v.size(1)}, alloc_shared_));
-          ma::Matrix2MAREF('N', v, PsiT_.back());
-        }
-        if(mixed_precision) {
-          auto HOps(getHamOps<true>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT, 
-		TGprop, TGwfn, h));
-          TGwfn.Node().barrier(); 
-          return Wavefunction(NOMSD<true,MType>(AFinfo, pt, TGwfn, std::move(SDetOp), 
-		std::move(HOps), std::move(ci), std::move(PsiT_), walker_type, NCE, targetNW));
-        } else { 
-          auto HOps(getHamOps<false>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT,
-		TGprop, TGwfn, h));
-          TGwfn.Node().barrier(); 
-          return Wavefunction(NOMSD<false,MType>(AFinfo, pt, TGwfn, std::move(SDetOp), 
-		std::move(HOps), std::move(ci), std::move(PsiT_), walker_type, NCE, targetNW));
-        }
-      }
-      else
-      {
-        if(mixed_precision) {
-          auto HOps(getHamOps<true>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT, 
-		TGprop, TGwfn, h));
-          TGwfn.Node().barrier(); 
-          return Wavefunction(NOMSD<true,local_csr_Matrix<ComplexType>>(AFinfo, pt, TGwfn, std::move(SDetOp), 
-		std::move(HOps), std::move(ci), std::move(PsiT), walker_type, NCE, targetNW));
-        } else { 
-          auto HOps(getHamOps<false>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT, 
-		TGprop, TGwfn, h));
-          TGwfn.Node().barrier(); 
-          return Wavefunction(NOMSD<false,local_csr_Matrix<ComplexType>>(AFinfo, pt, TGwfn, std::move(SDetOp), 
-		std::move(HOps), std::move(ci), std::move(PsiT), walker_type, NCE, targetNW));
-        }
-      }
+      return Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+                                     std::move(ci), std::move(PsiT),NCE,targetNW)); 
     }
   }
-  else if (type == "phmsd")
+  else if (wfn_type == "phmsd")
   {
+/*
     app_log(1," Wavefunction type: PHMSD");
 
-    /* Implementation notes:
+    / * Implementation notes:
      *  - PsiT: [Nact, NMO] where Nact is the number of active space orbitals,
      *                     those that participate in the ci expansion
      *  - The half rotation is done with respect to the supermatrix PsiT
      *  - Need to calculate Nact and create a mapping from orbital index to actice space index.
      *    Those orbitals in the corresponding virtual space (not in active) map to -1 as a precaution.
-     */
+     * /
 
     // assuming walker_type==COLLINEAR for now, specialize a type for perfect pairing PHMSD
     std::vector<PsiT_Matrix> PsiT_MO;
@@ -264,20 +165,20 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
     // 1. Read occupancies and coefficients.
     app_log(1," Reading PHMSD wavefunction from {}", filename);
     read_ph_wavefunction_hdf(dump, coeffs, occbuff, ndets_to_read, walker_type, TGwfn.Node(), 
-				NMO, NAEA, NAEB, PsiT_MO, wfn_type);
+				NMO, nup, ndown, PsiT_MO, wfn_type);
     app_log(1," Finished reading PHMSD wavefunction ");
-    boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, NAEA + NAEB});
+    boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, nup + ndown});
     if(recompute_ci) {
       // 2. Compute Variational Energy / update coefficients
       app_log(1," Computing variational energy of trial wavefunction.");
-      computeVariationalEnergyPHMSD(TGwfn, h, occs, coeffs, ndets_to_read, NAEA, NAEB, NMO, recompute_ci);
+      computeVariationalEnergyPHMSD(TGwfn, h, occs, coeffs, ndets_to_read, nup, ndown, NMO, recompute_ci);
       app_log(1," Finished computing variational energy of trial wavefunction.");
     }
 
     // build reference MOs (PsiT_MO) if needed...
     if (wfn_type == "occ")
     {
-      build_PsiT_MO_phmsd(TGwfn,walker_type,NPOL,NMO,NAEA,NAEB,ndets_to_read,coeffs,occbuff,PsiT_MO);
+      build_PsiT_MO_phmsd(TGwfn,walker_type,NPOL,NMO,nup,ndown,ndets_to_read,coeffs,occbuff,PsiT_MO);
     }
     else if (wfn_type == "mixed")
     {
@@ -296,13 +197,13 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
     TGwfn.Node().barrier();
 
     // 3. Construct Structures.
-    ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, TGwfn.Node(), NPOL*NMO, NAEA, NAEB);
+    ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, TGwfn.Node(), NPOL*NMO, nup, ndown);
 
     // find active space orbitals and create super trial matrix PsiT
     std::vector<PsiT_Matrix> PsiT;
     PsiT.reserve(2);
     // expect mapped over range [0-2*NMO], but alpha and beta sectors with 0-based active indexes
-    std::map<int, int> mo2active(find_active_space(PsiT_MO.size() == 1, walker_type, abij, NMO, NAEA, NAEB));
+    std::map<int, int> mo2active(find_active_space(PsiT_MO.size() == 1, walker_type, abij, NMO, nup, ndown));
     std::map<int, int> acta2mo;
     std::map<int, int> actb2mo;
     std::vector<int> active_alpha;
@@ -387,7 +288,7 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
     {
       // map reference
       auto refc = abij.reference_configuration();
-      for (int i = 0; i < NAEA + NAEB; i++, ++refc)
+      for (int i = 0; i < nup + ndown; i++, ++refc)
         *refc = mo2active[*refc];
       for (int n = 1; n < abij.maximum_excitation_number()[0]; n++)
       {
@@ -414,7 +315,7 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
     }
     TGwfn.Node().barrier();
 
-    getInitialGuess(dump, name, NMO, NAEA, NAEB, walker_type);
+    getInitialGuess(dump, mpi, name, NMO, nup, ndown, walker_type);
 
     // csr matrix with determinant couplings in COLLINEAR case
     std::vector<PsiT_Matrix> det_coupling_matrix;
@@ -467,9 +368,9 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
 #if !defined(ENABLE_CUDA) && !defined(ENABLE_HIP)
     if (TGwfn.TG_local().size() > 1)
     {
-      SlaterDetOperations SDetOp(SlaterDetOperations_shared<ComplexType>(NPOL * NMO, NAEA));
+      SlaterDetOperations SDetOp(SlaterDetOperations_shared<ComplexType>(NPOL * NMO, nup));
       if(mixed_precision) {
-        auto HOps(getHamOps<true>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT,
+        auto HOps(getHamOps<true>(restart_file, walker_type, NMO, nup, ndown, PsiT,
 		TGprop, TGwfn, h));
         TGwfn.Node().barrier();
         return Wavefunction(PHMSD<true>(AFinfo, pt, TGwfn, std::move(SDetOp), std::move(HOps),
@@ -477,7 +378,7 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
                     std::move(det_coupling_matrix),
                     std::move(PsiT), walker_type, NCE, targetNW));
       } else {
-        auto HOps(getHamOps<false>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT,
+        auto HOps(getHamOps<false>(restart_file, walker_type, NMO, nup, ndown, PsiT,
 		TGprop, TGwfn, h));
         TGwfn.Node().barrier();
         return Wavefunction(PHMSD<false>(AFinfo, pt, TGwfn, std::move(SDetOp), std::move(HOps),
@@ -491,10 +392,10 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
     {
       SlaterDetOperations SDetOp(
                 SlaterDetOperations_serial<ComplexType, DeviceBufferManager>(NPOL * NMO, 
-                        NAEA, DeviceBufferManager{})
+                        nup, DeviceBufferManager{})
                                 );
       if(mixed_precision) {
-        auto HOps(getHamOps<true>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT,
+        auto HOps(getHamOps<true>(restart_file, walker_type, NMO, nup, ndown, PsiT,
 		TGprop, TGwfn, h));
         TGwfn.Node().barrier();
         return Wavefunction(PHMSD<true>(AFinfo, pt, TGwfn, std::move(SDetOp), std::move(HOps),
@@ -502,7 +403,7 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
                     std::move(det_coupling_matrix),
                     std::move(PsiT), walker_type, NCE, targetNW));
       } else {
-        auto HOps(getHamOps<false>(restart_file, walker_type, NMO, NAEA, NAEB, PsiT,
+        auto HOps(getHamOps<false>(restart_file, walker_type, NMO, nup, ndown, PsiT,
 		TGprop, TGwfn, h));
         TGwfn.Node().barrier();
         return Wavefunction(PHMSD<false>(AFinfo, pt, TGwfn, std::move(SDetOp), std::move(HOps),
@@ -511,87 +412,66 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
                     std::move(PsiT), walker_type, NCE, targetNW));
       }
     }
-
+*/
   }
   else
   {
-    app_error(" Error: Unknown wave-function type: {}", type);
-    APP_ABORT(" Error: Unknown wave-function type. ");
+    utils::check(false," Error: Unknown wave-function wfn_type: {}", wfn_type);
     return Wavefunction{};
   }
+  return Wavefunction{};
 }
 
 /*
- * Read Initial walker from file.
+ * Read Initial walker from file. Needs all mpi tasks, since it allocates on shared memory.
 */
-void WavefunctionFactory::getInitialGuess(hdf_archive& dump,
-                                          std::string& name,
-                                          int NMO,
-                                          int NAEA,
-                                          int NAEB,
-                                          WALKER_TYPES walker_type)
+void WavefunctionFactory::getInitialGuess(h5::group grp,
+         std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+         std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type)
 {
-  int NPOL = (walker_type == NONCOLLINEAR) ? 2 : 1;
-  std::vector<int> dims(5);
-  if (!dump.readEntry(dims, "dims"))
-  {
-    app_error(" Error in getInitialGuess(): Problems reading dims. ");
-    APP_ABORT("");
-  }
+  int nspin = (walker_type == COLLINEAR) ? 2 : 1;
+  int npol = (walker_type == NONCOLLINEAR) ? 2 : 1;
+  nda::array<int,1> dims(5);
+  nda::h5_read(grp,"dims",dims);
   WALKER_TYPES wtype(initWALKER_TYPES(dims[3]));
   auto guess = initial_guess.find(name);
-  if (guess == initial_guess.end())
-  {
-    auto newg = initial_guess.insert(std::make_pair(name, boost::multi::array<ComplexType, 3>({2, NPOL * NMO, NAEA})));
-    if (!newg.second)
-      APP_ABORT(" Error: Problems adding new initial guess. ");
-    using ma::conj;
-    std::fill_n((newg.first)->second.origin(), 2 * NPOL * NMO * NAEA, ComplexType(0.0, 0.0));
-    {
-      boost::multi::array<ComplexType, 2> Psi0Alpha({NPOL * NMO, NAEA}, ComplexType(0.0));
-      if (!dump.readEntry(Psi0Alpha, "Psi0_alpha"))
-        APP_ABORT(" Error in WavefunctionFactory: Initial wavefunction Psi0_alpha not found. ");
-      for (int i = 0; i < NPOL * NMO; i++)
-        for (int j = 0; j < NAEA; j++)
-          ((newg.first)->second)[0][i][j] = Psi0Alpha[i][j];
-    }
+  utils::check(guess == initial_guess.end(), 
+               "Error: Problems adding new initial guess, already exists.");
+  auto newg = initial_guess.insert(std::make_pair(name, memory::make_shared_array<HOST_MEMORY,ComplexType, 3>(mpi,{nspin, npol * NMO, nup})));
+  utils::check(newg.second, " Error: Problems adding new initial guess. ");
+  if(mpi->comm.root()) {  
+    auto M = ((newg.first)->second)();
+    M() = ComplexType(0.0, 0.0);
+    auto Mup = M(0,nda::ellipsis{});
+    nda::h5_read(grp,"Psi0_alpha",Mup);
     if (walker_type == COLLINEAR)
     {
       if (wtype == COLLINEAR)
       {
-        boost::multi::array<ComplexType, 2> Psi0Beta({NMO, NAEB});
-        if (!dump.readEntry(Psi0Beta, "Psi0_beta"))
-          APP_ABORT(" Error in WavefunctionFactory: Initial wavefunction Psi0_beta not found. ");
-        for (int i = 0; i < NMO; i++)
-          for (int j = 0; j < NAEB; j++)
-            ((newg.first)->second)[1][i][j] = Psi0Beta[i][j];
+        auto Mdn = M(1,nda::range::all,nda::range(ndown));
+        nda::h5_read(grp,"Psi0_beta",Mdn);
       }
       else if (wtype == CLOSED)
       {
-        boost::multi::array<ComplexType, 2> Psi0Beta({NMO, NAEA});
-        RUNTIME_CHECK(NAEA == NAEB, "");
-        if (!dump.readEntry(Psi0Beta, "Psi0_alpha"))
-          APP_ABORT(" Error in WavefunctionFactory: Initial wavefunction Psi0_beta not found. ");
-        for (int i = 0; i < NMO; i++)
-          for (int j = 0; j < NAEB; j++)
-            ((newg.first)->second)[1][i][j] = Psi0Beta[i][j];
+        utils::check(nup == ndown, "Error: wfn_type:Closed with nup != ndown.");
+        M(1,nda::ellipsis{}) = Mup();
       }
       else
-        APP_ABORT(" Error: Unknown wtype. ");
+        utils::check(false," Error: Unknown wtype. ");
     }
   }
-  else
-    APP_ABORT(" Error: Problems adding new initial guess, already exists. ");
+  mpi->comm.barrier();
 }
 
 
+/*
 void WavefunctionFactory::computeVariationalEnergyPHMSD(TaskGroup_& TG,
                                                         Hamiltonian& ham,
                                                         boost::multi::array_ref<int, 2>& occs,
                                                         std::vector<ComplexType>& coeff,
                                                         int ndets,
-                                                        int NAEA,
-                                                        int NAEB,
+                                                        int nup,
+                                                        int ndown,
                                                         int NMO,
                                                         bool recompute_ci)
 {
@@ -608,7 +488,7 @@ void WavefunctionFactory::computeVariationalEnergyPHMSD(TaskGroup_& TG,
   for (int idet = 0; idet < ndets; idet++)
   {
     // These should already be sorted.
-    boost::multi::array_ref<int, 1> deti(occs[idet].origin(), {NAEA + NAEB});
+    boost::multi::array_ref<int, 1> deti(occs[idet].origin(), {nup + ndown});
     ComplexType cidet = coeff[idet];
     for (int jdet = idet; jdet < ndets; jdet++)
     {
@@ -627,7 +507,7 @@ void WavefunctionFactory::computeVariationalEnergyPHMSD(TaskGroup_& TG,
         else
         {
           ComplexType Hij(0.0);
-          boost::multi::array_ref<int, 1> detj(occs[jdet].origin(), {NAEA + NAEB});
+          boost::multi::array_ref<int, 1> detj(occs[jdet].origin(), {nup + ndown});
           ComplexType cjdet = coeff[jdet];
           int perm          = 1;
           std::vector<int> excit;
@@ -678,59 +558,10 @@ void WavefunctionFactory::computeVariationalEnergyPHMSD(TaskGroup_& TG,
     TG.Global().broadcast_n(raw_pointer_cast(coeff.data()), coeff.size(), 0);
   }
 }
-/*
- * Helper function to get HamOps object from file or from scratch.
-*/
-template<bool MP>
-HamiltonianOperations<MP> WavefunctionFactory::getHamOps(std::string const& restart_file,
-                                                     WALKER_TYPES type,
-                                                     [[maybe_unused]] int NMO,
-                                                     [[maybe_unused]] int NAEA,
-                                                     [[maybe_unused]] int NAEB,
-                                                     std::vector<PsiT_Matrix>& PsiT,
-                                                     TaskGroup_& TGprop,
-                                                     TaskGroup_& TGwfn,
-                                                     Hamiltonian& h)
-{
-  // if requested, create restart file
-  // Will use phdf5 in the future, for now only head node writes
-  hdf_archive restart;
-  if (restart_file != "")
-  { 
-    if (TGwfn.Global().root())
-    { 
-      // first, try open existing restart file  
-      if (!restart.open(restart_file, H5F_ACC_RDONLY))
-      { // make new restart file if cannot open existing
-        app_log(1," No restart_file create anew.");
-        if (!restart.create(restart_file, H5F_ACC_EXCL))
-        { 
-          app_error(" Error in WavefunctionFactory: Failed to create restart_file {} ",
-			restart_file);
-          APP_ABORT("");
-        }
-      }
-    }
-  }
-  
-  bool read = restart.is_group("HamiltonianOperations");
-  if(read)
-    std::cerr<<" WARNING: disabled restart in WavefunctionFactory! FIX! ";
-//  if (read)
-//  { 
-//    app_log(1," getHamOps using restart file");
-//    return loadHamOps(restart, type, NMO, NAEA, NAEB, PsiT, TGprop, TGwfn, cutvn, cutv2);
-//  }
-//  else
-//  { 
-  app_log(1," getHamOps from scratch");
-  return h.getHamiltonianOperations<MP>(type, PsiT, TGprop, TGwfn, restart);
-//   }
-}
 
-/**
+/ **
  * Compute the excitation level between two determinants.
- */
+ * /
 int WavefunctionFactory::getExcitation(boost::multi::array_ref<int, 1>& deti,
                                        boost::multi::array_ref<int, 1>& detj,
                                        std::vector<int>& excit,
@@ -774,7 +605,7 @@ ComplexType WavefunctionFactory::slaterCondon0([[maybe_unused]] Hamiltonian& ham
                                                [[maybe_unused]] int NMO)
 {
   APP_ABORT("Error: slaterCondon0 Feature removed.");
-/*
+/ *
   ComplexType one_body = ComplexType(0.0);
   ComplexType two_body = ComplexType(0.0);
   for (int i = 0; i < det.size(); i++)
@@ -788,7 +619,7 @@ ComplexType WavefunctionFactory::slaterCondon0([[maybe_unused]] Hamiltonian& ham
     }
   }
   return one_body + two_body;
-*/
+* /
   return ComplexType(0.0);
 }
 
@@ -798,7 +629,7 @@ ComplexType WavefunctionFactory::slaterCondon1([[maybe_unused]] Hamiltonian& ham
                                                [[maybe_unused]] int NMO)
 {
   APP_ABORT("Error: slaterCondon1 Feature removed.");
-/*
+/ *
   int i              = excit[0];
   int a              = excit[1];
   ComplexType one_body = ComplexType(ham.H(i, a));
@@ -808,7 +639,7 @@ ComplexType WavefunctionFactory::slaterCondon1([[maybe_unused]] Hamiltonian& ham
     two_body += ComplexType(ham.H(i, j, a, j)) - ComplexType(ham.H(i, j, j, a));
   }
   return one_body + two_body;
-*/
+* /
   return ComplexType(0.0);
 }
 
@@ -817,35 +648,35 @@ ComplexType WavefunctionFactory::slaterCondon2([[maybe_unused]] Hamiltonian& ham
                                                [[maybe_unused]] int NMO)
 {
   APP_ABORT("Error: slaterCondon2 Feature removed.");
-/*
+/ *
   int i = excit[0];
   int j = excit[1];
   int a = excit[2];
   int b = excit[3];
   return ComplexType(ham.H(i, j, a, b) - ham.H(i, j, b, a));
-*/
+* /
   return ComplexType(0.0);
 }
 
 void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG, 
       WALKER_TYPES walker_type, int NPOL, 
-      int NMO, int NAEA, int NAEB, int ndets_to_read, 
+      int NMO, int nup, int ndown, int ndets_to_read, 
       std::vector<ComplexType>& coeffs, 
       std::vector<int>& occbuff, std::vector<PsiT_Matrix>& PsiT_MO)
 {
   using Alloc = shared_allocator<ComplexType>;
   ComplexType one(1.0, 0.0);
-  boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, NAEA + NAEB});
+  boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, nup + ndown});
   PsiT_MO.clear();
 
   bool trivial_ref = true;
-  for(int i=0; i<NAEA; i++)
+  for(int i=0; i<nup; i++)
     if(occs[0][i] != i) {
       trivial_ref = false;
       break;
     }
-  for(int i=0; i<NAEB; i++)
-    if(occs[0][NAEA+i] != NMO+i) {
+  for(int i=0; i<ndown; i++)
+    if(occs[0][nup+i] != NMO+i) {
       trivial_ref = false;
       break;
     }
@@ -885,9 +716,9 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
     // you will need separate references
     bool separate_references = false;
     if(walker_type == COLLINEAR)
-      for(int i=0; i<NAEB; ++i) 
-        if( *std::find(occbuff.begin(), occbuff.begin() + NAEA, occbuff[NAEA+i]-NMO) !=
-          occbuff[NAEA+i]-NMO ) {
+      for(int i=0; i<ndown; ++i) 
+        if( *std::find(occbuff.begin(), occbuff.begin() + nup, occbuff[nup+i]-NMO) !=
+          occbuff[nup+i]-NMO ) {
           separate_references = true;
           break;
         }
@@ -905,8 +736,8 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
 
         // each spin has its own reference
         int dN_[2] = {0,NMO};
-        int E0_[2] = {0,NAEA};
-        int E1_[2] = {NAEA,NAEA+NAEB};
+        int E0_[2] = {0,nup};
+        int E1_[2] = {nup,nup+ndown};
         for(int is=0; is<2; is++) {
           int dN = dN_[is]; 
           int E0 = E0_[is]; 
@@ -951,13 +782,13 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
         std::vector<int> im(NPOL*NMO,-1);
         int norbs=0;  // number of states found so far
         if(walker_type == NONCOLLINEAR) {
-          for(int i=0; i<NAEA; i++) {
+          for(int i=0; i<nup; i++) {
 	    im[occs[0][i]] = norbs;
 	    m[norbs++] = occs[0][i];
 	  }
           // now add all remaining states
           for(int n=1; n<occs.size(0); ++n) {
-            for(int i=0; i<NAEA; i++) 
+            for(int i=0; i<nup; i++) 
               if(im[occs[n][i]] < 0) {
                 im[occs[n][i]] = norbs;
                 m[norbs++] = occs[n][i];
@@ -965,25 +796,25 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
           }
         } else {
           // doubly occupied first, and since we checked all beta are doubly occp
-          for(int i=0; i<NAEB; i++) { 
-            im[occs[0][NAEA+i]-NMO] = norbs;
-            m[norbs++] = occs[0][NAEA+i]-NMO;
+          for(int i=0; i<ndown; i++) { 
+            im[occs[0][nup+i]-NMO] = norbs;
+            m[norbs++] = occs[0][nup+i]-NMO;
           }
           // singly occupied now
-          for(int i=0; i<NAEA; ++i) 
-            if( *std::find(occbuff.begin()+NAEA, occbuff.begin()+NAEA+NAEB, 
+          for(int i=0; i<nup; ++i) 
+            if( *std::find(occbuff.begin()+nup, occbuff.begin()+nup+ndown, 
 		occbuff[i]+NMO) != occbuff[i]+NMO ) { 
               im[occs[0][i]] = norbs;
               m[norbs++] = occs[0][i];
 	    }
           // now add all remaining states
           for(int n=1; n<occs.size(0); ++n) { 
-            for(int i=0; i<NAEA; i++) 
+            for(int i=0; i<nup; i++) 
               if(im[occs[n][i]] < 0) {
                 im[occs[n][i]] = norbs;
                 m[norbs++] = occs[n][i];
               } 
-            for(int i=NAEA; i<NAEA+NAEB; i++)        
+            for(int i=nup; i<nup+ndown; i++)        
               if(im[occs[n][i]-NMO] < 0) {
                 im[occs[n][i]-NMO] = norbs;
                 m[norbs++] = occs[n][i]-NMO;
@@ -992,11 +823,11 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
         }
         // now change occupation strings according to the generated map
         for(int n=0; n<occs.size(0); ++n) { 
-          for(int i=0; i<NAEA; i++) occs[n][i] = im[occs[n][i]];    
+          for(int i=0; i<nup; i++) occs[n][i] = im[occs[n][i]];    
           if(walker_type == COLLINEAR)  
-            for(int i=NAEA; i<NAEA+NAEB; i++) occs[n][i] = im[occs[n][i]-NMO]+NMO;    
-          //std::sort(occs[n].origin(),occs[n].origin()+NAEA+NAEB);
-          coeffs[n] *= sort_with_sign(NAEA+NAEB,occs[n].origin());
+            for(int i=nup; i<nup+ndown; i++) occs[n][i] = im[occs[n][i]-NMO]+NMO;    
+          //std::sort(occs[n].origin(),occs[n].origin()+nup+ndown);
+          coeffs[n] *= sort_with_sign(nup+ndown,occs[n].origin());
         }
         for (int k = 0; k < norbs; k++) 
           PsiT_MO.back().emplace_back({k, m[k]}, one);
@@ -1027,7 +858,17 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
 //}
 //return oneBody;
 //}
+*/
 
+// Instantiate templates
+
+template Wavefunction WavefunctionFactory::fromHDF5<HOST_MEMORY>(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,WALKER_TYPES,Hamiltonian&,int);
+
+#if defined(ENABLE_DEVICE)
+
+template Wavefunction WavefunctionFactory::fromHDF5<DEVICE_MEMORY>(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,WALKER_TYPES,Hamiltonian&,int);
+
+#endif
 
 } // namespace afqmc
 } // namespace sfqmc
