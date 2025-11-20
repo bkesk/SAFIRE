@@ -269,18 +269,20 @@ void PropagateWlkSet(WlkSet& wset, P_t const& P1, V_t const& V, int order = 6, c
   auto walker_type = wset.getWalkerType();
   bool npol      = (walker_type == NONCOLLINEAR ? 2 : 1);
   bool nspin     = (walker_type == COLLINEAR ? 2 : 1);
-  utils::check(V.extent(0) == nspin, "Size mismatch");
   utils::check(V.extent(1) == nwalk, "Size mismatch");
-  utils::check(P1.extent(0) == nspin, "Size mismatch");
+  long nspin_P1 = P1.extent(0);
+  long nspin_V = V.extent(0);
+  
+// MAM: wrong is npol_in_file == 1 in NONCOLLINEAR, fix fix fix!!!
 
   if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
     Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0,nda::ellipsis{}),V(0,nda::ellipsis{}),order,TA);
     if(walker_type==COLLINEAR)
-      Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1,nda::ellipsis{}),V(1,nda::ellipsis{}),order,TA);
+      Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V,nda::ellipsis{}),order,TA);
   } else {
     Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0),V(0,nda::ellipsis{}),order,TA);
     if(walker_type==COLLINEAR)
-      Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1),V(1,nda::ellipsis{}),order,TA);
+      Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1),V(1%nspin_V,nda::ellipsis{}),order,TA);
   }
 }
 

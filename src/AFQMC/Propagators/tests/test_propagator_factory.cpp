@@ -19,7 +19,6 @@
 #include "catch2/catch.hpp"
 
 #include "config.h"
-#include "IO/AppAbort.hpp"
 #include "IO/app_loggers.h"
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/Random.hpp"
@@ -35,6 +34,7 @@
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp"
 #include "nda/h5.hpp"
+#include "numerics/sparse/sparse.hpp"
 
 #include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/Utilities/readWfn.h" 
@@ -44,8 +44,6 @@
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
 #include "AFQMC/Propagators/PropagatorFactory.h"
 #include "AFQMC/Walkers/WalkerSet.hpp"
-
-#include "numerics/sparse/sparse.hpp"
 
 using std::cerr;
 using std::complex;

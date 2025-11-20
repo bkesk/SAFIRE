@@ -85,21 +85,61 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
   utils::check(NMO==dims[0], " Error in getCommonInput(): Inconsistent NMO . ");
   utils::check(nup == dims[1], " Error in getCommonInput(): Inconsistent  nup. ");
   utils::check(ndown==dims[2], " Error in getCommonInput(): Inconsistent  ndown. ");
-  utils::check(walker_type==afqmc::initWALKER_TYPES(dims[3]),
+  utils::check(int(walker_type) >= dims[3],
                " Error in getCommonInput(): Inconsistent walker_type. ");
   utils::check(ndets <= dims[4], " Error in getCommonInput(): Inconsistent  ndets_to_read. ");
 
   // keep in on host at first
   nda::array<csr, 2> psi(ndets,nspin);
   long nel[] = {nup, ndown};
+  WALKER_TYPES wfn_type = afqmc::initWALKER_TYPES(dims[3]);
 
-  for(int id=0, k=0; id<ndets; ++id) {
-    for(int is=0; is<nspin; ++is, ++k) {
-      h5::group pgrp = grp.open_group("PsiT_"+std::to_string(k));
-      psi(id,is) = std::move(math::sparse::HDF2CSR<ComplexType,MEM,int,int>(pgrp));
-      utils::check(psi(id,is).shape() == std::array<long,2>{nel[is],NMO}, "Shape mismatch");
-    } 
-  } 
+  if(wfn_type == walker_type) {
+    for(int id=0, k=0; id<ndets; ++id) {
+      for(int is=0; is<nspin; ++is, ++k) {
+        h5::group pgrp = grp.open_group("PsiT_"+std::to_string(k));
+        psi(id,is) = std::move(math::sparse::HDF2CSR<ComplexType,MEM,int,int>(pgrp));
+        utils::check(psi(id,is).shape() == std::array<long,2>{nel[is],NMO}, "Shape mismatch");
+      } 
+    }
+  } else if(wfn_type == COLLINEAR) { 
+    utils::check(walker_type == NONCOLLINEAR, "Error in getCommonInput(): walker_type==COLLINEAR incompatible with wfn_type:{}",int(wfn_type));
+    // upgrade from COLLINEAR to NONCOLLINEAR
+    for(int id=0; id<ndets; ++id) {
+      h5::group ugrp = grp.open_group("PsiT_"+std::to_string(2*id));
+      auto up = math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(ugrp);
+      h5::group dgrp = grp.open_group("PsiT_"+std::to_string(2*id+1));
+      auto dn = math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(dgrp);
+      utils::check(up.extent(1) == NMO, "Shape mismatch");
+      utils::check(dn.extent(1) == NMO, "Shape mismatch");
+      utils::check(up.extent(0) + dn.extent(1) == nel[0], "Shape mismatch");
+      // combining, shift dn by NMO 
+      psi(id,0) = math::sparse::combine_csr(up,dn,NMO);
+    }
+  } else {
+    utils::check(wfn_type == CLOSED, "Error in getCommonInput(): Logic error: wfn_type:{}, walker_type:{}",int(wfn_type),int(walker_type)); 
+    utils::check(walker_type == COLLINEAR or walker_type == NONCOLLINEAR, "Error in getCommonInput(): Logic error."); 
+    if(walker_type == COLLINEAR) {
+      // upgrade from CLOSED to COLLINEAR 
+      utils::check(nup==ndown, "Problesms upgrading wavefunction: nup!=ndown when upgrading to COLLINEAR");
+      for(int id=0; id<ndets; ++id) {
+        h5::group pgrp = grp.open_group("PsiT_"+std::to_string(id));
+        psi(id,0) = std::move(math::sparse::HDF2CSR<ComplexType,MEM,int,int>(pgrp));
+        utils::check(psi(id,0).shape() == std::array<long,2>{nel[0],NMO}, "Shape mismatch");
+        psi(id,1) = psi(id,0);
+      }
+    } else {
+      // upgrade from CLOSED to NONCOLLINEAR 
+      for(int id=0; id<ndets; ++id) {
+        h5::group ugrp = grp.open_group("PsiT_"+std::to_string(id));
+        auto up = math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(ugrp);
+        utils::check(up.extent(1) == NMO, "Shape mismatch");
+        utils::check(2*up.extent(0) == nel[0], "Shape mismatch");
+        // combining, shift dn by NMO 
+        psi(id,0) = math::sparse::combine_csr(up,up,NMO);
+      }
+    }
+  }
 
   return psi;
 }

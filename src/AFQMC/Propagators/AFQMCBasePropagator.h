@@ -341,7 +341,6 @@ protected:
   template<class WlkSet>
   void apply_propagators(WlkSet& wset, char TA, nda::MemoryArrayOfRank<4> auto&& v, bool P1inv = false)  
   {
-// MAM: wrong if npol != npol_in_file. FIX!!!!
     if(P1inv) {
       if(denseP1) {
         det_ops::PropagateWlkSet(wset,P1d_inv(),v,order,TA);

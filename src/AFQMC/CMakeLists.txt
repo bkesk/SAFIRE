@@ -7,9 +7,8 @@ set (AFQMC_SRCS
   Utilities/readWfn.cpp
   Utilities/probit.cpp
 #  AFQMCFactory.cpp
-#  Drivers/DriverFactory.cpp
-#  Drivers/AFQMCNewDriver.cpp
-#  Drivers/AFQMCDriver.cpp
+  Drivers/DriverFactory.cpp
+  Drivers/AFQMCDriver.cpp
 #  Drivers/CSAFQMCDriver.cpp
   Propagators/AFQMCBasePropagator.cpp
 #  Propagators/AFQMCModelPropagator.cpp
@@ -75,7 +74,7 @@ if (BUILD_UNIT_TESTS)
   SUBDIRS(HamiltonianOperations/tests)
   SUBDIRS(Wavefunctions/tests)
   SUBDIRS(Propagators/tests)
-#  SUBDIRS(Drivers/tests)
+  SUBDIRS(Drivers/tests)
 #  SUBDIRS(Estimators/tests)
 endif()
 

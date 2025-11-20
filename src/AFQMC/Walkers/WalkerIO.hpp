@@ -214,13 +214,11 @@ bool restartFromHDF5(WalkerSet& wset,
 
   int nw_local = nWN - nW0;
   { // to limit scope
-    int NMO2 = ((walker_type == NONCOLLINEAR) ? 2 * NMO : NMO);
-    nda::array<ComplexType, 2> PsiA(NMO2, nup), PsiB;
-    if (wset.getWalkerType() == COLLINEAR) {
-      PsiB.resize(NMO, ndn);
-      PsiB() = ComplexType(0.0);
-    }
-    wset.resize(nw_local, PsiA, PsiB);
+    int nspin = ((walker_type == COLLINEAR) ? 2 : 1);
+    int npol = ((walker_type == NONCOLLINEAR) ? 2 : 1);
+    nda::array<ComplexType, 3> Psi(nspin, npol*NMO, nup);
+    Psi() = ComplexType(0.0);
+    wset.resize(nw_local, Psi);
   }
 
   std::vector<int> wlk_per_blk;
