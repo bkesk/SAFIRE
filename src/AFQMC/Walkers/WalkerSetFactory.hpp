@@ -20,12 +20,12 @@
 #include <vector>
 #include <map>
 #include <fstream>
-#include "io/ptree/ptree_utilities.hpp"
-#include "Utilities/Random.hpp"
-#include "Utilities/app_loggers.h"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/check.hpp"
+#include "IO/app_loggers.h"
 
 #include "AFQMC/config.h"
-#include "AFQMC/Utilities/taskgroup.h"
 #include "AFQMC/Walkers/WalkerSet.hpp"
 
 namespace sfqmc
@@ -43,7 +43,7 @@ public:
   {
     auto xml = wlkBlocks.find(ID);
     if (xml == wlkBlocks.end())
-      APP_ABORT(" Error in WalkerSetFactory::is_constructed(string&): Missing xml block. ");
+      utils::check(false," Error in WalkerSetFactory::is_constructed(string&): Missing xml block. ");
     auto wlk = handlers.find(ID);
     if (wlk == handlers.end())
       return false;
@@ -51,17 +51,17 @@ public:
       return true;
   }
 
-  WalkerSet& getWalkerSet(TaskGroup_& TG, const std::string& ID, utils::RandomGenerator_t* rng)
+  WalkerSet& getWalkerSet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, const std::string& ID, std::shared_ptr<utils::RandomGenerator_t> rng)
   {
     auto xml = wlkBlocks.find(ID);
     if (xml == wlkBlocks.end())
-      APP_ABORT("Error: Missing xml Block in WalkerSetFactory::getWalkerSet(string&). ");
+      utils::check(false,"Error: Missing xml Block in WalkerSetFactory::getWalkerSet(string&). ");
     auto wlk = handlers.find(ID);
     if (wlk == handlers.end())
     {
-      auto newwlk = handlers.insert(std::make_pair(ID, buildHandler(TG, xml->second, rng)));
+      auto newwlk = handlers.insert(std::make_pair(ID, buildHandler(mpi, xml->second, rng)));
       if (!newwlk.second)
-        APP_ABORT(" Error: Problems inserting new hamiltonian in WalkerSetFactory::getHandler(streing&). ");
+        utils::check(false," Error: Problems inserting new hamiltonian in WalkerSetFactory::getHandler(streing&). ");
       return (newwlk.first)->second;
     }
     else
@@ -74,7 +74,7 @@ public:
     if (xml == wlkBlocks.end())
     {
       app_log(1,"WlkFac cannot find {}",ID);
-      APP_ABORT("Error: failed to find walker_set with above name.");
+      utils::check(false,"Error: failed to find walker_set with above name.");
       return ptree{};	
     }
     else
@@ -88,7 +88,7 @@ public:
     if (xml == wlkBlocks.end())
     { 
       app_log(1,"failed to find {}", ID);
-      APP_ABORT("Error: failed to find walker_set with above name.");
+      utils::check(false,"Error: failed to find walker_set with above name.");
     }
     return xml->second;
   }
@@ -98,7 +98,7 @@ public:
   {
     auto xml = wlkBlocks.find(ID);
     if (xml != wlkBlocks.end())
-      APP_ABORT("Error: Repeated WalkerSet block in WalkerSetFactory. WalkerSet names must be unique. ");
+      utils::check(false,"Error: Repeated WalkerSet block in WalkerSetFactory. WalkerSet names must be unique. ");
     wlkBlocks.insert(std::make_pair(ID, pt));
   }
 
@@ -107,22 +107,20 @@ protected:
   std::map<std::string, AFQMCInfo>& InfoMap;
 
   // generates a new WalkerSet and returns the pointer to the base class
-  WalkerSet buildHandler(TaskGroup_& TG, ptree pt, utils::RandomGenerator_t* rng)
+  WalkerSet buildHandler(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, std::shared_ptr<utils::RandomGenerator_t> rng)
   {
     std::string type, info;
-    type = pt.get<std::string>("type", "shared");
     info = pt.get<std::string>("system", "");
-    if (InfoMap.find(info) == InfoMap.end())
-    {
-      app_error("ERROR: Undefined system: {}", info);
-      APP_ABORT("");
-    }
+    std::string compute  = pt.get<std::string>("compute", memory::default_compute);
+    utils::check(InfoMap.find(info) != InfoMap.end(), "ERROR: Undefined system: {}", info);
 
-    // keep like this until you have another choice and a variant framework in place
-    if (type != "shared")
-      APP_ABORT(" Error: Unknown WalkerSet type in WalkerSetFactory::buildHandler(). ");
-
-    return WalkerSet(TG, pt, InfoMap[info], rng);
+    if (compute == "cpu")
+      return WalkerSet(WalkerSetBase<HOST_MEMORY>(mpi, pt, InfoMap[info], rng));
+#if defined(ENABLE_DEVICE)
+    else if(compute == "gpu")
+      return WalkerSet(WalkerSetBase<DEVICE_MEMORY>(mpi, pt, InfoMap[info], rng));
+#endif
+    return WalkerSet(WalkerSetBase<HOST_MEMORY>{});
   }
 
   std::map<std::string, ptree> wlkBlocks;

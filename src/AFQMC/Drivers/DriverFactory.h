@@ -15,14 +15,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 
-#ifndef SFQMC_DRIVERFACTORY_H
-#define SFQMC_DRIVERFACTORY_H
+#pragma once
 
 #include "io/ptree/ptree_utilities.hpp"
 
-#include "mpi3/communicator.hpp"
-
-#include "AFQMC/Utilities/taskgroup.h"
+#include "utilities/mpi_context.h"
 
 #include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
@@ -38,36 +35,19 @@ class DriverFactory
   using communicator = boost::mpi3::communicator;
 
 public:
-  DriverFactory(int nc,
-		GlobalTaskGroup& gtg_,
-                TaskGroupHandler& tghandler_,
+  DriverFactory(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                 std::map<std::string, AFQMCInfo>& info,
-		[[maybe_unused]] bool mixed_prec_,
                 WalkerSetFactory& wsetfac_,
                 PropagatorFactory& pfac_,
                 WavefunctionFactory& wfnfac_,
                 HamiltonianFactory& hfac)
-      : ncores(nc),
-        gTG(gtg_),
-        TGHandler(tghandler_),
+      : mpi(_mpi), 
         InfoMap(info),
         WSetFac(wsetfac_),
         PropFac(pfac_),
         HamFac(hfac),
         WfnFac(wfnfac_)
-  {
-    auto& node(gTG.Node());
-#if defined(ENABLE_DEVICE)
-    // check ncores 
-    if(ncores != 1) {
-        app_warning(" Warning: Only ncores=1 allowed in device build. Setting to 1.");
-      ncores = 1;
-    }
-#else
-    ncores = std::max(std::min(ncores, node.size()), 1);
-#endif
-    TGHandler.setNCores(ncores);
-  }
+  { }
 
   static ptree interpret_inputs_afqmc(const ptree pt0)
   {
@@ -105,7 +85,7 @@ public:
       pt1.put("seed", iseed);
       pt1.put("initial_Eshift", Eshift);
     } else 
-      APP_ABORT(" wavefunction definition or declaration required in execution blocks.");
+      utils::check(false," wavefunction definition or declaration required in execution blocks.");
     // allow any keys that the execute block may use to pass through
     std::unordered_set<std::string> pass_through_keys = {
       "walker_set",
@@ -139,8 +119,8 @@ public:
     ptree pt1;
 
     int n_systems = pt0.get<int>("n_systems", 0);
-    if(n_systems < 1) 
-      APP_ABORT("Error: n_systems < 1.");
+    
+    utils::check(n_systems>0, "Error: n_systems < 1.");
 
     for(int i=0; i<n_systems; i++) {
       if( auto sys_pt = pt0.get_child_optional("cs_system_"+std::to_string(i)) ) 	
@@ -148,10 +128,10 @@ public:
         if( auto wfn_pt = sys_pt->get_child_optional("wavefunction") ) {
           pt1.put_child("cs_system_"+std::to_string(i),*sys_pt);
         } else {
-          APP_ABORT(" wavefunction definition or declaration required in cs_system_N.");
+          utils::check(false," wavefunction definition or declaration required in cs_system_N.");
 	}
       } else {
-        APP_ABORT("cs_system_N not found."); 
+        utils::check(false,"cs_system_N not found."); 
       }
       // check for unkown input keys
       std::unordered_set<std::string> pass_through_keys = {
@@ -184,16 +164,10 @@ public:
   bool executeDriver(std::string type, std::string title, int m_series, ptree pt);
 
 private:
-  bool executeAFQMCNewDriver(std::string title, int m_seties, ptree pt);
-  bool executeAFQMCDriver(std::string title, int m_series, ptree pt);
+  bool executeAFQMCDriver(std::string title, int m_seties, ptree pt);
   bool executeCSAFQMCDriver(std::string title, int m_series, ptree pt);
 
-  int ncores;
-
-  // global TG from which all TGs are constructed
-  GlobalTaskGroup& gTG;
-
-  TaskGroupHandler& TGHandler;
+  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
   // container of AFQMCInfo objects
   std::map<std::string, AFQMCInfo>& InfoMap;
@@ -242,4 +216,3 @@ private:
 
 } // namespace sfqmc
 
-#endif

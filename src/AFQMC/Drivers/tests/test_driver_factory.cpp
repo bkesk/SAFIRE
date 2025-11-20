@@ -13,32 +13,35 @@
 
 #undef NDEBUG
 
-#include "catch_amalgamated.hpp"
-
+#include "catch2/catch.hpp"
+  
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-
-#include "io/ptree/InputParser.hpp"
-#include "io/ptree/ptree_utilities.hpp"
-#include "hdf/hdf_archive.h"
-#include "Utilities/Random.hpp"
-#include "Utilities/app_loggers.h"
+#include "IO/app_loggers.h"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/Timer.hpp"
+#include "utilities/test_common.hpp"
+#include "utilities/check.hpp"
 
 #include <string>
 #include <vector>
 #include <complex>
 #include <iomanip>
 
+#include "nda/nda.hpp"
+#include "nda/tensor.hpp"
+#include "nda/h5.hpp"
+#include "numerics/sparse/sparse.hpp"
+  
 #include "AFQMC/Utilities/test_utils.hpp"
+#include "AFQMC/Utilities/readWfn.h"
 #include "AFQMC/Utilities/AFQMCTimer.h"
-#include "Memory/buffer_managers.h"
 
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
 #include "AFQMC/Propagators/PropagatorFactory.h"
 #include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Drivers/DriverFactory.h"
-
 
 using std::cerr;
 using std::complex;
@@ -48,42 +51,42 @@ using std::ifstream;
 using std::setprecision;
 using std::string;
 
-extern std::string UTEST_HAMIL;
+extern std::string UTEST_HAMIL, UTEST_WFN;
 
 namespace sfqmc
 {
 using namespace afqmc;
 
-void driver_fac(boost::mpi3::communicator& world)
+template<MEMORY_SPACE MEM>
+void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+             std::string hamil_file)
 {
-  /*
-  TODO: Need to be able to specify a walker type! maybe an 'extern std::string'
-  */
+  using nda::range;
+  auto all = range::all;
+  utils::check(utils::file_exists(hamil_file),
+               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
 
-  // test Driver Factory, including the various ways to define the input structures
-  GlobalTaskGroup gTG(world);
-  TaskGroupHandler TGHandler(gTG,-10);
   std::map<std::string, AFQMCInfo> InfoMap;
   HamiltonianFactory HamFac(InfoMap);
   WalkerSetFactory WSetFac(InfoMap);
-  WavefunctionFactory WfnFac(InfoMap,false);
-  PropagatorFactory PropFac(InfoMap,false);
-  DriverFactory DriverFac(1, gTG, TGHandler, InfoMap, false, WSetFac, PropFac, WfnFac, HamFac);
+  WavefunctionFactory WfnFac(InfoMap);
+  PropagatorFactory PropFac(InfoMap);
+  DriverFactory DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac);
 
-  const auto [nci,nmo,nup,ndn] = getWavefunctionDims(UTEST_HAMIL);
-  AFQMCInfo info("sys0",nmo,nup,ndn);
+  const auto[NMO, nup, ndown] = read_info_from_wfn(hamil_file,"any");
+  AFQMCInfo info("sys0",NMO,nup,ndown);
   InfoMap.insert(std::pair<std::string, AFQMCInfo>(info.name, info));
 
   ptree ham_full;
   ham_full.put("name","ham0");
   ham_full.put("system","sys0");
-  ham_full.put("filename",UTEST_HAMIL);
+  ham_full.put("filename",hamil_file);
   HamFac.push("ham0", ham_full);
 
   ptree wfn_full;
   wfn_full.put("name","wfn0");
   wfn_full.put("system","sys0");
-  wfn_full.put("filename",UTEST_HAMIL);
+  wfn_full.put("filename",hamil_file);
   WfnFac.push("wfn0", wfn_full);
 
   ptree wlk_full;
@@ -97,10 +100,10 @@ void driver_fac(boost::mpi3::communicator& world)
   PropFac.push("prop0", prop_full);
 
   ptree wfn_min;
-  wfn_min.put("filename",UTEST_HAMIL);
+  wfn_min.put("filename",hamil_file);
 
   ptree ham_min;
-  ham_min.put("filename",UTEST_HAMIL);
+  ham_min.put("filename",hamil_file);
 
   ptree wlk_min;
   wlk_min.put("max_weight","4.0");
@@ -172,22 +175,13 @@ void driver_fac(boost::mpi3::communicator& world)
 
 TEST_CASE("driver_fac", "[driver_factory]")
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node = world.split_shared(world.rank());
-  setup_loggers(world.root(),2,0);
-  if (not file_exists(UTEST_HAMIL))
-  {
-    APP_ABORT(" Hamiltonian file not found. Run unit test with --hamil /path/to/hamil.h5.");
-  } else {
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-    arch::INIT(node);
+  auto& mpi = utils::make_unit_test_mpi_context();
+  
+  driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL);
+  
+#if defined(ENABLE_DEVICE)
+  driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL);
 #endif
-    setup_memory_managers(node, 10uL * 1024uL * 1024uL);
-    setup_AFQMC_timer();
-
-    driver_fac(world);
-    release_memory_managers();
-  }
 }
 
 } // namespace sfqmc

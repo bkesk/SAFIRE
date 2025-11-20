@@ -587,8 +587,8 @@ auto NOMSD<MEM,devPsiT>::G_MF()
       PsiT(0,all,all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,0)()));
       det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,G3d(all,nda::range(npol*NMO),all),Ov,false);
       if( walker_type == COLLINEAR ) { 
-        PsiT(0,range(ndown),all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,1)()));
-        det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,range(ndown),all),G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all),Ov,false);
+        PsiT(0,all,range(ndown)) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,1)()));
+        det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all),Ov,false);
       }
     }
     if constexpr (MEM == HOST_MEMORY) {
@@ -692,8 +692,8 @@ void NOMSD<MEM,devPsiT>::vMF(nda::MemoryVector auto&& v, double dt)
     PsiT(0,all,all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,0)()));
     det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,G3d(all,nda::range(nup),all),Ov);
     if( walker_type == COLLINEAR ) { 
-      PsiT(0,range(ndown),all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,1)()));
-      det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,range(ndown),all),G3d(all,nda::range(nup,nel),all),Ov);
+      PsiT(0,all,range(ndown)) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,1)()));
+      det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),G3d(all,nda::range(nup,nel),all),Ov);
     }
     HamOp.vbias(G, v2d, dt);
 
