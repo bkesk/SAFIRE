@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_OBSERVABLES_CONFIG_HPP
-#define SFQMC_AFQMC_OBSERVABLES_CONFIG_HPP
+#pragma once
 
 namespace sfqmc
 {
@@ -57,4 +56,3 @@ std::array<std::string, 12> hdf_ids = {"GFockOpa_",
 } // namespace sfqmc
 
 
-#endif

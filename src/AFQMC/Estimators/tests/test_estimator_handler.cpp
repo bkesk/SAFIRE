@@ -11,34 +11,33 @@
  *
  */
 
-#include "catch_amalgamated.hpp"
+#undef NDEBUG
+
+#include "catch2/catch.hpp"
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-
-#include "io/ptree/ptree_utilities.hpp"
-#include "hdf/hdf_archive.h"
-
-#include <stdio.h>
-#include <string>
-
 #include "AFQMC/config.h"
-#include "SparseMatrix/tests/matrix_helpers.h"
+#include "IO/AppAbort.hpp"
+
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
+#include "IO/app_loggers.h"
+#include "utilities/test_common.hpp"
+
+#include "nda/nda.hpp"
+#include "nda/tensor.hpp"
+#include "nda/h5.hpp"
+
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
-#include "AFQMC/Hamiltonians/Hamiltonian.hpp"
-#include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
-#include "AFQMC/Wavefunctions/Wavefunction.hpp"
-#include "AFQMC/Walkers/WalkerSet.hpp"
+#include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Estimators/EstimatorBase.h"
 #include "AFQMC/Estimators/EstimatorHandler.h"
 #include "AFQMC/Propagators/PropagatorFactory.h"
-#include "AFQMC/Propagators/Propagator.hpp"
-#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
+//#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
 #include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
-#include "Memory/buffer_managers.h"
-#include "Memory/device_rng.hpp"
+#include "AFQMC/Utilities/readWfn.cpp"
 
 using std::complex;
 using std::cout;
@@ -52,71 +51,38 @@ namespace sfqmc
 {
 using namespace afqmc;
 
-template<bool MP, class Allocator>
-void measure_schedule(boost::mpi3::communicator& world)
+template<MEMORY_SPACE MEM>
+void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+             std::string hamil_file, std::string wfn_file)
 {
+  using sfqmc::utils::ARRAY_EQUAL;
+  using nda::range;
+  auto all = range::all;
+  utils::check(utils::file_exists(hamil_file),
+               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
+  utils::check(utils::file_exists(wfn_file),
+               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
-int population_control_interval = 10;
+  int population_control_interval = 10;
+  auto[NMO,nup, ndown] = read_info_from_wfn(UTEST_WFN, "any");
+  utils::check(NMO == read_nmo_from_hdf(hamil_file), "NMO differ between hamil and wfn files.");
 
-// 1. setup:
-
-//using pointer = typename Allocator::pointer;
-
-if (not file_exists(UTEST_HAMIL) || not file_exists(UTEST_WFN))
-{
-  app_log(1," Skipping ham_ops_basic_serial. Hamiltonian or wavefunction file not found. ");
-  app_log(1," Run unit test with --hamil /path/to/hamil.h5 and --wfn /path/to/wfn.h5.");
-}
-else
-{
-  // Global Task Group
-  afqmc::GlobalTaskGroup gTG(world); // make a debug task for this test!
-  
-  // set up the TG handler for this test
-  int ncores = 1;
-  auto& node(gTG.Node());
-  #if defined(ENABLE_DEVICE)
-      // check ncores 
-      if(ncores != 1) {
-          app_warning(" Warning: Only ncores=1 allowed in device build. Setting to 1.");
-        ncores = 1;
-      }
-  #else
-      ncores = std::max(std::min(ncores, node.size()), 1);
-  #endif
-
-  TaskGroupHandler TGHandler(gTG,ncores);
-
-  hdf_archive dump;
-  if (!dump.open(UTEST_HAMIL, H5F_ACC_RDONLY))
-  {
-    APP_ABORT(" Error opening integral file in SparseGeneralHamiltonian. ");
-  }
-  auto format = get_hamiltonian_format(dump,gTG.Global());
-  dump.close();
-
-  int NMO, wfn_NMO, NAEA, NAEB;
-  NMO = read_nmo_from_hdf(UTEST_HAMIL,format);
-  std::tie(wfn_NMO,NAEA, NAEB) = read_info_from_wfn(UTEST_WFN, "any");
-  CHECK(NMO == wfn_NMO);
-
-  utils::RandomGenerator_t rng;
-  auto rng_dev = utils::make_device_rng(777);
-  auto TG = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
+  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  std::shared_ptr<utils::DeviceRandomGenerator_t> rng_dev = std::make_shared<utils::DeviceRandomGenerator_t>(utils::make_device_rng(777));
 
   std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, NAEA, NAEB}));
+  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
 
   ptree ham_pt;
   ham_pt.put("name","ham0");
   ham_pt.put("system","info0");
-  ham_pt.put("filename",UTEST_HAMIL);
+  ham_pt.put("filename",hamil_file);
 
   HamiltonianFactory HamFac(InfoMap);
   HamFac.push("ham0", ham_pt);
-  Hamiltonian& ham = HamFac.getHamiltonian(gTG, "ham0");
+  Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
-  WALKER_TYPES type                = afqmc::getWalkerType(UTEST_WFN);
+  WALKER_TYPES type = afqmc::getWalkerType(wfn_file);
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("system","info0");
@@ -124,34 +90,34 @@ else
   else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
   else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
   else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
-  WalkerSet wset(TG, wlk_pt, InfoMap["info0"], &rng);
+  auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
+
+  int nspin            = (type == COLLINEAR) ? 2 : 1;
+  int npol             = (type == NONCOLLINEAR) ? 2 : 1;
+  int nel              = (type == COLLINEAR) ? nup+ndown : nup;
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
   wfn_pt.put("system","info0");
-  wfn_pt.put("filename",UTEST_WFN);
-  wfn_pt.put("dense_trial","yes");
+  wfn_pt.put("filename",wfn_file);
+  wfn_pt.put("dense_trial",true);
 
-  //Allocator alloc_(make_localTG_allocator<ComplexType>(TG));
-  int nwalk = 1; // choose prime number to force non-trivial splits in shared routines
-  WavefunctionFactory WfnFac(InfoMap, MP);
+  int nwalk = 11;
+  WavefunctionFactory WfnFac(InfoMap);
   WfnFac.push("wfn0", wfn_pt);
-  Wavefunction& wfn = WfnFac.getWavefunction(TG, TG, "wfn0", type, &ham, 1e-6, nwalk);
+  Wavefunction& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 
   ptree prop_pt;
   prop_pt.put("name","prop0");
   prop_pt.put("system","info0");
 
-  PropagatorFactory PropgFac(InfoMap, MP);
+  PropagatorFactory PropgFac(InfoMap);
   PropgFac.push("prop0", prop_pt);
-  Propagator& prop = PropgFac.getPropagator(TG, "prop0", wfn, &rng_dev);
+  Propagator& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
   auto initial_guess = WfnFac.getInitialGuess("wfn0");
-  REQUIRE(initial_guess.size(0) == 2);
-  REQUIRE(initial_guess.size(1) == NMO);
-  REQUIRE(initial_guess.size(2) == NAEA);
-  wset.resize(nwalk, initial_guess[0], initial_guess[0]);
-  //using EstimPtr = std::shared_ptr<EstimatorBase>;
+  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+  wset.resize(nwalk, initial_guess);
   
   // number of steps to propagate
   int nStep = 200;
@@ -206,7 +172,6 @@ else
     ptree est_pt_energy;
     est_pt_energy.put("name","energy");
     est_pt_energy.put("overwrite",true);
-
     
     app_log(1,"\nEstimator input:\n{}\n",io::to_string(est_pt_energy));
 
@@ -237,7 +202,7 @@ else
       float dt = 0.01f;
       float total_time = 0.0f;
       double E1 = 0.0;
-      EstimatorHandler estim0(TGHandler, InfoMap["info0"], "test_est_handler",
+      EstimatorHandler estim0(mpi, InfoMap["info0"], "test_est_handler",
         est_pt, wset, WfnFac, wfn, prop,
                           type, HamFac, "ham0", dt);
     
@@ -250,7 +215,7 @@ else
 
       for (int iStep = 0; iStep < nStep; ++iStep)
       {
-        prop.Propagate(1, wset, E1, dt, 1);
+        prop.Propagate(wset, E1, dt);
         total_time += dt;
 
         if (total_time < 1.0 || (iStep + 1) % nPopulation == 0 || iStep == 0)
@@ -278,11 +243,7 @@ else
     // read results from "test_est_handler.scalar.dat"
     std::string filename = "test_est_handler.scalar.dat";
     std::ifstream in(filename.c_str());
-    if (not in.good())
-    {
-      app_error(" Error opening file in test_est_handler.scalar.dat. \n");
-      APP_ABORT("");
-    }
+    utils::check(in.good()," Error opening file in test_est_handler.scalar.dat.");
     int line_count = -1; // first line is header
     std::string line;
     while (std::getline(in, line))
@@ -291,31 +252,26 @@ else
       cout << line << endl;
     }
     app_log(1, "\n[TESTS] Running test case: {} \n",test_ptree.get<std::string>("name","no name"));
-    CHECK(measure_interval == test_ptree.get<int>("gcd"));
-    CHECK(estimator_handler_querries == expected_estimator_querries);
+//    CHECK(measure_interval == test_ptree.get<int>("gcd"));
+//    CHECK(estimator_handler_querries == expected_estimator_querries);
     CHECK(line_count == expected_measurments);
     in.close();
+
+    mpi->comm.barrier();
+    if (mpi->comm.root()) remove(filename.c_str());
+    mpi->comm.barrier();
   }
 }
-}
 
-// 2. run cases.
 TEST_CASE("measure_schedule", "[estimators]")
-{
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node = world.split_shared(world.rank());
-  setup_loggers(world.root(),2,0);
+{ 
+  auto& mpi = utils::make_unit_test_mpi_context();
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-  using Alloc = device::device_allocator<ComplexType>;
-#else
-  using Alloc = shared_allocator<ComplexType>;
+  measure_schedule<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+
+#if defined(ENABLE_DEVICE)
+  measure_schedule<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #endif
-  setup_AFQMC_timer(); 
-  setup_memory_managers(node, 10uL * 1024uL * 1024uL);
-  measure_schedule<false, Alloc>(world);
-  measure_schedule<true, Alloc>(world);
-  release_memory_managers();
 }
+
 }

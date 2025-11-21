@@ -40,7 +40,7 @@
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 #include "AFQMC/Propagators/Propagator.hpp"
-//#include "AFQMC/Estimators/EstimatorHandler.h"
+#include "AFQMC/Estimators/EstimatorHandler.h"
 
 namespace sfqmc
 {
@@ -283,7 +283,7 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
   /*
    * Note: Hamiltonian is only needed to construct Wavefunction.
    *       If Wavefunction already exists in the factory (constructed in a previous exec block)
-   *       or it is being initialized from hdf5, there is no need to build Hamiltonian.
+   *       there is no need to build Hamiltonian.
    */
   if (mpi->comm.root() == 0)
   {
@@ -377,8 +377,8 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
   bool addEnergyEstim = hybrid;
 
   // estimator setup
-//  EstimatorHandler estim0(TGHandler, AFinfo, title, pt_in, wset, WfnFac, wfn0, prop0, walker_type, HamFac, ham_name, dt,
-//                          addEnergyEstim, !free_proj);
+  EstimatorHandler estim0(mpi, AFinfo, title, pt_in, wset, WfnFac, wfn0, prop0, walker_type, HamFac, ham_name, dt,
+                          addEnergyEstim, !free_proj);
 
   app_log(1,"\n****************************************************");
   app_log(1,"****************************************************");
@@ -388,7 +388,7 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
   app_log(1,"****************************************************");
   app_log(1,"****************************************************\n");
 
-  AFQMCDriver driver(mpi, AFinfo, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0); //, estim0);
+  AFQMCDriver driver(mpi, AFinfo, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0, estim0);
 
   if (!driver.run(wset))
   {

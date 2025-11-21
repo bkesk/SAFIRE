@@ -56,20 +56,19 @@ std::tuple<int,int,int,int> getWavefunctionDims(std::string filename)
   return std::make_tuple(dims[4],dims[0],dims[1],dims[2]);
 }
 
-std::string getWavefunctionType(std::string filename)
+WAVEFUNCTION_TYPES getWavefunctionType(std::string filename)
 {
   std::string type;
   h5::file file(filename,'r');
   h5::group grp(file);
   h5::group wgrp = grp.open_group("Wavefunction");
   if (wgrp.has_key("NOMSD")) {
-    type = std::string("NOMSD");
+    return NOMSD_WFN;
   } else if (wgrp.has_key("PHMSD")) {
-    type = std::string("PHMSD");
-  } else {
-    utils::check(false, "Error in getWavefunctionType: Missing NOMSD/PHMSD block."); 
+    return PHMSD_WFN;
   }
-  return type;
+  utils::check(false, "Unknown wavefunction type in getWavefunctionType.");
+  return NOMSD_WFN;
 }
 
 WALKER_TYPES getWalkerType(std::string filename, std::string type)

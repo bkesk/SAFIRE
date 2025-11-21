@@ -6,7 +6,7 @@ set (AFQMC_SRCS
   Utilities/AFQMCTimer.cpp 
   Utilities/readWfn.cpp
   Utilities/probit.cpp
-#  AFQMCFactory.cpp
+  AFQMCFactory.cpp
   Drivers/DriverFactory.cpp
   Drivers/AFQMCDriver.cpp
 #  Drivers/CSAFQMCDriver.cpp
@@ -21,17 +21,6 @@ set (AFQMC_SRCS
   Hamiltonians/HamiltonianFactory.cpp
   Hamiltonians/THCHamiltonian.cpp
   )
-
-#if(ENABLE_CUDA)
-#  foreach( X ${AFQMC_SRCS} )
-#    set_source_files_properties(${X} PROPERTIES LANGUAGE CUDA)
-#  endforeach()
-#elseif(ENABLE_HIP)
-#  foreach( X ${AFQMC_SRCS} )
-#    set_source_files_properties(${X} PROPERTIES LANGUAGE HIP)
-#  endforeach()
-#else(ENABLE_CUDA)
-#endif(ENABLE_CUDA)
 
 add_library(afqmc ${AFQMC_SRCS})
 target_link_libraries(afqmc PUBLIC utils qmcio numerics)
@@ -75,6 +64,6 @@ if (BUILD_UNIT_TESTS)
   SUBDIRS(Wavefunctions/tests)
   SUBDIRS(Propagators/tests)
   SUBDIRS(Drivers/tests)
-#  SUBDIRS(Estimators/tests)
+  SUBDIRS(Estimators/tests)
 endif()
 

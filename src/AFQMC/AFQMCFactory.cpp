@@ -30,13 +30,11 @@
 #include <queue>
 #include <algorithm>
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
+#include "utilities/mpi_context.h"
+#include "utilities/check.hpp"
 
-#include "Utilities/app_loggers.h"
-#include "mpi3/shared_communicator.hpp"
-#include "Utilities/Random.hpp"
-#include "AFQMC/Utilities/taskgroup.h"
-#include "AFQMCFactory.h"
+#include "IO/app_loggers.h"
+#include "AFQMC/AFQMCFactory.h"
 #include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Propagators/PropagatorFactory.h"
@@ -50,69 +48,32 @@ namespace afqmc
 {
 
 AFQMCFactory::AFQMCFactory(std::string type,
-			   boost::mpi3::communicator& comm_, 
-			   const ptree pt, 
-			   int n_groups) 
-      : mixed_precision(pt.get<bool>("project.mixed_precision", false)),
-        ncores(pt.get<int>("project.ncores", 1)),
-        m_series(pt.get<int>("project.series", 0)),
+                           std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
+			   const ptree pt, int n_groups) 
+      : m_series(pt.get<int>("project.series", 0)),
         project_title(pt.get<std::string>("project.id", "afqmc")),
-        gTG(comm_,n_groups),
-        TGHandler(gTG, -10),
+        mpi(_mpi), 
         InfoMap(),
         HamFac(InfoMap),
         WSetFac(InfoMap),
-        WfnFac(InfoMap, mixed_precision),
-        PropFac(InfoMap, mixed_precision),
-        DriverFac(ncores, gTG, TGHandler, InfoMap, mixed_precision,
-                  WSetFac, PropFac, WfnFac, HamFac)
+        WfnFac(InfoMap),
+        PropFac(InfoMap),
+        DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac) 
 {
-  auto& node(gTG.Node());
-#if defined(ENABLE_DEVICE)
-  // check ncores 
-  if(ncores != 1) {
-    app_warning(" Warning: Only ncores=1 allowed in device build. Setting to 1.");
-    ncores = 1;
-  }
-#else
-  ncores = std::max(std::min(ncores, node.size()), 1);
-#endif
-
+  utils::check(n_groups==1, "finish!!!");
   app_log(1, " AFQMCFactory Project settings: ");
-  app_log(1, "    -- mixed_precision: {} ", mixed_precision);
-  app_log(1, "    -- ncores (local) : {} ", ncores);
-  app_log(1, "    -- n_groups       : {} ", n_groups); 
   app_log(1, "    -- id             : {} ", project_title);
   app_log(1, "    -- series         : {} ", m_series);
-  app_log(1, "    -- MPI tasks/node : {} ", node.size());
-  app_log(1, "    -- MPI nodes      : {} ", gTG.getTotalNodes());
-  app_log(1, "    -- MPI tasks      : {} \n\n", gTG.getTotalCores()*gTG.getTotalNodes());
-
-  // move this to arch::INIT(), which should be called regardless of device!
-#if defined(ENABLE_DEVICE)
-  // initialize device
-  int rank   = gTG.Global().rank();
-  int nprocs = gTG.Global().size();
-  auto iseed = utils::make_seed(gTG.Global());
-  arch::INIT(node, (unsigned long long int)(iseed));
-#endif
-  // setup buffers manager
-  boost::mpi3::shared_communicator local(node.split(node.rank() / ncores, node.rank()));
-  HostBufferManager host_buffer(20uL * 1024uL * 1024uL);  // setup monostate
-  DeviceBufferManager dev_buffer(20uL * 1024uL * 1024uL); // setup monostate
-  LocalTGBufferManager local_buffer(local, 20uL * 1024uL * 1024uL);
-  // all the way to here to arch::INIT();
+  app_log(1, "    -- n_groups       : {} ", n_groups);
+  app_log(1, "    -- MPI tasks/node : {} ", mpi->node_comm.size());
+  app_log(1, "    -- MPI nodes      : {} ", mpi->internode_comm.size());
+  app_log(1, "    -- MPI tasks      : {} \n\n", mpi->comm.size()); 
 
   // parse input
-  if(not parse(pt))
-    APP_ABORT(" Error in AFQMCFactory: Problems parsing the input file. ");
+  utils::check(parse(pt), " Error in AFQMCFactory: Problems parsing the input file. ");
 
   // execute 
-  if(not execute(type,pt))  
-    APP_ABORT(" Error in AFQMCFactory: Problems executing the input file. ");
-
-  // move this to arch::FINALIZE();
-  release_memory_managers();
+  utils::check(execute(type,pt), "Error in AFQMCFactory: Problems executing the input file. ");
 }
 
 AFQMCFactory::~AFQMCFactory() = default; 

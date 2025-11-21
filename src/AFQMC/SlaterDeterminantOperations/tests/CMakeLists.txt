@@ -7,16 +7,6 @@ set( TEST_SRCS
   test_sdet_ops.cpp
         )
 
-#if(ENABLE_CUDA)
-#  foreach( X ${TEST_SRCS} )
-#    set_source_files_properties(${X} PROPERTIES LANGUAGE CUDA)
-#  endforeach()
-#elseif(ENABLE_HIP)
-#  foreach( X ${TEST_SRCS} )
-#    set_source_files_properties(${X} PROPERTIES LANGUAGE HIP)
-#  endforeach()
-#endif()
-
 add_executable(test_${TEST_ID} ${TEST_SRCS} )
 
 target_link_libraries(test_${TEST_ID} catch_main afqmc) 

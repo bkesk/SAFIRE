@@ -20,8 +20,6 @@
 #include "AFQMC/Utilities/readWfn.h"
 #include "WavefunctionFactory.h"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
-//#include "AFQMC/Wavefunctions/NOMSD.hpp"
-//#include "AFQMC/Wavefunctions/PHMSD.hpp"
 //#include "AFQMC/Wavefunctions/Excitations.hpp"
 
 namespace sfqmc
@@ -63,19 +61,23 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
     " Error in Wavefunctions/WavefunctionFactory::fromHDF5: noncollinear && ndown!=0. \n\n\n ");
 
   std::vector<int> excitations;
-  std::string wfn_type          = "";
+  WAVEFUNCTION_TYPES wfn_type; 
   if(mpi->comm.root()) { 
     wfn_type = afqmc::getWavefunctionType(filename); 
-    io::tolower(wfn_type);
+    int itype(wfn_type);
+    mpi->comm.broadcast_n(&itype,1,0); 
+  } else {
+    int itype;
+    mpi->comm.broadcast_n(&itype,1,0); 
+    wfn_type = WAVEFUNCTION_TYPES(itype);
   }
-  mpi->comm.broadcast_n(wfn_type.data(),wfn_type.size(),0); 
 
   // everyone reading for now, change it problematic
   h5::file file(filename,'r');
   h5::group grp(file);
   h5::group wgrp = grp.open_group("Wavefunction");
 
-  if (wfn_type == "nomsd")
+  if (wfn_type == NOMSD_WFN)
   {
     app_log(1," Wavefunction type: NOMSD");
     h5::group ngrp = wgrp.open_group("NOMSD");
@@ -142,7 +144,7 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
                                      std::move(ci), std::move(PsiT),NCE,targetNW)); 
     }
   }
-  else if (wfn_type == "phmsd")
+  else if (wfn_type == PHMSD_WFN)
   {
 /*
     app_log(1," Wavefunction type: PHMSD");
@@ -416,7 +418,7 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
   }
   else
   {
-    utils::check(false," Error: Unknown wave-function wfn_type: {}", wfn_type);
+    utils::check(false," Error: Unknown wave-function wfn_type: {}", int(wfn_type));
     return Wavefunction{};
   }
   return Wavefunction{};

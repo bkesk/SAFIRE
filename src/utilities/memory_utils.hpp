@@ -1,0 +1,52 @@
+////////////////////////////////////////////////////////////////////////////////
+// This file is distributed under the Apache License, Version 2.0 License.
+// See LICENSE file in top directory for details.
+//
+// Copyright (c) 2021-2025 The Simons Foundation, Inc.
+//
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+#include "configuration.hpp"
+#include "IO/app_loggers.h"
+#include "utilities/check.hpp"
+
+namespace sfqmc::utils {
+
+void resize_nda_static_allocator(double x = 0.05)
+{
+  utils::check(x >= 0.0, "Error in resize_nda_static_allocator: x<0.0.");
+  auto static_alloc_host = memory::detail::static_allocator_t<HOST_MEMORY>{};
+  {
+    size_t oldsz = static_alloc_host.get_primary()->size(); 
+    size_t maxm  = static_alloc_host.get_primary()->maximum_memory();
+    if(maxm > oldsz) {
+      double gb = 1.0 / (1024.0*1024.0*1024.0);
+      size_t newsz = size_t( double(maxm) * (1.0+x) ); 
+      app_log(2, "Increasing host buffer size, old:{} GB new:{} GB",
+        double(oldsz)*gb, double(newsz)*gb);
+      static_alloc_host.get_primary()->resize(newsz);
+    }
+  } 
+#if defined(ENABLE_DEVICE)
+  auto static_alloc_dev = memory::detail::static_allocator_t<DEVICE_MEMORY>{};
+  {
+    size_t oldsz = static_alloc_dev.get_primary()->size();
+    size_t maxm  = static_alloc_dev.get_primary()->maximum_memory();
+    if(maxm > oldsz) {
+      double gb = 1.0 / (1024.0*1024.0*1024.0);
+      size_t newsz = size_t( double(maxm) * (1.0+x) ); 
+      app_log(2, "Increasing device buffer size, old:{} GB new:{} GB",
+        double(oldsz)*gb, double(newsz)*gb);
+      static_alloc_dev.get_primary()->resize(newsz);
+    }
+  }
+#endif
+}
+
+} // namespace sfqmc::utils

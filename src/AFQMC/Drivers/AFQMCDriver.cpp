@@ -21,6 +21,7 @@
 
 #include "config.h"
 #include "utilities/check.hpp"
+#include "utilities/memory_utils.hpp"
 
 #include "AFQMC/config.h"
 #include "IO/app_loggers.h"
@@ -53,7 +54,7 @@ bool AFQMCDriver::run(WalkerSet& wset)
   int step_tot      = step0, iBlock;
   // KE: the concept of a "block" is now implicitly defined by the measure_interval
   iBlock = 0;
-  
+
   // KE: need to change the hard-coded 1.0 to an equilibration phase.
   AFQMCTimer.start(block_timer);
   for (int iStep = 0; iStep < nStep; ++iStep, ++step_tot)
@@ -61,7 +62,6 @@ bool AFQMCDriver::run(WalkerSet& wset)
     prop0.Propagate(wset, Eshift, dt);
     total_time += dt;
 
-/*
     if ((step_tot + 1) % nStabilize == 0)
     {
       AFQMCTimer.start(ortho_timer);
@@ -78,15 +78,15 @@ bool AFQMCDriver::run(WalkerSet& wset)
       wset.processWalkerData(curData);
       wset.popControl(); // make this a call to actual pop control
       AFQMCTimer.stop(popcont_timer);
-//      estim0.accumulate_step(total_time, wset, curData);
+      estim0.accumulate_step(total_time, wset, curData);
     }
     
     if (total_time < 1.0)
     {
-//      Eshift = estim0.getEloc_step();
+      Eshift = estim0.getEloc_step();
     }
-//    else if ((iStep + 1) % nAccumulate == 0)
-//      Eshift += dShift * (estim0.getEloc_step() - Eshift);
+    else if ((iStep + 1) % nAccumulate == 0)
+      Eshift += dShift * (estim0.getEloc_step() - Eshift);
   
 
     // checkpoint
@@ -110,16 +110,16 @@ bool AFQMCDriver::run(WalkerSet& wset)
     if ((iStep + 1) % _measure_interval == 0 )
     {
       // quantities that are measured once per block
-//      estim0.accumulate_block(total_time, wset);
-//      estim0.print(iBlock + 1, total_time, Eshift, wset);
+      estim0.accumulate_block(total_time, wset);
+      estim0.print(iBlock + 1, total_time, Eshift, wset);
       iBlock++;
     }
 
     // resize stack pointers to match maximum buffer use
     // UPDATE size of dynamic_bucket inside fallback allocator!!!
+    utils::resize_nda_static_allocator();
 
     AFQMCTimer.stop(block_timer);
-*/    
   }
 return true;  
 
