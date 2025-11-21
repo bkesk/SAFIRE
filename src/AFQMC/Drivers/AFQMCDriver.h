@@ -20,7 +20,7 @@
 #include "AFQMC/Propagators/Propagator.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
-//#include "AFQMC/Estimators/EstimatorHandler.h"
+#include "AFQMC/Estimators/EstimatorHandler.h"
 
 namespace sfqmc
 {
@@ -38,8 +38,8 @@ public:
               double eshft_,
               ptree pt_in,
               Wavefunction& wfn_,
-              Propagator& prpg_) //,
-//              EstimatorHandler& estim_)
+              Propagator& prpg_,
+              EstimatorHandler& estim_)
       : AFQMCInfo(info),
         mpi(_mpi),
         m_series(mser),
@@ -48,7 +48,7 @@ public:
         step0(stp0),
         wfn0(wfn_),
         prop0(prpg_),
-//        estim0(estim_),
+        estim0(estim_),
         weight_reset_period(0.0),
         Eshift(eshft_)
   {
@@ -70,11 +70,11 @@ public:
     dShift = pt.get<double>("dshift");  // Etrial shift scale
 
     // KE: to make sure that all Estimators are measured at their own desired intervals
-//    _measure_interval = estim0.get_max_common_interval();
+    _measure_interval = estim0.get_max_common_interval();
     // current implementation assumes that population control is called just before accumulate_step()
     // forcing to be the same interval for now.
     nAccumulate = nPopulation;
-//    estim0.display_measurement_intervals();
+    estim0.display_measurement_intervals();
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -164,7 +164,7 @@ protected:
 
   Propagator& prop0;
 
-//  EstimatorHandler& estim0;
+  EstimatorHandler& estim0;
 
   bool writeSamples(WalkerSet&);
 

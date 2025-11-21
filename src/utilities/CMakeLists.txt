@@ -125,5 +125,3 @@ if(BUILD_UNIT_TESTS)
   TARGET_LINK_LIBRARIES(catch_main PUBLIC utils Catch2::Catch2)
 endif(BUILD_UNIT_TESTS)
 
-#TARGET_INCLUDE_DIRECTORIES(catch_main PUBLIC "${PROJECT_SOURCE_DIR}/extern/catch")
-#TARGET_LINK_LIBRARIES(catch_main PUBLIC utils catch_amalgamated)

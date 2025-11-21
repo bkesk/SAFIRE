@@ -14,33 +14,52 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_ESTIMATORHANDLER_H
-#define SFQMC_AFQMC_ESTIMATORHANDLER_H
+#pragma once
 
 #include "AFQMC/config.h"
+#include "utilities/mpi_context.h"
+#include "utilities/freemem.h"
 
 #include "AFQMC/Utilities/Utils.hpp"
-#include "AFQMC/Utilities/taskgroup.h"
 
 #include "AFQMC/Estimators/EstimatorBase.h"
 #include "AFQMC/Estimators/EnergyEstimator.h"
 #include "AFQMC/Estimators/BasicEstimator.h"
 #include "AFQMC/Estimators/MixedEstimator.hpp"
-#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
-#include "AFQMC/Estimators/BPWithTimeEvolvedOperators.hpp"
+//#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
+//#include "AFQMC/Estimators/BPWithTimeEvolvedOperators.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
-#include "AFQMC/Wavefunctions/Wavefunction.hpp"
-#include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Propagators/Propagator.hpp"
-
-#include "mpi3/communicator.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
+
+namespace detail
+{
+// helper routine to simplify code below
+template<template <MEMORY_SPACE> class Estim, typename... Args>
+auto make_estimator_ptr(MEMORY_SPACE MEM, Args&&... args)
+{
+  utils::check(MEM==HOST_MEMORY 
+#if defined(ENABLE_DEVICE)
+                or MEM==DEVICE_MEMORY
+#endif
+                ,"Memory space mismatch.");
+  using EstimPtr     = std::shared_ptr<EstimatorBase>;
+  if (MEM==HOST_MEMORY)
+    return static_cast<EstimPtr>(std::make_shared<Estim<HOST_MEMORY>>(std::forward<Args>(args)...));
+#if defined(ENABLE_DEVICE)
+  else
+    return static_cast<EstimPtr>(std::make_shared<Estim<DEVICE_MEMORY>>(std::forward<Args>(args)...));
+#endif
+};
+
+}
+
 /* 
  * Manager class for all estimators/observables.
  * This class contains and manages a list of estimator objects.
@@ -57,7 +76,7 @@ class EstimatorHandler : public AFQMCInfo
   using communicator = boost::mpi3::communicator;
 
 public:
-  EstimatorHandler(afqmc::TaskGroupHandler& TGgen,
+  EstimatorHandler(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                    AFQMCInfo info,
                    std::string title,
                    ptree exec_pt,
@@ -71,9 +90,12 @@ public:
                    double dt,
                    bool defaultEnergyEstim = false,
                    bool impsamp            = true)
-      : AFQMCInfo(info), project_title(title), dt(dt), hdf_output(false)
+      : AFQMCInfo(info), mpi(_mpi), project_title(title), dt(dt), hdf_output(false)
   {
     estimators.reserve(10);
+    // handling this at runtimeto avoid templating everything
+    MEMORY_SPACE MEM = wset.get_memory_space();
+    utils::check(MEM == wfn0.get_memory_space(), "Memory space mismatch");
 
     app_log(1,"\n****************************************************");
     app_log(1,"               Initializing Estimators ");
@@ -116,7 +138,7 @@ public:
     est_pt.put("_population_control_interval", population_control_interval); // to compute measure_interval
 
     estimators.emplace_back(
-        static_cast<EstimPtr>(std::make_shared<BasicEstimator>(TGgen.getTG(1), info, title, basic_pt, impsamp)));
+        static_cast<EstimPtr>(std::make_shared<BasicEstimator>(mpi, info, title, basic_pt, impsamp)));
     measure_schedule[est_index] = estimators.back()->get_measurement_interval();
     est_index++;
 
@@ -125,8 +147,8 @@ public:
             not(overwrite_default_energy or remove_default_energy) 
         )
       {
-      estimators.emplace_back(
-          static_cast<EstimPtr>(std::make_shared<EnergyEstimator>(TGgen.getTG(1), info, est_pt, wfn0, impsamp)));
+        estimators.emplace_back(
+          std::make_shared<EnergyEstimator>(mpi, info, est_pt, wfn0, impsamp));
         measure_schedule[est_index] = estimators.back()->get_measurement_interval();
         est_index++;
       }
@@ -161,62 +183,51 @@ public:
         else
         {
           // now do those that do
-
           Wavefunction* wfn = &wfn0;
-          //Hamiltonian* ham = &ham0;
-          // not sure how to do this right now
           if (wfn_name != "")
           { // wfn_name must produce a viable wfn object
             ptree wfn_pt = WfnFac.get_input(wfn_name);
-            int nnodes = wfn_pt.get<int>("nnodes", 1);
             if (WfnFac.is_constructed(wfn_name))
             {
               wfn = std::addressof(
-                  WfnFac.getWavefunction(TGgen.getTG(1), TGgen.getTG(nnodes), wfn_name, wfn0.getWalkerType(), nullptr));
+                  WfnFac.getWavefunction(mpi, wfn_name, wfn0.getWalkerType(), nullptr));
             }
             else if (ham_name != "")
             {
-              //APP_ABORT(" Estimator wfn must used default hamiltonian for execute block for now.");
-              Hamiltonian& ham = HamFac.getHamiltonian(TGgen.gTG(), ham_name);
-              wfn              = std::addressof(WfnFac.getWavefunction(TGgen.getTG(1), TGgen.getTG(nnodes), wfn_name,
+              Hamiltonian& ham = HamFac.getHamiltonian(mpi, ham_name);
+              wfn              = std::addressof(WfnFac.getWavefunction(mpi, wfn_name,
                                                           wfn0.getWalkerType(), std::addressof(ham)));
             }
             else
             {
-              Hamiltonian& ham = HamFac.getHamiltonian(TGgen.gTG(), ham0);
-              wfn              = std::addressof(WfnFac.getWavefunction(TGgen.getTG(1), TGgen.getTG(nnodes), wfn_name,
+              Hamiltonian& ham = HamFac.getHamiltonian(mpi, ham0);
+              wfn              = std::addressof(WfnFac.getWavefunction(mpi, wfn_name,
                                                           wfn0.getWalkerType(), std::addressof(ham)));
             }
-            if (wfn == nullptr)
-            {
-              app_error("WavefunctionFactory returned nullptr, check that given Wavefunction has been defined. ");
-              APP_ABORT(" Error: Problems generating wavefunction in DriverFactory::executeAFQMCDriver(). ");
-            }
+            utils::check(wfn != nullptr, " Error: Problems generating wavefunction in DriverFactory::executeAFQMCDriver(). ");
           }
 
           if (name == "back_propagation")
           {
-            if(bp_estimator) 
-              APP_ABORT(" Error: Only one back propagator estimator allowed. ");
+            utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
             est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
-            estimators.emplace_back(static_cast<EstimPtr>(
-                std::make_shared<BackPropagatedEstimator>(TGgen.getTG(1), info, title, est_pt, walker_type, wset, *wfn,
-                                                          prop0, impsamp)));
-            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
-            est_index++;
+//            estimators.emplace_back(static_cast<EstimPtr>(
+//                std::make_shared<BackPropagatedEstimator>(mpi, info, title, est_pt, walker_type, wset, *wfn,
+//                                                          prop0, impsamp)));
+//            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
+//            est_index++;
             hdf_output = true;
             bp_estimator = true;
           }
           else if (name == "time_evolved_operators")
           {
-            if(bp_estimator) 
-              APP_ABORT(" Error: Only one back propagator estimator allowed. ");
+            utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
             est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
-            estimators.emplace_back(static_cast<EstimPtr>(
-                std::make_shared<BPWithTimeEvolvedOperators>(TGgen.getTG(1), info, title, 
-                            exec_pt, est_pt, walker_type, wset, *wfn, prop0, impsamp)));
-            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
-            est_index++;
+//            estimators.emplace_back(static_cast<EstimPtr>(
+//                std::make_shared<BPWithTimeEvolvedOperators>(mpi, info, title, 
+//                            exec_pt, est_pt, walker_type, wset, *wfn, prop0, impsamp)));
+//            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
+//            est_index++;
             hdf_output = true;
             bp_estimator = true;
           }
@@ -224,8 +235,8 @@ public:
           {
             est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
             estimators.emplace_back(static_cast<EstimPtr>(
-                std::make_shared<MixedEstimator>(TGgen.getTG(1), info, title, est_pt, walker_type, 
-                                                 wset, *wfn)));
+                std::make_shared<MixedEstimator>(mpi, info, title, est_pt, walker_type, 
+                                                 *wfn)));
             measure_schedule[est_index] = estimators.back()->get_measurement_interval();
             est_index++;
             hdf_output = true;
@@ -237,11 +248,12 @@ public:
             //       scalar data file
             est_pt.put("measure_interval_multiplier", measure_interval_multiplier);
             bool remove = est_pt.get<bool>("remove", false);
-            if(not remove)
+            if(not remove) {
               estimators.emplace_back(
-                static_cast<EstimPtr>(std::make_shared<EnergyEstimator>(TGgen.getTG(1), info, est_pt, *wfn, impsamp)));
-            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
-            est_index++;
+                  std::make_shared<EnergyEstimator>(mpi, info, est_pt, *wfn, impsamp));
+              measure_schedule[est_index] = estimators.back()->get_measurement_interval();
+              est_index++;
+            }
           }
           else
           {
@@ -253,22 +265,17 @@ public:
 
     check_synchronized(); // for Estimators that print to the same line of the scalar.dat file
 
-    if (TGgen.getTG(1).Global().rank() == 0)
+    if (mpi->comm.rank() == 0)
     {
-      //out.open(filename.c_str(),std::ios_base::app | std::ios_base::out);
       std::string filename = project_title + ".scalar.dat";
       if (hdf_output)
       {
         hdf_file = project_title + ".stat.h5";
-        hdf_archive dump;
-        if (!dump.create(hdf_file))
-          APP_ABORT("Problems opening estimator hdf5 output file: " + hdf_file + ""); 
-        write_hdf_metadata(dump, walker_type, !impsamp);
-        dump.close();
+        h5::file file(hdf_file, 'w');
+        write_hdf_metadata(file, walker_type, !impsamp);
       }
       out.open(filename.c_str());
-      if (out.fail())
-        APP_ABORT("Problems opening estimator output file: " + filename + ""); 
+      utils::check(not out.fail(), "Problems opening estimator output file: " + filename + ""); 
       out << "# block  time  ";
       for (std::vector<EstimPtr>::iterator it = estimators.begin(); it != estimators.end(); it++)
         (*it)->tags(out);
@@ -291,10 +298,11 @@ public:
 
   void print(int block, double time, double Es, WalkerSet& wlks)
   {
-    hdf_archive dump;
+    hdf_file = project_title + ".stat.h5";
+    h5::file file;
     bool printed_row_prefix = false;
-    if (hdf_output)
-      dump.open(hdf_file);
+    if (hdf_output and mpi->comm.root())
+      file = h5::file(hdf_file,'a');
    
     // print must follow the measure_schedule as well (otherwise the data may not be updated)
     long step = std::lround(time / dt);
@@ -309,19 +317,17 @@ public:
           out << block << " " << time << " ";
           printed_row_prefix = true;
         }
-        (*it)->print(out, dump, wlks);
+        (*it)->print(out, file, wlks);
       }
     }
 
     if (printed_row_prefix)
     { 
       // print suffix
-      out << std::setprecision(12) << Es << "  " << freemem() << " ";
+      out << std::setprecision(12) << Es << "  " << utils::freemem() << " ";
       estimators[0]->print_timers(out);
       out << std::endl;
     }
-    if (hdf_output)
-      dump.close();
     if ((block + 1) % 10 == 0)
       out.flush();
   }
@@ -346,17 +352,17 @@ public:
     }
   }
 
-  void write_hdf_metadata(hdf_archive& dump, WALKER_TYPES wlk, bool free_projection)
+  void write_hdf_metadata(h5::file &h5f, WALKER_TYPES wlk, bool free_projection)
   {
-    dump.push("Metadata");
-    dump.write(NMO, "NMO");
-    dump.write(NAEA, "NAEA");
-    dump.write(NAEB, "NAEB");
+    h5::group grp(h5f);
+    h5::group mgrp = grp.create_group("Metadata");
+    h5::h5_write(mgrp,"NMO", NMO);
+    h5::h5_write(mgrp,"NUP", nup);
+    h5::h5_write(mgrp,"NDOWN", ndown);
     int wlk_t_copy = wlk; // the actual data type of enum is implementation-defined. convert to int for file
-    dump.write(wlk_t_copy, "WalkerType");
-    dump.write(free_projection, "FreeProjection");
-    dump.write(dt, "Timestep");
-    dump.pop();
+    h5::h5_write(mgrp, "WalkerType", wlk_t_copy);
+    h5::h5_write(mgrp, "FreeProjection", free_projection);
+    h5::h5_write(mgrp, "Timestep", dt);
   }
 
   
@@ -415,6 +421,8 @@ public:
   }
 
 private:
+  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
+
   std::string project_title;
 
   std::vector<EstimPtr> estimators;
@@ -448,7 +456,8 @@ private:
       if (it.first < estimators.size())
       {
         auto estimator = estimators[it.first];
-        if (std::dynamic_pointer_cast<BasicEstimator>(estimator) || std::dynamic_pointer_cast<EnergyEstimator>(estimator))
+        if (std::dynamic_pointer_cast<BasicEstimator>(estimator) || 
+            std::dynamic_pointer_cast<EnergyEstimator>(estimator)) 
         {
           if (synchronized_interval == -1)
             synchronized_interval = it.second;
@@ -463,4 +472,3 @@ private:
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

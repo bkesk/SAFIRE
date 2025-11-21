@@ -14,17 +14,15 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_ESTIMATORBASE_H
-#define SFQMC_AFQMC_ESTIMATORBASE_H
+#pragma once
 
 #include "AFQMC/config.h"
 #include <vector>
 #include <iostream>
 #include <fstream>
 
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
-#include "io/ptree/ptree_utilities.hpp"
+#include "nda/h5.hpp"
+#include "IO/ptree/ptree_utilities.hpp"
 
 #include "AFQMC/Walkers/WalkerSet.hpp"
 
@@ -43,7 +41,7 @@ public:
 
   virtual void accumulate_step(double time, WalkerSet& wlks, std::vector<ComplexType>& curData) = 0;
 
-  virtual void print(std::ofstream& out, hdf_archive& dump, WalkerSet& wlks) = 0;
+  virtual void print(std::ofstream& out, h5::file&, WalkerSet& wlks) = 0;
 
   virtual void print_timers([[maybe_unused]] std::ofstream& out) {}
 
@@ -60,4 +58,3 @@ public:
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

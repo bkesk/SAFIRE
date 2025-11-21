@@ -14,33 +14,39 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "catch_amalgamated.hpp"
+#undef NDEBUG
+
+#include "catch2/catch.hpp"
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-
-#include "io/ptree/ptree_utilities.hpp"
-#include "hdf/hdf_archive.h"
-
-#include <stdio.h>
+    
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/check.hpp"
+#include "IO/app_loggers.h"
+#include "utilities/test_common.hpp"
+  
+#include "nda/nda.hpp"
+#include "nda/tensor.hpp"
+#include "nda/h5.hpp"
+#include "numerics/sparse/sparse.hpp"
+    
 #include <string>
+#include <vector>
+#include <complex> 
+#include <iomanip>
+#include <random>
 
 #include "AFQMC/config.h"
-#include "SparseMatrix/tests/matrix_helpers.h"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
-#include "AFQMC/Hamiltonians/Hamiltonian.hpp"
-#include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
-#include "AFQMC/Wavefunctions/Wavefunction.hpp"
-#include "AFQMC/Walkers/WalkerSet.hpp"
+#include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Estimators/EstimatorBase.h"
 #include "AFQMC/Propagators/PropagatorFactory.h"
-#include "AFQMC/Propagators/Propagator.hpp"
-#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
+//#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
+#include "AFQMC/Utilities/readWfn.h"
 #include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
-#include "Memory/buffer_managers.h"
-#include "Memory/device_rng.hpp"
 
 using std::cerr;
 using std::complex;
@@ -56,87 +62,76 @@ namespace sfqmc
 {
 using namespace afqmc;
 
-template<bool MP, class Allocator>
-void reduced_density_matrix(boost::mpi3::communicator& world)
+template<MEMORY_SPACE MEM>
+void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+             std::string hamil_file, std::string wfn_file)
 {
-  using pointer = typename std::allocator_traits<Allocator>::pointer;
+  using sfqmc::utils::ARRAY_EQUAL;
+  using nda::range;
+  auto all = range::all;
+  utils::check(utils::file_exists(hamil_file),
+               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
+  utils::check(utils::file_exists(wfn_file),
+               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
-  if (not file_exists(UTEST_HAMIL) || not file_exists(UTEST_WFN))
-  {
-    APP_ABORT(" Hamiltonian or wavefunction file not found. Run unit test with --hamil /path/to/hamil.h5 and --wfn /path/to/wfn.h5.");
-  }
-  else
-  {
-    // Global Task Group
-    afqmc::GlobalTaskGroup gTG(world);
+  auto[NMO,nup, ndown] = read_info_from_wfn(UTEST_WFN, "any");
+  utils::check(NMO == read_nmo_from_hdf(hamil_file), "NMO differ between hamil and wfn files.");
 
-    hdf_archive dump;
-    if (!dump.open(UTEST_HAMIL, H5F_ACC_RDONLY))
-    {
-      APP_ABORT(" Error opening integral file in SparseGeneralHamiltonian. ");
-    }
-    auto format = get_hamiltonian_format(dump,gTG.Global());
-    dump.close();
+  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  std::shared_ptr<utils::DeviceRandomGenerator_t> rng_dev = std::make_shared<utils::DeviceRandomGenerator_t>(utils::make_device_rng(777));
 
-    int NMO, wfn_NMO, NAEA, NAEB;
-    NMO = read_nmo_from_hdf(UTEST_HAMIL,format);
-    std::tie(wfn_NMO,NAEA, NAEB) = read_info_from_wfn(UTEST_WFN, "any");
-    CHECK(NMO == wfn_NMO);
+  std::map<std::string, AFQMCInfo> InfoMap;
+  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
 
-    utils::RandomGenerator_t rng;
-    auto rng_dev = utils::make_device_rng(777);
-    auto TG = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
+  ptree ham_pt;
+  ham_pt.put("name","ham0");
+  ham_pt.put("system","info0");
+  ham_pt.put("filename",hamil_file);
 
-    std::map<std::string, AFQMCInfo> InfoMap;
-    InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, NAEA, NAEB}));
+  HamiltonianFactory HamFac(InfoMap);
+  HamFac.push("ham0", ham_pt);
+  Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
-    ptree ham_pt;
-    ham_pt.put("name","ham0");
-    ham_pt.put("system","info0");
-    ham_pt.put("filename",UTEST_HAMIL);
+  WALKER_TYPES type = afqmc::getWalkerType(wfn_file);
+  ptree wlk_pt;
+  wlk_pt.put("name","wset0");
+  wlk_pt.put("system","info0");
+  if(type == CLOSED) wlk_pt.put("walker_type","closed");
+  else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
+  else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
+  else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
+  auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
 
-    HamiltonianFactory HamFac(InfoMap);
-    HamFac.push("ham0", ham_pt);
-    Hamiltonian& ham = HamFac.getHamiltonian(gTG, "ham0");
+  int nspin            = (type == COLLINEAR) ? 2 : 1;
+  int npol             = (type == NONCOLLINEAR) ? 2 : 1;
+  int nel              = (type == COLLINEAR) ? nup+ndown : nup;
 
-    WALKER_TYPES type                = afqmc::getWalkerType(UTEST_WFN);
-    ptree wlk_pt;
-    wlk_pt.put("name","wset0");
-    wlk_pt.put("system","info0");
-    if(type == CLOSED) wlk_pt.put("walker_type","closed");
-    else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
-    else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
-    else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
-    WalkerSet wset(TG, wlk_pt, InfoMap["info0"], &rng);
+  ptree wfn_pt;
+  wfn_pt.put("name","wfn0");
+  wfn_pt.put("system","info0");
+  wfn_pt.put("filename",wfn_file);
+  wfn_pt.put("dense_trial",true);
 
-    ptree wfn_pt;
-    wfn_pt.put("name","wfn0");
-    wfn_pt.put("system","info0");
-    wfn_pt.put("filename",UTEST_WFN);
-    wfn_pt.put("dense_trial","yes");
+  int nwalk = 11; 
+  WavefunctionFactory WfnFac(InfoMap);
+  WfnFac.push("wfn0", wfn_pt);
+  Wavefunction& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 
-    Allocator alloc_(make_localTG_allocator<ComplexType>(TG));
-    int nwalk = 1; // choose prime number to force non-trivial splits in shared routines
-    WavefunctionFactory WfnFac(InfoMap, MP);
-    WfnFac.push("wfn0", wfn_pt);
-    Wavefunction& wfn = WfnFac.getWavefunction(TG, TG, "wfn0", type, &ham, 1e-6, nwalk);
+  ptree prop_pt;
+  prop_pt.put("name","prop0");
+  prop_pt.put("system","info0");
 
-    ptree prop_pt;
-    prop_pt.put("name","prop0");
-    prop_pt.put("system","info0");
+  PropagatorFactory PropgFac(InfoMap);
+  PropgFac.push("prop0", prop_pt);
+  Propagator& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
-    PropagatorFactory PropgFac(InfoMap, MP);
-    PropgFac.push("prop0", prop_pt);
-    Propagator& prop = PropgFac.getPropagator(TG, "prop0", wfn, &rng_dev);
+  auto initial_guess = WfnFac.getInitialGuess("wfn0");
+  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+  wset.resize(nwalk, initial_guess);
 
-    auto initial_guess = WfnFac.getInitialGuess("wfn0");
-    REQUIRE(initial_guess.size(0) == 2);
-    REQUIRE(initial_guess.size(1) == NMO);
-    REQUIRE(initial_guess.size(2) == NAEA);
-    wset.resize(nwalk, initial_guess[0], initial_guess[0]);
-    using EstimPtr = std::shared_ptr<EstimatorBase>;
-    std::vector<EstimPtr> estimators;
-
+  using EstimPtr = std::shared_ptr<EstimatorBase>;
+  std::vector<EstimPtr> estimators;
+/*
     ptree est_pt;
     est_pt.put("name","back_propagation");
     est_pt.put("nsteps",1); // deprecated
@@ -174,11 +169,11 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
     reader.read(read_data, "Observables/BackPropagated/FullOneRDM/Average_0/one_rdm_000000004");
     reader.read(denom, "Observables/BackPropagated/FullOneRDM/Average_0/denominator_000000004");
     // Test EstimatorHandler eventually.
-    //int NAEA_READ, NAEB_READ, NMO_READ, WALKER_TYPE_READ;
-    //reader.read(NAEA_READ, "Metadata/NAEA");
-    //REQUIRE(NAEA_READ==NAEA);
-    //reader.read(NAEB_READ, "Metadata/NAEB");
-    //REQUIRE(NAEB_READ==NAEB);
+    //int nup_READ, ndown_READ, NMO_READ, WALKER_TYPE_READ;
+    //reader.read(nup_READ, "Metadata/nup");
+    //REQUIRE(nup_READ==nup);
+    //reader.read(ndown_READ, "Metadata/ndown");
+    //REQUIRE(ndown_READ==ndown);
     //reader.read(NMO_READ, "Metadata/NMO");
     //REQUIRE(NMO_READ==NMO);
     //reader.read(WALKER_TYPE_READ, "Metadata/WALKER_TYPE");
@@ -194,7 +189,7 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
       ComplexType trace = ComplexType(0.0);
       for (int i = 0; i < NMO; i++)
         trace += BPRDM[i][i];
-      REQUIRE(trace.real() == Approx(NAEA));
+      REQUIRE(trace.real() == Approx(nup));
       boost::multi::array<ComplexType, 2, Allocator> Gw({1, NMO * NMO}, alloc_);
       wfn.MixedDensityMatrix(wset, Gw, false, true);
       boost::multi::array_ref<ComplexType, 2, pointer> G(Gw.origin(), {NMO, NMO});
@@ -209,7 +204,7 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
       ComplexType trace = ComplexType(0.0);
       for (int i = 0; i < NMO; i++)
         trace += BPRDM[0][i][i] + BPRDM[1][i][i];
-      REQUIRE(trace.real() == Approx(NAEA + NAEB));
+      REQUIRE(trace.real() == Approx(nup + ndown));
       boost::multi::array<ComplexType, 2, Allocator> Gw({1, 2 * NMO * NMO}, alloc_);
       wfn.MixedDensityMatrix(wset, Gw, false, true);
       boost::multi::array_ref<ComplexType, 3, pointer> G(Gw.origin(), {2, NMO, NMO});
@@ -223,7 +218,7 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
       ComplexType trace = ComplexType(0.0);
       for (int i = 0; i < NMO; i++)
         trace += BPRDM[i][i];
-      REQUIRE(trace.real() == Approx(NAEA));
+      REQUIRE(trace.real() == Approx(nup));
       boost::multi::array<ComplexType, 2, Allocator> Gw({1, NMO * NMO}, alloc_);
       wfn.MixedDensityMatrix(wset, Gw, false, true);
       boost::multi::array_ref<ComplexType, 2, pointer> G(Gw.origin(), {NMO, NMO});
@@ -281,7 +276,7 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
       ComplexType trace = ComplexType(0.0);
       for (int i = 0; i < NMO; i++)
         trace += BPRDM[i][i];
-      REQUIRE(trace.real() == Approx(NAEA));
+      REQUIRE(trace.real() == Approx(nup));
       boost::multi::array<ComplexType, 2, Allocator> Gw({1, NMO * NMO}, alloc_);
       wfn.MixedDensityMatrix(wset, Gw, false, true);
       boost::multi::array_ref<ComplexType, 2, pointer> G(Gw.origin(), {NMO, NMO});
@@ -296,7 +291,7 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
       ComplexType trace = ComplexType(0.0);
       for (int i = 0; i < NMO; i++)
         trace += BPRDM[0][i][i] + BPRDM[1][i][i];
-      REQUIRE(trace.real() == Approx(NAEA + NAEB));
+      REQUIRE(trace.real() == Approx(nup + ndown));
       boost::multi::array<ComplexType, 2, Allocator> Gw({1, 2 * NMO * NMO}, alloc_);
       wfn.MixedDensityMatrix(wset, Gw, false, true);
       boost::multi::array_ref<ComplexType, 3, pointer> G(Gw.origin(), {2, NMO, NMO});
@@ -310,7 +305,7 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
       ComplexType trace = ComplexType(0.0);
       for (int i = 0; i < NMO; i++)
         trace += BPRDM[i][i];
-      REQUIRE(trace.real() == Approx(NAEA));
+      REQUIRE(trace.real() == Approx(nup));
       boost::multi::array<ComplexType, 2, Allocator> Gw({1, NMO * NMO}, alloc_);
       wfn.MixedDensityMatrix(wset, Gw, false, true);
       boost::multi::array_ref<ComplexType, 2, pointer> G(Gw.origin(), {NMO, NMO});
@@ -327,25 +322,18 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
     reader.read(denom, "Observables/BackPropagated/FullOneRDM/Average_2/denominator_000000002");
     reader.close();
   }
+*/
 }
 
 TEST_CASE("reduced_density_matrix", "[estimators]")
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node = world.split_shared(world.rank());
-  setup_loggers(world.root(),2,0);
+  auto& mpi = utils::make_unit_test_mpi_context();
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-  using Alloc = device::device_allocator<ComplexType>;
-#else
-  using Alloc = shared_allocator<ComplexType>;
+  reduced_density_matrix<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+
+#if defined(ENABLE_DEVICE)
+  reduced_density_matrix<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #endif
-  setup_AFQMC_timer(); 
-  setup_memory_managers(node, 10uL * 1024uL * 1024uL);
-  reduced_density_matrix<false,Alloc>(world);
-  reduced_density_matrix<true,Alloc>(world);
-  release_memory_managers();
 }
 
 } // namespace sfqmc

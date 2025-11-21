@@ -65,6 +65,14 @@ public:
   Wavefunction& operator=(Wavefunction const& other) = delete;
   Wavefunction& operator=(Wavefunction&& other) = default;
 
+  /*
+   * Returns the memory space.
+   */
+  auto get_memory_space() const 
+  {
+    return std::visit([&](auto&& a) { return a.get_memory_space(); }, var);
+  }
+
   int number_of_cholesky_vectors() const
   {
     return std::visit([&](auto&& a) { return a.number_of_cholesky_vectors(); }, var);
@@ -131,7 +139,7 @@ public:
   {
     std::visit([&](auto&& a) { a.Overlap(std::forward<Args>(args)...); }, var);
   }
-/*
+
   template<class... Args>
   ComplexType getReferenceWeight(Args&&... args)
   {
@@ -139,20 +147,15 @@ public:
   }
 
   template<class... Args>
-  void getReferencesForBackPropagation(Args&&... args)
+  auto getReferences(Args&&... args) const
   {
-    std::visit([&](auto&& a) { a.getReferencesForBackPropagation(std::forward<Args>(args)...); }, var);
+    std::visit([&](auto&& a) { a.getReferences(std::forward<Args>(args)...); }, var);
   }
-
+/*
   template<class... Args>
   void accumulate_estimators(Args&&... args)
   {
     std::visit([&](auto&& a) { a.accumulate_estimators(std::forward<Args>(args)...); }, var);
-  }
-
-  SlaterDetOperations* getSlaterDetOperations()
-  {
-    return std::visit([&](auto&& a) { return a.getSlaterDetOperations(); }, var);
   }
 
   template<class... Args>

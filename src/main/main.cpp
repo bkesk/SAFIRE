@@ -16,52 +16,21 @@
 #include <stdexcept>
 #include <stack>
 #include "cxxopts.hpp"
-#include "io/ptree/InputParser.hpp"
-#include "Utilities/app_loggers.h"
-#include "mpi3/environment.hpp"
-#include "mpi3/communicator.hpp"
+#include "IO/ptree/InputParser.hpp"
+#include "IO/app_loggers.h"
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-#include "Utilities/app_version.h"
-#include "Memory/arch.hpp"
+#include "configuration.hpp"
+
+#include "utilities/check.hpp"
+#include "arch/arch.h"
+#include "utilities/mpi_context.h"
+#include "utilities/app_version.h"
 
 #include "AFQMC/AFQMCFactory.h"
 
 
 /*
- * pyscf : {
- *
- * }
- *
- * dice : {
- *
- * }
- *
- * qe : {
- *   qe driver input
- * }
- *
- * pw2posthf : {
- *  pw2posthf input
- * }
- *
- * mp2 : {
- *
- * }
- *
- * rpa : {
- *
- * }
- *
- * crpa : {
- *
- * }
- *
- * afqmc : {
- *   afqmc input file
- * }
- *
  * *** execution blocks are processed sequentially, so order is important.
  *     Communication between blocks occurs though appropriate hdf5 I/O. *** 
  */ 
@@ -70,6 +39,7 @@
  */
 int main(int argc, char** argv)
 {
+  using namespace sfqmc;
   mpi3::environment env(argc, argv);
   auto world = mpi3::environment::get_world_instance();
   bool root(world.root());
@@ -140,7 +110,7 @@ int main(int argc, char** argv)
   }
 
   // setup output loggers
-  setup_loggers(world.root(), output_level, debug_level);
+  sfqmc::arch::init(root,output_level,debug_level);
 
   std::string welcome(
     std::string("") + 
@@ -167,20 +137,19 @@ int main(int argc, char** argv)
     exit(1);	
   }
 
+  auto mpi = std::make_shared<utils::mpi_context_t<boost::mpi3::communicator>>(utils::make_mpi_context(world));
+
   for(auto const& it : parser.get_root())
   { // go through all simulation requests
     std::string cname = it.first;
     if (cname == "afqmc") {
       ptree sim = it.second;
-      sfqmc::afqmc::AFQMCFactory afqmc_fac("afqmc", world, sim);
-    } else if(cname == "legacy_afqmc") { // TEMP: to test against
-      ptree sim = it.second;
-      sfqmc::afqmc::AFQMCFactory afqmc_fac("legacy_afqmc", world, sim);
+      afqmc::AFQMCFactory afqmc_fac("afqmc", mpi, sim);
     } else if(cname == "cs_afqmc" || cname == "csafqmc") {
       ptree sim = it.second;
       int n_groups = sim.get<int>("project.n_groups", 1);
-      sfqmc::afqmc::AFQMCFactory afqmc_fac("csafqmc",world, 
-						  sim,n_groups);
+// need new strategy for n_group>1, need to add a new "global" communicator to the context.
+      afqmc::AFQMCFactory afqmc_fac("csafqmc",mpi,sim,n_groups); 
     } else {
       app_error("unknown calculation type: {} \n",cname.c_str());
       mpi3::environment::finalize();

@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_BASICESTIMATOR_H
-#define SFQMC_AFQMC_BASICESTIMATOR_H
+#pragma once
 
 #include "AFQMC/config.h"
 #include <vector>
@@ -24,6 +23,7 @@
 #include <iostream>
 #include <fstream>
 
+#include "nda/h5.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
@@ -36,8 +36,8 @@ namespace afqmc
 class BasicEstimator : public EstimatorBase
 {
 public:
-  BasicEstimator(afqmc::TaskGroup_& tg_, AFQMCInfo info, [[maybe_unused]] std::string title, ptree pt_in, bool impsamp_)
-      : EstimatorBase(info), TG(tg_), nwfacts(0), writer(false), importanceSampling(impsamp_), timers(false)
+  BasicEstimator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, AFQMCInfo info, [[maybe_unused]] std::string title, ptree pt_in, bool impsamp_)
+      : EstimatorBase(info), mpi(_mpi), nwfacts(0), importanceSampling(impsamp_), timers(false)
   {
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
@@ -52,14 +52,12 @@ public:
     timers = false;
 #endif
 
-    RUNTIME_CHECK(nwfacts >= 0, "");
+    utils::check(nwfacts >= 0, "Error: nwfacts<0");
     weight_product = ComplexType(1.0, 0.0);
     for (int i = 0; i < nwfacts; i++)
       weight_factors.push(weight_product);
 
     app_log(1,"  BasicEstimator: Number of products in weight history: {}", nwfacts);
-
-    writer = (TG.Global().rank() == 0);
 
     data.resize(10);
     data2.resize(10);
@@ -146,7 +144,7 @@ public:
 
   void tags(std::ofstream& out)
   {
-    if (writer)
+    if (mpi->comm.root())
     {
       if (nwfacts > 0)
       {
@@ -162,7 +160,7 @@ public:
 
   void tags_timers(std::ofstream& out)
   {
-    if (writer)
+    if (mpi->comm.root())
       if (timers)
         out << "PseudoEnergy_t vHS_t vbias_t G_t Propagate_t Energy_comm_t vHS_comm_t X_t popC_t ortho_t setup_t "
                "extra_t Block_t ";
@@ -173,14 +171,14 @@ public:
     return measure_interval;
   }
 
-  void print(std::ofstream& out, [[maybe_unused]] hdf_archive& dump, [[maybe_unused]] WalkerSet& wset)
+  void print(std::ofstream& out, [[maybe_unused]] h5::file& file, [[maybe_unused]] WalkerSet& wset)
   {
     if (ncalls ==0) 
       APP_ABORT("Estimator has no data but asked to print (ncalls=0), check settings");
     data[0] = enume.real() / ncalls;
     data[1] = edeno.real() / ncalls;
 
-    if (writer)
+    if (mpi->comm.root())
     {
       out << std::setprecision(6) << nwalk / ncalls << " " << weight / ncalls << " " << std::setprecision(16);
       if (nwfacts > 0)
@@ -210,7 +208,7 @@ public:
   void print_timers(std::ofstream& out)
   {
 
-    if (writer)
+    if (mpi->comm.root())
     {
       if (timers)
         out << std::setprecision(5) << AFQMCTimer.elapsed(pseudo_energy_timer) << " "
@@ -232,15 +230,13 @@ public:
 
 
 private:
-  afqmc::TaskGroup_& TG;
+  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
   int nwfacts;
 
-  bool writer;
-
   [[maybe_unused]] bool importanceSampling;
 
-  std::vector<double> data, data2, data3;
+  nda::array<double,1> data, data2, data3;
 
   std::queue<ComplexType> weight_factors;
   ComplexType weight_product = ComplexType(1.0, 0.0);
@@ -260,4 +256,3 @@ private:
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

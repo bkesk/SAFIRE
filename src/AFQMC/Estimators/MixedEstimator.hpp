@@ -11,16 +11,17 @@
  *
  */
 
-#ifndef SFQMC_AFQMC_MIXED_ESTIMATOR_HPP
-#define SFQMC_AFQMC_MIXED_ESTIMATOR_HPP
+#pragma once
 
 #include "AFQMC/config.h"
 #include <vector>
 #include <string>
 #include <iostream>
 
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
+#include "utilities/check.hpp"
+#include "utilities/mpi_context.h"
+#include "nda/nda.hpp"
+#include "nda/h5.hpp"
 
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Estimators/MixedObsHandler.hpp"
@@ -39,18 +40,14 @@ class MixedEstimator : public EstimatorBase
 {
 
 public:
-  MixedEstimator(afqmc::TaskGroup_& tg_,
+  MixedEstimator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                           AFQMCInfo& info,
                           std::string name,
                           ptree pt,
                           WALKER_TYPES wlk,
-                          [[maybe_unused]] WalkerSet& wset,
                           Wavefunction& wfn)
       : EstimatorBase(info),
-        TG(tg_),
-        walker_type(wlk),
-        observ0(TG, info, name, pt, wlk, wfn),
-        wfn0(wfn)
+        observ0(mpi, info, name, pt, wlk, wfn)
   {
     int _pop_control_interval, equil_multiplier;
     _pop_control_interval = pt.get<int>("_population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL);
@@ -58,10 +55,9 @@ public:
     equil_multiplier = pt.get<int>("equil_multiplier", 0); // units of population control interval
     measure_interval_multiplier = pt.get<int>("measure_interval_multiplier", DEFAULT_MEASURE_INTERVAL_MULTIPLIER); // units of population control interval
     measure_interval = measure_interval_multiplier * _pop_control_interval;
-    if (equil_multiplier % measure_interval_multiplier != 0)
-      APP_ABORT("Error in MixedEstimator user input: 'equil_multiplier' must be evenly divisible by 'measure_interval_multiplier'");
+    utils::check(equil_multiplier % measure_interval_multiplier==0,"Error in MixedEstimator user input: 'equil_multiplier' must be evenly divisible by 'measure_interval_multiplier'");
     nblocks_skip = equil_multiplier / measure_interval_multiplier;
-    writer = (TG.Global().rank() == 0);
+    writer = (mpi->comm.rank() == 0);
   }
 
   ~MixedEstimator() {}
@@ -96,36 +92,31 @@ public:
     return measure_interval;
   }
 
-  void print([[maybe_unused]] std::ofstream& out, hdf_archive& dump, [[maybe_unused]] WalkerSet& wset)
+  void print([[maybe_unused]] std::ofstream& out, h5::file& file, [[maybe_unused]] WalkerSet& wset)
   {
-    // I doubt we will ever collect a billion blocks of data.
-    if (accumulated_in_last_block)
+    // print resets the counters for block average.
+    if (accumulated_in_last_block and (iblock%block_size==0))
     {
       if (writer)
       {
-        dump.push("Observables");
-        dump.push("Mixed");
-      }
-      observ0.print(iblock, dump);
-      if (writer)
-      {
-        dump.pop();
-        dump.pop();
+        h5::group grp(file);
+        h5::group g1 = ( grp.has_key("Observables") ? grp.open_group("Observables") : 
+                                                      grp.create_group("Observables") );
+        h5::group g2 = ( g1.has_key("Mixed") ? g1.open_group("Mixed") : 
+                                                g1.create_group("Mixed") );
+        observ0.print(iblock, std::addressof(grp));
+      } else { 
+        h5::group *grp = nullptr;
+        observ0.print(iblock, grp);
       }
     }
   }
 
 private:
-  TaskGroup_& TG;
-
-  [[maybe_unused]] WALKER_TYPES walker_type = UNDEFINED_WALKER_TYPE;
-
   bool writer = false;
   bool accumulated_in_last_block = false;
 
   MixedObsHandler observ0;
-
-  [[maybe_unused]] Wavefunction& wfn0;
 
   // Blocking info 
   int block_size   = 1;
@@ -138,4 +129,3 @@ private:
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

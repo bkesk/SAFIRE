@@ -117,6 +117,11 @@ public:
   WALKER_TYPES getWalkerType() const { return walker_type; }
 
   /*
+   * Returns the memory space.
+   */
+  constexpr auto get_memory_space() const { return MEM; }
+
+  /*
    * Expectation value of Hubbard-Stratonovich potential with respect to trial wave-function.
    */
   void vMF(nda::MemoryVector auto&& v, double dt);
@@ -293,58 +298,14 @@ public:
   }
 
   ComplexType getReferenceWeight(int i) const { return ci[i]; }
-/*
-  / *
+
+  /*
     * Returns the reference Slater Matrices needed for back propagation.  
-    * /
-  template<class Mat, class Ptr = ComplexType*>
-  void getReferencesForBackPropagation(Mat&& A)
+    */
+  auto getReferences() const
   {
-    static_assert(std::decay<Mat>::type::dimensionality == 2, "Wrong dimensionality");
-    int ndet = number_of_references_for_back_propagation();
-    RUNTIME_CHECK(A.size(0) == ndet, "");
-    if (RefOrbMats.size(0) == 0)
-    {
-      TG.Node().barrier(); // for safety
-      int nrow(NMO * ((walker_type == NONCOLLINEAR) ? 2 : 1));
-      int ncol(nup + ((walker_type == CLOSED) ? 0 : ndown)); //careful here, spins are stored contiguously
-      RefOrbMats = mpi3CMatrix({ndet, nrow * ncol}, RefOrbMats.get_allocator());
-      TG.Node().barrier(); // for safety
-      if (TG.Node().root())
-      {
-        if (walker_type != COLLINEAR)
-        {
-          for (int i = 0; i < ndet; ++i)
-          {
-            boost::multi::array_ref<ComplexType, 2> A_(raw_pointer_cast(RefOrbMats[i].origin()), {nrow, ncol});
-            ma::Matrix2MAREF('H', OrbMats[i], A_);
-          }
-        }
-        else
-        {
-          for (int i = 0; i < ndet; ++i)
-          {
-            boost::multi::array_ref<ComplexType, 2> A_(raw_pointer_cast(RefOrbMats[i].origin()), {NMO, nup});
-            ma::Matrix2MAREF('H', OrbMats[2 * i], A_);
-            boost::multi::array_ref<ComplexType, 2> B_(A_.origin() + A_.num_elements(), {NMO, ndown});
-            ma::Matrix2MAREF('H', OrbMats[2 * i + 1], B_);
-          }
-        }
-      }                    // TG.Node().root()
-      TG.Node().barrier(); // for safety
-    }
-    RUNTIME_CHECK(RefOrbMats.size(0) == ndet, "");
-    RUNTIME_CHECK(RefOrbMats.size(1) == A.size(1), "");
-    auto&& RefOrbMats_=boost::multi::static_array_cast<ComplexType, ComplexType*>(RefOrbMats);
-    auto&& A_=boost::multi::static_array_cast<ComplexType, Ptr>(A);
-    using std::copy_n;
-    int n0, n1;
-    std::tie(n0, n1) = FairDivideBoundary(TG.getLocalTGRank(), int(A.size(1)), TG.getNCoresPerTG());
-    for (int i = 0; i < ndet; i++)
-      copy_n(RefOrbMats_[i].origin() + n0, n1 - n0, A_[i].origin() + n0);
-    TG.TG_local().barrier();
+    return OrbMats;
   }
-*/
 
 protected:
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;

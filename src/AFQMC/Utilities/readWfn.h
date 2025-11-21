@@ -67,7 +67,7 @@ void getCommonInput(h5::group& g,
 WALKER_TYPES getWalkerType(std::string filename);
 WALKER_TYPES getWalkerType(std::string filename, std::string type);
 
-std::string getWavefunctionType(std::string filename);
+WAVEFUNCTION_TYPES getWavefunctionType(std::string filename);
 std::tuple<int,int,int,int> getWavefunctionDims(std::string filename);
 
 

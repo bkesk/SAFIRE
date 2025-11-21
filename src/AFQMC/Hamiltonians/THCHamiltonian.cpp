@@ -353,7 +353,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
     vt() = ValueType(0.0);
     {
       memory::buffered_array<MEM,ValueType,2> Wuv((u1-u0),nu);
-      memory::buffered_array<MEM,ValueType,2> Tiv(NMO,(u1-u0));
+      memory::buffered_array<MEM,ValueType,2> Tiv(NMO,nu);
       Wuv() = ValueType(0.0);
       Tiv() = ValueType(0.0);
       for(long is=0, isp=0; is<nspin_in_file; is++) {

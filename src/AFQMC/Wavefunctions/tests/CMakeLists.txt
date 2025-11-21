@@ -6,20 +6,6 @@ set( TEST_SRCS
 	test_wfn_factory.cpp
         )
 
-#if(ENABLE_CUDA)
-#  foreach( X ${TEST_SRCS} )
-#    set_source_files_properties(${X} PROPERTIES LANGUAGE CUDA)
-#  endforeach()
-#  set_source_files_properties(test_phmsd.cpp PROPERTIES LANGUAGE CUDA)
-#  set_source_files_properties(test_phmsd_components.cpp PROPERTIES LANGUAGE CUDA)
-#elseif(ENABLE_HIP)
-#  foreach( X ${TEST_SRCS} )
-#    set_source_files_properties(${X} PROPERTIES LANGUAGE HIP)
-#  endforeach()
-#  set_source_files_properties(test_phmsd.cpp PROPERTIES LANGUAGE HIP)
-#  set_source_files_properties(test_phmsd_components.cpp PROPERTIES LANGUAGE HIP)
-#endif()
-
 add_executable( test_${TEST_ID} ${TEST_SRCS} )
 target_link_libraries(test_${TEST_ID} catch_main afqmc)
 #list(LENGTH AFQMC_UNIT_TEST_INPUTS NUM_PAIRS)

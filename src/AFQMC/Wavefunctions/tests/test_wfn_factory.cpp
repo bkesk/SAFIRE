@@ -80,8 +80,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   int nup              = file_data.nup;
   int ndown            = file_data.ndown;
 
-  std::string wfn_type = afqmc::getWavefunctionType(wfn_file);
-  WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, wfn_type);
+  WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "any");
   int nspin            = (type == COLLINEAR) ? 2 : 1;
   int npol             = (type == NONCOLLINEAR) ? 2 : 1;
   int nel              = (type == COLLINEAR) ? nup+ndown : nup;  

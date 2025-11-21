@@ -20,8 +20,7 @@
  * @brief Top level class for AFQMC. Parses input and performs setup of classes.
  */
 
-#ifndef SFQMC_AFQMCFACTORY_H
-#define SFQMC_AFQMCFACTORY_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -30,16 +29,14 @@
 #include <algorithm>
 
 #include "config.h"
-#include "mpi3/communicator.hpp"
-#include "io/ptree/ptree_utilities.hpp"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/mpi_context.h"
 
-#include "AFQMC/Utilities/taskgroup.h"
 #include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
 #include "AFQMC/Propagators/PropagatorFactory.h"
 #include "AFQMC/Drivers/DriverFactory.h"
-#include "Memory/buffer_managers.h"
 
 
 namespace sfqmc
@@ -57,42 +54,27 @@ namespace afqmc
   * - PropagatorFactory PropFac
   * - DriverFactory DriverFac
 
-  * It also instances of the following classes which handle MPI communication and task group management:
-  * - GlobalTaskGroup gTG
-  * - TaskGroupHandler TGHandler
  *
  * @param type std::string describing the type of Driver to be used. Valid choices are "afqmc", "legacy_afqmc", and "csafqmc".
-  * @param comm_ boost::mpi3::communicator The MPI communicator.
   * @param pt boost::property_tree::ptree The property tree containing input file parameters
-  * @param n_groups int The number of groups to be used in the task group.
  */
 class AFQMCFactory
 {
 public:
   ///constructor
-  AFQMCFactory(std::string type, boost::mpi3::communicator& comm_, 
-	       const ptree pt, int n_groups=1);
+  AFQMCFactory(std::string type, 
+               std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, 
+	       const ptree pt, int n_groups = 1);
 
   ///destructor
   ~AFQMCFactory(); 
 
 private:
 
-  // mixed or double precision 
-  bool mixed_precision;
-
-  // number of cores for TG parallelization
-  int ncores;
-
   int m_series;
   std::string project_title;
 
-  // global TG from which all TGs are constructed
-  GlobalTaskGroup gTG;
-
-  // object that manages the TGs. Must be placed here,
-  // since it must be destroyed last
-  TaskGroupHandler TGHandler;
+  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
   // container of AFQMCInfo objects
   std::map<std::string, AFQMCInfo> InfoMap;
@@ -128,4 +110,3 @@ private:
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

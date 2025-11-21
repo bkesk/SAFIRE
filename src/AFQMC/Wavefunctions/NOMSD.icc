@@ -164,7 +164,7 @@ void NOMSD<MEM,devPsiT>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&&
 
   if(ndet == 1) {
 
-    DensityMatrix(wset, OrbMats(0,all), G, Ov);     
+    DensityMatrix(wset, OrbMats(0,all), G, Ov, compact);     
   
   } else {
 

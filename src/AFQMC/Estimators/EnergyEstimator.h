@@ -14,8 +14,7 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_ENERGYESTIMATOR_H
-#define SFQMC_AFQMC_ENERGYESTIMATOR_H
+#pragma once
 
 #include "AFQMC/config.h"
 #include <vector>
@@ -23,9 +22,6 @@
 #include <string>
 #include <iostream>
 #include <fstream>
-
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
 
 #include "AFQMC/Utilities/AFQMCTimer.h"
 
@@ -51,15 +47,14 @@ inline ComplexType mod2pi(ComplexType x){
 class EnergyEstimator : public EstimatorBase
 {
 public:
-  EnergyEstimator(afqmc::TaskGroup_& tg_,
+  EnergyEstimator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                   AFQMCInfo info,
                   ptree pt_in,
                   Wavefunction& wfn,
-                  bool impsamp_ = true,
-                  [[maybe_unused]] bool timer    = true)
+                  bool impsamp_ = true)
       : EstimatorBase(info), 
-        TG(tg_), 
-        wfn0(wfn), 
+        mpi(_mpi), 
+        wfn0(std::addressof(wfn)), 
         importanceSampling(impsamp_), 
         energy_components(false)
   {
@@ -90,8 +85,7 @@ public:
     int measure_interval_multiplier = pt0.get<int>("measure_interval_multiplier", DEFAULT_MEASURE_INTERVAL_MULTIPLIER);
     int population_control_interval = pt0.get<int>("_population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL);
     // validate inputs
-    if (equil < 0 || skip < 0)
-      APP_ABORT("EnergyEstimator: equil, skip must both be > 0");
+    utils::check(equil >= 0 and skip >= 0, "EnergyEstimator: equil, skip must both be > 0");
     // create verbose internal inputs
     ptree pt1;
     pt1.put("print_components", print_components);
@@ -117,96 +111,91 @@ public:
 
   void accumulate_block([[maybe_unused]] double total_time, WalkerSet& wset)
   {
+    auto all = nda::range::all;
     AFQMCTimer.start(energy_timer);
-    size_t nwalk = wset.size();
-    if (eloc.size(0) != nwalk || eloc.size(1) != 3)
-      eloc = ComplexMatrix<device_allocator<ComplexType>>({nwalk, 3});
-    if (ovlp.size(0) != nwalk)
-      ovlp = ComplexVector<device_allocator<ComplexType>>(iextensions<1u>{nwalk});
-    if (wprop.size(0) != 7 || wprop.size(1) != nwalk)
-      wprop = ComplexMatrix<std::allocator<ComplexType>>({7, nwalk});
+    long nwalk = wset.size();
+    MEMORY_SPACE MEM = wset.get_memory_space();
 
     ComplexType dum, et;
     // MAM: if nblocks_skip > 0, this will produce data filled with zeros.
     //      Can output to hdf5 instead for better format
     if( iblock < nblocks_equil or (iblock-nblocks_equil)%(nblocks_skip+1) != 0) {
-      if (TG.TG_local().root())
-        std::fill_n(data.begin(), data.size(), ComplexType(0.0));
+      data() = ComplexType(0.0);
     } else {
-      wfn0.Energy(wset, eloc, ovlp);
-      // in case GPU
-      ComplexMatrix<std::allocator<ComplexType>> eloc_(eloc);
-      ComplexVector<std::allocator<ComplexType>> ovlp_(ovlp);
-
-      if (TG.TG_local().root())
-      {
-
-        int np = TG.TG_heads().size();
-        int i0 = TG.TG_heads().rank()*nwalk;
-        int nx = ( truncate ? (1) : (0));
-        ComplexMatrix<std::allocator<ComplexType>> wet({4*nx,np*nwalk*nx},0.0);
-        if(truncate) {
-          for(int i=0; i<nwalk; i++) { 
-            wet[0][i0 + i] = eloc_[i][0] + eloc_[i][1] + eloc_[i][2];
-            wet[1][i0 + i] = eloc_[i][0];
-            wet[2][i0 + i] = eloc_[i][1];
-            wet[3][i0 + i] = eloc_[i][2];
-          }
-          TG.Global().all_reduce_in_place_n(wet.origin(), wet.num_elements(), std::plus<>());
-          variance_based_truncation(wet[0](multi::ALL),3.0);
-          variance_based_truncation(wet[1](multi::ALL),3.0);
-          variance_based_truncation(wet[2](multi::ALL),3.0);
-          variance_based_truncation(wet[3](multi::ALL),3.0);
-        }
-
-        wset.getProperty(WEIGHT, wprop[0]);
-        wset.getProperty(OVLP, wprop[1]);
-        wset.getProperty(PHASE, wprop[2]);
-        wset.getProperty(PHASE1, wprop[3]);
-        wset.getProperty(PHASE2, wprop[4]);
-        wset.getProperty(PHASE3, wprop[5]);
-        wset.getProperty(THETA, wprop[6]);
-        std::fill_n(data.begin(), data.size(), ComplexType(0.0));
-        for (int i = 0; i < nwalk; i++)
-        {
-          if (std::isnan(real(wprop[0][i])))
-            continue;
-          if (importanceSampling)
-          {
-            dum = (wprop[0][i]) * ovlp_[i] / (wprop[1][i]);
-          }
-          else
-          {
-            dum = (wprop[0][i]) * ovlp_[i] * (wprop[2][i]);
-          }
-          if(truncate) {
-            et = wet[0][ i0 + i ]; 
-          } else {
-            et = eloc_[i][0] + eloc_[i][1] + eloc_[i][2];
-          }
-          if ((!std::isfinite(real(dum))) || (!std::isfinite(real(et * dum))))
-            continue;
-          data[1] += dum;
-          data[0] += et * dum;
-          if(truncate) {
-            data[2] += wet[1][i0+i] * dum;
-            data[3] += wet[2][i0+i] * dum;
-            data[4] += wet[3][i0+i] * dum;
-          } else {
-            data[2] += eloc_[i][0] * dum;
-            data[3] += eloc_[i][1] * dum;
-            data[4] += eloc_[i][2] * dum;
-          }
-          data[5] += ( dum / std::abs(dum) );  
-          data[6] += ( wprop[2][i] );  
-          data[7] += ( wprop[3][i] );  
-          data[8] += ( wprop[4][i] );  
-          data[9] += ( wprop[5][i] );
-          data[10] += ( mod2pi(wprop[6][i]) );
-
-        }
-        TG.TG_heads().all_reduce_in_place_n(data.begin(), data.size(), std::plus<>());
+      nda::array<ComplexType,2> eloc(nwalk,3);
+      nda::array<ComplexType,1> ovlp(nwalk);
+      if (MEM == HOST_MEMORY) {  
+        wfn0->Energy(wset, eloc, ovlp);
+      } else {
+        memory::buffered_array<DEVICE_MEMORY,ComplexType,2> eloc_d(nwalk,3);
+        memory::buffered_array<DEVICE_MEMORY,ComplexType,1> ovlp_d(nwalk);
+        wfn0->Energy(wset, eloc_d, ovlp_d);
+        eloc() = eloc_d(); 
+        ovlp() = ovlp_d(); 
       }
+
+      nda::array<ComplexType,2> wet(4,nwalk);
+      if(truncate) {
+        for(int i=0; i<nwalk; i++) { 
+          wet(0,i) = eloc(i,0) + eloc(i,1) + eloc(i,2);
+          wet(1,i) = eloc(i,0);
+          wet(2,i) = eloc(i,1);
+          wet(3,i) = eloc(i,2);
+        }
+        mpi->all_reduce(wet,std::plus<>());
+//        variance_based_truncation(wet(0,all),3.0);
+//        variance_based_truncation(wet(1,all),3.0);
+//        variance_based_truncation(wet(2,all),3.0);
+//        variance_based_truncation(wet(3,all),3.0);
+      }
+
+      nda::array<ComplexType,2> wprop(7,nwalk);
+      wset.getProperty(WEIGHT, wprop(0,all));
+      wset.getProperty(OVLP, wprop(1,all));
+      wset.getProperty(PHASE, wprop(2,all));
+      wset.getProperty(PHASE1, wprop(3,all));
+      wset.getProperty(PHASE2, wprop(4,all));
+      wset.getProperty(PHASE3, wprop(5,all));
+      wset.getProperty(THETA, wprop(6,all));
+      data() = ComplexType(0.0);
+// OVLP -> exp(OVLP)
+      for (int i = 0; i < nwalk; i++)
+      {
+        if (std::isnan(real(wprop(0,i)))) continue;
+        if (importanceSampling)
+        {
+          dum = (wprop(0,i)) * ovlp(i) / (wprop(1,i));
+        }
+        else
+        {
+          dum = (wprop(0,i)) * ovlp(i) * (wprop(2,i));
+        }
+        if(truncate) {
+          et = wet(0,i); 
+        } else {
+          et = eloc(i,0) + eloc(i,1) + eloc(i,2);
+        }
+        if ((!std::isfinite(real(dum))) || (!std::isfinite(real(et * dum))))
+          continue;
+        data(1) += dum;
+        data(0) += et * dum;
+        if(truncate) {
+          data(2) += wet(1,i) * dum;
+          data(3) += wet(2,i) * dum;
+          data(4) += wet(3,i) * dum;
+        } else {
+          data(2) += eloc(i,0) * dum;
+          data(3) += eloc(i,1) * dum;
+          data(4) += eloc(i,2) * dum;
+        }
+        data(5) += ( dum / std::abs(dum) );  
+        data(6) += ( wprop(2,i) );  
+        data(7) += ( wprop(3,i) );  
+        data(8) += ( wprop(4,i) );  
+        data(9) += ( wprop(5,i) );
+        data(10) += ( mod2pi(wprop(6,i)) );
+      }
+      mpi->all_reduce(data, std::plus<>());
     }
     // increase counter
     iblock ++;
@@ -215,7 +204,7 @@ public:
 
   void tags(std::ofstream& out)
   {
-    if (TG.Global().root())
+    if (mpi->comm.root())
     {
       out << "EnergyEstim_" << name << "_nume_real  EnergyEstim_" << name << "_nume_imag "
           << "EnergyEstim_" << name << "_deno_real  EnergyEstim_" << name << "_deno_imag "
@@ -254,25 +243,25 @@ public:
     return measure_interval;
   }
 
-  void print(std::ofstream& out, [[maybe_unused]] hdf_archive& dump, WalkerSet& wset)
+  void print(std::ofstream& out, [[maybe_unused]] h5::file& file, WalkerSet& wset)
   {
-    if (TG.Global().root())
+    if (mpi->comm.root())
     {
       int n = wset.get_global_target_population();
-      out << data[0].real() / n << " " << data[0].imag() / n << " " << data[1].real() / n << " " << data[1].imag() / n
+      out << data(0).real() / n << " " << data(0).imag() / n << " " << data(1).real() / n << " " << data(1).imag() / n
           << " " << AFQMCTimer.elapsed(energy_timer) << " ";
       if(print_sign) 
       {
-        out <<data[5].real() / n <<" " <<data[5].imag() / n <<" " 
-            <<data[6].real() / n <<" " <<data[6].imag() / n <<" "
-            <<data[7].real() / n <<" " <<data[7].imag() / n <<" " 
-            <<data[8].real() / n <<" " <<data[8].imag() / n <<" " 
-            <<data[9].real() / n <<" " <<data[9].imag() / n <<" "
-            <<data[10].real() / n <<" " <<data[10].imag() / n <<" ";
+        out <<data(5).real() / n <<" " <<data(5).imag() / n <<" " 
+            <<data(6).real() / n <<" " <<data(6).imag() / n <<" "
+            <<data(7).real() / n <<" " <<data(7).imag() / n <<" " 
+            <<data(8).real() / n <<" " <<data(8).imag() / n <<" " 
+            <<data(9).real() / n <<" " <<data(9).imag() / n <<" "
+            <<data(10).real() / n <<" " <<data(10).imag() / n <<" ";
       }
       if (energy_components)
       {
-        out << data[2].real() / n << " " << data[3].real() / n << " " << data[4].real() / n << " ";
+        out << data(2).real() / n << " " << data(3).real() / n << " " << data(4).real() / n << " ";
       }
       AFQMCTimer.reset(energy_timer);
     }
@@ -281,20 +270,16 @@ public:
 private:
   std::string name;
 
-  TaskGroup_& TG;
+  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
-  Wavefunction& wfn0;
+  Wavefunction* wfn0 = nullptr;
 
   int nblocks_skip = 0;
   int nblocks_equil = 0;
   int iblock = 0;
   int measure_interval = 1;
 
-  ComplexMatrix<device_allocator<ComplexType>> eloc;
-  ComplexVector<device_allocator<ComplexType>> ovlp;
-  ComplexMatrix<std::allocator<ComplexType>> wprop;
-
-  std::vector<std::complex<double>> data;
+  nda::array<std::complex<double>,1> data;
 
   bool importanceSampling = true;
   bool energy_components = false;
@@ -305,4 +290,3 @@ private:
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif
