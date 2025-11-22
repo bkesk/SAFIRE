@@ -26,7 +26,7 @@
 //#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
 //#include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
 //#include "AFQMC/Hamiltonians/RealDenseHamiltonian_v2.h"
-//#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
+#include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 
 namespace sfqmc
 {

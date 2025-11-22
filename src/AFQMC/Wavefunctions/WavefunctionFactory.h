@@ -25,7 +25,7 @@
 #include "AFQMC/config.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
-#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
+#include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 
 namespace sfqmc
 {

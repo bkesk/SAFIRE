@@ -28,7 +28,7 @@
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 
-#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
+#include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 //#include "AFQMC/SlaterDeterminantOperations/
 
 namespace sfqmc
@@ -223,7 +223,7 @@ public:
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
     memory::buffered_array<MEM,ComplexType,2> eloc(nw,3);
     eloc() = ComplexType(0.0);
-    Energy(wset, eloc, ovlp);
+    Energy(wset, eloc(), ovlp());
     wset.setProperty(OVLP, ovlp);
     wset.setProperty(E1_, eloc(all, 0));
     wset.setProperty(EXX_, eloc(all, 1));

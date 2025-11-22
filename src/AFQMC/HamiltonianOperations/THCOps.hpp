@@ -183,12 +183,10 @@ public:
     return H1;
   }
 
-  template<class TVec>
-  void getFieldTypes(TVec&& v) {
+  nda::array<int,1> getFieldTypes() const {
     int nvc = number_of_cholesky_vectors();
-    utils::check(v.size() == nvc, "getFieldTypes: Incorrect number of cholesky vectors.");
-    using std::fill_n;
-    fill_n( v.data(), v.size(), ContinuousChargePropagator );
+    nda::array<int,1> v(nvc, int(ContinuousChargePropagator));
+    return v;
   }
 
   void energy(nda::MemoryArrayOfRank<2> auto && E,
@@ -564,7 +562,7 @@ public:
 
   // returns v[nwalk, nspin_in_basis*npol_in_basis, NMO, NMO]
   // no spin-orbit vHS yet
-  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  auto vHS(nda::MemoryArrayOfRank<2> auto const& X, double dt)
   {
     memory::check_memory_space<MEM>(X);
     using nda::range;
@@ -580,7 +578,7 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::array<MEM,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
+    memory::buffered_array<MEM,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
     v() = ComplexType(0.0);
 
     // scale by sqrt(dt)
@@ -656,7 +654,7 @@ public:
     return v;
   }
 
-  void vbias(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto && v, double dt)
+  void vbias(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto& v, double dt)
   {
     memory::check_memory_space<MEM>(G,v);
     using nda::range;

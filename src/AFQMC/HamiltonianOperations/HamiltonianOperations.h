@@ -17,7 +17,7 @@
 #pragma once
 
 #include "AFQMC/config.h"
-#include "AFQMC/Utilities/type_conversion.hpp"
+//#include "AFQMC/Utilities/type_conversion.hpp"
 
 //#if !defined(ENABLE_DEVICE)
 //#include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
@@ -34,50 +34,16 @@ namespace sfqmc
 namespace afqmc
 {
 
-/*
-namespace detail 
-{
-  // MAM: If too many template arguments, use vectorn and add dummy_HOps to fill up to n.
-  template<bool MP>
-  using HOps_types = boost::mpl::vector< dummy::dummy_HOps
-#if !defined(ENABLE_DEVICE) 
-		,KP3IndexFactorization<MP>
-		,Real3IndexFactorization<MP,true>
-    ,Real3IndexFactorization<MP,false>
-		,ModelHamOps<MP,true,Matrix_<shared_allocator<typename to_working_precision<MP, ComplexType>::type>>>
-		,ModelHamOps<MP,false,Matrix_<shared_allocator<typename to_working_precision<MP, ComplexType>::type>>>
-#endif
-		,KP3IndexFactorization_batched<MP,Matrix_<device_allocator<typename to_working_precision<MP, ComplexType>::type>>>
-		,KP3IndexFactorization_batched<MP,Matrix_<shared_allocator<typename to_working_precision<MP, ComplexType>::type>>>
-		,THCOps<MP,true>
-		,THCOps<MP,false>
-		,ModelHamOps<MP,true,Matrix_<device_allocator<typename to_working_precision<MP, ComplexType>::type>>>
-		,ModelHamOps<MP,false,Matrix_<device_allocator<typename to_working_precision<MP, ComplexType>::type>>>
-		,Real3IndexFactorization_batched_v2<MP,true>
-    ,Real3IndexFactorization_batched_v2<MP,false>
-					>;
-
-  template<bool MP>
-  using HOps_variant = typename boost::make_variant_over< HOps_types<MP> >::type;
-
-} // namespace detail
-*/
-
-template<MEMORY_SPACE _MEM_>
+template<MEMORY_SPACE MEM>
 class HamiltonianOperations 
 {
 
 public:
 
-  constexpr static MEMORY_SPACE MEM = _MEM_;
+  HamiltonianOperations(); 
 
-  HamiltonianOperations()  
-  {
-    APP_ABORT(" Error: Calling default constructor of HamiltonianOperations. ");
-  } 
-
-  explicit HamiltonianOperations(THCOps<MEM,true>&& other) : var(std::move(other)) {} 
-  explicit HamiltonianOperations(THCOps<MEM,false>&& other) : var(std::move(other)) {} 
+  HamiltonianOperations(THCOps<MEM,true>&& other);
+  HamiltonianOperations(THCOps<MEM,false>&& other);
 
 /*
   // host only !
@@ -123,11 +89,10 @@ public:
   HamiltonianOperations& operator=(HamiltonianOperations const& other) = default;
   HamiltonianOperations& operator=(HamiltonianOperations&& other) = default;
 
-  template<class... Args>
-  auto getOneBodyPropagatorMatrix(Args&&... args)
+  nda::array<ComplexType,3> getOneBodyPropagatorMatrix(double dt,
+                                                       nda::MemoryVector auto const& vMF) 
   {
-    return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); },
-                                var);
+    return getOneBodyPropagatorMatrix_impl(dt,vMF());
   }
 
 /*
@@ -137,10 +102,11 @@ public:
     std::visit([&](auto&& a) { a.write2hdf(std::forward<Args>(args)...); }, var);
   }
 */
-  template<class... Args>
-  void energy(Args&&... args)
+  void energy(nda::MemoryArrayOfRank<2> auto && E, nda::MemoryArrayOfRank<2> auto const& G,
+              int idet, bool addH1  = true, bool addEJ  = true,bool addEXX = true)
   {
-    std::visit([&](auto&& a) { a.energy(std::forward<Args>(args)...); }, var);
+    auto E_=E();
+    energy_impl(E_,G(),idet,addH1,addEJ,addEXX);
   }
 
 /*
@@ -151,10 +117,9 @@ public:
   }
 */
 
-  template<class... Args>
-  auto vHS(Args&&... args)
+  memory::buffered_array<MEM,ComplexType,4> vHS(nda::MemoryArrayOfRank<2> auto const& X, double dt)
   {
-    return std::visit([&](auto&& s) { return s.vHS(std::forward<Args>(args)...); }, var);
+    return vHS_impl(X(),dt);
   }
 
 /*
@@ -223,53 +188,36 @@ public:
   }
 */
 
-  template<class... Args>
-  void vbias(Args&&... args)
-  {
-    std::visit([&](auto&& s) { s.vbias(std::forward<Args>(args)...); }, var);
+  void vbias(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto&& v, double dt)
+  {  
+    auto v_ = v();
+    vbias_impl(G(),v_,dt);
   }
 
-  int number_of_cholesky_vectors() const
-  {
-    return std::visit([&](auto&& a) { return a.number_of_cholesky_vectors(); }, var);
-  }
+  int number_of_cholesky_vectors() const;
 
-  int number_of_ke_vectors() const
-  {
-    return std::visit([&](auto&& a) { return a.number_of_ke_vectors(); }, var);
-  }
+  int number_of_ke_vectors() const;
 
-  auto vHS_dims() const
-  {
-    return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
-  }
+  std::array<int,2> vHS_dims() const;
 
-  HamiltonianTypes getHamType() const
-  {
-    return std::visit([&](auto&& a) { return a.getHamType(); }, var);
-  }
+  HamiltonianTypes getHamType() const;
 
-/*
-  template<class... Args>
-  boost::multi::array<ComplexType, 2> getHSPotentials()
-  {
-    return std::visit([&](auto&& a) { return a.getHSPotentials(); }, var);
-  }
+  nda::array<int,1> getFieldTypes() const;
 
-  template<class... Args>
-  void getFieldTypes(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.getFieldTypes(std::forward<Args>(args)...); }, var);
-  }
-
-  bool spin_dependent_vHS() const { 
-    return std::visit([&](auto&& a) { return a.spin_dependent_vHS(); }, var);
-  }
-*/
-  
   private:
 
-    std::variant<THCOps<MEM,true>, THCOps<MEM,false>> var;
+  std::variant<THCOps<MEM,true>, THCOps<MEM,false>> var;
+
+  // makes instantiations easier
+  nda::array<ComplexType,3> getOneBodyPropagatorMatrix_impl(double dt,
+                                                       nda::MemoryVector auto const& vMF); 
+
+  void energy_impl(nda::MemoryArrayOfRank<2> auto& E, nda::MemoryArrayOfRank<2> auto const& G,
+              int idet, bool addH1, bool addEJ,bool addEXX);
+
+  void vbias_impl(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto& v, double dt);
+
+  memory::buffered_array<MEM,ComplexType,4> vHS_impl(nda::MemoryArrayOfRank<2> auto const& X, double dt);
 };
 
 } // namespace afqmc

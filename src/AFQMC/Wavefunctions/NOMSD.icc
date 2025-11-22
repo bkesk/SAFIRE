@@ -51,7 +51,7 @@ void NOMSD<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov)
   if( ndet == 1) {
 
     DensityMatrix(wset, OrbMats(0,all), G, Ov); 
-    HamOp.energy(E, G, 0); 
+    HamOp.energy(E, G(), 0); 
 
   } else {
 
@@ -63,7 +63,7 @@ void NOMSD<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov)
     for (int id = 0; id < ndet; id++)
     {
       DensityMatrix(wset, OrbMats(id,all), G, ovlp(id,all)); 
-      HamOp.energy(eloc(id,all,all), G, id);
+      HamOp.energy(eloc(id,all,all), G(), id);
     }
 
     // work on host for now

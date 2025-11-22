@@ -14,6 +14,7 @@ set (AFQMC_SRCS
 #  Propagators/AFQMCModelPropagator.cpp
   Propagators/PropagatorFactory.cpp
   Wavefunctions/WavefunctionFactory.cpp
+  HamiltonianOperations/HamiltonianOperations.cpp
 #  Hamiltonians/KPFactorizedHamiltonian.cpp
 #  Hamiltonians/RealDenseHamiltonian.cpp
 #  Hamiltonians/RealDenseHamiltonian_v2.cpp

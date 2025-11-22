@@ -34,8 +34,7 @@
 #include "Memory/buffer_allocators.hpp"
 #include "SparseMatrix/array_of_sequences.hpp"
 
-#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
-#include "AFQMC/SlaterDeterminantOperations/SlaterDetOperations.hpp"
+#include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 
 #include "AFQMC/Wavefunctions/phmsd_helpers.hpp"
 #include "AFQMC/Wavefunctions/Excitations.hpp"
