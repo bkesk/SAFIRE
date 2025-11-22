@@ -28,7 +28,7 @@
 #include "AFQMC/config.h"
 #include "nda/h5.hpp"
 
-#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
+#include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 
 namespace sfqmc
 {

@@ -32,7 +32,7 @@
 #include "AFQMC/Utilities/taskgroup.h"
 #include "Numerics/ma_operations.hpp"
 
-#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
+#include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 
 namespace sfqmc
 {

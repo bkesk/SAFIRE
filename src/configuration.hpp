@@ -246,7 +246,10 @@ namespace detail
             [](auto const& x) {return 2*x;} );
         str[rank] = 1;
         nda::idx_map<rank+1, 0, nda::C_stride_order<rank+1>, nda::layout_prop_e::none> idxm(shape,str);
-        return memory::array_view<MEM,real_t,rank+1>(idxm, reinterpret_cast<real_t*>(a.data()));
+        if constexpr (std::is_const_v<std::remove_pointer_t<decltype(a.data())>>) 
+          return memory::array_view<MEM,const real_t,rank+1>(idxm, reinterpret_cast<real_t const*>(a.data()));
+        else
+          return memory::array_view<MEM,real_t,rank+1>(idxm, reinterpret_cast<real_t*>(a.data()));
       } else {
         std::array<long,rank+1> shape;
         std::copy_n(a.shape().begin(),rank,shape.begin()+1);
@@ -256,7 +259,10 @@ namespace detail
             [](auto const& x) {return 2*x;} );
         str[0] = 1;
         nda::idx_map<rank+1, 0, nda::Fortran_stride_order<rank+1>, nda::layout_prop_e::none> idxm(shape,str);    
-        return memory::array_view<MEM,real_t,rank+1,nda::F_stride_layout>(idxm, reinterpret_cast<real_t*>(a.data()));
+        if constexpr (std::is_const_v<std::remove_pointer_t<decltype(a.data())>>) 
+          return memory::array_view<MEM,const real_t,rank+1,nda::F_stride_layout>(idxm, reinterpret_cast<real_t const*>(a.data()));
+        else
+          return memory::array_view<MEM,real_t,rank+1,nda::F_stride_layout>(idxm, reinterpret_cast<real_t*>(a.data()));
       }
     } else {
       return a();

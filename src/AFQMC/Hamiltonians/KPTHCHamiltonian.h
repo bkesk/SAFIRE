@@ -31,7 +31,7 @@
 
 #include "AFQMC/Hamiltonians/OneBodyHamiltonian.hpp"
 
-#include "AFQMC/HamiltonianOperations/HamiltonianOperations.hpp"
+#include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 
 namespace sfqmc
 {
