@@ -43,7 +43,7 @@ namespace math::sparse::device
 cusparseHandle_t &get_cusparse_handle_ptr();
 
 // MAM: csr_matrix stores row pointers in host, so right now pntrb/pntre are host pointers.
-//      They are copied to devide on the fly here. Write alternative routine that takes
+//      They are copied to device on the fly here. Write alternative routine that takes
 //      the (compact) arrays in device
 template<CSRMatrix A, ::nda::MemoryVector X, ::nda:: MemoryVector Y>
 requires(::nda::have_same_value_type_v<X, Y> and

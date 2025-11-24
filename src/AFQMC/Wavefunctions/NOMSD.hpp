@@ -185,7 +185,7 @@ public:
     int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
     int nw = wset.size();
     int nc = (compact_G_for_vbias ? nel*npol*NMO : nspin*npol*NMO*npol*NMO );
-    utils::check(v.shape() == std::array<long,2>{HamOp.number_of_cholesky_vectors(),nw}, 
+    utils::check(v.shape() == std::array<long,2>{nw,HamOp.number_of_cholesky_vectors()}, 
                  "Shape mismatch");
     memory::buffered_array<MEM,ComplexType,2> G(nw,nc);
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw);
@@ -207,7 +207,7 @@ public:
   template<nda::MemoryMatrix X>
   auto vHS(X && x, double dt )
   {
-    utils::check(x.extent(0) == HamOp.number_of_cholesky_vectors(), "Shape mismatch");
+    utils::check(x.extent(1) == HamOp.number_of_cholesky_vectors(), "Shape mismatch");
     return HamOp.vHS(std::forward<X>(x), dt);
   }
 

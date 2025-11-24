@@ -367,6 +367,7 @@ if(ENABLE_CPPTRACE)
     GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
     GIT_TAG        v0.8.2 # <HASH or TAG>
   )
+  add_compile_definitions(ENABLE_CPPTRACE)
   FetchContent_MakeAvailable(cpptrace)
 endif(ENABLE_CPPTRACE)
 

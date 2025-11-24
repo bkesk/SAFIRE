@@ -26,8 +26,7 @@
 #include "AFQMC/config.h"
 
 #include "nda/h5.hpp"
-//#include "SparseMatrix/csr_matrix.hpp"
-//#include "SparseMatrix/csr_matrix_construct.hpp"
+#include "numerics/sparse/sparse.hpp"
 //#include "AFQMC/Wavefunctions/Excitations.hpp"
 
 namespace sfqmc

@@ -58,7 +58,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     generateP1(dt, walker_type);
   AFQMCTimer.stop(setup_timer);
 
-  memory::buffered_array<MEM,ComplexType,2> X(nCV, nwalk);
+  memory::buffered_array<MEM,ComplexType,2> X(nwalk, nCV);
   // 1. Calculate vbias for initial configuration
   if (free_projection)
   {
@@ -77,10 +77,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   // Store sqrtdt*X in wset if back propagating
   int bp_step = wset.getBPPos(), bp_max = wset.NumBackProp();
   if (bp_step >= 0 && bp_step < bp_max)
-  {
-    auto V = wset.template getFields<MEM>(bp_step);
-    nda::copy_cast(X, V);
-  }
+    wset.storeFields(bp_step,X);
 
   // 3. Calculate vHS(M*M,nsteps,nwalk)/vHS(nsteps,nwalk,M*M)
   AFQMCTimer.start(vHS_timer);
@@ -537,20 +534,20 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
 {
   using nda::range;
   auto all = range::all;
-  // On entry, X(m,iw) = vbias(m,iw);
+  // On entry, X(iw,m) = vbias(iw,m);
   // remember to call vbi = apply_bound_vbias(*vb);
-  // X[m,iw] = rand[m,iw] + im * ( vbias[m,iw] - vMF[m]  )
-  // HW[iw] = sum_m [ im * ( vMF[m] - vbias[m,iw] ) *
-  //                     ( rand[m,iw] + halfim * ( vbias[m,iw] - vMF[m] ) ) ]
-  //           = sum_m [ im * ( vMF[m] - vbias[m,iw] ) *
-  //                     ( X[m,iw] - halfim * ( vbias[m,iw] - vMF[m] ) ) ]
-  // MF[iw] = sum_m ( im * X[m,iw] * vMF[m] )
+  // X[iw,m] = rand[iw,m] + im * ( vbias[iw,m] - vMF[m]  )
+  // HW[iw] = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
+  //                     ( rand[iw,m] + halfim * ( vbias[iw,m] - vMF[m] ) ) ]
+  //           = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
+  //                     ( X[iw,m] - halfim * ( vbias[iw,m] - vMF[m] ) ) ]
+  // MF[iw] = sum_m ( im * X[iw,m] * vMF[m] )
 
   ComplexType im(0.0, 1.0);
-  auto [nCV,nwalk] = X.shape();
+  auto [nwalk,nCV] = X.shape();
   // generate random numbers
   utils::check( rng_block_size >= nCV, "Error in assemble_X: rng_block_size < nCV.");
-  memory::buffered_array<MEM,ComplexType,2> RNGbuff(rng_block_size,nwalk);
+  memory::buffered_array<MEM,ComplexType,2> RNGbuff(nwalk,rng_block_size);
   RNGbuff() = ComplexType(0.0);
   if (addRAND)
   {
@@ -570,7 +567,7 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
 #else
   for (int m = 0; m < nCV; ++m)
   {
-    auto Xm = X(m,all);
+    auto Xm = X(all,m);
     auto vmf_0 = vMF()(m);
     auto vmf_t = apply_bound_vbias(vmf_0, sqrtdt);
     for (int iw = 0; iw < nwalk; iw++)
@@ -578,7 +575,7 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
       auto vb_t = apply_bound_vbias(Xm(iw), sqrtdt);
       ComplexType vdiff =
           free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
-      Xm(iw) = RNGbuff(m,iw) + vdiff;
+      Xm(iw) = RNGbuff(iw,m) + vdiff;
       HWs(iw) -= vdiff * Xm(iw) - 0.5 * vdiff;
       MF(iw) += im * Xm(iw) * vmf_0;
     }

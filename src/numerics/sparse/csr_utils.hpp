@@ -167,20 +167,31 @@ auto to_compact(csr_matrix<ValType,MEM,IndxType,IntType> const& csr)
 
 template<typename NewValType, typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
 requires( std::is_assignable_v<NewValType&,ValType> )
-auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr)
+auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr, nda::range row_range, nda::range col_range)
 {
+  sfqmc::utils::check(row_range.first() >= 0 and row_range.first() <= csr.extent(0) and
+                      row_range.last() >= row_range.first() and row_range.last() <= csr.extent(0), 
+                      "to_array: row_range out of bounds.");; 
+  sfqmc::utils::check(col_range.first() >= 0 and col_range.first() <= csr.extent(1) and
+                      col_range.last() >= col_range.first() and col_range.last() <= csr.extent(1), 
+                      "to_array: col_range out of bounds.");; 
   auto vals = ::nda::to_host(csr.values());
   auto cols = ::nda::to_host(csr.columns());
   auto row_begin = ::nda::to_host(csr.row_begin());
   auto row_end = ::nda::to_host(csr.row_end());
-  long nr = csr.shape(0);
-  long nc = csr.shape(1);
+
+  long nr = row_range.size(); 
+  long nc = col_range.size();
   long i0 = row_begin(0);
+  long r0 = row_range.first();
+  long c0 = col_range.first();
+  long c1 = col_range.last();
 
   auto A = memory::host_array<NewValType, 2>::zeros({nr,nc});
-  for(long r=0; r<nr; r++)
+  for(long r=row_range.first(); r<row_range.last(); r++)
     for(long i=row_begin(r); i<row_end(r); ++i)
-      A(r,cols(i-i0)) = NewValType(vals(i-i0));
+      if( cols(i-i0) >= c0 and cols(i-i0) < c1 )
+        A(r-r0,cols(i-i0)-c0) = NewValType(vals(i-i0));
 
   if constexpr (MEM == HOST_MEMORY) {
     return A;
@@ -189,7 +200,20 @@ auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr)
   }
 }
 
+template<typename NewValType, typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
+requires( std::is_assignable_v<NewValType&,ValType> )
+auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr)
+{
+  return to_array<NewValType>(csr,nda::range(csr.extent(0)),nda::range(csr.extent(1)));
+}
+
 // Useful routine, does nothing
+template<typename... Args>
+auto to_array(nda::MemoryMatrix auto const& view, nda::range row_range, nda::range col_range)
+{
+  return view(row_range,col_range);
+}
+
 template<typename... Args> 
 auto to_array(nda::MemoryMatrix auto const& view)
 {

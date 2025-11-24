@@ -24,6 +24,7 @@
 //#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
 //#endif
 #include "AFQMC/HamiltonianOperations/THCOps.hpp"
+#include "AFQMC/HamiltonianOperations/KPTHCOps.hpp"
 //#include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
 //#include "AFQMC/HamiltonianOperations/Real3IndexFactorization_batched_v2.hpp"
 //#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
@@ -48,13 +49,17 @@ namespace afqmc
   HamiltonianOperations<M>::HamiltonianOperations(THCOps<M,true>&& other) : var(std::move(other)) {} 
   template<MEMORY_SPACE M>
   HamiltonianOperations<M>::HamiltonianOperations(THCOps<M,false>&& other) : var(std::move(other)) {} 
+  template<MEMORY_SPACE M>
+  HamiltonianOperations<M>::HamiltonianOperations(KPTHCOps<M>&& other) : var(std::move(other)) {} 
 
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,true>&&);
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,false>&&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KPTHCOps<HOST_MEMORY>&&);
 
 #if defined(ENABLE_DEVICE)
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,true>&&);
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,false>&&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KPTHCOps<DEVICE_MEMORY>&&);
 #endif
 
 /*
@@ -84,9 +89,6 @@ namespace afqmc
 #endif
 // GPU enabled
 */
-
-//  explicit HamiltonianOperations(THCOps<MEM,true> const& other) = delete;
-//  explicit HamiltonianOperations(THCOps<MEM,false> const& other) = delete;
 
 /*
   explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix<device_allocator<SPComplexType>>> const& other) = delete;

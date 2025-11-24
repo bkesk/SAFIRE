@@ -58,6 +58,11 @@ class csr_matrix : public ucsr_matrix<ValType, MEM, IndxType, IntType>
   using base::row_begin_;
   using base::row_end_;
 
+protected:
+  // device copies, only populated if MEM==DEVICE_MEMORY
+  memory::array<MEM, IntType, 1> row_begin_dev_ = memory::array<MEM, IntType, 1>(0);
+  memory::array<MEM, IntType, 1> row_end_dev_ = memory::array<MEM, IntType, 1>(0);
+
 public:
   using base::reserve;
   using base::shape;
@@ -96,10 +101,24 @@ public:
   template<typename integer_type = long, typename = std::enable_if_t<std::is_integral_v<integer_type>>>
   csr_matrix(std::tuple<long,long> const& dims, integer_type nnzpr = 0) 
       : base(dims, nnzpr)
-  {}
+  {
+    if constexpr (MEM==DEVICE_MEMORY) {
+      row_begin_dev_.resize(size1_+1);
+      row_end_dev_.resize(size1_);
+      row_begin_dev_() = row_begin_(); 
+      row_end_dev_() = row_end_(); 
+    }
+  }
   csr_matrix(std::tuple<long, long> const& dims, ::nda::MemoryArrayOfRank<1> auto && nnzpr)
       : base(dims, nnzpr)
-  {}
+  {
+    if constexpr (MEM==DEVICE_MEMORY) {
+      row_begin_dev_.resize(size1_+1);
+      row_end_dev_.resize(size1_);
+      row_begin_dev_() = row_begin_();
+      row_end_dev_() = row_end_();    
+    }
+  }
 
   ~csr_matrix() = default;
 
@@ -121,6 +140,10 @@ public:
     jdata_ = other.columns();
     row_begin_ = other.row_begin();
     row_end_ = other.row_end();
+    if constexpr (MEM==DEVICE_MEMORY) {
+      row_begin_dev_ = row_begin_();
+      row_end_dev_ = row_end_();
+    }
   }
 
   template<typename val_t, MEMORY_SPACE mem_t, typename indx_t, typename int_t>
@@ -162,6 +185,10 @@ public:
     }
     data_() = data_h();
     jdata_() = jdata_h();
+    if constexpr (MEM==DEVICE_MEMORY) {
+      row_begin_dev_ = row_begin_();
+      row_end_dev_ = row_end_();
+    }
     return *this;
   }
 
@@ -192,6 +219,10 @@ public:
     }
     data_() = data_h();
     jdata_() = jdata_h();
+    if constexpr (MEM==DEVICE_MEMORY) {
+      row_begin_dev_ = row_begin_();
+      row_end_dev_ = row_end_();
+    }
     return *this;
   }
 
@@ -450,12 +481,14 @@ public:
   {
     assert(r.first() >= 0 && r.last() <= size1_);
     assert(r.first() < r.last());
+    // row_begin_ in host memory 
+    auto r0 = row_begin_(0);
+    ::nda::array<int_type, 1> row_b = row_begin_(r)-r0;
+    ::nda::array<int_type, 1> row_e = row_end_(r)-r0;
     return matrix_view({r.size(), size2_}, 
-              data_(::nda::range(row_begin_(r.first()),row_end_(r.last()))), 
-              jdata_(::nda::range(row_begin_(r.first() ),row_end_(r.last()))), 
-              row_begin_(::nda::range(r.first(),r.last()+1)),
-              row_end_(r) );
-
+              data_(::nda::range(row_begin_(r.first()),row_end_(r.last()-1))), 
+              jdata_(::nda::range(row_begin_(r.first() ),row_end_(r.last()-1))), 
+              row_b, row_e);
   }
 
   auto operator()(::nda::range r)
@@ -477,6 +510,20 @@ public:
   auto operator()() { return *this; }
   auto operator()() const { return *this; }
 
+  auto row_begin_device() const {
+    if constexpr (MEM==HOST_MEMORY) {
+      return row_begin_();
+    } else {
+      return row_begin_dev_();
+    } 
+  }
+  auto row_end_device() const {
+    if constexpr (MEM==HOST_MEMORY) {
+      return row_end_();
+    } else {
+      return row_end_dev_();
+    }
+  } 
 };
 
 } // namespace sparse

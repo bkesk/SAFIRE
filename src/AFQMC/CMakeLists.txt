@@ -21,6 +21,7 @@ set (AFQMC_SRCS
 #  Hamiltonians/ModelHamOpsGenerator.cpp
   Hamiltonians/HamiltonianFactory.cpp
   Hamiltonians/THCHamiltonian.cpp
+  Hamiltonians/KPTHCHamiltonian.cpp
   )
 
 add_library(afqmc ${AFQMC_SRCS})

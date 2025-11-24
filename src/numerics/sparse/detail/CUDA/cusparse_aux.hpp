@@ -179,8 +179,8 @@ auto cuCSR(csr& spA, ::nda::MemoryArrayOfRank<1> auto& ofs) {
     cusparseConstSpMatDescr_t cuA;
     auto [m, n] = spA.shape();
     if(ofs.extent(0) < m+1) ofs.resize(m+1);
-    ofs(::nda::range(m)) = spA.row_begin()(::nda::range(m));
-    ofs(::nda::range(m,m+1)) = spA.row_end()(::nda::range(m-1,m));
+    ofs(::nda::range(m)) = spA.row_begin_device()(::nda::range(m));
+    ofs(::nda::range(m,m+1)) = spA.row_end_device()(::nda::range(m-1,m));
     CUSPARSE_CHECK( cusparseCreateConstCsr, &cuA, m, n, spA.nnz(),
                     ofs.data(), spA.columns().data(), spA.values().data(),
                     cusparse_indextype<int_type>, cusparse_indextype<index_type>,
@@ -190,8 +190,8 @@ auto cuCSR(csr& spA, ::nda::MemoryArrayOfRank<1> auto& ofs) {
     cusparseSpMatDescr_t cuA;
     auto [m, n] = spA.shape();
     if(ofs.extent(0) < m+1) ofs.resize(m+1);
-    ofs(::nda::range(m)) = spA.row_begin()(::nda::range(m));
-    ofs(::nda::range(m,m+1)) = spA.row_end()(::nda::range(m-1,m));
+    ofs(::nda::range(m)) = spA.row_begin_device()(::nda::range(m));
+    ofs(::nda::range(m,m+1)) = spA.row_end_device()(::nda::range(m-1,m));
     CUSPARSE_CHECK( cusparseCreateCsr, &cuA, m, n, spA.nnz(),
                     ofs.data(), spA.columns().data(), spA.values().data(),
                     cusparse_indextype<int_type>, cusparse_indextype<index_type>,

@@ -18,10 +18,7 @@
  * ==========================================================================
  */
 
-
-
-#ifndef SPARSE_CSR_MATRIX_VIEW_HPP
-#define SPARSE_CSR_MATRIX_VIEW_HPP
+#pragma once
 
 #include <array>
 #include <cassert>
@@ -86,6 +83,9 @@ protected:
   row_array_t row_begin_;
   // location of last element of each row
   row_array_t row_end_;
+  // device copies
+  larray<IntType> row_begin_dev_;
+  larray<IntType> row_end_dev_;
 
 public:
 
@@ -105,9 +105,12 @@ public:
   {
     sfqmc::utils::check(row_begin_.size() == size1_+1, "Size mismatch");
     sfqmc::utils::check(row_end_.size() == size1_, "Size mismatch");
-    auto r0 = row_begin_(0);
-    row_begin_ -= r0;
-    row_end_ -= r0;
+    if constexpr (MEM==DEVICE_MEMORY) {
+      row_begin_dev_.resize(size1_+1);
+      row_end_dev_.resize(size1_);
+      row_begin_dev_() = row_begin_();
+      row_end_dev_() = row_end_();
+    }
   }
 
   ~csr_matrix_view() = default; 
@@ -120,8 +123,15 @@ public:
   // accessor functions
   auto shape() const { return std::array<long,2>{size1_,size2_}; } 
   auto shape(long i) const { return (i==0?size1_:size2_); } 
-  auto capacity()  const { return row_begin_(size1_)-row_begin_(0); } 
-  auto capacity(long i)  const { return row_begin_(i+1)-row_begin_(i); } 
+  auto extent(long i) const { return (i==0?size1_:size2_); }
+  auto capacity()  const { 
+    if(size1_*size2_==0) return int_type(0);
+    else return row_begin_(size1_)-row_begin_(0); 
+  }
+  auto capacity(long i)  const { 
+    if(size1_*size2_==0) return int_type(0);
+    else return row_begin_(i+1)-row_begin_(i); 
+  } 
   auto values() const { return data_(); }
   auto columns() const { return jdata_(); }
   auto row_begin() const { return row_begin_(); }
@@ -137,10 +147,21 @@ public:
     return n;
   }
   auto nnz(long i) const { return row_end_(i) - row_begin_(i); }
+  auto row_begin_device() const { 
+    if constexpr (MEM==DEVICE_MEMORY) 
+      return row_begin_dev_(); 
+    else 
+      return row_begin_(); 
+  }
+  auto row_end_device() const { 
+    if constexpr (MEM==DEVICE_MEMORY) 
+      return row_end_dev_(); 
+    else 
+      return row_end_(); 
+  }
 
 };
 
 } // sparse
 } // math
 
-#endif
