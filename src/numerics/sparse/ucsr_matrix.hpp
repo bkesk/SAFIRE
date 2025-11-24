@@ -50,6 +50,7 @@ namespace sparse
 template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
 class ucsr_matrix  
 {
+protected:
   template<typename T> 
   using larray = memory::array<MEM, T, 1>;
   using range  = ::nda::range;

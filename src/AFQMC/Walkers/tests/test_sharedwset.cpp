@@ -96,8 +96,9 @@ void test_basic_walker_features(std::string wtype)
   initA() = Type(0.0);
   for (int i = 0; i < nup; i++)
     initA(0,i,i) = Type(0.22);
-  for (int i = 0; i < ndown; i++)
-    initA(1,i,i) = Type(0.33);
+  if(wtype == "collinear")
+    for (int i = 0; i < ndown; i++)
+      initA(1,i,i) = Type(0.33);
   std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
   ptree wlk_pt;
@@ -220,7 +221,7 @@ void test_basic_walker_features(std::string wtype)
     auto F0 = wset.template getFields<MEM>(0);
     auto Fs = wset.template getFields<MEM>();
     memory::array<MEM,ComplexType,2> Fi(F0.shape());
-    Fi() = Fs(0,nda::ellipsis{}); 
+    Fi() = Fs(nda::range::all,0,nda::range::all); 
     wset.storeFields(1,Fi);
     auto WF = wset.template getWeightFactors<MEM>();
     auto WH = wset.template getWeightHistory<MEM>();

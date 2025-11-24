@@ -140,8 +140,9 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   mpi->comm.barrier();
   if (htype == KPTHC)
   {
-    utils::check(false," Error: KPTHC hamiltonian not yet working. ");
-//    return Hamiltonian(KPTHCHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
+    if(mpi->comm.root())
+      utils::check(format == "coqui", "Error: format: {} not yet implemented with this hamiltonian type.", format);
+    return Hamiltonian(KPTHCHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if (htype == KPFactorized)
   {

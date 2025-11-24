@@ -132,8 +132,8 @@ public:
     // v[nstot][nwalk=1][nptot*NMO][NMO]
     nda::array<ComplexType, 4> v;
     {
-      memory::buffered_array<MEM,ComplexType,2> vMF_2d(vMF.size(),1);
-      vMF_2d(all,0) = vMF();
+      memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
+      vMF_2d(0,all) = vMF();
       v = std::move(nda::to_host(vHS(vMF_2d, dt)));
     }
 
@@ -207,7 +207,6 @@ public:
     utils::check(G.extent(1) == nel*npol*NMO, "THC::energy: Size mismatch.");
     utils::check_strides(E,G);
     // limiting G to contiguous arrays for simplicity now, reconsider if necessary
-    utils::check(G.is_contiguous(), "Layout mismatch");
     RealType scl = (walker_type == CLOSED ? 2.0 : 1.0);
 
     // addH1
@@ -237,7 +236,7 @@ public:
     Bytes /= long((nu * nu + nu + nu * nup) * sizeof(ComplexType));
     int nwmax = std::min(nwalk, std::max(1, int(Bytes)));
     
-    // fine because G is assumed contiguous, otherwise build nda::idx_map with custom strides
+    utils::check(G.is_contiguous(), "Layout mismatch");
     memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel,npol*NMO},G.data());
 
     int iw(0);
@@ -568,13 +567,12 @@ public:
     using nda::range;
     auto all = range::all;
     int nchol = ( REAL ? _Luv_().extent(1) : 2 * _Luv_().extent(1) );
-    int nwalk = X.extent(1);
+    int nwalk = X.extent(0);
     long nstot = _Xsiu_().shape()[0];
     long nptot = _Xsiu_().shape()[1]/NMO;
     utils::check_strides(X);
     // limiting X/v to contiguous arrays for simplicity now, reconsider if necessary
-    utils::check(X.is_contiguous(), "Layout mismatch");
-    utils::check(X.shape() == std::array<long,2>{nchol,nwalk}, "THC::vbias: Size mismatch.");
+    utils::check(X.shape() == std::array<long,2>{nwalk,nchol}, "THC::vbias: Size mismatch.");
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
@@ -602,7 +600,7 @@ public:
     memory::array_view<MEM,const RealType,2> Luv2(std::array<long,2>{nu,nchol},reinterpret_cast<RealType const*>(Luv.data()));
 
     // T[u][w] = sum_v L[u][v] * X[v][w] 
-    nda::tensor::contract(X_r,"vwc",Luv2,"uv",Twu_r,"wuc");
+    nda::tensor::contract(X_r,"wvc",Luv2,"uv",Twu_r,"wuc");
 
     // v[w][is*npol+ip][i][j] = sum_u conj(X[is][ip*NMO+i][u]) * X[is][ip*NMO+j][u] * T[u][w] 
     int iw(0);
@@ -666,13 +664,12 @@ public:
     int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
     utils::check_strides(G,v);
     // limiting G to contiguous arrays for simplicity now, reconsider if necessary
-    utils::check(G.is_contiguous(), "Layout mismatch");
-    utils::check(v.is_contiguous(), "Layout mismatch");
-    utils::check(v.shape() == std::array<long,2>{nchol,nwalk}, "THC::vbias: Size mismatch.");
+    utils::check(v.shape() == std::array<long,2>{nwalk,nchol}, "THC::vbias: Size mismatch.");
     if(haj.extent(0) == 1) // ndet==1, G half rotated
       utils::check(G.extent(1) == nel*npol*NMO, "THC::vbias: Size mismatch.");
     else // ndet>1, full G 
       utils::check(G.extent(1) == nspin*npol*NMO*npol*NMO, "THC::vbias: Size mismatch.");
+    utils::check(G.is_contiguous(), "Layout mismatch");
 
     // scale a by sqrt(dt)
     RealType a(std::sqrt(dt));
@@ -689,7 +686,7 @@ public:
       auto Guu_3d= memory::to_real_view(Guu);
       auto v_3d = memory::to_real_view(v);
       memory::array_view<MEM,const RealType,2> Luv2(std::array<long,2>{nu,nchol},reinterpret_cast<RealType const*>(Luv.data()));
-      nda::tensor::contract(a,Luv2,"uv",Guu_3d,"wuc",RealType(0.0),v_3d,"vwc");
+      nda::tensor::contract(a,Guu_3d,"wuc",Luv2,"uv",RealType(0.0),v_3d,"wvc");
     }
     else
     {

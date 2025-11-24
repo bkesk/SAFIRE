@@ -161,7 +161,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   }
 
   Time.reset();
-  memory::array<MEM,ComplexType,2> X(wfn.number_of_cholesky_vectors(),nwalk);
+  memory::array<MEM,ComplexType,2> X(nwalk,wfn.number_of_cholesky_vectors());
   wfn.vbias(wset, X, dt);
   {
     auto X_h = nda::to_host(X);
@@ -170,16 +170,16 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     {
       for (int n = 0; n < nwalk; n++)
       {
-        Xsum = nda::sum(X_h(all,n));
+        Xsum = nda::sum(X_h(n,all));
         REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
         REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
       }
     }
     else
     {
-      Xsum = nda::sum(X_h(all,0));
+      Xsum = nda::sum(X_h(0,all));
       ComplexType Xsum2 = 0;
-      for (auto& v: X_h(all,0) )
+      for (auto& v: X_h(0,all) )
         Xsum2 += ComplexType(0.5) * v * v; 
       app_log(1," Xsum: {}", Xsum);
       app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);

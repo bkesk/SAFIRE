@@ -376,7 +376,7 @@ public:
       if (wlk_desc[6] > 0 && his_pos >= 0 && his_pos < wlk_desc[6])
       {
         nda::blas::scal(ComplexType(w0), 
-                bp_buffer(data_displ[WEIGHT_HISTORY] + his_pos, nda::range(tot_num_walkers)));
+                bp_buffer(nda::range(tot_num_walkers), data_displ[WEIGHT_HISTORY] + his_pos));
       }
     }
   }
@@ -482,25 +482,32 @@ public:
     using nda::range;
     utils::check(_M_ == MEM, "Incompatible memory space");
     utils::check(ip>=0 and ip<wlk_desc[3], " Error: index out of bounds in getFields. ");
-    long i0 = (data_displ[FIELDS] + ip * wlk_desc[4]) * bp_buffer.extent(1);
-    return memory::array_view<_M_,ComplexType,2>({wlk_desc[4],bp_buffer.extent(1)},bp_buffer.data() + i0);
+    long i0 = (data_displ[FIELDS] + ip * wlk_desc[4]);
+    long nw = bp_buffer.extent(0);
+    std::array<long,2> shape = {nw,wlk_desc[4]};
+    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,bp_buffer.strides());
+    return memory::array_view<_M_,ComplexType,2>(idxm, bp_buffer.data() + i0);
   }
 
   template<MEMORY_SPACE _M_>
   auto getFields()
   {
     utils::check(_M_ == MEM, "Incompatible memory space");
-    long i0 = data_displ[FIELDS] * bp_buffer.extent(1);
-    return memory::array_view<_M_,ComplexType,3>({wlk_desc[3], wlk_desc[4], bp_buffer.extent(1)}, bp_buffer.data() + i0);
+    long i0 = data_displ[FIELDS];
+    long nw = bp_buffer.extent(0);
+    std::array<long,3> shape = {nw,wlk_desc[3],wlk_desc[4]};
+    std::array<long,3> strides = {bp_buffer.strides()[0],wlk_desc[4],1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<_M_,ComplexType,3>(idxm, bp_buffer.data() + i0);
   }
 
   void storeFields(int ip, nda::MemoryArrayOfRank<2> auto&& V)
   {
     utils::check(ip>=0 and ip<wlk_desc[3], " Error: index out of bounds in getFields. ");
-    utils::check(V.shape() == std::array<long,2>{wlk_desc[4],bp_buffer.extent(1)}, 
+    long nw = bp_buffer.extent(0);
+    utils::check(V.shape() == std::array<long,2>{nw,wlk_desc[4]}, 
                  "Shape mismatch");
-    long i0 = (data_displ[FIELDS] + ip * wlk_desc[4]) * bp_buffer.extent(1);
-    auto F = memory::array_view<MEM,ComplexType,2>({wlk_desc[4],bp_buffer.extent(1)},bp_buffer.data() + i0);
+    auto F = getFields<MEM>(ip);
     F() = V();
   }
 
@@ -509,8 +516,11 @@ public:
   {
     using nda::range;
     utils::check(_M_ == MEM, "Incompatible memory space");
-    long i0 = data_displ[WEIGHT_FAC] * bp_buffer.extent(1);
-    return memory::array_view<_M_,ComplexType,2>({wlk_desc[6], bp_buffer.extent(1)}, bp_buffer.data() + i0);
+    long i0 = data_displ[WEIGHT_FAC];
+    long nw = bp_buffer.extent(0);
+    std::array<long,2> shape = {nw,wlk_desc[6]};
+    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,bp_buffer.strides());
+    return memory::array_view<_M_,ComplexType,2>(idxm, bp_buffer.data() + i0);
   }
 
   template<MEMORY_SPACE _M_>
@@ -518,8 +528,11 @@ public:
   {
     using nda::range;
     utils::check(_M_ == MEM, "Incompatible memory space");
-    long i0 = data_displ[WEIGHT_HISTORY] * bp_buffer.extent(1);
-    return memory::array_view<_M_,ComplexType,2>({wlk_desc[6], bp_buffer.extent(1)}, bp_buffer.data() + i0);
+    long i0 = data_displ[WEIGHT_HISTORY];
+    long nw = bp_buffer.extent(0);
+    std::array<long,2> shape = {nw,wlk_desc[6]};
+    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,bp_buffer.strides());
+    return memory::array_view<_M_,ComplexType,2>(idxm, bp_buffer.data() + i0);
   }
 
   double getLogOverlapFactor() const { return LogOverlapFactor; }

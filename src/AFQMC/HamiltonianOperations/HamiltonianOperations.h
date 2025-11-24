@@ -24,6 +24,7 @@
 //#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
 //#endif
 #include "AFQMC/HamiltonianOperations/THCOps.hpp"
+#include "AFQMC/HamiltonianOperations/KPTHCOps.hpp"
 //#include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
 //#include "AFQMC/HamiltonianOperations/Real3IndexFactorization_batched_v2.hpp"
 //#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
@@ -44,6 +45,8 @@ public:
 
   HamiltonianOperations(THCOps<MEM,true>&& other);
   HamiltonianOperations(THCOps<MEM,false>&& other);
+
+  HamiltonianOperations(KPTHCOps<MEM>&& other);
 
 /*
   // host only !
@@ -74,6 +77,7 @@ public:
 */
   explicit HamiltonianOperations(THCOps<MEM,true> const& other) = delete;
   explicit HamiltonianOperations(THCOps<MEM,false> const& other) = delete;
+  explicit HamiltonianOperations(KPTHCOps<MEM> const& other) = delete;
 /*
   explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
   explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
@@ -206,7 +210,7 @@ public:
 
   private:
 
-  std::variant<THCOps<MEM,true>, THCOps<MEM,false>> var;
+  std::variant<THCOps<MEM,true>, THCOps<MEM,false>, KPTHCOps<MEM>> var;
 
   // makes instantiations easier
   nda::array<ComplexType,3> getOneBodyPropagatorMatrix_impl(double dt,

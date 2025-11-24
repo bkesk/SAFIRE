@@ -91,11 +91,6 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   long nv_rot = 0; // number of columns of Vuv matrix
   long have_rot_coul = 0;  
     
-  // todo:
-  // 1. spinful basis
-  // 2. kpoints
-  // 3. ndet>1
-
   // only root reads
   h5::file file;
   std::optional<h5::group> grp, hgrp;

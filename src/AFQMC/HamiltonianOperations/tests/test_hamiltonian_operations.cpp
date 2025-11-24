@@ -126,7 +126,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     }
   }
   auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);
-
+return;
   memory::array<MEM,ComplexType,3> G(nwalk, nel, npol * NMO);
   memory::array<MEM,ComplexType,1> ovlp(nwalk,ComplexType(0.0)); 
   
@@ -160,15 +160,15 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   double dt = 0.01;
   auto nCV  = HOps.number_of_cholesky_vectors();
 
-  memory::array<MEM,ComplexType,2> X(nCV, nwalk);
+  memory::array<MEM,ComplexType,2> X(nwalk, nCV);
   X() = ComplexType(0.0);
   HOps.vbias(G2d, X, dt);
   ComplexType Xsum = 0, Xsum2 = 0;
   auto X_h = nda::to_host(X);
   for (int i = 0; i < nCV; i++)
   {
-    Xsum += X_h(i,0);
-    Xsum2 += ComplexType(0.5) * X_h(i,0) * X_h(i,0);
+    Xsum += X_h(0,i);
+    Xsum2 += ComplexType(0.5) * X_h(0,i) * X_h(0,i);
   }
   if (std::abs(file_data.Xsum) > 1e-8)
   {

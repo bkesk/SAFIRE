@@ -52,30 +52,6 @@ namespace sfqmc
 {
 using namespace afqmc;
 
-/*
-inline std::tuple<int, int, int> read_info_from_h5(std::string fileName)
-{
-  h5::file file(fileName,'r');
-  h5::group grp(file);
-  auto format = get_hamiltonian_format(grp);
-  if(format=="std") {
-    utils::check(grp.has_subgroup("Hamiltonian"), "Missing Hamiltonian dataset.");
-    h5::group hgrp = grp.open_group("Hamiltonian");
-    std::vector<int> Idata(8);
-    h5::h5_read(hgrp,"dims",Idata);
-    return std::make_tuple(Idata[3], Idata[4], Idata[5]);
-  } else if(format=="coqui") {
-    int NMO=0;
-    utils::check(grp.has_subgroup("System"), "Missing Hamiltonian dataset.");
-    h5::group hgrp = grp.open_group("System");
-    h5::h5_read_attribute(hgrp,"number_of_bands",NMO);
-    return std::make_tuple(NMO,1,1);
-  }
-  utils::check(false, "Invalid format.");
-  return std::make_tuple(0,0,0); 
-}
-*/
-
 template<MEMORY_SPACE MEM>
 void ham_factory(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                  std::string hamil_file) 

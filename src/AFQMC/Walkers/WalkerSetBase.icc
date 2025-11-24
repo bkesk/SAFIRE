@@ -102,7 +102,7 @@ void WalkerSetBase<_M_>::parse(ptree pt_in)
   io::tolower(pop_control_type);
   if (pop_control_type.find("pair") != std::string::npos)
   {
-    app_log(1," Using population control algorithm based on paired walker branching ( a la QWalk). ");
+    app_log(1," Using population control algorithm based on paired walker branching. ");
     pop_control = PAIR;
   }
   else if (pop_control_type.find("serial_comb") != std::string::npos)
@@ -217,7 +217,7 @@ template<MEMORY_SPACE _M_>
 bool WalkerSetBase<_M_>::clean()
 {
   walker_buffer.resize(0, walker_size);
-  bp_buffer.resize(bp_walker_size, 0);
+  bp_buffer.resize(0, bp_walker_size);
   tot_num_walkers = targetN = targetN_per_rank = 0;
   return true;
 }
@@ -241,15 +241,15 @@ void WalkerSetBase<_M_>::reserve(int n)
       walker_buffer() = ComplexType(0.0);
     }
   }
-  if (bp_buffer.extent(1) < n || bp_buffer.extent(0) != bp_walker_size)
+  if (bp_buffer.extent(0) < n || bp_buffer.extent(1) != bp_walker_size)
   {
-    if(bp_walker_size > 0 and bp_buffer.extent(0) == bp_walker_size and bp_buffer.extent(1) > 0) {
+    if(bp_walker_size > 0 and bp_buffer.extent(1) == bp_walker_size and bp_buffer.extent(0) > 0) {
       memory::array<MEM, ComplexType, 2> tmp(bp_buffer);
-      bp_buffer.resize(bp_walker_size,n);
+      bp_buffer.resize(n,bp_walker_size);
       bp_buffer() = ComplexType(0.0);
-      bp_buffer(nda::range::all,nda::range(tmp.extent(0))) = tmp();
+      bp_buffer(nda::range(tmp.extent(0)),nda::range::all) = tmp();
     } else {
-      bp_buffer.resize(bp_walker_size, n);
+      bp_buffer.resize(n,bp_walker_size);
       bp_buffer() = ComplexType(0.0);
     }
   }
@@ -456,9 +456,9 @@ void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<3> auto const& A)
 template<MEMORY_SPACE _M_>
 void WalkerSetBase<_M_>::resize_bp(int nbp, int nCV, int nref)
 {
+  utils::check(walker_buffer.extent(0) == bp_buffer.extent(0), "Size mismatch.");
+  utils::check(bp_buffer.extent(1) == bp_walker_size, "Size mismatch.");
   utils::check(walker_buffer.extent(1) == walker_size, "Size mismatch.");
-  utils::check(bp_buffer.extent(0) == bp_walker_size, "Size mismatch.");
-  utils::check(walker_buffer.extent(0) == bp_buffer.extent(1), "Size mismatch.");
   // wlk_descriptor: {nmo, naea, naeb, nback_prop, nCV, nRefs, nHist}
   wlk_desc[3] = nbp;
   wlk_desc[4] = nCV;
@@ -492,11 +492,11 @@ void WalkerSetBase<_M_>::resize_bp(int nbp, int nCV, int nref)
   data_displ[WEIGHT_HISTORY] = cnt;
   cnt += wlk_desc[6];
   bp_walker_size = cnt;
-  if (bp_buffer.extent(0) != bp_walker_size)
+  if (bp_buffer.extent(1) != bp_walker_size)
   {
-    bp_buffer.resize(bp_walker_size, walker_buffer.extent(0));
+    bp_buffer.resize(walker_buffer.extent(0), bp_walker_size);
     bp_buffer() = ComplexType(0.0);
-    bp_buffer(nda::range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6]), nda::range::all) = ComplexType(1.0);
+    bp_buffer(nda::range::all, nda::range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6])) = ComplexType(1.0);
   }
   if (nbp > 0 && (data_displ[SMN] < 0 || data_displ[SM_AUX] < 0))
   {
@@ -523,7 +523,7 @@ void WalkerSetBase<_M_>::push_walkers(nda::MemoryArrayOfRank<2> auto&& M)
   {
     walker_buffer(tot_num_walkers, all) = M(i, nda::range(walker_size));
     if (wlk_desc[3] > 0)
-      bp_buffer(all,tot_num_walkers) = M(i, nda::range(walker_size,walker_size+bp_walker_size));
+      bp_buffer(tot_num_walkers,all) = M(i, nda::range(walker_size,walker_size+bp_walker_size));
     tot_num_walkers++;
   }
 }
@@ -540,7 +540,7 @@ void WalkerSetBase<_M_>::pop_walkers(nda::MemoryArrayOfRank<2> auto&& M)
   {
     M(i, nda::range(walker_size)) =  walker_buffer(tot_num_walkers-1, all); 
     if (wlk_desc[3] > 0)
-      M(i, nda::range(walker_size,walker_size+bp_walker_size)) = bp_buffer(all,tot_num_walkers-1);
+      M(i, nda::range(walker_size,walker_size+bp_walker_size)) = bp_buffer(tot_num_walkers-1,all);
     tot_num_walkers--;
   }
 }
@@ -597,7 +597,7 @@ void WalkerSetBase<_M_>::branch(It itbegin, It itend, nda::MemoryArrayOfRank<2> 
       std::swap(*kill, *keep);
       walker_buffer(std::distance(itbegin, kill),all) = walker_buffer(tot_num_walkers - 1,all);
       if (wlk_desc[3] > 0)
-        bp_buffer(all,std::distance(itbegin, kill)) = bp_buffer(all,tot_num_walkers - 1);
+        bp_buffer(std::distance(itbegin, kill),all) = bp_buffer(tot_num_walkers - 1,all);
       --tot_num_walkers;
       --keep;
     }
@@ -629,26 +629,26 @@ void WalkerSetBase<_M_>::branch(It itbegin, It itend, nda::MemoryArrayOfRank<2> 
     {
       nda::tensor::set(ComplexType(itbegin->first, 0.0),walker_buffer(pos,nda::range(data_displ[WEIGHT],data_displ[WEIGHT]+1)));
       if (wlk_desc[6] > 0 && his_pos >= 0 && his_pos < wlk_desc[6])
-        nda::tensor::set(ComplexType(itbegin->first, 0.0),bp_buffer(data_displ[WEIGHT_HISTORY] + his_pos,nda::range(pos,pos+1)));
+        nda::tensor::set(ComplexType(itbegin->first, 0.0),bp_buffer(nda::range(pos,pos+1),data_displ[WEIGHT_HISTORY] + his_pos));
     }
     else
     {
       int n = std::min(targetN_per_rank - tot_num_walkers, itbegin->second - 1);
       nda::tensor::set(ComplexType(itbegin->first, 0.0),walker_buffer(pos,nda::range(data_displ[WEIGHT],data_displ[WEIGHT]+1)));
       if (wlk_desc[6] > 0 && his_pos >= 0 && his_pos < wlk_desc[6])
-        nda::tensor::set(ComplexType(itbegin->first, 0.0),bp_buffer(data_displ[WEIGHT_HISTORY] + his_pos,nda::range(pos,pos+1)));
+        nda::tensor::set(ComplexType(itbegin->first, 0.0),bp_buffer(nda::range(pos,pos+1),data_displ[WEIGHT_HISTORY] + his_pos));
       for (int i = 0; i < n; i++)
       {
         walker_buffer(tot_num_walkers,all) = walker_buffer(pos,all);
         if (wlk_desc[3] > 0)
-          bp_buffer(all,tot_num_walkers) = bp_buffer(all,pos);
+          bp_buffer(tot_num_walkers,all) = bp_buffer(pos,all);
         tot_num_walkers++;
       }
       for (int i = 0, in = itbegin->second - 1 - n; i < in; i++, cnt++)
       {
         M(cnt,nda::range(walker_size)) = walker_buffer(pos,all);  
         if (wlk_desc[3] > 0)
-          M(cnt,nda::range(walker_size, walker_size + bp_walker_size)) = bp_buffer(all,pos);  
+          M(cnt,nda::range(walker_size, walker_size + bp_walker_size)) = bp_buffer(pos,all);  
       }
     }
   }

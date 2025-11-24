@@ -76,6 +76,14 @@ WALKER_TYPES getWalkerType(std::string filename, std::string type)
   h5::file file(filename,'r');
   h5::group grp(file);
   h5::group wgrp = grp.open_group("Wavefunction");
+  if(type == "any") {
+    if( wgrp.has_key("NOMSD") )
+      type = "NOMSD";
+    else if( wgrp.has_key("PHMSD") )
+      type = "PHMSD";
+    else
+      utils::check(false,"Missing NOMSD/PHMSD datasets in Wavefunction.");
+  }
   utils::check(wgrp.has_key(type), "Error in getWavefunctionDims: Missing wfn type:{}",type);
   h5::group ngrp = wgrp.open_group(type);
   std::vector<int> Idata(5);
