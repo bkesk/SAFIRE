@@ -10,6 +10,7 @@
 
 from warnings import warn
 import itertools
+import functools
 
 import numpy as np
 import scipy.sparse as sps
@@ -31,8 +32,10 @@ def skip_empty_params(func):
     -----
     This decorator is useful for functions that would attempt to build
        an empty Hamiltonian component if the parameters are all zero. None is interpreted as zero.
+    This decorator preserves the original docstring of the decorated function.
     """
 
+    @functools.wraps(func)
     def wrapper(self, params, *args, **kwargs):
         """
         Wrapper function to check if all parameters are zero before calling. None is interpreted as zero.
@@ -83,6 +86,7 @@ def iterate_nth_order(start_n=1):
         the starting index for the nth_neighbor parameter
     """
     def decorator(func):
+        @functools.wraps(func)
         def wrapper(self,params,*args,**kwargs):
             params = np.array(params)
             if len(params.shape) in {0,2}:
