@@ -513,9 +513,10 @@ def average_spinspin(filename, estimator='back_propagated', eqlb=1, blocksize=1,
 
     # reshape upper triangular data to full matrix
     SS = numpy.zeros((2,nbasis,nbasis),dtype=mean.dtype)
-    SS[:,*numpy.triu_indices(nbasis)] = mean.reshape(2,-1)
+    triu_idx = numpy.triu_indices(nbasis)
+    SS[:, triu_idx[0], triu_idx[1]] = mean.reshape(2,-1)
     SS_err = numpy.zeros_like(SS)
-    SS_err[:,*numpy.triu_indices(nbasis)] = err.reshape(2,-1)
+    SS_err[:, triu_idx[0], triu_idx[1]] = err.reshape(2,-1)
     for i in range(2):
       SS[i]  += numpy.triu(SS[i],k=1).T.conj()
       SS_err[i]  += numpy.triu(SS_err[i],k=1).T.conj()
