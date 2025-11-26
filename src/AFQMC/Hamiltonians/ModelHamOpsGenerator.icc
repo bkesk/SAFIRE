@@ -11,9 +11,6 @@
  *
  */
 
-#include "Numerics/detail/utilities.hpp"
-#include "Numerics/csr_blas.hpp"
-#include "SparseMatrix/csr_matrix_construct.hpp"
 #include<unordered_map>
 
 namespace sfqmc
@@ -21,6 +18,7 @@ namespace sfqmc
 namespace afqmc
 {
 
+/*
 // "upgrade" tij to the appropriate format for the current walker type.
 // abort if spin is not consistent  
 // Returns a copy of the final hij (before linearization) used in Sparse1Body.
@@ -91,9 +89,9 @@ SparseEnergy<MP,REAL> ModelHamOpsGenerator::make_SparseEnergy(TaskGroup_& TGwfn,
   // to avoid extra logic, see below
   int SX = (type == NONCOLLINEAR ? 0 : 1 );
 
-  /**********************************************************/
+  / **********************************************************/
   // create mapping  
-  /**********************************************************/
+  /********************************************************** /
   if( TGwfn.Global().root() ) {
 
     std::vector<size_t> IJ;
@@ -233,9 +231,9 @@ SparseEnergy<MP,REAL> ModelHamOpsGenerator::make_SparseEnergy(TaskGroup_& TGwfn,
     
   }
 
-  /**********************************************************/
+  / **********************************************************/
   // count energy elements per row
-  /**********************************************************/
+  /********************************************************** /
   // COLLINEAR
   // nnz_VJ[S][n], S: 0-up/up, 1-dn/dn, 2-dn/up
   // nnz_VX[S][n], S: 0-up/up, 2-dn/dn 
@@ -374,9 +372,9 @@ SparseEnergy<MP,REAL> ModelHamOpsGenerator::make_SparseEnergy(TaskGroup_& TGwfn,
                          nnz_VX[0], Alloc(TGwfn.Node())));
   }
 
-  /**********************************************************/
+  / **********************************************************/
   // assemble VJ/VX 
-  /**********************************************************/
+  /********************************************************** /
   if( TGwfn.Node().root() ) {
     SPValueType minus(-1.0);
     for(size_t i=0; i<M; ++i) {
@@ -660,7 +658,7 @@ Vector<size_t> ModelHamOpsGenerator::find_occupied_pairs(WALKER_TYPES type,
   return n2IJ; 
 }
 
-/*
+/ *
  * Calculates HS potentials, along with constant 1-body terms.
  * By convention, we define vHS with a factor of 'i' not included (based on the continuous
  * transformation as the original default, so a factor of '-i' is included in vn to compensate
@@ -677,7 +675,7 @@ Vector<size_t> ModelHamOpsGenerator::find_occupied_pairs(WALKER_TYPES type,
  *  not yet have the mean field averages of onsite densities), we initalize
  *  structures in the discrete with the continuouas routines. The prefactors
  *  are fixed in the HamOps class.
- */
+ * /
 template<bool MP, bool REAL, class csrM, class IArr, class map_t>
 void ModelHamOpsGenerator::addComponent(TaskGroup_& TGwfn, WALKER_TYPES wtype, PropagatorTypes ptype, 
      csrM& U, csrM& J, std::vector<ModelComponent<MP,REAL>>& Hams, 
@@ -908,6 +906,7 @@ void ModelHamOpsGenerator::addComponent(TaskGroup_& TGwfn, WALKER_TYPES wtype, P
                        Discrete_GeneralUJ<MP,REAL>(TGwfn,wtype,ptype,
 						std::move(h0),Vn,VnT,U,shift_1body) ) );
 }
+*/
 
 } // namespace afqmc
 

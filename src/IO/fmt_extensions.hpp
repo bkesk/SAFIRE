@@ -17,12 +17,10 @@
 #include <vector>
 //#include "nda/nda.hpp"
 
-
 #if defined(ENABLE_SPDLOG)
 
 #include <spdlog/fmt/bundled/format.h>
 
-namespace sfqmc {
 template <> struct fmt::formatter<std::complex<double>> {
   constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
     auto it = ctx.begin(), end = ctx.end();
@@ -123,7 +121,6 @@ struct fmt::formatter<Arr>
 
 };
 */
-}
 
 #else
 

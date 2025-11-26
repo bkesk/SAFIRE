@@ -121,6 +121,7 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
         h5::h5_read_attribute(*hgrp,"frozen_core_energy",FrozenCoreEnergy);
       if( H5Aexists(h5::hid_t(*hgrp),"madelung_constant") ) {
         h5::h5_read_attribute(*hgrp,"madelung_constant",ElecSelfIntEnergy);
+std::cout<<" madelung: " <<ElecSelfIntEnergy <<" " <<nup <<" " <<ndown <<std::endl;
         ElecSelfIntEnergy *= -1.0*(nup+ndown);
       }
     }

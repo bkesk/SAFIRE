@@ -126,7 +126,6 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     }
   }
   auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);
-return;
   memory::array<MEM,ComplexType,3> G(nwalk, nel, npol * NMO);
   memory::array<MEM,ComplexType,1> ovlp(nwalk,ComplexType(0.0)); 
   
@@ -181,12 +180,12 @@ return;
     app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
   }
 
-  auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(all,0));
+  auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
   REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
 
-  auto vHS_dims = HOps.vHS_dims();
+  auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
   auto vHS = HOps.vHS(X,dt);
-  REQUIRE( vHS.shape() == std::array<long,4>{vHS_dims[0],nwalk,vHS_dims[1]*NMO,NMO} );
+  REQUIRE( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
   auto vHS_h = nda::to_host(vHS);
   ComplexType Vsum = 0;
   for (int i = 0; i < vHS.extent(2); i++)

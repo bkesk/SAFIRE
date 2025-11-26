@@ -85,16 +85,27 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   // THC variables
   long nspin_in_file = nspin;
   long npol_in_file = npol;
+  // ISDF variables
   long nu = 1; // number of interpolating points/vectors
   long nv = 1; // number of columns of Vuv matrix
   long nu_rot = 1; // number of interpolating points/vectors
   long nv_rot = 1; // number of columns of Vuv matrix
   long have_rot_coul = 0;  
+  // BZ variables
   long nkpts = 1;
   long nkpts_ibz = 1;
-  long nqpts = 1;
   long nqpts_ibz = 1;
   long nbnd = 1; 
+  long Q0_index = 0;
+  nda::array<int,1> minusq;
+  nda::array<int,2> qk_to_k2;
+  nda::array<int,1> kp_to_ibz; 
+  nda::array<int,1> qp_to_ibz; 
+  nda::array<bool,1> kp_trev;  
+  nda::array<bool,1> qp_trev;  
+  nda::array<int,1> kp_trev_pair;
+  nda::array<double,2> qpoints; 
+  long number_of_trev_kpoint_pairs=0;
   
   // only root reads
   h5::file file;
@@ -115,7 +126,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       h5::h5_read_attribute(bz,"number_of_kpoints_ibz",n);
       nkpts_ibz = long(n); 
       h5::h5_read_attribute(bz,"number_of_qpoints",n);
-      nqpts = long(n); 
+      utils::check(n==nkpts, base_error + "nqpts != nkpts, nqpts:{}, nkpts:{}",n,nkpts);
       h5::h5_read_attribute(bz,"number_of_qpoints_ibz",n);
       nqpts_ibz = long(n); 
       // nbnd
@@ -134,6 +145,27 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                    base_error + " Incompatible nspin:{} in h5 file.",nspin_in_file);
 //      utils::check((npol_in_file==1) or (npol_in_file==npol), 
 //                   base_error + " Incompatible npol:{} in h5 file.",npol_in_file);
+      minusq.resize(nkpts);
+      nda::h5_read(bz,"qminus",minusq);
+      qk_to_k2.resize(nkpts,nkpts);
+      nda::h5_read(bz,"qk_to_k2",qk_to_k2);
+      qp_to_ibz.resize(nkpts);
+      nda::h5_read(bz,"qp_to_ibz",qp_to_ibz);
+      kp_trev.resize(nkpts);
+      nda::h5_read(bz,"kp_trev",kp_trev);
+      kp_trev_pair.resize(nkpts);
+      nda::h5_read(bz,"kp_trev_pair",kp_trev_pair);
+      qp_trev.resize(nkpts);
+      nda::h5_read(bz,"qp_trev",qp_trev);
+      qpoints.resize(nkpts,3);
+      nda::h5_read(bz,"qpoints",qpoints);
+      Q0_index=-1;
+      for(int i=0; i<nkpts; i++)
+        if(nda::sum(qpoints(i,all)*qpoints(i,all)) < 1e-8) {
+          utils::check(Q0_index<0, "Error: Multiple points with Q=0: {}, {}",Q0_index,i);
+          Q0_index = i;
+        }
+      utils::check(Q0_index>=0, "Error: Problems finding Q=0");
     }
     // read from /Interaction 
     {
@@ -157,7 +189,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       utils::check(nkpts==n,base_error + " Incompatible nkpts:{} in h5::/Interaction.",n);
       // nqpts
       h5::h5_read_attribute(igrp,"number_of_qpoints",n);
-      utils::check(nqpts==n,base_error + " Incompatible nqpts:{} in h5::/Interaction.",n);
+      utils::check(nkpts==n,base_error + " Incompatible nqpts:{} in h5::/Interaction.",n);
       // now read dimensions
       auto lX = h5::array_interface::get_dataset_info(igrp,"collocation_matrix");
       nu = lX.lengths[3];
@@ -200,8 +232,16 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   mpi->comm.broadcast_value(nbnd);
   mpi->comm.broadcast_value(nkpts);
   mpi->comm.broadcast_value(nkpts_ibz);
-  mpi->comm.broadcast_value(nqpts);
   mpi->comm.broadcast_value(nqpts_ibz);
+  mpi->comm.broadcast_value(Q0_index);
+  if(not mpi->comm.root()) {
+    minusq.resize(nkpts);
+    qk_to_k2.resize(nkpts,nkpts);
+  }
+  mpi->broadcast(minusq);
+  mpi->broadcast(qk_to_k2);
+
+  utils::check(nqpts_ibz==nkpts, "Error: Symmetry not yet implemented.");
 
   // allocate and read H1. 
   // H0: /System/H0:   [nspin][nkpts][npol*nbnd][npol*nbnd]
@@ -347,7 +387,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
             // sum over q
             Tuv() = ComplexType(0.0);
             Wuv() = ComplexType(0.0);
-            for(long iq=0; iq<nqpts; iq++) {
+            for(long iq=0; iq<nkpts; iq++) {
               int k2 = 0; // qp_to_k2(ik,iq);  // no symmetry yet!!!
               auto Xiu_k2 = Xsiu()(is,k2,range(ip*nbnd,(ip+1)*nbnd),all);
               auto Zu = (*Zuv)()(iq,all,all);
@@ -417,9 +457,10 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   mpi->comm.barrier();
 
   ComplexType E0 = NuclearCoulombEnergy + FrozenCoreEnergy;
-  return HamiltonianOperations<MEM>(KPTHCOps<MEM>(mpi,type,NMO,nup,ndn,nkpts,
-     std::move(H1),std::move(haj),std::move(Xsiu),std::move(Ydsau),std::move(Luv),std::move(Zuv),
-     std::move(Xsiu_rot),std::move(Ydsau_rot),std::move(Zuv_rot),std::move(v0),E0)); 
+  return HamiltonianOperations<MEM>(KPTHCOps<MEM>(mpi,type,NMO,nup,ndn,nkpts,Q0_index,std::move(nocc),
+     std::move(minusq),std::move(qk_to_k2),std::move(H1),std::move(haj),std::move(Xsiu),
+     std::move(Ydsau),std::move(Luv),std::move(Zuv),std::move(Xsiu_rot),std::move(Ydsau_rot),
+     std::move(Zuv_rot),std::move(v0),E0)); 
 }
 
 template HamiltonianOperations<HOST_MEMORY> 

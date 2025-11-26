@@ -121,9 +121,10 @@ public:
   }
 */
 
-  memory::buffered_array<MEM,ComplexType,4> vHS(nda::MemoryArrayOfRank<2> auto const& X, double dt)
+  memory::buffered_array<MEM,ComplexType,4> vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
   {
-    return vHS_impl(X(),dt);
+    auto X_ = X();
+    return vHS_impl(X_,dt);
   }
 
 /*
@@ -202,7 +203,7 @@ public:
 
   int number_of_ke_vectors() const;
 
-  std::array<int,2> vHS_dims() const;
+  std::tuple<int,int> vHS_dims() const;
 
   HamiltonianTypes getHamType() const;
 
@@ -221,7 +222,7 @@ public:
 
   void vbias_impl(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto& v, double dt);
 
-  memory::buffered_array<MEM,ComplexType,4> vHS_impl(nda::MemoryArrayOfRank<2> auto const& X, double dt);
+  memory::buffered_array<MEM,ComplexType,4> vHS_impl(nda::MemoryArrayOfRank<2> auto & X, double dt);
 };
 
 } // namespace afqmc

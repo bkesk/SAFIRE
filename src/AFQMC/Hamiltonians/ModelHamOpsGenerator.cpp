@@ -18,55 +18,29 @@
 #include <vector>
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
-#include "hdf/hdf_archive.h"
+#include "utilities/check.hpp"
 
 #include "AFQMC/config.h"
-#include "SparseMatrix/csr_hdf5_readers.hpp"
-#include "Numerics/csr_blas.hpp"
 
 #include "ModelHamOpsGenerator.h"
-#include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
-#include "AFQMC/HamiltonianOperations/ModelComponents/SparseEnergy.hpp"
-#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
+//#include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
+//#include "AFQMC/HamiltonianOperations/ModelComponents/SparseEnergy.hpp"
+//#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
-
-template<bool MP, bool REAL> HamiltonianOperations<MP> 
+template<MEMORY_SPACE MEM, bool REAL> HamiltonianOperations<MEM> 
 ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
-                                                    std::vector<PsiT_Matrix>& PsiT,
-                                                    TaskGroup_& TGprop,   
-                                                    TaskGroup_& TGwfn,    
-                                                    [[maybe_unused]] hdf_archive& hdf_restart)
+                 std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+                 nda::array<PsiT_Matrix<MEM>,2> const& PsiT)
 {
-  using SPComplexType = typename to_working_precision<MP,ComplexType>::type;
-
+/*
   using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
-  using SPValueType   = typename to_working_precision<MP,ValueType  >::type;
-
-  using shmSpCMatrix   = Matrix<SPComplexType, shared_allocator<SPComplexType>>;
 
   if(type == CLOSED)
     APP_ABORT(" Error in ModelHamOpsGenerator::getHamiltonianOperations: CLOSED walker types not allowed with Model Hamiltonians. "); 
-
-  if(TGprop.TG_local().size() > 1 or
-     TGwfn.TG_local().size() > 1)
-    APP_ABORT(" Error: ncores>1 not allowed with Model Hamiltonians. \n\n");
-
-  if(TGprop.getNGroupsPerTG() > 1 or
-     TGwfn.getNGroupsPerTG() > 1)
-    APP_ABORT(" Error: nnodes>1 not allowed with Model Hamiltonians. \n\n");
-
-  // for now, limiting PsiC to a standard dense matrix.
-  // not clear if sparse matrices are useful since trial wfns tend to be dense-ish
-  using PsiC_Mat_Type = shmSpCMatrix;
-
-  using Alloc = shared_allocator<SPValueType>;
-  using shm_csrMat = ma::sparse::csr_matrix<SPValueType, int, int,
-                                    shared_allocator<SPValueType>, ma::sparse::is_root>;
 
   // make sure there is at least 1 one-body hamiltonian in the components
   bool one_body_term(false);
@@ -123,7 +97,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   shm_csrMat hij(tp_ul_ul{0,0}, tp_ul_ul{0, 0}, 0, Alloc(TGwfn.Node()));
 
   // accumulating terms 
-  /*
+  / *
    * Map:
    *   collect_U  ( opposite spin from 0-M, same spin from M-2M )  
    *   0: continuous charge 
@@ -134,7 +108,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
    *   0: continuous charge 
    *   1: continuous spin 
    *   2: empty-container, for call to addComponent with discrete 
-   */
+   * /
   std::vector<shm_csrMat> collect_U;  
   std::vector<shm_csrMat> collect_J;
   collect_U.reserve(4);
@@ -371,20 +345,19 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   using devSpCMatrix  = Matrix<SPComplexType, device_allocator<SPComplexType>>;
   return HamiltonianOperations<MP>(ModelHamOps<MP,REAL,devSpCMatrix>(TGwfn, type, std::move(PsiC), 
                         std::move(ET), std::move(Hams), n2IJ, sparse_g_eval)); 
+*/
+  return HamiltonianOperations<MEM>{};
 }
 
-template<bool MP> HamiltonianOperations<MP> 
+template<MEMORY_SPACE MEM> HamiltonianOperations<MEM> 
 ModelHamOpsGenerator::getHamiltonianOperations(WALKER_TYPES type,
-                                               std::vector<PsiT_Matrix>& PsiT,
-                                               TaskGroup_& TGprop,   
-                                               TaskGroup_& TGwfn,    
-                                               hdf_archive& hdf_restart)
+                 std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+                 nda::array<PsiT_Matrix<MEM>,2> const& PsiT)
 {
-  bool Real;
+  bool Real = false;
+/*
+  if(mpi->comm.root()) {
 
-  if(TG.Global().root()) {
-
-    hdf_archive dump{};
     if (!dump.open(fileName, H5F_ACC_RDONLY))
       APP_ABORT(" Error opening integral file in ModelHamOpsGenerator. ");
     if (dump.push("Hamiltonian", false)<0)
@@ -450,20 +423,24 @@ ModelHamOpsGenerator::getHamiltonianOperations(WALKER_TYPES type,
     dump.pop();
     dump.close();
   }
-  TG.Global().broadcast_n(&Real, 1, 0);
-
+*/
+  mpi->comm.broadcast_n(&Real, 1, 0);
   if(Real)
-    return getHamiltonianOperations_impl<MP,true>(type, PsiT, TGprop, TGwfn, hdf_restart);
+    return getHamiltonianOperations_impl<MEM,true>(type, mpi, PsiT);
   else
-    return getHamiltonianOperations_impl<MP,false>(type, PsiT, TGprop, TGwfn, hdf_restart);
+    return getHamiltonianOperations_impl<MEM,false>(type, mpi, PsiT);
 }   
 
-template HamiltonianOperations<true> 
-ModelHamOpsGenerator::getHamiltonianOperations<true>(WALKER_TYPES,
-                std::vector<PsiT_Matrix>&,TaskGroup_&,TaskGroup_&,hdf_archive&);
-template HamiltonianOperations<false> 
-ModelHamOpsGenerator::getHamiltonianOperations<false>(WALKER_TYPES,
-                std::vector<PsiT_Matrix>&,TaskGroup_&,TaskGroup_&,hdf_archive&);
+template HamiltonianOperations<HOST_MEMORY> 
+ModelHamOpsGenerator::getHamiltonianOperations<HOST_MEMORY>(WALKER_TYPES,
+     std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>,
+     nda::array<PsiT_Matrix<HOST_MEMORY>,2>const&);
+#if defined(ENABLE_DEVICE)
+template HamiltonianOperations<DEVICE_MEMORY>
+ModelHamOpsGenerator::getHamiltonianOperations<DEVICE_MEMORY>(WALKER_TYPES,
+     std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>,
+     nda::array<PsiT_Matrix<DEVICE_MEMORY>,2>const&);
+#endif
 
 } // namespace afqmc
 } // namespace sfqmc

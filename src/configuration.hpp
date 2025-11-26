@@ -235,8 +235,10 @@ namespace detail
 
     if constexpr (nda::is_complex_v<value_type>) {
       static_assert(A::is_stride_order_C() or A::is_stride_order_Fortran(), "Stride order mismatch");
-      if(a.indexmap().min_stride() != 1)
-        sfqmc::APP_ABORT(std::source_location::current(), "Strides mismatch");
+      if(a.indexmap().min_stride() != 1) {
+        std::source_location loc = std::source_location::current();
+        sfqmc::APP_ABORT_with_source(loc, "Strides mismatch");
+      } 
       if constexpr (A::is_stride_order_C()) {
         std::array<long,rank+1> shape;
         std::copy_n(a.shape().begin(),rank,shape.begin());

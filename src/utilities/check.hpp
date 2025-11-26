@@ -35,9 +35,9 @@ struct check
   {
     if(not cond) {
       if constexpr (sizeof...(Args) > 0)
-        APP_ABORT(loc, format_string, std::forward<Args>(args)...);
+        APP_ABORT_with_source(loc, format_string, std::forward<Args>(args)...);
       else
-        APP_ABORT(loc, format_string);
+        APP_ABORT_with_source(loc, format_string);
     }
   }
 };
