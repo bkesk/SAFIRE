@@ -128,7 +128,7 @@ void APP_ABORT(const std::string_view format_string, Args&&... args)
 }
 
 template<class... Args>
-void APP_ABORT(const std::source_location& loc, const std::string_view format_string, Args&&... args)
+void APP_ABORT_with_source(const std::source_location& loc, const std::string_view format_string, Args&&... args)
 {
   std::cerr<<"**********************************************\n";
   std::cerr<<"        APPLICATION ABORT: Fatal Error.\n";
