@@ -22,15 +22,18 @@
 #if defined(ENABLE_CPPTRACE)     
 #include <cpptrace/cpptrace.hpp>
 #endif
+#if defined(ENABLE_SPDLOG)
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
+#else
+#include <format>
+#endif
 
 namespace sfqmc {
 
 extern bool __app_stacktrace__;
 
 #if defined(ENABLE_SPDLOG)
-
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/stdout_color_sinks.h"
 
 template<class... Args>
 void APP_ABORT(Args&&... args)
@@ -63,7 +66,7 @@ void APP_ABORT(Args&&... args)
 }
 
 template<class... Args>
-void APP_ABORT(const std::source_location& loc = std::source_location::current(), Args&&... args)
+void APP_ABORT_with_source(const std::source_location& loc = std::source_location::current(), Args&&... args)
 {
   auto l = spdlog::get("err_console");
   if(not l)
@@ -98,7 +101,6 @@ void APP_ABORT(const std::source_location& loc = std::source_location::current()
 
 #else
 
-#include <format>
 template<class... Args>
 void APP_ABORT(const std::string_view format_string, Args&&... args)
 {
@@ -152,7 +154,6 @@ void APP_ABORT(const std::source_location& loc, const std::string_view format_st
   std::cerr.flush();
   MPI_Abort(MPI_COMM_WORLD, 1);
 }
-
 
 #endif // ENABLE_SPDLOG
 

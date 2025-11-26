@@ -263,7 +263,7 @@ __vbias__(DEVICE_MEMORY)
   }
 
   template<MEMORY_SPACE M>
-  std::array<int,2> HamiltonianOperations<M>::vHS_dims() const
+  std::tuple<int,int> HamiltonianOperations<M>::vHS_dims() const
   {
     return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
   }
@@ -282,14 +282,14 @@ __vbias__(DEVICE_MEMORY)
   
   template int HamiltonianOperations<HOST_MEMORY>::number_of_cholesky_vectors() const;
   template int HamiltonianOperations<HOST_MEMORY>::number_of_ke_vectors() const;
-  template std::array<int,2> HamiltonianOperations<HOST_MEMORY>::vHS_dims() const;
+  template std::tuple<int,int> HamiltonianOperations<HOST_MEMORY>::vHS_dims() const;
   template HamiltonianTypes HamiltonianOperations<HOST_MEMORY>::getHamType() const;
   template nda::array<int,1> HamiltonianOperations<HOST_MEMORY>::getFieldTypes() const;
 
 #if defined(ENABLE_DEVICE)
   template int HamiltonianOperations<DEVICE_MEMORY>::number_of_cholesky_vectors() const;
   template int HamiltonianOperations<DEVICE_MEMORY>::number_of_ke_vectors() const;
-  template std::array<int,2> HamiltonianOperations<DEVICE_MEMORY>::vHS_dims() const;
+  template std::tuple<int,int> HamiltonianOperations<DEVICE_MEMORY>::vHS_dims() const;
   template HamiltonianTypes HamiltonianOperations<DEVICE_MEMORY>::getHamType() const;
   template nda::array<int,1> HamiltonianOperations<DEVICE_MEMORY>::getFieldTypes() const;
 #endif

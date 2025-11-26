@@ -707,7 +707,7 @@ public:
   
   /// Returns the number of spins and polarizations in the VHS potential.
   auto vHS_dims() const {
-    return std::array<int,2>{_Xsiu_().shape()[0],_Xsiu_().shape()[1]/NMO};
+    return std::make_tuple(_Xsiu_().shape()[0],_Xsiu_().shape()[1]/NMO);
   }
   bool distribution_over_cholesky_vectors() const { return false; }
   int number_of_ke_vectors() const { 
