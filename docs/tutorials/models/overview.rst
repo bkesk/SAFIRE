@@ -43,10 +43,10 @@ and,
 :math:`\mu` / :math:`\nu` are compound indices, :math:`\mu = (i,p,m)` / :math:`\mu = (j,q,n)`, that include the lattice site index, (:math:`i` / :math:`j`), sublattice, (:math:`p` / :math:`q`) and band (:math:`m` / :math:`n`) indices.
 This is known as the Hubbard-Kanamori Hamiltonian.
 Many standard model Hamiltonians can be written in this language including the standard Hubbard model,
-extendended Hubbard with nearest-neighbor :math:`V`, etc.
+extended Hubbard with nearest-neighbor :math:`V`, etc.
 SAFIRE is agnostic to the details of the compound indices.
 It simply accepts Hamiltonian "components" which are interpreted as above.
-This provides great flexibilty in specifying Hamiltonians; however, if Hamiltonians are generated externally, care must be taken
+This provides great flexibility in specifying Hamiltonians; however, if Hamiltonians are generated externally, care must be taken
 to ensure that consistent index conventions are used.
 
 ``afqmctools`` provides a framework for building lattice model Hamiltonians that can generate broad classes of lattice model Hamiltonians
@@ -119,10 +119,10 @@ and some of the main features of SAFIRE.
 Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
-1. `Hello AuxiliaryFields <https://colab.research.google.com/drive/1kqn73xjyg7WVulaBEcIxx5HbpvFTUr1d>`_ `🛠️ Under construction 🛠️` : just swap out the H2 mol for 4x4 Hubbard (closed shell case)
+1. `Hello AuxiliaryFields <https://colab.research.google.com/drive/1zfdEh-c1mClzhXGOVdzANNzyhG1gBMBG>`_ `🧑‍💻 ready for edits 🧑‍💻`
 2. `Understanding the input file <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`_ `🧑‍💻 ready for edits 🧑‍💻`
 3. `Setting up a Lattice <https://colab.research.google.com/drive/1fefjMiXED0shSl4RJKv3Zu93l9FOw5sj>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `Building and writing a Hamiltonian <https://colab.research.google.com/drive/1LMxAtaSkE1-zIKAlEBu66MFarzgHZ-8i>`_ `🛠️ Under construction 🛠️` : Add in concrete examples for each interaction, update names and links
+4. `Building and writing a Hamiltonian <https://colab.research.google.com/drive/1LMxAtaSkE1-zIKAlEBu66MFarzgHZ-8i>`_ `🧑‍💻 ready for edits 🧑‍💻`
 5. `(optional) Finer control of the Hamiltonian <https://colab.research.google.com/drive/1iUBLuxhuvfbNOYgT-K63_HrL-pzVq25g>`_ `🛠️ Under construction 🛠️`
 6. `Writing a Trial wavefunction <https://colab.research.google.com/drive/1OxejnAc2_3a5OsCFligaHTwOkZJduMea>`_ `🧑‍💻 ready for edits 🧑‍💻`
 7. `autoHF crash course <https://colab.research.google.com/drive/1Bgp8PN_PEm7ZwR-qH2J0DOy6NuwrV8kw#scrollTo=VjaOtDOltPAj>`_ `💭 Idea 💭`
