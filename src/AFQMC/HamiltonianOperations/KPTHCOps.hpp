@@ -655,7 +655,7 @@ public:
   
   /// Returns the number of spins and polarizations in the VHS potential.
   auto vHS_dims() const {
-    return std::make_tuple(_Xsiu_().shape()[0],_Xsiu_().shape()[2]/NMO);
+    return std::make_tuple(_Xsiu_().shape()[0],_Xsiu_().shape()[2]/nbnd);
   }
   int number_of_ke_vectors() const { 
     utils::check(_Zuv_.has_value() or _Zuv_rot_.has_value(), "Missing Zuv/Zuv_rot.");
