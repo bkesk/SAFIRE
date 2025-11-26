@@ -11,22 +11,19 @@
  *
  */
 
-#ifndef SFQMC_AFQMC_MODELHAMOPSGENERATOR_H
-#define SFQMC_AFQMC_MODELHAMOPSGENERATOR_H
+#pragma once
 
 #include <iostream>
 #include <vector>
 #include <map>
 #include <fstream>
 
-#include "hdf/hdf_archive.h"
-#include "io/ptree/ptree_utilities.hpp"
-#include "Utilities/app_loggers.h"
-
+#include "IO/ptree/ptree_utilities.hpp"
+#include "IO/app_loggers.h"
+#include "utilities/mpi_context.h"
+    
 #include "AFQMC/config.h"
-#include "Memory/utilities.hpp"
-#include "AFQMC/Utilities/taskgroup.h"
-#include "Numerics/ma_operations.hpp"
+#include "nda/h5.hpp"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 
@@ -39,11 +36,9 @@ class ModelHamOpsGenerator : public AFQMCInfo
 public:
   ModelHamOpsGenerator(AFQMCInfo const& info,
                        ptree pt_in,
-                       TaskGroup_& tg_,
                        ComplexType nucE = 0,
                        ComplexType fzcE = 0)
       : AFQMCInfo(info), 
-        TG(tg_), 
         NuclearCoulombEnergy(nucE), 
         FrozenCoreEnergy(fzcE)
   {
@@ -61,24 +56,19 @@ public:
 
   ~ModelHamOpsGenerator() {}
 
-  ModelHamOpsGenerator(ModelHamOpsGenerator const& other) = delete;
+  ModelHamOpsGenerator(ModelHamOpsGenerator const& other) = default;
   ModelHamOpsGenerator(ModelHamOpsGenerator&& other)      = default;
-  ModelHamOpsGenerator& operator=(ModelHamOpsGenerator const& other) = delete;
-  ModelHamOpsGenerator& operator=(ModelHamOpsGenerator&& other) = delete;
+  ModelHamOpsGenerator& operator=(ModelHamOpsGenerator const& other) = default;
+  ModelHamOpsGenerator& operator=(ModelHamOpsGenerator&& other) = default;
 
   ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
-  template<bool MP>
-  HamiltonianOperations<MP> getHamiltonianOperations(WALKER_TYPES type,
-                                                     std::vector<PsiT_Matrix>& PsiT,
-                                                     TaskGroup_& TGprop,
-                                                     TaskGroup_& TGwfn,
-                                                     hdf_archive& hdf_restart);
+  HamiltonianTypes getHamType() const { return ModelHamiltonian; }
 
-  HamiltonianTypes getHamType()
-  {
-    return ModelHamiltonian;
-  }
+  template<MEMORY_SPACE MEM>
+  HamiltonianOperations<MEM> getHamiltonianOperations(WALKER_TYPES type,
+                 std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+                 nda::array<PsiT_Matrix<MEM>,2> const& PsiT);
 
   static ptree interpret_inputs(const ptree pt0)
   {
@@ -105,9 +95,6 @@ public:
 
 protected:
 
-  // for hamiltonian distribution
-  TaskGroup_& TG;
-
   // nuclear coulomb term
   ComplexType NuclearCoulombEnergy = 0.0;
   ComplexType FrozenCoreEnergy = 0.0;
@@ -117,28 +104,30 @@ protected:
   bool sparse_1body = true;
   bool shift_1body = false;
 
+/*
   template<class csrM>
   csrM spin_to_walker_type(WALKER_TYPES type, std::string stype, csrM& hij); 
 
-  template<bool MP, bool REAL, class csrM>
-  SparseEnergy<MP,REAL> make_SparseEnergy(TaskGroup_& tg_, WALKER_TYPES type, csrM& hij, 
-                                 csrM& combined_U, csrM& combined_J, ComplexType E0);
+  template<MEMORY_SPACE MEM, bool REAL, class csrM>
+  SparseEnergy<MEM,REAL> make_SparseEnergy(WALKER_TYPES type, 
+           std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+           csrM& hij, csrM& combined_U, csrM& combined_J, ComplexType E0);
 
   template<class csrM>
   Vector<size_t> find_occupied_pairs(WALKER_TYPES type, 
                       std::vector<csrM>& U, std::vector<csrM>& J);
 
-  template<bool MP, bool REAL, class csrM, class IArr, class map_t>
-  void addComponent(TaskGroup_& tg_, WALKER_TYPES type, PropagatorTypes ptype, 
-                      csrM& U, csrM& J, std::vector<ModelComponent<MP,REAL>>& Hams, 
-                      IArr& n2IJ, map_t& IJ2n);
+  template<MEMORY_SPACE MEM, bool REAL, class csrM, class IArr, class map_t>
+  void addComponent(WALKER_TYPES type, PropagatorTypes ptype, 
+           std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi
+           csrM& U, csrM& J, std::vector<ModelComponent<MEM,REAL>>& Hams, 
+           IArr& n2IJ, map_t& IJ2n);
+*/
+  template<MEMORY_SPACE MEM, bool REAL>
+  HamiltonianOperations<MEM> getHamiltonianOperations_impl(WALKER_TYPES type,
+                 std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+                 nda::array<PsiT_Matrix<MEM>,2> const& PsiT);
 
-  template<bool MP, bool REAL>
-  HamiltonianOperations<MP> getHamiltonianOperations_impl(WALKER_TYPES type,
-                                                         std::vector<PsiT_Matrix>& PsiT,
-                                                         TaskGroup_& TGprop,   
-                                                         TaskGroup_& TGwfn,    
-                                                         hdf_archive& hdf_restart);
 };
 
 } // namespace afqmc
@@ -146,4 +135,3 @@ protected:
 
 #include "AFQMC/Hamiltonians/ModelHamOpsGenerator.icc"
 
-#endif

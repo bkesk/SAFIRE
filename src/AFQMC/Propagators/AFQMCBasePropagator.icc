@@ -265,7 +265,7 @@ void AFQMCBasePropagator<MEM>::BackPropagate(int nbpsteps, int nStabalize, WlkSe
   TG.TG_local().barrier();
 }
 
-/*
+/ *
  * Propagate "operator states" forward in time using stored fields.
  * /
 template<MEMORY_SPACE MEM>

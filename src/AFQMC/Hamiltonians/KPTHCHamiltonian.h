@@ -65,15 +65,12 @@ public:
 
   ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
+  HamiltonianTypes getHamType() const { return KPTHC; }
+
   template<MEMORY_SPACE MEM>
   HamiltonianOperations<MEM> getHamiltonianOperations(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, 
                  nda::array<PsiT_Matrix<MEM>,2> const& PsiT);
-
-  HamiltonianTypes getHamType()
-  {
-    return THC;
-  }
 
   static ptree interpret_inputs(const ptree pt0)
   {

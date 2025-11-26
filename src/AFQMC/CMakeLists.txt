@@ -18,7 +18,7 @@ set (AFQMC_SRCS
 #  Hamiltonians/KPFactorizedHamiltonian.cpp
 #  Hamiltonians/RealDenseHamiltonian.cpp
 #  Hamiltonians/RealDenseHamiltonian_v2.cpp
-#  Hamiltonians/ModelHamOpsGenerator.cpp
+  Hamiltonians/ModelHamOpsGenerator.cpp
   Hamiltonians/HamiltonianFactory.cpp
   Hamiltonians/THCHamiltonian.cpp
   Hamiltonians/KPTHCHamiltonian.cpp

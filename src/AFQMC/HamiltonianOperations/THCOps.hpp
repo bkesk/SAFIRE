@@ -16,9 +16,7 @@
 
 #pragma once
 
-
 #include "configuration.hpp"
-#include "nda/nda.hpp"
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp"
 #include "utilities/check.hpp"
@@ -128,6 +126,7 @@ public:
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nstot = hij.extent(0);
     int nptot = hij.extent(1)/NMO;
+    utils::check(vMF.size() == number_of_cholesky_vectors(), "Size mismatch");
 
     // v[nstot][nwalk=1][nptot*NMO][NMO]
     nda::array<ComplexType, 4> v;
@@ -264,8 +263,8 @@ public:
               for(int i=0; i<nw; ++i)
                 Guv(i,nda::ellipsis{}) *= Zuv();
             } else {
-              nda::tensor::elementwise(ComplexType(1.0),Guv,"wuv",
-                                       ComplexType(1.0),Zuv,"uv",nda::tensor::op::MUL);
+              nda::tensor::elementwise(ComplexType(1.0),Zuv,"uv",
+                                       ComplexType(1.0),Guv,"wuv",nda::tensor::op::MUL);
             }
 
             // R[w,u][b] = sum_v Guv[w,u][v] * rotcXau[b][v]
@@ -307,7 +306,7 @@ public:
 	} else {
           nda::blas::gemm(Guu,Zuv,Twu);
 	}
-        nda::tensor::contract(ComplexType(RealType(0.5 * scl * scl)),Guu,"wu",Twu,"wu",
+        nda::tensor::contract(ComplexType(RealType(0.5 * scl * scl)),nda::conj(Guu),"wu",Twu,"wu",
                               ComplexType(0.0),Ew,"w"); 
 // NEED ACCUMULATE WITH CASTING
         if constexpr (MEM==HOST_MEMORY) 
@@ -561,7 +560,7 @@ public:
 
   // returns v[nwalk, nspin_in_basis*npol_in_basis, NMO, NMO]
   // no spin-orbit vHS yet
-  auto vHS(nda::MemoryArrayOfRank<2> auto const& X, double dt)
+  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
   {
     memory::check_memory_space<MEM>(X);
     using nda::range;
@@ -709,7 +708,6 @@ public:
   auto vHS_dims() const {
     return std::make_tuple(_Xsiu_().shape()[0],_Xsiu_().shape()[1]/NMO);
   }
-  bool distribution_over_cholesky_vectors() const { return false; }
   int number_of_ke_vectors() const { 
     utils::check(_Zuv_.has_value() or _Zuv_rot_.has_value(), "Missing Zuv/Zuv_rot.");
     if(_Zuv_.has_value()) return _Zuv_->extent(0);
@@ -719,8 +717,6 @@ public:
 
   bool fast_ph_energy() const { return false; }
   // add nspin_in_basis to allow for a spin independent basis too
-  bool spin_dependent_vHS() const 
-  { return (_Xsiu_().shape()[0] > 0) or (_Xsiu_().shape()[1]/NMO > 0); } 
   nda::array<ComplexType, 2> getHSPotentials() 
   { return nda::array<ComplexType, 2>{}; }
 

@@ -79,17 +79,14 @@ public:
 
   ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
+  HamiltonianTypes getHamType() const { return KPFactorized; }
+
   template<bool MP>
   HamiltonianOperations<MP> getHamiltonianOperations(WALKER_TYPES type,
                                                      std::vector<PsiT_Matrix>& PsiT,
                                                      TaskGroup_& TGprop,
                                                      TaskGroup_& TGwfn,
                                                      hdf_archive& hdf_restart);
-
-  HamiltonianTypes getHamType()
-  { 
-    return KPFactorized; 
-  }
 
   static ptree interpret_inputs(const ptree pt0)
   {

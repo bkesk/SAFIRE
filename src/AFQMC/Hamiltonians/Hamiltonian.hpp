@@ -21,7 +21,7 @@
 
 #include "AFQMC/config.h"
 
-//#include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
+#include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
 #include "AFQMC/Hamiltonians/KPTHCHamiltonian.h"
 //#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
@@ -41,14 +41,14 @@ public:
   Hamiltonian() = default; 
   explicit Hamiltonian(THCHamiltonian&& other) : var(std::move(other)) {}
   explicit Hamiltonian(KPTHCHamiltonian&& other) : var(std::move(other)) {}
-//  explicit Hamiltonian(ModelHamOpsGenerator&& other) : variant(std::move(other)) {}
-//  explicit Hamiltonian(KPFactorizedHamiltonian&& other) : variant(std::move(other)) {}
-//  explicit Hamiltonian(RealDenseHamiltonian&& other) : variant(std::move(other)) {}
-//  explicit Hamiltonian(RealDenseHamiltonian_v2&& other) : variant(std::move(other)) {}
+  explicit Hamiltonian(ModelHamOpsGenerator&& other) : var(std::move(other)) {}
+//  explicit Hamiltonian(KPFactorizedHamiltonian&& other) : var(std::move(other)) {}
+//  explicit Hamiltonian(RealDenseHamiltonian&& other) : var(std::move(other)) {}
+//  explicit Hamiltonian(RealDenseHamiltonian_v2&& other) : var(std::move(other)) {}
 
   explicit Hamiltonian(THCHamiltonian const& other) : var(other) {}  
   explicit Hamiltonian(KPTHCHamiltonian const& other) : var(other) {}  
-//  explicit Hamiltonian(ModelHamOpsGenerator const& other)              = delete;
+  explicit Hamiltonian(ModelHamOpsGenerator const& other) : var(other) {}
 //  explicit Hamiltonian(KPFactorizedHamiltonian const& other) = delete;
 //  explicit Hamiltonian(RealDenseHamiltonian const& other)    = delete;
 //  explicit Hamiltonian(RealDenseHamiltonian_v2 const& other) = delete;
@@ -71,15 +71,14 @@ public:
 	return a.template getHamiltonianOperations<MEM>(std::forward<Args>(args)...); }, var);
   }
 
-  HamiltonianTypes getHamType()
+  HamiltonianTypes getHamType() const
   {
     return std::visit([&](auto&& a) { return a.getHamType(); }, var);
   }
 
   private:
 
-    std::variant<THCHamiltonian,KPTHCHamiltonian
-//              ,ModelHamOpsGenerator 
+    std::variant<THCHamiltonian,KPTHCHamiltonian,ModelHamOpsGenerator 
 //              ,KPFactorizedHamiltonian
 //              ,RealDenseHamiltonian
 //              ,RealDenseHamiltonian_v2

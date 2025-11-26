@@ -11,71 +11,50 @@
  *
  */
 
-#ifndef SFQMC_AFQMC_HAMILTONIANOPERATIONS_MODELHAMOPS_HPP
-#define SFQMC_AFQMC_HAMILTONIANOPERATIONS_MODELHAMOPS_HPP
+#pragma once
 
 #include <vector>
 #include <type_traits>
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
 #include "AFQMC/config.h"
-#include "mpi3/shared_communicator.hpp"
-#include "multi/array.hpp"
-#include "multi/array_ref.hpp"
-#include "Numerics/ma_operations.hpp"
-//#include "Memory/buffer_managers.h"
+#include "nda/nda.hpp"                                 
+#include "nda/tensor.hpp"
+#include "utilities/check.hpp"
+#include "utilities/mpi_context.h"
+#include "utilities/check_strides.hpp"
+#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/nda_functions.hpp"
 
-#include "AFQMC/Utilities/type_conversion.hpp"
-#include "AFQMC/Utilities/taskgroup.h"
-
-#include "AFQMC/HamiltonianOperations/ModelComponents/SparseEnergy.hpp"
-#include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
+//#include "AFQMC/HamiltonianOperations/ModelComponents/SparseEnergy.hpp"
+//#include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
 
-template<bool MP, bool REAL, class OrbitalMatrixType>
+template<MEMORY_SPACE MEM, bool REAL, nda::MemoryMatrix OrbitalMatrixType>
 class ModelHamOps
 {
-  using SPComplexType = typename to_working_precision<MP,ComplexType>::type;
-  using SPRealType    = typename to_working_precision<MP,RealType   >::type;
-
   using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
-  using SPValueType   = typename to_working_precision<MP,ValueType  >::type;
-
-  using device_alloc_type  = DeviceBufferManager::template allocator_t<SPComplexType>;  
-
-  using pointer                 = typename std::allocator_traits<device_allocator<SPComplexType>>::pointer;
-  using const_pointer           = typename std::allocator_traits<device_allocator<SPComplexType>>::const_pointer;
-
-  using StaticVector  = StaticArray<SPComplexType, 1, device_alloc_type>;
-  using StaticMatrix  = StaticArray<SPComplexType, 2, device_alloc_type>;
-  using Static3Tensor = StaticArray<SPComplexType, 3, device_alloc_type>;
-  using Static4Tensor = StaticArray<SPComplexType, 4, device_alloc_type>;
-
-  using CMatrix_ref   = Array_ref<SPComplexType, 2, pointer>; 
-  using CMatrix_cref   = Array_ref<SPComplexType const, 2, const_pointer>; 
-  using C4Tensor_ref  = Array_ref<SPComplexType , 4, pointer>;
-  using C4Tensor_cref  = Array_ref<SPComplexType const, 4, const_pointer>;
 
 public:
   static const HamiltonianTypes HamOpType = ModelHamiltonian; 
   HamiltonianTypes getHamType() const { return ModelHamiltonian; }
 
+  ModelHamOps() {};
+/*
   template<class MatO, class IVec>
-// requires: {Psi(std::move(psi_)) is valid}, {hij(std::move(hij_)) is valid}, ... 
-  ModelHamOps(afqmc::TaskGroup_& tg_,
-                          WALKER_TYPES type,
-                          std::vector<MatO>&& psi_,
-                          SparseEnergy<MP,REAL>&& et_,
-                          std::vector<ModelComponent<MP,REAL>>&& h_,
-                          IVec&& n2ij_,
-                          bool sparse_g_eval_ = true 
-                )
-      : TG(tg_),
+  ModelHamOps(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
+              WALKER_TYPES type,
+              std::vector<MatO>&& psi_,
+              SparseEnergy<MP,REAL>&& et_,
+              std::vector<ModelComponent<MP,REAL>>&& h_,
+              IVec&& n2ij_,
+              bool sparse_g_eval_ = true 
+             )
+      : mpi(_mpi),
         walker_type(type),
         PsiC(std::move(move_vector<OrbitalMatrixType>(std::move(psi_)))),
         ET(std::move(et_)),
@@ -118,17 +97,19 @@ public:
 
     TG.Node().barrier();
   }
+*/
 
   ~ModelHamOps() {}
 
-  ModelHamOps(const ModelHamOps& other) = delete;
-  ModelHamOps& operator=(const ModelHamOps& other) = delete;
+  ModelHamOps(const ModelHamOps& other) = default;
+  ModelHamOps& operator=(const ModelHamOps& other) = default;
   ModelHamOps(ModelHamOps&& other)                 = default;
-  ModelHamOps& operator=(ModelHamOps&& other) = delete;
+  ModelHamOps& operator=(ModelHamOps&& other) = default;
 
-  boost::multi::array<ComplexType, 2> getOneBodyPropagatorMatrix(TaskGroup_& TG_, double dt, 
-                                     boost::multi::array<ComplexType, 1> const& vMF)
+  nda::array<ComplexType,3> getOneBodyPropagatorMatrix(double dt,
+                                                       nda::MemoryVector auto const& vMF)
   {
+/*
     RUNTIME_CHECK(vMF.size(0) == local_nCV, ""); 
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nspin = (walker_type == COLLINEAR) ? 2 : 1;
@@ -177,6 +158,7 @@ public:
     }
 
     return H1;
+*/
   }
 
   template<class TVec>
@@ -185,10 +167,18 @@ public:
     for(int i=0; i<Hams.size(); i++) 
       Hams[i].getFieldTypes(v.sliced(field_pos[i],field_pos[i+1]));
   }
+  nda::array<int,1> getFieldTypes() const {
+    int nvc = number_of_cholesky_vectors();
+    nda::array<int,1> v(nvc);
+//    for(int i=0; i<Hams.size(); i++)
+//      Hams[i].getFieldTypes(v.(nda::range(field_pos[i],field_pos[i+1]))); 
+    return v;
+  }
  
   template<class Vec, class Vec2>
   void update_potentials(double dt, Vec&& nMF, Vec2&& vMF, bool natural_shift)
   {
+/*
     if(IJ2n.size()==0) {
       IJ2n.reserve(n2IJ.size());
       for(int n=0; n<n2IJ.size(); n++)
@@ -197,16 +187,17 @@ public:
     for(int i=0; i<Hams.size(); i++) 
       Hams[i].update(dt,std::forward<Vec>(nMF),n2IJ,IJ2n,
 		     vMF.sliced(field_pos[i],field_pos[i+1]),natural_shift);
+*/
   }
 
-  template<class Mat, class MatB>
-  void energy(Mat&& E,
-              MatB const& Gc,
-              int nd,
-              bool addE1  = true,
+  void energy(nda::MemoryArrayOfRank<2> auto && E,
+              nda::MemoryArrayOfRank<2> auto const& G,
+              int idet,
+              bool addH1  = true,
               bool addEJ  = true,
               bool addEXX = true)
   {
+/*
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int NMO   = PsiC[0].size(0) / npol;
@@ -275,8 +266,9 @@ public:
       ma::dot('N','N', ComplexType(1.0), EJn[0], EJn[1],
                        ComplexType(1.0), E.rotated()[2].unrotated());
 
+*/
   }
-
+/*
   template<class Mat, class MatB, class MatC,
 	typename = std::enable_if_t<std::is_same_v<SPComplexType,typename std::decay_t<MatC>::element_type>>>
   void energy(SpinTypes spin_component,
@@ -343,6 +335,7 @@ public:
 
     }
   }
+*/
 
   template<class... Args>
   void fast_energy([[maybe_unused]] Args&&... args)
@@ -362,27 +355,9 @@ public:
     APP_ABORT(" Error: ph_excited_energy not implemented yet. ");
   }
 
-  template<class MatA,
-           class MatB,
-           typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 1)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 1)>,
-           typename = void>
-  void vHS(MatA& X, MatB&& v, double dt, double a = 1., double c = 0.)
+  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
   {
-    using XType = typename std::decay_t<typename MatA::element>;
-    using vType = typename std::decay<MatB>::type::element;
-    Matrix_ref<vType, decltype(v.origin())> v_(v.origin(), {v.size(0), 1});
-    Matrix_ref<XType const, decltype(X.origin())> X_(X.origin(), {X.size(0), 1});
-    vHS(X_, v_, dt, a, c);
-  }
-
-  template<class MatA,
-           class MatB,
-           typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 2)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 2)>
-          >
-  void vHS(MatA& X, MatB&& v, double dt, double a = 1., double c = 0.)
-  {
+/*
     using XType = typename std::decay_t<typename MatA::element>;
     using vType = typename std::decay<MatB>::type::element;
     using vType_t = typename vType::value_type;
@@ -408,7 +383,7 @@ public:
     else
       ma::scal(vType_t(c), v);
 
-    /*************************************************************/
+    / ************************************************************* /
     // usual trick to cast if needed only 
     pointer Xptr(nullptr);
     size_t Xmem(0);
@@ -422,12 +397,12 @@ public:
       Xptr = reinterpret_pointer_cast<SPComplexType>(make_device_ptr(Buff.origin()));
       copy_n_cast(make_device_ptr(X.origin()), X.num_elements(), Xptr);
     }
-    /*************************************************************/
+    / ************************************************************* /
 
     StaticMatrix localV( {nIJ, nwalk}, SPComplexType(0.0), 
           device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
 
-    /*   reference to correct memory    */
+    / *   reference to correct memory    * /
     CMatrix_ref Xsp( Xptr, X.extensions() );
 
     for(int i=0; i<Hams.size(); i++)
@@ -435,8 +410,12 @@ public:
 
     // B[ I[n] ][:] += A[n][:] 
     ma::copy_select(SPComplexType(1.0), localV, SPComplexType(1.0), v, n2IJ_dev);
+*/
+    memory::buffered_array<MEM,ComplexType,4> v(1,1,1,1);
+    v() = ComplexType(0.0);
   }
 
+/*
   template<class MatA,
            typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 2)>
           >
@@ -469,7 +448,7 @@ public:
       RUNTIME_CHECK(spvHS[0].capacity() == nwalk*nIJ, "");
     }
 
-    /*************************************************************/
+    / ************************************************************* /
     // usual trick to cast if needed only 
     pointer Xptr(nullptr);
     size_t Xmem(0);
@@ -483,12 +462,12 @@ public:
       Xptr = reinterpret_pointer_cast<SPComplexType>(make_device_ptr(Buff.origin()));
       copy_n_cast(make_device_ptr(X.origin()), X.num_elements(), Xptr);
     }
-    /*************************************************************/
+    / ************************************************************* /
 
     StaticMatrix localV( {nIJ, nwalk}, SPComplexType(0.0), 
           device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
 
-    /*   reference to correct memory    */
+    / *   reference to correct memory    * /
     CMatrix_ref Xsp( Xptr, X.extensions() );
 
     for(int i=0; i<Hams.size(); i++)
@@ -528,35 +507,10 @@ public:
 
     return std::tuple<dev_csr_Matrix<ComplexType> const*, dev_csr_Matrix<ComplexType> const*>{spvHS.data(),spvHS.data()+nspin-1}; 
   }
-
-  template<class MatA,
-           class MatB,
-           typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 1)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 1)>,
-           typename = void>
-  void vbias(const MatA& G, MatB&& v, double dt, double a = 1., double c = 0., int k = 0)
+*/
+  void vbias(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto& v, double dt)
   {
-    using BType = typename std::decay_t<MatB>::element;
-    using AType = typename std::decay_t<MatA>::element;
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
-    int nci = PsiC.size() / nspin;
-    if( nci == 1 ) {
-      Matrix_ref<BType, decltype(v.origin())> v_(v.origin(), {v.size(0), 1});
-      Matrix_ref<AType const, decltype(G.origin())> G_(G.origin(), {1, G.size(0)});
-      vbias(G_, v_, dt, a, c, k);
-    } else {
-      Matrix_ref<BType, decltype(v.origin())> v_(v.origin(), {v.size(0), 1});
-      Matrix_ref<AType const, decltype(G.origin())> G_(G.origin(), {G.size(0), 1});
-      vbias(G_, v_, dt, a, c, k);
-    }
-  }
-
-  template<class MatA,
-           class MatB,
-           typename = typename std::enable_if_t<(std::decay<MatA>::type::dimensionality == 2)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 2)>>
-  void vbias(const MatA& G, MatB&& v, double dt, double a = 1., double c = 0., [[maybe_unused]] int nd = 0)
-  {
+/*
     // NOTE: nd is irrelevant. For multi-determinant calculations the GF used for
     //       vbias is not compact 
     //using GType = typename std::decay_t<typename MatA::element>;
@@ -581,7 +535,7 @@ public:
     else 
       ma::scal(vType_t(c), v); 
 
-    /*************************************************************/
+    / ************************************************************* /
     // usual trick to cast if needed only 
     pointer vptr(nullptr);
     size_t vmem(0);
@@ -595,12 +549,12 @@ public:
       vptr = reinterpret_pointer_cast<SPComplexType>(make_device_ptr(vbuff.origin())); 
       copy_n_cast(make_device_ptr(v.origin()), v.num_elements(), vptr);
     }
-    /*************************************************************/
+    / ************************************************************* /
 
     StaticMatrix GIJ( {nIJ, nwalk}, SPComplexType(0.0),
           device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
 
-    /*   reference to correct memory    */
+    / *   reference to correct memory    * /
     CMatrix_ref vsp( vptr, v.extensions() );
 
     if( nci == 1 ) {
@@ -643,9 +597,7 @@ public:
         Hams[i].vbias(GIJ, vsp.sliced(field_pos[i],field_pos[i+1]), dt, a );
 
     }
-
-    if( not std::is_same<vType,SPComplexType>::value ) 
-      copy_n_cast( vsp.origin(), vsp.num_elements(), make_device_ptr(v.origin()) );
+*/
   }
 
   template<class Mat, class MatB>
@@ -654,27 +606,17 @@ public:
     APP_ABORT(" Error: generalizedFockMatrix not implemented for this hamiltonian.");
   }
 
-  bool distribution_over_cholesky_vectors() const { return true; }
-  int local_number_of_cholesky_vectors() const { return local_nCV; }
-  int global_number_of_cholesky_vectors() const { return local_nCV; }
-  int global_origin_cholesky_vector() const { return 0; }
+  auto vHS_dims() const {
+    return std::array<int,2>{2,1};
+  }
+  int number_of_cholesky_vectors() const { return nCV; }
   int number_of_ke_vectors() const { return ET.get_n2IJ()->size(); }
 
-  // transpose=true means [nwalk][ik], false means [ik][nwalk]
-  bool transposed_G_for_vbias() const { 
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
-    int nci = PsiC.size() / nspin;
-    return (nci==1); 
-  }
-  bool transposed_G_for_E() const { return true; }
-  bool transposed_vHS() const { return false; }
   bool fast_ph_energy() const { return false; }
-  bool spin_dependent_vHS() const { return true; }
 
-  boost::multi::array<ComplexType, 2> getHSPotentials() { 
-    return boost::multi::array<ComplexType, 2>{}; 
-  }
-
+  nda::array<ComplexType, 2> getHSPotentials()
+  { return nda::array<ComplexType, 2>{}; }
+/*
 private:
 
   afqmc::TaskGroup_& TG;
@@ -895,6 +837,7 @@ private:
     }
 
   }
+*/
   
 
 };
@@ -903,4 +846,3 @@ private:
 
 } // namespace sfqmc
 
-#endif
