@@ -22,6 +22,7 @@
 #include "configuration.hpp"
 #include "utilities/mpi_context.h"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
+#include "AFQMC/config.h"
 
 namespace sfqmc
 {
@@ -40,6 +41,7 @@ inline void BasicWalkerData(WlkBucket& wlk, DVec&& curData, mpi3::communicator& 
   wlk.getProperty(WEIGHT, w_data(range(0, nW), 0));
   wlk.getProperty(OVLP, w_data(range(0, nW), 1));
   wlk.getProperty(PSEUDO_ELOC_, w_data(range(0, nW), 2));
+  WALKER_TYPES wtype = wlk.getWalkerType();
   bool modified = false;
   for (int iw = 0; iw < nW; iw++)
   {
@@ -51,7 +53,10 @@ inline void BasicWalkerData(WlkBucket& wlk, DVec&& curData, mpi3::communicator& 
         (!std::isfinite((weight * eloc).imag())))
     {
       w_data(iw,0) = ComplexType(0.0, 0.0);
-      w_data(iw,1) = ComplexType(1.0, 0.0);
+      if(wtype == COLLINEAR_FT or wtype == NONCOLLINEAR_FT)
+        w_data(iw,1) = ComplexType(0.0, 0.0); // finite-T keeps log(ovlp) instead of ovlp
+      else
+        w_data(iw,1) = ComplexType(1.0, 0.0);
       w_data(iw,2) = ComplexType(0.0, 0.0);
       modified      = true;
       continue;

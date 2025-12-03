@@ -133,7 +133,31 @@ class WalkerSet
     template<MEMORY_SPACE M>
     auto SlaterMatrices( SpinTypes s ) const { 
       return std::visit( [&](auto&& v) { return  v.template SlaterMatrices<M>(s); }, var ); 
+    }
+    template<MEMORY_SPACE M>
+    auto UMatrices( SpinTypes s ) { 
+      return std::visit( [&](auto&& v) { return  v.template UMatrices<M>(s); }, var ); 
     } 
+    template<MEMORY_SPACE M>
+    auto UMatrices( SpinTypes s ) const { 
+      return std::visit( [&](auto&& v) { return  v.template UMatrices<M>(s); }, var ); 
+    } 
+    template<MEMORY_SPACE M>
+    auto DMatrices( SpinTypes s ) { 
+      return std::visit( [&](auto&& v) { return  v.template DMatrices<M>(s); }, var ); 
+    } 
+    template<MEMORY_SPACE M>
+    auto DMatrices( SpinTypes s ) const { 
+      return std::visit( [&](auto&& v) { return  v.template DMatrices<M>(s); }, var ); 
+    } 
+    template<MEMORY_SPACE M>
+    auto VMatrices( SpinTypes s ) { 
+      return std::visit( [&](auto&& v) { return  v.template VMatrices<M>(s); }, var ); 
+    } 
+    template<MEMORY_SPACE M>
+    auto VMatrices( SpinTypes s ) const { 
+      return std::visit( [&](auto&& v) { return  v.template VMatrices<M>(s); }, var ); 
+    }  
     template<MEMORY_SPACE M>
     auto SlaterMatricesN( SpinTypes s ) { 
       return std::visit( [&](auto&& v) { return  v.template SlaterMatricesN<M>(s); }, var ); 
