@@ -26,6 +26,7 @@
 #include "AFQMC/config.h"
 
 #include "nda/h5.hpp"
+#include "utilities/h5_utils.hpp"
 #include "numerics/sparse/sparse.hpp"
 //#include "AFQMC/Wavefunctions/Excitations.hpp"
 

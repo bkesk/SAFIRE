@@ -29,6 +29,7 @@ namespace math
 template<nda::MemoryMatrix A_t> 
 auto exp_hermitian(A_t const& A, bool printeV = false)
 {
+  using Array_t = typename std::decay_t<A_t>::regular_type;
   using Type     = nda::get_value_t<A_t>; 
   using RealType = nda::remove_complex_t<Type>;
   sfqmc::utils::check(A.extent(0) == A.extent(1), "Shape mismatch");
@@ -64,7 +65,7 @@ auto exp_hermitian(A_t const& A, bool printeV = false)
     M(nda::range::all,j) *= std::sqrt(std::exp(V(j)));
   nda::blas::gemm(M,nda::dagger(M),X);
 
-  return A_t(X);
+  return Array_t(X);
 }
 
 } // namespace math

@@ -78,6 +78,8 @@ public:
   using base::deserialize;
   using base::size_of_serialized_in_bytes;
 
+  using regular_type = csr_matrix<ValType, MEM, IndxType, IntType>;
+
   // to be able to reuse ops_tags 
   using Array_t = memory::array<MEM, ValType, 2>; 
   static constexpr bool is_stride_order_Fortran() noexcept
@@ -98,8 +100,10 @@ public:
   static constexpr MEMORY_SPACE mem_type = MEM;
 
   csr_matrix() {}
-  template<typename integer_type = long, typename = std::enable_if_t<std::is_integral_v<integer_type>>>
-  csr_matrix(std::tuple<long,long> const& dims, integer_type nnzpr = 0) 
+
+  template<typename IType = long, typename integer_type = long>
+  requires ( std::is_integral_v<IType> and std::is_integral_v<integer_type> )
+  csr_matrix(std::tuple<IType,IType> const& dims, integer_type nnzpr = 0) 
       : base(dims, nnzpr)
   {
     if constexpr (MEM==DEVICE_MEMORY) {
@@ -109,7 +113,9 @@ public:
       row_end_dev_() = row_end_(); 
     }
   }
-  csr_matrix(std::tuple<long, long> const& dims, ::nda::MemoryArrayOfRank<1> auto && nnzpr)
+  template<typename IType = long>
+  requires ( std::is_integral_v<IType> )
+  csr_matrix(std::tuple<IType, IType> const& dims, ::nda::MemoryArrayOfRank<1> auto && nnzpr)
       : base(dims, nnzpr)
   {
     if constexpr (MEM==DEVICE_MEMORY) {
@@ -423,6 +429,7 @@ protected:
       return reference{*this, static_cast<IndxType>(i)};
     }
 
+    auto values() { return self_.data_(::nda::range(self_.row_begin_(i_),self_.row_end_(i_))); }
     auto values() const { return self_.data_(::nda::range(self_.row_begin_(i_),self_.row_end_(i_))); }
     auto columns() const { return self_.jdata_(::nda::range(self_.row_begin_(i_),self_.row_end_(i_))); }
     auto nnz() const { return self_.nnz(i_); } 
@@ -449,6 +456,7 @@ protected:
     using element_type = value_type;
     using element_ptr  = typename csr_matrix::element_ptr const;
 
+    auto values() { return self_.data_(::nda::range(self_.row_begin_(i_),self_.row_end_(i_))); }
     auto values() const { return self_.data_(::nda::range(self_.row_begin_(i_),self_.row_end_(i_))); }
     auto columns() const { return self_.jdata_(::nda::range(self_.row_begin_(i_),self_.row_end_(i_))); }
     auto nnz() const { return self_.nnz(i_); }
@@ -479,15 +487,18 @@ public:
   using matrix_view = csr_matrix_view<ValType, MEM, IndxType, IntType>;
   matrix_view sub_matrix(::nda::range r)
   {
+    using nda::range;
     assert(r.first() >= 0 && r.last() <= size1_);
     assert(r.first() < r.last());
     // row_begin_ in host memory 
-    auto r0 = row_begin_(0);
-    ::nda::array<int_type, 1> row_b = row_begin_(r)-r0;
+    auto r0 = row_begin_(r.first());
+    ::nda::array<int_type, 1> row_b(r.size()+1);
+    row_b(range(r.size())) = row_begin_(r) - r0; 
+    row_b(r.size()) = row_end_(r.last()-1) - r0; 
     ::nda::array<int_type, 1> row_e = row_end_(r)-r0;
     return matrix_view({r.size(), size2_}, 
-              data_(::nda::range(row_begin_(r.first()),row_end_(r.last()-1))), 
-              jdata_(::nda::range(row_begin_(r.first() ),row_end_(r.last()-1))), 
+              data_(range(row_begin_(r.first()),row_end_(r.last()-1))), 
+              jdata_(range(row_begin_(r.first() ),row_end_(r.last()-1))), 
               row_b, row_e);
   }
 

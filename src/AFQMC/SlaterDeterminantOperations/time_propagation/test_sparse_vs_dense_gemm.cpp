@@ -112,7 +112,7 @@ void compare_sparse_dense_gemm([[maybe_unused]] boost::mpi3::communicator& world
     int M = Nx*Nx;
     int N = M/2;
 
-    stdcsrMat spV_h(tp_ul_ul{M,M}, tp_ul_ul{0,0}, 1, std::allocator<ComplexType>{});
+    stdcsrMat spV_h({M,M}, {0,0}, 1, std::allocator<ComplexType>{});
     for(int i=0; i<M; i++)
       spV_h[i][i] = ComplexType(1.0);
     Matrix<ComplexType> V_h( {M, M}, std::allocator<ComplexType>{} );
@@ -143,7 +143,7 @@ void compare_sparse_dense_gemm([[maybe_unused]] boost::mpi3::communicator& world
       dev3Tensor Bb( {nb, M, N} );
       dev3Tensor Cb( {nb, M, N} );
 
-      stdcsrMat spVb_h(tp_ul_ul{nb*M,nb*M}, tp_ul_ul{0,0}, 1, std::allocator<ComplexType>{});
+      stdcsrMat spVb_h({nb*M,nb*M}, {0,0}, 1, std::allocator<ComplexType>{});
       for(int i=0; i<nb*M; i++)
         spVb_h[i][i] = ComplexType(1.0);
       devcsrMat spVb(spVb_h);

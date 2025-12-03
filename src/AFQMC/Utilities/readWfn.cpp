@@ -26,6 +26,7 @@
 #include "utilities/check.hpp"
 #include "IO/app_loggers.h"
 #include "readWfn.h"
+#include "utilities/h5_utils.hpp"
 
 #include "nda/nda.hpp"
 #include "nda/h5.hpp"
@@ -387,7 +388,7 @@ void getCommonInput(h5::group& grp,
   app_log(1," - Number of determinants in trial wavefunction: {} ", ndets_to_read);
   utils::check(ndets_to_read <= dims[4], " Error in getCommonInput(): Inconsistent  ndets_to_read. ");
   ci.resize(ndets_to_read);
-  nda::h5_read(grp,"ci_coeffs",ci);
+  utils::h5_read(grp,"ci_coeffs",ci);
   app_log(1," - Coefficient of first determinant: {} ", ci[0]);
 }
 

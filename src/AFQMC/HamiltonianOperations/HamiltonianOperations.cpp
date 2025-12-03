@@ -30,81 +30,67 @@
 //#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
 
 
+// MAM: Once all hamiltonians are implemented, measure the compilation time 
+//      with and without instantiations. Remove all this and go back to the
+//      header only version if the compilation times are not reduced signifficantly
+
 namespace sfqmc
 {
 namespace afqmc
 {
 
+  // disabled default constructor
   template<MEMORY_SPACE M>
   HamiltonianOperations<M>::HamiltonianOperations()  
   {
     APP_ABORT(" Error: Calling default constructor of HamiltonianOperations. ");
   } 
+
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations();
 #if defined(ENABLE_DEVICE)
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations();
 #endif
 
+  // move constructor
   template<MEMORY_SPACE M>
-  HamiltonianOperations<M>::HamiltonianOperations(THCOps<M,true>&& other) : var(std::move(other)) {} 
-  template<MEMORY_SPACE M>
-  HamiltonianOperations<M>::HamiltonianOperations(THCOps<M,false>&& other) : var(std::move(other)) {} 
-  template<MEMORY_SPACE M>
-  HamiltonianOperations<M>::HamiltonianOperations(KPTHCOps<M>&& other) : var(std::move(other)) {} 
+  template<typename HOps>
+  HamiltonianOperations<M>::HamiltonianOperations(HOps&& other) : var(std::move(other)) {}
 
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,true>&&);
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,false>&&);
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KPTHCOps<HOST_MEMORY>&&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,true>&&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,false>&&);
 
 #if defined(ENABLE_DEVICE)
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,true>&&);
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,false>&&);
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KPTHCOps<DEVICE_MEMORY>&&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,true>&&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,false>&&);
 #endif
 
-/*
-  // host only !
-#if !defined(ENABLE_DEVICE) 
-  explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix_<shared_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix_<shared_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(Real3IndexFactorization<MP,true>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(Real3IndexFactorization<MP,false>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(KP3IndexFactorization<MP>&& other) : Base::variant(std::move(other)) {}
+  // copy constructor
+  template<MEMORY_SPACE M>
+  template<typename HOps>
+  HamiltonianOperations<M>::HamiltonianOperations(HOps const& other) : var(other) {}
+
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,true>const&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,false>const&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KPTHCOps<HOST_MEMORY>const&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,true>const&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,false>const&);
+
+#if defined(ENABLE_DEVICE)
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,true>const&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,false>const&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KPTHCOps<DEVICE_MEMORY>const&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,true>const&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,false>const&);
 #endif
-  // GPU enabled
-  explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix_<device_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
- explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix_<device_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(Real3IndexFactorization_batched_v2<MP,true>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(Real3IndexFactorization_batched_v2<MP,false>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(KP3IndexFactorization_batched<MP,Matrix_<device_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
-  explicit HamiltonianOperations(KP3IndexFactorization_batched<MP,Matrix_<shared_allocator<SPComplexType>>>&& other) : Base::variant(std::move(other)) {}
 
-  // host only !
-#if !defined(ENABLE_DEVICE) 
-  explicit HamiltonianOperations(Real3IndexFactorization<MP,true> const& other) = delete;
-  explicit HamiltonianOperations(Real3IndexFactorization<MP,false> const& other) = delete;
-  explicit HamiltonianOperations(KP3IndexFactorization<MP> const& other)   = delete;
-  explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix<shared_allocator<SPComplexType>>> const& other) = delete;
-  explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix<shared_allocator<SPComplexType>>> const& other) = delete;
-#endif
-// GPU enabled
-*/
 
-/*
-  explicit HamiltonianOperations(ModelHamOps<MP,true,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
-  explicit HamiltonianOperations(ModelHamOps<MP,false,Matrix<device_allocator<SPComplexType>>> const& other) = delete;
-  explicit HamiltonianOperations(Real3IndexFactorization_batched_v2<MP,true> const& other) = delete;
-  explicit HamiltonianOperations(Real3IndexFactorization_batched_v2<MP,false> const& other) = delete;
-  explicit HamiltonianOperations(KP3IndexFactorization_batched<MP,Matrix_<device_allocator<SPComplexType>>> const& other) = delete;
-  explicit HamiltonianOperations(KP3IndexFactorization_batched<MP,Matrix_<shared_allocator<SPComplexType>>> const& other) = delete;
-*/
-/*
-  HamiltonianOperations(HamiltonianOperations const& other) = default;
-  HamiltonianOperations(HamiltonianOperations&& other)      = default;
-
-  HamiltonianOperations& operator=(HamiltonianOperations const& other) = default;
-  HamiltonianOperations& operator=(HamiltonianOperations&& other) = default;
-*/
+  // getOneBodyPropagatorMatrix_impl
   template<MEMORY_SPACE M>
   nda::array<ComplexType,3> HamiltonianOperations<M>::getOneBodyPropagatorMatrix_impl(double dt,
                                                        nda::MemoryVector auto const& vMF)
@@ -122,14 +108,7 @@ __getOneBodyPropagatorMatrix__(HOST_MEMORY)
 __getOneBodyPropagatorMatrix__(DEVICE_MEMORY)
 #endif
 
-/*
-  template<class... Args>
-  void write2hdf(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.write2hdf(std::forward<Args>(args)...); }, var);
-  }
-*/
-
+  //energy_impl
   template<MEMORY_SPACE M>
   void HamiltonianOperations<M>::energy_impl(nda::MemoryArrayOfRank<2> auto& E, 
                                         nda::MemoryArrayOfRank<2> auto const& G,
@@ -148,14 +127,7 @@ __energy__(HOST_MEMORY)
 __energy__(DEVICE_MEMORY) 
 #endif
 
-/*
-  template<class... Args>
-  void generalizedFockMatrix(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.generalizedFockMatrix(std::forward<Args>(args)...); }, var);
-  }
-*/
-
+  // vHS_impl
   template<MEMORY_SPACE M>
   memory::buffered_array<M,ComplexType,4> HamiltonianOperations<M>::vHS_impl(nda::MemoryArrayOfRank<2> auto & X, double dt)
   {
@@ -169,72 +141,7 @@ __vHS__(HOST_MEMORY)
 __vHS__(DEVICE_MEMORY)
 #endif
 
-/*
-  template<class... Args>
-  std::tuple<dev_csr_Matrix<ComplexType> const*, dev_csr_Matrix<ComplexType> const*> vHS_sparse(Args&&... args)
-  {
-    // ugly, but this is trully limited to ModelHamOps types only. 
-    // ModelHamOps<MP,true,Matrix_<device_allocator<SPComplexType>>>
-    using ModHOps1 = ModelHamOps<MP,true,Matrix_<device_allocator<SPComplexType>>>;
-    using ModHOps2 = ModelHamOps<MP,false,Matrix_<device_allocator<SPComplexType>>>;
-#if !defined(ENABLE_DEVICE)
-    using ModHOps3 = ModelHamOps<MP,true,Matrix_<shared_allocator<SPComplexType>>>;
-    using ModHOps4 = ModelHamOps<MP,false,Matrix_<shared_allocator<SPComplexType>>>;
-    if( ModHOps3* ptr3 = boost::get<ModHOps3>(this) ) {
-      return ptr3->vHS_sparse(std::forward<Args>(args)...);
-    } else if( ModHOps4* ptr4 = boost::get<ModHOps4>(this) ) {
-      return ptr4->vHS_sparse(std::forward<Args>(args)...);
-    } else 
-#endif
-    if( ModHOps1* ptr1 = boost::get<ModHOps1>(this) ) {
-      return ptr1->vHS_sparse(std::forward<Args>(args)...);
-    } else if( ModHOps2* ptr2 = boost::get<ModHOps2>(this) ) {
-      return ptr2->vHS_sparse(std::forward<Args>(args)...);
-    } else {
-      throw std::runtime_error("calling vHS_sparse with non-ModelHamOps variant. ");
-      dev_csr_Matrix<ComplexType> const* t(nullptr);
-      return std::make_tuple(t,t); 
-    }
-  }
-
-  template<class... Args>
-  void update_potentials(Args&&... args)
-  {
-    // ugly, but this is trully limited to ModelHamOps types only. 
-    // ModelHamOps<MP,true,Matrix_<device_allocator<SPComplexType>>>
-    using ModHOps1 = ModelHamOps<MP,true,Matrix_<device_allocator<SPComplexType>>>;
-    using ModHOps2 = ModelHamOps<MP,false,Matrix_<device_allocator<SPComplexType>>>;
-#if !defined(ENABLE_DEVICE)
-    using ModHOps3 = ModelHamOps<MP,true,Matrix_<shared_allocator<SPComplexType>>>;
-    using ModHOps4 = ModelHamOps<MP,false,Matrix_<shared_allocator<SPComplexType>>>;
-    if( ModHOps3* ptr3 = boost::get<ModHOps3>(this) ) {
-      ptr3->update_potentials(std::forward<Args>(args)...);
-    } else if( ModHOps4* ptr4 = boost::get<ModHOps4>(this) ) {
-      ptr4->update_potentials(std::forward<Args>(args)...);
-    } else
-#endif
-    if( ModHOps1* ptr1 = boost::get<ModHOps1>(this) ) {
-      ptr1->update_potentials(std::forward<Args>(args)...);
-    } else if( ModHOps2* ptr2 = boost::get<ModHOps2>(this) ) {
-      ptr2->update_potentials(std::forward<Args>(args)...);
-    } else {
-      throw std::runtime_error("calling update_potentials with non-ModelHamOps variant. ");
-    }
-  }
-
-  template<class... Args>
-  void ph_reference_energy(Args&&... args)
-  { 
-    std::visit([&](auto&& s) { s.ph_reference_energy(std::forward<Args>(args)...); }, var);
-  }
-
-  template<class... Args>
-  void ph_excited_energy(Args&&... args)
-  { 
-    std::visit([&](auto&& s) { s.ph_excited_energy(std::forward<Args>(args)...); }, var);
-  }
-*/
-
+  // vbias_impl
   template<MEMORY_SPACE M>
   void HamiltonianOperations<M>::vbias_impl(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto& v, double dt)
   {
@@ -250,6 +157,24 @@ __vbias__(HOST_MEMORY)
 __vbias__(DEVICE_MEMORY)
 #endif
 
+  // update_potential
+  template<MEMORY_SPACE M>
+  void HamiltonianOperations<M>::update_potentials_impl(double dt, nda::MemoryVector auto const& nMF, nda::MemoryVector auto& vMF, bool natural_shift)
+  {
+    std::visit([&](auto&& s) { s.update_potentials(dt,nMF,vMF,natural_shift); }, var);
+  }
+
+#define __update_potentials__(M) \
+  template void HamiltonianOperations<M>::update_potentials_impl(double,memory::array_view<M,ComplexType const,1>const&,memory::array_view<M,ComplexType,1>&,bool); \
+  template void HamiltonianOperations<M>::update_potentials_impl(double,memory::array_view<M,ComplexType const,1>const&,memory::array_view<M,ComplexType,1,nda::C_layout>&,bool); \
+  template void HamiltonianOperations<M>::update_potentials_impl(double,memory::array_view<M,ComplexType const,1,nda::C_layout>const&,memory::array_view<M,ComplexType,1>&,bool); \
+  template void HamiltonianOperations<M>::update_potentials_impl(double,memory::array_view<M,ComplexType const,1,nda::C_layout>const&,memory::array_view<M,ComplexType,1,nda::C_layout>&,bool); 
+__update_potentials__(HOST_MEMORY)
+#if defined(ENABLE_DEVICE)
+__update_potentials__(DEVICE_MEMORY)
+#endif
+
+  // accessors
   template<MEMORY_SPACE M>
   int HamiltonianOperations<M>::number_of_cholesky_vectors() const
   {

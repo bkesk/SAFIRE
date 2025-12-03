@@ -19,8 +19,7 @@
  */
 
 
-#ifndef SPARSE_CSR_UTILS_HPP
-#define SPARSE_CSR_UTILS_HPP
+#pragma once
 
 #include "configuration.hpp"
 #include "utilities/check.hpp"
@@ -31,6 +30,7 @@
 #include "nda/h5.hpp"
 
 #include "numerics/sparse/csr_matrix.hpp"
+#include "utilities/h5_utils.hpp"
 
 namespace math
 {
@@ -250,21 +250,19 @@ auto HDF2CSR(h5::group grp)
   for (long i = 0; i < nrows; i++)
     nnz_per_row(i) = ptre(i) - ptrb(i);
 
-  csr_host SpM(std::tuple<std::size_t, std::size_t>{nrows, ncols}, nnz_per_row);
+  csr_host SpM({nrows, ncols}, nnz_per_row);
 
-  nda::array<ValType,1> data;
-  nda::array<IndxType,1> jdata;
-  nda::h5_read(grp,"data_",data);
+  nda::array<ValType,1> data(nnz);
+  nda::array<IndxType,1> jdata(nnz);
+  sfqmc::utils::h5_read(grp,"data_",data);
   sfqmc::utils::check(data.size() == nnz, "Size mismatch");
   nda::h5_read(grp,"jdata_",jdata);
   sfqmc::utils::check(jdata.size() == nnz, "Size mismatch");
   long cnt = 0;
-  for (long i = 0; i < nrows; i++)
+  for (long r = 0; r < nrows; r++)
   {
-    long nt = ptre[i] - ptrb[i];
-    for (long nn = 0; nn < nt; ++nn, ++cnt) {
-      SpM.emplace_back({i, jdata(cnt)}, data(cnt));
-}
+    for(long i=ptrb[r]; i<ptre[r]; ++i) 
+      SpM.emplace_back({r, jdata(i)}, data(i));
   }
 
   if constexpr (MEM == HOST_MEMORY)
@@ -273,9 +271,150 @@ auto HDF2CSR(h5::group grp)
     return csr{SpM};
 }
 
+/*
+ * Given a csr matrix representing an operator with CLOSED spin structure,
+ * return the equivalent operator matrix with COLLINEAR spin structure. 
+ */
+template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
+auto closed_to_collinear(csr_matrix<ValType,MEM,IndxType,IntType> const& A)
+{
+  using csr = csr_matrix<ValType,MEM,IndxType,IntType>;
+  using csr_host = csr_matrix<ValType,HOST_MEMORY,IndxType,IntType>;
+  sfqmc::utils::check(A.extent(0) == A.extent(1), "Shape mismatch");
+  IndxType N(A.extent(0));
+
+  auto vals = ::nda::to_host(A.values());
+  auto cols = ::nda::to_host(A.columns());
+
+  nda::array<int,1> counts(2*N);
+  for(IndxType r=0; r<N; r++)
+    counts[r] = counts[r+N] = A.nnz(r);
+
+  csr_host B({2*N,N}, counts);
+
+  for(IndxType r=0; r<N; r++) {
+    for(long i=A.row_begin(r); i<A.row_end(r); ++i) {
+      B.emplace_back({r, cols(i)}, vals(i));
+      B.emplace_back({r+N, cols(i)}, vals(i));
+    }
+  }
+
+  if constexpr (MEM == HOST_MEMORY) {
+    return B;
+  } else {
+    return csr(B); 
+  }
+}
+
+/*
+ * Given a csr matrix representing an operator with CLOSED spin structure,
+ * return the equivalent operator matrix with NONCOLLINEAR spin structure. 
+ */
+template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
+auto closed_to_noncollinear(csr_matrix<ValType,MEM,IndxType,IntType> const& A)
+{
+  using csr = csr_matrix<ValType,MEM,IndxType,IntType>;
+  using csr_host = csr_matrix<ValType,HOST_MEMORY,IndxType,IntType>;
+  sfqmc::utils::check(A.extent(0) == A.extent(1), "Shape mismatch");
+  IndxType N(A.extent(0));
+
+  auto vals = ::nda::to_host(A.values());
+  auto cols = ::nda::to_host(A.columns());
+
+  nda::array<int,1> counts(2*N);
+  for(IndxType r=0; r<N; r++)
+    counts[r] = counts[r+N] = A.nnz(r);
+
+  csr_host B({2*N,2*N}, counts);
+
+  for(IndxType r=0; r<N; r++) {
+    for(long i=A.row_begin(r); i<A.row_end(r); ++i) { 
+      B.emplace_back({r, cols(i)}, vals(i));
+      B.emplace_back({r+N, cols(i)+N}, vals(i));
+    }
+  }
+
+  if constexpr (MEM == HOST_MEMORY) {
+    return B;
+  } else {
+    return csr(B);
+  }
+}
+
+/*
+ * Given a csr matrix representing an operator with COLLINEAR spin structure,
+ * return the equivalent operator matrix with NONCOLLINEAR spin structure. 
+ */
+template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
+auto collinear_to_noncollinear(csr_matrix<ValType,MEM,IndxType,IntType> const& A)
+{
+  using csr = csr_matrix<ValType,MEM,IndxType,IntType>;
+  using csr_host = csr_matrix<ValType,HOST_MEMORY,IndxType,IntType>;
+  sfqmc::utils::check(A.extent(0) == 2*A.extent(1), "Shape mismatch");
+  IndxType N(A.extent(1));
+
+  auto vals = ::nda::to_host(A.values());
+  auto cols = ::nda::to_host(A.columns());
+
+  nda::array<int,1> counts(2*N);
+  for(IndxType r=0; r<2*N; r++)
+    counts[r] = A.nnz(r);
+
+  csr_host B({2*N,2*N}, counts);
+
+  for(IndxType r=0; r<N; r++) 
+    for(long i=A.row_begin(r); i<A.row_end(r); ++i) 
+      B.emplace_back({r, cols(i)}, vals(i));
+  for(IndxType r=N; r<2*N; r++) 
+    for(long i=A.row_begin(r); i<A.row_end(r); ++i) 
+      B.emplace_back({r, cols(i)+N}, vals(i));
+
+  if constexpr (MEM == HOST_MEMORY) {
+    return B;
+  } else {
+    return csr(B);
+  }
+}
+
+template<class T>
+void accumulate(T a, CSRMatrix auto const& X, CSRMatrix auto&& Y)
+{
+  using value_type = typename std::decay_t<decltype(Y)>::value_type;
+  using index_type = typename std::decay_t<decltype(Y)>::index_type;
+  sfqmc::utils::check((X.extent(0) <= Y.extent(0)) and (X.extent(1) <= Y.extent(1)), "Shape mismatch"); 
+  auto nr = X.extent(0);
+  auto vals = X.values();
+  auto cols = X.columns();
+  for(long r=0; r<nr; ++r) 
+    for(long i=X.row_begin(r); i<X.row_end(r); ++i) 
+      Y.add( {index_type(r), index_type(cols(i))}, value_type(a*vals(i)) );
+} 
+
+/*
+ * Linealizes a matrix. 
+ * For a sparse matrix of size {N,M}, a new matrix is generated with size: {1,N*M}
+ * where:  A(i,j) -> B(0, i*M+j) 
+ * The resulting csr matrix is compact.
+ */
+auto linearize_matrix(CSRMatrix auto const& A)
+{
+  using csr = std::decay_t<decltype(A)>;
+  using index_type = typename csr::index_type;
+  auto nr=A.extent(0);
+  auto nc=A.extent(1);
+
+  typename csr::regular_type B({1, nr*nc}, A.nnz());
+
+  for(index_type r=0; r<index_type(nr); r++) {
+    for(long n=A.row_begin(r); n<A.row_end(r); ++n) {
+      index_type c_( r*index_type(nc) + A.columns(n) );
+      B.emplace_back( {0,  c_}, A.values(n) );
+    }
+  }
+
+  return B;
+}
 
 } // sparse
 } // math
-
-#endif
 

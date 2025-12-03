@@ -143,10 +143,9 @@ public:
 
   HamiltonianTypes getHamType() const { return HamOp.getHamType(); }
 
-  template<class... Args>
-  void getFieldTypes(Args&&... args)
+  auto getFieldTypes()
   {
-    HamOp.getFieldTypes(std::forward<Args>(args)...);
+    return HamOp.getFieldTypes();
   }
 
   template<class... Args>
@@ -162,14 +161,12 @@ public:
   {
     return HamOp.getOneBodyPropagatorMatrix(std::forward<Args>(args)...);
   }
-/*
+
   template<class... Args>
   auto vHS_sparse(Args&&... args)
-  //std::tuple<dev_csr_Matrix<ComplexType> const*, dev_csr_Matrix<ComplexType> const*> vHS_sparse(Args&&... args)
   {
     return HamOp.vHS_sparse(std::forward<Args>(args)...);
   }
-*/
 
   /*
    * Calculates the bias potential.

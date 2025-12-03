@@ -64,6 +64,7 @@ public:
         P1d_inv(memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{1,1,1})),
         vMF(memory::make_shared_array<MEM,ComplexType,1>(mpi,std::array<long,1>{wfn->number_of_cholesky_vectors()})),
         rng(r),
+        FieldTypes(wfn->getFieldTypes()),
         rng_block_size(wfn->number_of_cholesky_vectors()),
         excitedOrbMat(memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{1,1,1}))
   {
@@ -92,9 +93,16 @@ public:
     if(not mpi->comm.root()) printP1eV = false;
     free_projection     = pt.get<bool>("free_projection");
     denseP1             = pt.get<bool>("denseP1");
+    denseP2             = pt.get<bool>("denseP2");
     excited_file        = pt.get<std::string>("excited");
     debug_verbosity     = pt.get<bool>("debug_verbosity");
+    natural_shift       = pt.get<bool>("natural_shift");
+    symmetric_split     = pt.get<bool>("symmetric_split");
+    use_cp_constraint   = pt.get<bool>("use_cp_constraint");
+    use_real_vbias      = pt.get<bool>("use_real_vbias");
     auto hamtype(wfn->getHamType());
+    utils::check(denseP2 or hamtype == ModelHamiltonian, "denseP2=false only allowed with ModelHamiltonian.");
+
     if ((hamtype == KPFactorized || hamtype == KPTHC) && denseP1)
     {
       app_error("dense Ham. with kpoints");
@@ -108,6 +116,10 @@ public:
       app_log(1," Using dense 1-body propagator");
     else
       app_log(1," Using sparse 1-body propagator");
+    if(denseP2)
+      app_log(1," Using dense 2-body propagator (vHS)");
+    else
+      app_log(1," Using sparse 2-body propagator (vHS)");
 
     if(nspins_in_vHS>1) 
       app_log(1, " Using a spin-dependent vHS.");
@@ -121,6 +133,10 @@ public:
       app_log(1," Using hybrid method to calculate the weights during the propagation.");
     else
       app_log(1," Using local energy method to calculate the weights during the propagation.");
+    if(natural_shift)
+      app_log(1, "Using natural shifts with discrete propagators. ");
+    if(not symmetric_split)
+      app_log(1, "Not using symmetric split of walker weight update.");
 
     if (debug_verbosity)
     {
@@ -199,7 +215,12 @@ public:
     bool printP1eigval          = pt0.get<bool>("printP1eigval", false);
     bool free_projection        = pt0.get<bool>("free_projection", false);
     bool denseP1                = pt0.get<bool>("denseP1", false);
+    bool denseP2                = pt0.get<bool>("denseP2", true);
     bool debug_verbosity        = pt0.get<bool>("debug_verbosity", false);
+    auto natural_shift          = pt0.get<bool>("natural_shift",true);
+    auto symmetric_split        = pt0.get<bool>("symmetric_split",false);
+    auto use_cp_constraint      = pt0.get<bool>("use_cp_constraint", false);
+    auto use_real_vbias         = pt0.get<bool>("use_real_vbias", false);
     std::string external_field  = pt0.get<std::string>("external_field", "");
     std::string excited_file    = pt0.get<std::string>("excited", "");
     // validate inputs
@@ -224,14 +245,19 @@ public:
     pt1.put("upper_cutoff_scale", upper_cutoff_scale);
     pt1.put("lower_cutoff_scale", lower_cutoff_scale);
     pt1.put("apply_constrain", apply_constrain);
+    pt1.put("use_cp_constraint", use_cp_constraint);
+    pt1.put("use_real_vbias", use_real_vbias);
     pt1.put("importance_sampling", importance_sampling);
     pt1.put("substractMF", substractMF);
     pt1.put("hybrid", hybrid);
     pt1.put("printP1eigval", printP1eigval);
     pt1.put("free_projection", free_projection);
     pt1.put("denseP1", denseP1);
+    pt1.put("denseP2", denseP2);
     pt1.put("external_field", external_field);
     pt1.put("excited", excited_file);
+    pt1.put("natural_shift",natural_shift);
+    pt1.put("symmetric_split",symmetric_split);
     pt1.put("debug_verbosity", debug_verbosity);
     std::unordered_set<std::string> pass_through_keys = {
       "system",
@@ -285,6 +311,9 @@ protected:
 
   // 1Body propagator in sparse and dense forms
   bool denseP1 = false;
+  // vHS in sparse and dense forms
+  // Only ModelHamiltonian has sparse vHS
+  bool denseP2 = true;
   // P1s[ispin](npol*NMO,npol*NMO)
   nda::array<PsiT_Matrix<MEM>, 1> P1s;
   // P1d[ispin,npol*NMO,npol*NMO]
@@ -297,6 +326,8 @@ protected:
   memory::shared_array<MEM, ComplexType, 1> vMF;
 
   std::shared_ptr<utils::DeviceRandomGenerator_t> rng;
+
+  nda::array<int,1> FieldTypes;
 
   // number of random numbers to generate for each walker at each step.
   // In general, rng_block_size will be set to the number of cholesky vectors.
@@ -319,6 +350,10 @@ protected:
   bool apply_constrain = true;
   double upper_cutoff_scale = 10.0;
   double lower_cutoff_scale = 1.0;
+  bool natural_shift = true;
+  bool symmetric_split = false;
+  bool use_cp_constraint = false;
+  bool use_real_vbias = false;
 
   int nspins_in_vHS = 1;
   int npol_in_vHS   = 1;
@@ -338,20 +373,20 @@ protected:
                   nda::MemoryArrayOfRank<1> auto&& HWs,
                   bool addRAND = true);
 
-  template<class WlkSet>
-  void apply_propagators(WlkSet& wset, char TA, nda::MemoryArrayOfRank<4> auto&& v, bool P1inv = false)  
+  template<class WlkSet, typename VHS_t>
+  void apply_propagators(WlkSet& wset, char TA, VHS_t const& v, bool P1inv = false)  
   {
     if(P1inv) {
       if(denseP1) {
-        det_ops::PropagateWlkSet(wset,P1d_inv(),v,order,TA);
+        det_ops::PropagateWlkSet<MEM>(wset,P1d_inv(),v,order,TA);
       } else {
-        det_ops::PropagateWlkSet(wset,P1s_inv(),v,order,TA);
+        det_ops::PropagateWlkSet<MEM>(wset,P1s_inv(),v,order,TA);
       }
     } else {
       if(denseP1) {
-        det_ops::PropagateWlkSet(wset,P1d(),v,order,TA);
+        det_ops::PropagateWlkSet<MEM>(wset,P1d(),v,order,TA);
       } else {
-        det_ops::PropagateWlkSet(wset,P1s(),v,order,TA);
+        det_ops::PropagateWlkSet<MEM>(wset,P1s(),v,order,TA);
       }
     }
   }

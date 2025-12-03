@@ -21,6 +21,7 @@
 #include "utilities/check.hpp"
 
 #include "AFQMC/config.h"
+#include "numerics/sparse/sparse.hpp"
 
 #include "ModelHamOpsGenerator.h"
 //#include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
@@ -31,73 +32,119 @@ namespace sfqmc
 {
 namespace afqmc
 {
+
+namespace detail
+{
+template<class csrM>
+csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hij)
+{
+  std::string base_error("Error in ModelHamOpsGenerator::spin_to_walker_type(...): ");
+  if(stype == "closed") {
+    utils::check(hij.shape() == std::array<long,2>{NMO,NMO}, 
+                 base_error + " Inconsistent matrix dimention in one_body::tij. ");
+    if(type == CLOSED) {
+      utils::check(false," Error: Model Hamiltonians not allowed with CLOSED walkers. ");
+    } else if(type == COLLINEAR) {
+      return math::sparse::closed_to_collinear(hij);
+    } else if(type == NONCOLLINEAR) {
+      return math::sparse::closed_to_noncollinear(hij);
+    } else {
+      utils::check(false,base_error + " Bad Walker Type!");
+    }
+  } else if(stype == "collinear") {
+    utils::check(hij.shape() == std::array<long,2>{2*NMO,NMO}, 
+                 base_error + " Inconsistent matrix dimention in one_body::tij. ");
+    if(type == CLOSED) {
+      utils::check(false," Error: Model Hamiltonians not allowed with CLOSED walkers. ");
+    } else if(type == COLLINEAR) {
+      return hij;
+    } else if(type == NONCOLLINEAR) {
+      return math::sparse::collinear_to_noncollinear(hij);
+    } else {
+      utils::check(false,base_error + " Bad Walker Type!");
+    }
+  } else if(stype == "noncollinear") {
+    utils::check(hij.shape() == std::array<long,2>{2*NMO,2*NMO}, 
+                 base_error + " Inconsistent matrix dimention in one_body::tij. ");
+    if(type == NONCOLLINEAR) {
+      return hij;
+    } else { 
+      utils::check(false,base_error + " Bad Walker Type!");
+    }
+  } else {
+    utils::check(false,base_error + " Unknown spin_type: " + stype);
+  }
+  return hij;
+}
+}
+
 template<MEMORY_SPACE MEM, bool REAL> HamiltonianOperations<MEM> 
 ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
                  nda::array<PsiT_Matrix<MEM>,2> const& PsiT)
 {
-/*
-  using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
+  using nda::range;
+  auto all = range::all;
+  using ValueType = typename std::conditional_t<REAL, RealType, ComplexType>;
+  using csrMat    = math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>;   
 
   if(type == CLOSED)
-    APP_ABORT(" Error in ModelHamOpsGenerator::getHamiltonianOperations: CLOSED walker types not allowed with Model Hamiltonians. "); 
+  utils::check(type != CLOSED and type != FULLYPOLARIZED, " Error in ModelHamOpsGenerator::getHamiltonianOperations: CLOSED or FULLYPOLARIZED walker types not allowed with Model Hamiltonians. "); 
 
   // make sure there is at least 1 one-body hamiltonian in the components
   bool one_body_term(false);
 
   std::string base_error("Error in ModelHamOpsGenerator::getHamiltonianOperations(): ");
 
-  if (type == COLLINEAR)
-    utils::check(PsiT.size() % 2 == 0, "");
-  int npol = ((type == NONCOLLINEAR) ? 2 : 1);
+  int ndet   = PsiT.extent(0); 
+  int nspin  = ((type == COLLINEAR) ? 2 : 1);
+  int npol   = ((type == NONCOLLINEAR) ? 2 : 1);
+  int nel_up = PsiT(0,0).extent(0); 
+  int nel_dn = ( type == COLLINEAR ? PsiT(0,1).extent(0) : 0 ); 
+  utils::check(PsiT.extent(1) == nspin, base_error + "PsiT.extent(1) != nspin");
 
   // generate trial wavefunctions in appropriate form
   // ModelHamOps expects a vector of PsiC(i,a) = (psiT(a,i)) (complex of trial wfn Slater Matrix)
-  std::vector<PsiC_Mat_Type> PsiC;
-  PsiC.reserve(PsiT.size());
-  for(auto const& v: PsiT) {
-    utils::check(v.size(1) == npol*NMO, "");
-    PsiC.emplace_back( PsiC_Mat_Type{{v.size(1), v.size(0)}, TGwfn.Node()} );
-    // hide this behind some templated routine, since PsiT_Matrix is hard wired
-    // to be a sparse matrix, this can be done for now
-    if( TGwfn.Node().root() )
-      ma::Matrix2MAREF('T',v,PsiC.back());
+  auto PsiC = memory::make_shared_array<MEM,ComplexType,4>(mpi,std::array<long,4>{ndet,nspin,npol*NMO,nel_up}); 
+  if(mpi->node_comm.root()) {
+    for(int id=0; id<ndet; id++) {
+      utils::check(PsiT(id,0).shape() == std::array<long,2>{nel_up,npol*NMO}, "Size mismatch");
+      PsiC()(id,0,all,all) = nda::transpose(math::sparse::to_array<ComplexType>(PsiT(id,0))); 
+      if(type == COLLINEAR) {
+        utils::check(PsiT(id,1).shape() == std::array<long,2>{nel_dn,npol*NMO}, "Size mismatch");
+        PsiC()(id,1,all,range(nel_dn)) = nda::transpose(math::sparse::to_array<ComplexType>(PsiT(id,1))); 
+     }  
+    }
   }
 
-  // everyone opens to be able to use HDF2CSR
-  hdf_archive dump(TGwfn.Node());
-  if (!dump.open(fileName, H5F_ACC_RDONLY))
-    APP_ABORT(base_error + "Error opening integral file in ModelHamiltonian. ");
-  if (dump.push("Hamiltonian", false)<0)
-    APP_ABORT(base_error + "Group Hamiltonian not found. ");
+  // everyone reads for simplicity, change to single reader if it becomes a problem
+  h5::file file = h5::file(fileName,'r'); 
+  h5::group grp = h5::group(file).open_group("Hamiltonian");
 
   std::vector<int> Idata(8);
-  if (!dump.readEntry(Idata, "dims"))
-    APP_ABORT(base_error + " Problems reading dims. ");
-
+  h5::h5_read(grp,"dims",Idata);
   ValueType E0;
   {
     std::vector<RealType> E_(2);
-    if (!dump.readEntry(E_, "Energies"))
-      APP_ABORT(base_error + " Problems reading Energies. ");
-    E0 = E_[0] + E_[1];
+// MAM: dataset is currently long, fix!!! 
+    //h5::h5_read(grp,"Energies",E_);
+    E0 = 0.0; //E_[0] + E_[1];
   }
 
-  if (dump.push("ModelHamiltonian", false)<0)
-    APP_ABORT(base_error + "Group ModelHamiltonian not found. ");
+  h5::group mgrp = grp.open_group("ModelHamiltonian"); 
   
   int num_components(0);
-  if (!dump.readEntry(num_components, "number_of_components"))
-    APP_ABORT(base_error + " Problems reading dims. ");
+  h5::h5_read(mgrp,"number_of_components",num_components);
+  // can check file and determine maximum_connections directly!
   int maximum_connections(12);
-  dump.readEntry(maximum_connections, "maximum_connectivity");
+  h5::h5_read(mgrp,"maximum_connectivity",maximum_connections);
   
-  std::vector<ModelComponent<MP,REAL>> Hams;
+  std::vector<ModelComponent<MEM,REAL>> Hams;
   Hams.reserve(num_components);
-  shm_csrMat hij(tp_ul_ul{0,0}, tp_ul_ul{0, 0}, 0, Alloc(TGwfn.Node()));
+  csrMat hij({0,0});
 
   // accumulating terms 
-  / *
+  /*
    * Map:
    *   collect_U  ( opposite spin from 0-M, same spin from M-2M )  
    *   0: continuous charge 
@@ -108,67 +155,52 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
    *   0: continuous charge 
    *   1: continuous spin 
    *   2: empty-container, for call to addComponent with discrete 
-   * /
-  std::vector<shm_csrMat> collect_U;  
-  std::vector<shm_csrMat> collect_J;
+   */
+  std::vector<csrMat> collect_U;  
+  std::vector<csrMat> collect_J;  
   collect_U.reserve(4);
+  collect_J.reserve(3);
   for(int i=0; i<4; i++) 
-    collect_U.emplace_back( shm_csrMat(tp_ul_ul{2*NMO, NMO}, tp_ul_ul{0, 0}, 
-                                         maximum_connections, Alloc(TGwfn.Node()))); 
-  collect_J.reserve(3); 
+    collect_U.emplace_back(csrMat({2*NMO, NMO},maximum_connections));
   // [2] is a place-holder for the empty case
   for(int i=0; i<3; i++)
-    collect_J.emplace_back( shm_csrMat(tp_ul_ul{NMO, NMO}, tp_ul_ul{0, 0}, 
-                                          maximum_connections, Alloc(TGwfn.Node()))); 
+    collect_J.emplace_back(csrMat({NMO, NMO},maximum_connections));
 
   for(int n=0; n<num_components; n++)  {
-    if (dump.push("ModelComponent_"+std::to_string(n), false)<0)
-      APP_ABORT(base_error + "Group ModelComponent_" + std::to_string(n) + " not found. ");
+    h5::group gn = mgrp.open_group("ModelComponent_"+std::to_string(n));
     
     std::string model_type("dummy");
-    if (!dump.readEntry(model_type,"model_type"))
-      APP_ABORT(base_error + " Problems reading model_type. ");
+    h5::h5_read(gn,"model_type",model_type); 
     std::transform(model_type.begin(), model_type.end(), model_type.begin(), (int (*)(int))tolower);
 
     if( model_type == "one_body" ) 
     {
-      if(one_body_term)
-        APP_ABORT(base_error + " Multiple one_body components defined.");  
+      utils::check(not one_body_term, base_error + " Multiple one_body components defined.");  
       one_body_term=true;
 
-      if (dump.push("tij", false)<0)
-        APP_ABORT(base_error + " Problems reading tij dataset in model_type: " + model_type);
-      shm_csrMat tij (csr_hdf5::HDF2CSR<shm_csrMat, 
-                                        shared_allocator<SPValueType>>(dump, TGwfn.Node() ));
-      dump.pop();  // tij
+      h5::group dn = gn.open_group("tij");
+      auto tij = math::sparse::HDF2CSR<ValueType,HOST_MEMORY,int,int>(dn);
 
       std::string stype;
-      if (!dump.readEntry(stype,"spin_type"))
-        APP_ABORT(base_error + " Problems reading spin_type. ");
+      h5::h5_read(gn,"spin_type",stype);
       std::transform(stype.begin(), stype.end(), stype.begin(), (int (*)(int))tolower);
 
       // returns a sparse matrix with the 1-body hamiltonian consistent with type
-      hij = spin_to_walker_type(type, stype, tij);
+      hij = detail::spin_to_walker_type(NMO, type, stype, tij);
     }
     else if( model_type == "hubbard_u" ) 
     {
-      if (dump.push("Uij", false)<0)
-        APP_ABORT(base_error + " Problems reading Uij dataset in model_type: " + model_type);
-      shm_csrMat Uij (csr_hdf5::HDF2CSR<shm_csrMat, 
-                                        shared_allocator<SPValueType>>(dump, TGwfn.Node() ));
-      dump.pop();  // Uij
+      h5::group dn = gn.open_group("Uij");
+      csrMat Uij =  math::sparse::HDF2CSR<ValueType,HOST_MEMORY,int,int>(dn); 
 
-      if( (Uij.size(0) != NMO and 
-          Uij.size(0) != 2*NMO) or 
-          Uij.size(1) != NMO )
-        APP_ABORT(base_error + " Found Hubbard_U model with inconsistent dimensions. ");
+      utils::check((Uij.extent(0) == NMO or Uij.extent(0) == 2*NMO) and 
+                   Uij.extent(1) == NMO, 
+                   base_error + " Found Hubbard_U model with inconsistent dimensions. ");
       // for safety
-      if( Uij.num_non_zero_elements() == 0 )
-        APP_ABORT(base_error + " Found empty Hubbard_U model. "); 
+      utils::check(Uij.nnz() != 0, base_error + " Found empty Hubbard_U model. "); 
 
       std::string hst_type; 
-      if (!dump.readEntry(hst_type,"hst_type"))
-        APP_ABORT(base_error + " Problems reading hst_type. ");
+      h5::h5_read(gn,"hst_type",hst_type);
       std::transform(hst_type.begin(), hst_type.end(), hst_type.begin(), (int (*)(int))tolower);
 
       int where_(-1);
@@ -177,176 +209,148 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
       else if(hst_type == "discrete_charge") where_ = 2; 
       else if(hst_type == "discrete_spin") where_ = 3;
       else
-        APP_ABORT(base_error + " Unknown hst_type: " + hst_type);
+        utils::check(false,base_error + " Unknown hst_type: " + hst_type);
 
       app_log(1, "Hamiltonian component {} is using Hubbard-Stratanovich transformation type {} or Hubbard U", n, hst_type);
 
-      if(TGwfn.Node().root()) {
+      {
         // doing this "by hand" to impose condition i>j
         // opposite spin (i<=j)
         // MAM: ignoring lower diagonal terms seems to confuse users, consider reading everything
         //      and just transposing the terms here when you write them in collect_U/J
-        for( int i=0; i<NMO; ++i) {
-          auto vals = Uij.non_zero_values_data(i);
-          auto cols = Uij.non_zero_indices2_data(i);
-          auto nnz = Uij.num_non_zero_elements(i);
-          while( (nnz--) > 0 ) {
-            auto u_ = *(vals++);
-            int j = *(cols++);
-            if( std::abs(u_) < 1e-6 or i>j ) {
-              app_warning("Ignoring opposite spin Uij, i>j: i:{}, j:{}, U:{}",i,j,u_);
+        auto vals = Uij.values();
+        auto cols = Uij.columns();
+        for( int r=0; r<NMO; ++r) {
+          for(long i=Uij.row_begin(r); i<Uij.row_end(r); ++i) {
+            auto u_ = vals(i);
+            int j = cols(i);
+            if( std::abs(u_) < 1e-6 or r>j ) {
+              app_warning("Ignoring opposite spin Uij, i>j: i:{}, j:{}, U:{}",r,j,u_);
               continue;
 	    }
-            collect_U[where_].add( {i, j}, u_ );
+            collect_U[where_].add( {r, j}, u_ );
           }
         }
-        // same spin (i<j)
-        for( int i=NMO; i<Uij.size(0); ++i) {
-          auto vals = Uij.non_zero_values_data(i);
-          auto cols = Uij.non_zero_indices2_data(i);
-          auto nnz = Uij.num_non_zero_elements(i);
-          while( (nnz--) > 0 ) {
-            auto u_ = *(vals++);
-            int j = *(cols++);
-            if( std::abs(u_) < 1e-6 or (i-NMO)>=j ) { 
-              app_warning("Ignoring same spin Uij, i=>j: i:{}, j:{}, U:{}",i,j,u_);
+        for( int r=NMO; r<Uij.extent(0); ++r) {
+          for(long i=Uij.row_begin(r); i<Uij.row_end(r); ++i) {
+            auto u_ = vals(i);
+            int j = cols(i);
+            if( std::abs(u_) < 1e-6 or (r-NMO)>=j ) { 
+              app_warning("Ignoring same spin Uij, i=>j: i:{}, j:{}, U:{}",r,j,u_);
               continue;
-	    }
-            collect_U[where_].add( {i, j}, u_ );
+            }
+            collect_U[where_].add( {r, j}, u_ );
           }
         }
       }
-      TGwfn.Node().barrier();
     }
     else if( model_type == "hubbard_j" )  
     { 
-      if (dump.push("Jij", false)<0)
-        APP_ABORT(base_error + " Problems reading Jij dataset in model_type: " + model_type);
-      shm_csrMat Jij (csr_hdf5::HDF2CSR<shm_csrMat, 
-                                        shared_allocator<SPValueType>>(dump, TGwfn.Node() ));
-      dump.pop();  // Jij
+      h5::group dn = gn.open_group("Jij");
+      csrMat Jij =  math::sparse::HDF2CSR<ValueType,HOST_MEMORY,int,int>(dn);
       
-      if( Jij.size(0) != NMO or
-          Jij.size(1) != NMO ) 
-        APP_ABORT(base_error + " Found Hubbard_J model with inconsistent dimensions. ");
+      utils::check(Jij.extent(0) == NMO and Jij.extent(1) == NMO, 
+                   base_error + " Found Hubbard_J model with inconsistent dimensions. ");
       // for safety
-      if( Jij.num_non_zero_elements() == 0 )
-        APP_ABORT(base_error + " Found empty Hubbard_J model. ");
-      
-      std::string hst_type; 
-      if (!dump.readEntry(hst_type,"hst_type"))
-        APP_ABORT(base_error + " Problems reading hst_type. ");
+      utils::check(Jij.nnz() != 0, base_error + " Found empty Hubbard_U model. ");
+
+      std::string hst_type;
+      h5::h5_read(gn,"hst_type",hst_type);
       std::transform(hst_type.begin(), hst_type.end(), hst_type.begin(), (int (*)(int))tolower);
       
       int where_(-1);
       if(hst_type == "continuous_charge") where_ = 0; 
       else if(hst_type == "continuous_spin") where_ = 1; 
       else if(hst_type == "discrete_charge") { 
-        APP_ABORT(base_error + " Discrete HS transformations not allowed with Hubbard_J");
+        utils::check(false,base_error + " Discrete HS transformations not allowed with Hubbard_J");
       } else if(hst_type == "discrete_spin") {
-        APP_ABORT(base_error + " Discrete HS transformations not allowed with Hubbard_J");
+        utils::check(false,base_error + " Discrete HS transformations not allowed with Hubbard_J");
       } else 
-        APP_ABORT(base_error + " Unknown hst_type: " + hst_type);
+        utils::check(false,base_error + " Unknown hst_type: " + hst_type);
     
       app_log(1, "Hamiltonian component {} is using Hubbard-Stratanovich transformation type {} for Hubbard J", n, hst_type);
 
-      if(TGwfn.Node().root()) { 
+      { 
         // doing this "by hand" to impose condition i>j
         // opposite spin (i<=j)
-        for( int i=0; i<NMO; ++i) {
-          auto vals = Jij.non_zero_values_data(i);
-          auto cols = Jij.non_zero_indices2_data(i);
-          auto nnz = Jij.num_non_zero_elements(i);
-          while( (nnz--) > 0 ) {
-            auto v_ = *(vals++);
-            int j = *(cols++); 
-            if( std::abs(v_) < 1e-6 or i>=j ) continue;
-            collect_J[where_].add( {i, j}, v_ );
+        auto vals = Jij.values();
+        auto cols = Jij.columns();
+        long cnt=0;
+        for( int r=0; r<NMO; ++r) {
+          for(long i=Jij.row_begin(r); i<Jij.row_end(r); ++i) {
+            auto v_ = vals(i);
+            int j = cols(i);
+            if( std::abs(v_) < 1e-6 or r>=j ) continue;
+            collect_J[where_].add( {r, j}, v_ );
           }
         }
       }
-      TGwfn.Node().barrier();
     }
     else  
-      APP_ABORT(base_error + " Unknown model type: " + model_type);
+      utils::check(false,base_error + " Unknown model type: " + model_type);
 
-    dump.pop();  // ModelComponent
   }
-  if(not one_body_term)
-    APP_ABORT(base_error + " Missing one_body component in ModelHamiltonian.");  
-  if(hij.num_non_zero_elements() == 0)
-    APP_ABORT(base_error + " Something went wrong, empty one_body component.");  
+  utils::check(one_body_term, base_error + " Missing one_body component in ModelHamiltonian.");  
+  utils::check(hij.nnz() != 0, 
+               base_error + " Something went wrong, empty one_body component.");  
 
   // combine all U/J matrices for energy evaluation. 
-  shm_csrMat combined_U(tp_ul_ul{2*NMO,NMO}, tp_ul_ul{0, 0}, maximum_connections, Alloc(TGwfn.Node()));
-  shm_csrMat combined_J(tp_ul_ul{NMO,NMO}, tp_ul_ul{0, 0}, maximum_connections, Alloc(TGwfn.Node()));
-  if(TGwfn.Node().root()) {
+  csrMat combined_U({2*NMO,NMO}, maximum_connections);
+  csrMat combined_J({NMO,NMO}, maximum_connections);
+
+  {
     for( auto& v: collect_U ) 
-      csr::accumulate(SPValueType(1.0), v, combined_U);
+      math::sparse::accumulate(ValueType(1.0), v, combined_U);
     for( auto& v: collect_J ) 
-      csr::accumulate(SPValueType(1.0), v, combined_J);
+      math::sparse::accumulate(ValueType(1.0), v, combined_J);
   }  
-  TGwfn.Node().barrier();
   // make compact, since some libraries require it!
   combined_U.remove_empty_spaces();  
   combined_J.remove_empty_spaces();  
   hij.remove_empty_spaces();
 
   // create energy evaluation model class
-  SparseEnergy<MP,REAL> ET( make_SparseEnergy<MP,REAL>(TGwfn, type, hij, combined_U, combined_J, E0) );
+  SparseEnergy<MEM,REAL> ET( make_SparseEnergy<MEM,REAL>(mpi, type, hij, combined_U, combined_J, E0) );
 
   // Add Jij terms to Uij. 
-  if(TGwfn.Node().root()) {
-    for( int i=0; i<NMO; ++i) {
-      auto vals = collect_J[0].non_zero_values_data(i);
-      auto cols = collect_J[0].non_zero_indices2_data(i);
-      auto nnz = collect_J[0].num_non_zero_elements(i);
+  {
+    auto vals = collect_J[0].values();
+    auto cols = collect_J[0].columns();
+    for( int r=0; r<NMO; ++r) 
       // terms go in same spin component, so shift row by NMO
-      while( (nnz--) > 0 )
-        collect_U[0].add( {i+NMO, *(cols++)}, *(vals++) );
-    }
-    for( int i=0; i<NMO; ++i) {
-      auto vals = collect_J[1].non_zero_values_data(i);
-      auto cols = collect_J[1].non_zero_indices2_data(i);
-      auto nnz = collect_J[1].num_non_zero_elements(i);
+      for(long i=collect_J[0].row_begin(r); i<collect_J[0].row_end(r); ++i) 
+        collect_U[0].add( {r+NMO, cols(i)}, vals(i) );
+  }
+  {
+    auto vals = collect_J[1].values();
+    auto cols = collect_J[1].columns();
+    for( int r=0; r<NMO; ++r) 
       // terms go in same spin component, so shift row by NMO
-      // spin decomposition gets a factor of -1, so add to charge terms too 
-      while( (nnz--) > 0 )
-        collect_U[0].add( {i+NMO, *(cols++)}, SPValueType(-1.0)*(*(vals++)) );
-    }
+      for(long i=collect_J[1].row_begin(r); i<collect_J[1].row_end(r); ++i)
+        collect_U[0].add( {r+NMO, cols(i)}, ValueType(-1.0)*vals(i) );
   }
 
   // generate "present" one-body terms
   using map_t = std::unordered_map<size_t, int>;
-  Vector<size_t> n2IJ( find_occupied_pairs(type, collect_U, collect_J) );
+  nda::array<long,1> n2IJ( find_occupied_pairs(type, collect_U, collect_J) );
   map_t IJ2n;
   IJ2n.reserve(n2IJ.size()); 
   for(int n=0; n<n2IJ.size(); n++) 
     IJ2n.insert(std::make_pair(n2IJ[n], n));
 
-  addComponent<MP,REAL>( TGwfn, type, ContinuousChargePropagator, collect_U[0], 
+  addComponent<MEM,REAL>( type, ContinuousChargePropagator, mpi, collect_U[0], 
 		collect_J[0], Hams, n2IJ, IJ2n);
-  addComponent<MP,REAL>( TGwfn, type, ContinuousSpinPropagator  , collect_U[1], 
+  addComponent<MEM,REAL>( type, ContinuousSpinPropagator, mpi, collect_U[1], 
 		collect_J[1], Hams, n2IJ, IJ2n);
   // note: collect_J[2] should be empty
-  utils::check(collect_J[2].num_non_zero_elements() == 0, "");
-  addComponent<MP,REAL>( TGwfn, type, DiscreteChargePropagator, collect_U[2], 
+  utils::check(collect_J[2].nnz() == 0, "");
+  addComponent<MEM,REAL>( type, DiscreteChargePropagator, mpi, collect_U[2], 
 		collect_J[2], Hams, n2IJ, IJ2n);
-  addComponent<MP,REAL>( TGwfn, type, DiscreteSpinPropagator, collect_U[3], 
+  addComponent<MEM,REAL>( type, DiscreteSpinPropagator, mpi, collect_U[3], 
 		collect_J[2], Hams, n2IJ, IJ2n);
 
-  if (TGwfn.Node().root()) {
-    dump.pop();  // ModelHamiltonian 
-    dump.pop();  // Hamiltonian
-    dump.close();
-  }
-  TGwfn.Global().barrier();
-
-  using devSpCMatrix  = Matrix<SPComplexType, device_allocator<SPComplexType>>;
-  return HamiltonianOperations<MP>(ModelHamOps<MP,REAL,devSpCMatrix>(TGwfn, type, std::move(PsiC), 
-                        std::move(ET), std::move(Hams), n2IJ, sparse_g_eval)); 
-*/
-  return HamiltonianOperations<MEM>{};
+  return HamiltonianOperations<MEM>(ModelHamOps<MEM,REAL>(mpi, type, nel_up, nel_dn,
+       std::move(PsiC), std::move(ET), std::move(Hams), n2IJ, sparse_g_eval)); 
 }
 
 template<MEMORY_SPACE MEM> HamiltonianOperations<MEM> 
@@ -355,76 +359,42 @@ ModelHamOpsGenerator::getHamiltonianOperations(WALKER_TYPES type,
                  nda::array<PsiT_Matrix<MEM>,2> const& PsiT)
 {
   bool Real = false;
-/*
-  if(mpi->comm.root()) {
-
-    if (!dump.open(fileName, H5F_ACC_RDONLY))
-      APP_ABORT(" Error opening integral file in ModelHamOpsGenerator. ");
-    if (dump.push("Hamiltonian", false)<0)
-      APP_ABORT(" Error in ModelHamOpsGenerator::getHamiltonianOperations(): Group Hamiltonian not found. ");
-    if (dump.push("ModelHamiltonian", false)<0)
-      APP_ABORT(" Error in ModelHamOpsGenerator::getHamiltonianOperations(): Group ModelHamiltonian not found. ");
-
+  if(mpi->comm.root()) { 
+    // check file structure, check types
     std::string base_error("Error in ModelHamOpsGenerator::getHamiltonianOperations(): ");
-    std::vector<int> shape;
-    int num_components(0);
-    if (!dump.readEntry(num_components, "number_of_components"))
-       APP_ABORT(base_error + " /Hamiltonian/ModelHamiltonian/number_of_components not found. ");
-
+    h5::file file(fileName,'r');
+    h5::group grp(file);
+    h5::group mgrp = grp.open_group("Hamiltonian").open_group("ModelHamiltonian");
+    int num_components;
+    h5::h5_read(mgrp,"number_of_components",num_components);
     for(int n=0; n<num_components; n++)  {
+      h5::group gn = mgrp.open_group("ModelComponent_"+ std::to_string(n));
 
-      if (dump.push("ModelComponent_"+std::to_string(n), false)<0)
-        APP_ABORT(base_error + "Group ModelComponent_" + std::to_string(n) + " not found. ");
-
+      std::string dset;
       std::string model_type("dummy");
-      if (!dump.readEntry(model_type,"model_type"))
-        APP_ABORT(base_error + " Problems reading model_type. ");
+      h5::h5_read(gn, "model_type", model_type);
       std::transform(model_type.begin(), model_type.end(), model_type.begin(), (int (*)(int))tolower);
 
-      if( model_type == "one_body" )
-      {
-        if (dump.push("tij", false)<0)
-          APP_ABORT(base_error + " Problems reading tij dataset in model_type: " + model_type);
-      }
-      else if( model_type == "hubbard_u" )
-      {
-        if (dump.push("Uij", false)<0)
-          APP_ABORT(base_error + " Problems reading Uij dataset in model_type: " + model_type);
-      }
-      else if( model_type == "hubbard_j" )
-      {
-        if (dump.push("Jij", false)<0)
-          APP_ABORT(base_error + " Problems reading Jij dataset in model_type: " + model_type);
-      }
-      else
-        APP_ABORT(base_error + " Unknown model type: " + model_type);
+      if( model_type == "one_body" ) { 
+        utils::check(gn.has_key("tij"), "Missing dataset tij with model_type=one_body.");
+        dset = "tij";
+      } else if( model_type == "hubbard_u" ) {
+        utils::check(gn.has_key("Uij"), "Missing dataset Uij with model_type=hubbard_u.");
+        dset = "Uij";
+      } else if( model_type == "hubbard_j" ) {
+        utils::check(gn.has_key("Jij"), "Missing dataset Jij with model_type=hubbard_j.");
+        dset = "Jij";
+      } else
+        utils::check(false, base_error + " Unknown model type: " + model_type);
 
-      shape.clear();
-      if (!dump.getShape<RealType>("data_", shape))
-        APP_ABORT(" Error in ModelHamOpsGenerator::getHamiltonianOperations(): getShape(data_) returned error. ");
-
-      dump.pop();  // tij, Uij, Jij
-      dump.pop();  // ModelComponent_X	
-
-      if( n==0 ) {
-        if( shape.size() == 2 ) Real = false;
-        else if( shape.size() == 1 ) Real = true;
-        else APP_ABORT(" Error in ModelHamOpsGenerator::getHamiltonianOperations(): Inconsistent data shape. ");
-      } else {
-        if( (shape.size() != 2 and shape.size() != 1) or
-            (shape.size() == 2 and Real ) or
-            (shape.size() == 1 and not Real) )
-          APP_ABORT(" Error in ModelHamOpsGenerator::getHamiltonianOperations(): Inconsistent data types in ModelComponents. "); 
-      }
-
+      // Allowing mixed types
+      h5::group dn = gn.open_group(dset);
+      auto l = h5::array_interface::get_dataset_info(dn,"data_");
+      if(l.has_complex_attribute) Real = false;
     } // for(n)
-
-    dump.pop();
-    dump.pop();
-    dump.close();
   }
-*/
   mpi->comm.broadcast_n(&Real, 1, 0);
+
   if(Real)
     return getHamiltonianOperations_impl<MEM,true>(type, mpi, PsiT);
   else

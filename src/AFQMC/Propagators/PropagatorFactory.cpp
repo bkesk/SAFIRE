@@ -39,15 +39,12 @@ Propagator PropagatorFactory::buildAFQMCPropagator(std::shared_ptr<utils::mpi_co
   utils::check(InfoMap.find(info) != InfoMap.end(),"ERROR: Undefined system in PropagatorFactory. ");
   AFQMCInfo& AFinfo = InfoMap[info];
 
-  // Add spin_dependent here based on type in HamOps
-  if( wfn.getHamType() == ModelHamiltonian ) {
-    // move the call to get FieldTypes to inside propagator constructor
-    utils::check(false,"finish");
+//  if( wfn.getHamType() == ModelHamiltonian ) {
 //    return Propagator(AFQMCModelPropagator<MEM>(AFinfo, pt, mpi, wfn, rng)); 
-    return Propagator{};
-  } else {  
+//    return Propagator{};
+//  } else {  
     return Propagator(AFQMCBasePropagator<MEM>(AFinfo, pt, mpi, wfn, rng));
-  }
+//  }
   return Propagator{};
 }
 

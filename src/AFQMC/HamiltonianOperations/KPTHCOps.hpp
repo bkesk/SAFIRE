@@ -44,6 +44,8 @@ template<MEMORY_SPACE _MEM>
 class KPTHCOps
 {
   static constexpr MEMORY_SPACE MEM = _MEM;
+  template<class T>
+  using csrMat = math::sparse::csr_matrix<T, MEM, int, int>;
 
 public:
   static constexpr HamiltonianTypes HamOpType = KPTHC;
@@ -160,11 +162,9 @@ public:
       for (int p1 = 0; p1 < npol; p1++) {
         int p1_ = p1%nptot;
         // vHS finite 'q' contributions (full NMO*NMO) 
-/*
         for (int I = 0; I < NMO; I++) 
           for (int J = 0 ; J < NMO; J++) 
-              H1(is,p1*NMO+I,p1*NMO+J) += v(is_,0,p1_*NMO+I,J); 
-*/
+              H1(is,p1*NMO+I,p1*NMO+J) += v(0,is_,p1_*NMO+I,J); 
 
         // hij and vexx only have q=0 contributions  
         for (int p2 = 0; p2 < npol; p2++) {
@@ -209,6 +209,9 @@ public:
     nda::array<int,1> v(nvc, int(ContinuousChargePropagator));
     return v;
   }
+
+  // nothing to update 
+  template<class... Args> void update_potentials([[maybe_unused]] Args&&... args) {}
 
   void energy(nda::MemoryArrayOfRank<2> auto && E,
               nda::MemoryArrayOfRank<2> auto const& G,
@@ -406,6 +409,13 @@ public:
   }
 */
 
+  auto vHS_sparse(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  {
+    utils::check(false, "vHS_sparse not implemented in THCOps.");
+    nda::array<csrMat<ComplexType>,1> spvHS;
+    return spvHS();
+  }
+
   // returns v[nwalk, nspin_in_basis*npol_in_basis, NMO, NMO]
   // no spin-orbit vHS yet
   auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
@@ -424,8 +434,8 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
-    auto v7d = nda::reshape(v,std::array<long,7>{nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd});
+    memory::buffered_array<MEM,ComplexType,4> v(nwalk,nstot,nptot*NMO,NMO);
+    auto v7d = nda::reshape(v,std::array<long,7>{nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd});
     v() = ComplexType(0.0);
 
     // scale by sqrt(dt)
@@ -482,7 +492,7 @@ public:
                   Qwiu(w,i,all) = Twqu(w,iq,all) * nda::conj(Xiu(i,all));
 
               // v(nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd)
-              auto vij = v7d(is,all,ip,ik,all,k2,all);
+              auto vij = v7d(all,is,ip,ik,all,k2,all);
               nda::tensor::contract(ComplexType(1.0),Qwiu,"wiu",Xju,"ju",
                                     ComplexType(1.0),vij,"wij");
 
@@ -514,7 +524,7 @@ public:
                 for(int i=0; i<nbnd; ++i)
                   Qwiu(w,i,all) = Twu(w,all) * Xiu(i,all);
 
-              auto vij = v7d(is,all,ip,k2,all,ik,all);
+              auto vij = v7d(all,is,ip,k2,all,ik,all);
               nda::tensor::contract(ComplexType(1.0),Qwiu,"wiu",nda::conj(Xju),"ju",
                                     ComplexType(1.0),vij,"wij");
 
@@ -644,17 +654,14 @@ public:
 //      memory::array_view<MEM,const ComplexType,4> G3d(std::array<long,4>{nwalk,nspin,npol*NMO,npol*NMO},G.data());
     }
   }
-/*
-  template<class Mat, class MatB>
-  void generalizedFockMatrix([[maybe_unused]] Mat&& G, [[maybe_unused]] MatB&& Fp, [[maybe_unused]] MatB&& Fm)
+
+  template<class... Args> void generalizedFockMatrix([[maybe_unused]] Args&&... args)
   {
     APP_ABORT(" Error: generalizedFockMatrix not implemented for this hamiltonian.");
   }
-
-*/
   
   /// Returns the number of spins and polarizations in the VHS potential.
-  auto vHS_dims() const {
+  std::tuple<int,int> vHS_dims() const {
     return std::make_tuple(_Xsiu_().shape()[0],_Xsiu_().shape()[2]/nbnd);
   }
   int number_of_ke_vectors() const { 

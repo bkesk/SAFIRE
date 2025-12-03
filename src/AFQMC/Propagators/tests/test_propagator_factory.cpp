@@ -119,6 +119,7 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
   ptree prop_pt;
   prop_pt.put("name","prop0");
   prop_pt.put("system","info0");
+  prop_pt.put("denseP2",true);
 
   PropagatorFactory PropgFac(InfoMap);
   PropgFac.push("prop0", prop_pt);
