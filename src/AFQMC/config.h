@@ -55,7 +55,9 @@ enum WALKER_TYPES
   CLOSED,
   COLLINEAR,
   NONCOLLINEAR,
-  FULLYPOLARIZED
+  FULLYPOLARIZED,
+  COLLINEAR_FT,
+  NONCOLLINEAR_FT
 };
 
 inline WALKER_TYPES initWALKER_TYPES(int i)
@@ -70,6 +72,10 @@ inline WALKER_TYPES initWALKER_TYPES(int i)
     return NONCOLLINEAR;
   else if (i == 4)
     return FULLYPOLARIZED;
+  else if (i == 5)
+    return COLLINEAR_FT;
+  else if (i == 6)
+    return NONCOLLINEAR_FT;
   return UNDEFINED_WALKER_TYPE;
 }
 

@@ -51,6 +51,21 @@ void WalkerSetBase<_M_>::parse(ptree pt_in)
     app_log(1," Using a closed-shell (closed-shell RHF) walker. ");
     walkerType = CLOSED;
   }
+  else if (walker_type.find("non-collinear-ft") != std::string::npos)
+  {
+    app_log(1," Using a non-collinear (GHF) finite temperature walker. ");
+    walkerType = NONCOLLINEAR_FT;
+  }
+  else if (walker_type.find("noncollinear-ft") != std::string::npos)
+  {
+    app_log(1," Using a non-collinear (GHF) finite temperature walker. ");
+    walkerType = NONCOLLINEAR_FT;
+  }
+  else if (walker_type.find("collinear-ft") != std::string::npos)
+  {
+    app_log(1," Using a collinear (UHF/ROHF) finite temperature walker. ");
+    walkerType = COLLINEAR_FT;
+  }
   else if (walker_type.find("non-collinear") != std::string::npos)
   {
     app_log(1," Using a non-collinear (GHF) walker. ");
@@ -138,6 +153,10 @@ void WalkerSetBase<_M_>::setup()
   // careful! These are only used to calculate memory needs and access points/partitionings
   int ncol = nup;
   int nrow = NMO;
+  if(walkerType == COLLINEAR_FT or walkerType == NONCOLLINEAR_FT)
+  {
+    ncol = NMO;
+  }
   // wlk_descriptor: {nmo, naea, naeb, nback_prop, nCV, nRefs, nHist}
   if (walkerType == CLOSED)
   {
@@ -158,13 +177,30 @@ void WalkerSetBase<_M_>::setup()
   {
     wlk_desc = {NMO, nup, 0, 0, 0, 0, 0};
   }
+  else if (walkerType == COLLINEAR_FT)
+  {
+    wlk_desc = {NMO, NMO, NMO, 0, 0, 0, 0};
+    ncol += NMO;
+  }
+  else if (walkerType == NONCOLLINEAR_FT)
+  {
+    wlk_desc = {2*NMO, 2*NMO, 0, 0, 0, 0, 0};
+    nrow += NMO;
+    ncol += NMO;
+  }
   else
   {
     app_error(" Error: Incorrect walker_type on WalkerSetBase::setup ");
     APP_ABORT("");
   }
 
+  //   T = 0
   //   - SlaterMatrix:         NCOL*NROW
+  //   T > 0
+  //   - UMatrix:         NCOL*NROW
+  //   - DMatrix:         NCOL
+  //   - VMatrix:         NCOL*NROW
+  
   //   - weight:               1
   //   - phase:                1
   //   - pseudo energy:        1
@@ -174,10 +210,22 @@ void WalkerSetBase<_M_>::setup()
   //   - overlap:              1
   //   - SlaterMatrixN:        Same size as Slater Matrix
   //   - SlaterMatrixAux:        Same size as Slater Matrix
-  //   Total: 10+2*NROW*NCOL+BP_SIZE+2*NBACK_PROP
+  //   (T=0) Total: 10+2*NROW*NCOL+BP_SIZE+2*NBACK_PROP
   int cnt        = 0;
-  data_displ[SM] = cnt;
-  cnt += nrow * ncol;
+  if(walkerType != COLLINEAR_FT and walkerType != NONCOLLINEAR_FT)
+  {    
+    data_displ[SM] = cnt;
+    cnt += nrow * ncol;
+  }
+  else if(walkerType == COLLINEAR_FT or walkerType == NONCOLLINEAR_FT) 
+  {
+    data_displ[UR] = cnt;
+    cnt += nrow * ncol;
+    data_displ[DR] = cnt;
+    cnt += ncol;
+    data_displ[VR] = cnt;
+    cnt += nrow * ncol;
+  }
   data_displ[WEIGHT] = cnt;
   cnt += 1; // weight
   data_displ[PHASE] = cnt;
@@ -198,6 +246,12 @@ void WalkerSetBase<_M_>::setup()
   cnt += 1; // EJ
   data_displ[OVLP] = cnt;
   cnt += 1; // overlap
+  data_displ[LOGSCL_UP] = cnt;
+  cnt += 1; // scale factor for D_up
+  data_displ[LOGSCL_DN] = cnt;
+  cnt += 1; // scale factor for D_dn
+  data_displ[IS_UNITARY] = cnt;
+  cnt += 1; // flag to track if UR is unitary
   data_displ[THETA] = cnt;
   cnt += 1; // theta
   walker_size                = cnt;
@@ -336,7 +390,9 @@ void WalkerSetBase<_M_>::processWalkerData(std::vector<ComplexType>& curData)
     mpi->comm.broadcast_n(curData.data(), curData.size());
   // by default, LogOverlapFactor is set to the walker mean in popControl
   // this comes at no extra cost and keeps the values of overlaps stable
-  adjustLogOverlapFactor(std::log(std::abs(curData[4])));
+  // PR: LogOverlapFactor not used for finite-T
+  if(walkerType != COLLINEAR_FT and walkerType != NONCOLLINEAR_FT)
+    adjustLogOverlapFactor(std::log(std::abs(curData[4])));
 }
 
 //  curData:
@@ -439,6 +495,62 @@ void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<3> auto const& A)
     walker_buffer(r,data_displ[PHASE1]) = ComplexType(1.0);
     walker_buffer(r,data_displ[PHASE2]) = ComplexType(1.0);
     walker_buffer(r,data_displ[PHASE3]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[THETA]) = ComplexType(0.0);
+  }
+  tot_num_walkers = n;
+  targetN_per_rank  = tot_num_walkers;
+  targetN         = GlobalPopulation();
+  utils::check(targetN == targetN_per_rank * mpi->comm.size(), 
+           " Error in total walker population: targetN, targetN_per_rank, # of ranks: {}, {}, {}",
+           targetN,targetN_per_rank,mpi->comm.size());
+}
+
+/*
+ * Adds/removes the number of walkers in the set to match the requested value.
+ * Walkers are removed from the end of the set 
+ *      and buffer capacity remains unchanged in this case.
+ * New finite-T walkers are initialized from the supplied matrices. 
+ * Capacity is increased if necessary.
+ * Target Populations are set to n.
+*/
+template<MEMORY_SPACE _M_>
+void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<3> auto const& U, 
+                                       nda::MemoryArrayOfRank<2> auto const& D, 
+                                       nda::MemoryArrayOfRank<3> auto const& V)
+{ 
+  auto all = nda::range::all;
+  int nspin = (walkerType == COLLINEAR_FT ? 2 : 1);
+  utils::check(U.shape() == std::array<long,3>{nspin,wlk_desc[0],wlk_desc[1]} , "Size mismatch.");
+  reserve(n);
+  if (n > tot_num_walkers)
+  { 
+    auto pos = tot_num_walkers;
+    // careful here!!!
+    while (pos < n)
+    { 
+      walker_buffer(pos,all) = ComplexType(0.0);
+      reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
+      w0.template UMatrix<_M_>(Alpha) = U(0,nda::ellipsis{});
+      w0.template DMatrix<_M_>(Alpha) = D(0,nda::ellipsis{});
+      w0.template VMatrix<_M_>(Alpha) = V(0,nda::ellipsis{});
+      if (walkerType == COLLINEAR_FT)
+      {
+        w0.template UMatrix<_M_>(Beta) = U(1,all,nda::range(wlk_desc[2]));
+        w0.template DMatrix<_M_>(Beta) = D(1,nda::range(wlk_desc[2]));
+        w0.template VMatrix<_M_>(Beta) = V(1,all,nda::range(wlk_desc[2]));
+      }
+      pos++;
+    }
+    auto r = nda::range(tot_num_walkers,n); 
+    walker_buffer(r,data_displ[WEIGHT]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[OVLP]) = ComplexType(0.0); //finite-T keeps log(ovlp), instead of ovlp 
+    walker_buffer(r,data_displ[PHASE]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[PHASE1]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[PHASE2]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[PHASE3]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[LOGSCL_UP]) = ComplexType(0.0);
+    walker_buffer(r,data_displ[LOGSCL_DN]) = ComplexType(0.0);
+    walker_buffer(r,data_displ[IS_UNITARY]) = ComplexType(1.0);
     walker_buffer(r,data_displ[THETA]) = ComplexType(0.0);
   }
   tot_num_walkers = n;
