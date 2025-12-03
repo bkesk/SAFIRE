@@ -107,8 +107,9 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   if (mpi->comm.root())
   {
     if(format == "std") {
-      std::vector<RealType> Rdata(2);
-      h5::h5_read(*hgrp,"Energies",Rdata);  
+      std::vector<RealType> Rdata(2,RealType(0.0));
+   
+//      h5::h5_read(*hgrp,"Energies",Rdata);  
       if (Rdata.size() > 0)
         NuclearCoulombEnergy = Rdata[0];
       if (Rdata.size() > 1)
@@ -121,7 +122,6 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
         h5::h5_read_attribute(*hgrp,"frozen_core_energy",FrozenCoreEnergy);
       if( H5Aexists(h5::hid_t(*hgrp),"madelung_constant") ) {
         h5::h5_read_attribute(*hgrp,"madelung_constant",ElecSelfIntEnergy);
-std::cout<<" madelung: " <<ElecSelfIntEnergy <<" " <<nup <<" " <<ndown <<std::endl;
         ElecSelfIntEnergy *= -1.0*(nup+ndown);
       }
     }
@@ -161,7 +161,7 @@ std::cout<<" madelung: " <<ElecSelfIntEnergy <<" " <<nup <<" " <<ndown <<std::en
   {
     if(mpi->comm.root())
       utils::check(format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
-//    return Hamiltonian(ModelHamOpsGenerator(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
+    return Hamiltonian(ModelHamOpsGenerator(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if ( htype == THC )
   {

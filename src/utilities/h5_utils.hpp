@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "configuration.hpp"
 #include <typeinfo>
 
 #include <hdf5.h>
@@ -21,6 +22,8 @@
 #include "h5/h5.hpp"
 #include "nda/h5.hpp"
 #include "nda/nda.hpp"
+
+#include "utilities/check.hpp"
 
 namespace sfqmc::utils {
 
@@ -36,20 +39,21 @@ void read_cast(h5::group& g, std::string name, A_t && A)
     if constexpr (std::is_assignable_v<value_t&,std::complex<T>>) 
       A() = B();
     else
-      check(false,"Error in utils::read_h5: Failed is_assignable_v");
+      check(false,"Error in utils::h5_read_with_cast: Failed is_assignable_v");
   } else {
     nda::array<T,nda::get_rank<A_t>> B(A.shape());
     nda::h5_read(g,name,B);
     if constexpr (std::is_assignable_v<value_t&,T>) 
       A() = B();
     else
-      check(false,"Error in utils::read_h5: Failed is_assignable_v");
+      check(false,"Error in utils::h5_read_with_cast: Failed is_assignable_v");
   }
 }
 
 }
 
-auto read_h5(h5::group& g, std::string name, nda::MemoryArray auto && A)
+// reads and casts if types don't match
+auto h5_read_with_cast(h5::group& g, std::string name, nda::MemoryArray auto && A)
 {
   using A_t = std::decay_t<decltype(A)>; 
   using T = nda::get_value_t<A_t>;
@@ -67,7 +71,7 @@ auto read_h5(h5::group& g, std::string name, nda::MemoryArray auto && A)
         } else if (H5Tequal(h5::detail::hid_t_of<float>(),l.ty)>0) {
           detail::read_cast<float,true>(g,name,A);
         } else {
-          utils::check(false, "Problems with sfqmc::utils::read_h5: Missing specialized complex type read:{}",typeid(x).name());
+          utils::check(false, "Problems with sfqmc::utils::h5_read_with_cast: Missing specialized complex type read:{}",typeid(x).name());
         }
       }  
     } else { 
@@ -84,9 +88,38 @@ auto read_h5(h5::group& g, std::string name, nda::MemoryArray auto && A)
         } else if (H5Tequal(h5::detail::hid_t_of<float>(),l.ty)>0) {
           detail::read_cast<float>(g,name,A);
         } else {
-          utils::check(false, "Problems with sfqmc::utils::read_h5: Missing specialized type read:{}",typeid(x).name());
+          utils::check(false, "Problems with sfqmc::utils::h5_read_with_cast: Missing specialized type read:{}",typeid(x).name());
         }  
       } // l.has_complex_attribute
+    }
+  } else {
+    // need to stage copy on host
+    auto B = nda::to_host(A);
+    read(g,name,B);
+    A() = B();
+  }
+}
+
+// reads complex numbers even if has_complex_attribute is false 
+auto h5_read(h5::group& g, std::string name, nda::MemoryArray auto && A)
+{
+  using A_t = std::decay_t<decltype(A)>;
+  using T = nda::get_value_t<A_t>;
+  if constexpr (nda::mem::on_host<A_t>) {
+    if constexpr (nda::is_complex_v<T>) {
+      using T_real = nda::remove_complex_t<T>; 
+      auto l = h5::array_interface::get_dataset_info(g,name);
+      if (l.has_complex_attribute) {
+        nda::h5_read(g,name,A);
+      } else {
+        // check if the rank and size match
+        utils::check(nda::get_rank<A_t>+1 == l.rank(), "Rank mismatch");  
+// to_real_view fails if the array is empty, resize if possible here based on l.lengths
+        auto Ar = memory::to_real_view(A);
+        nda::h5_read(g,name,Ar);
+      }
+    } else { 
+      nda::h5_read(g,name,A);
     }
   } else {
     // need to stage copy on host

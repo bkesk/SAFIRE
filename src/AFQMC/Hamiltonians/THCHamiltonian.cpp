@@ -23,7 +23,7 @@
 
 #include "config.h"
 #include "utilities/check.hpp"
-#include "utilities/h5_utils.hpp"
+//#include "utilities/h5_utils.hpp"
 #include "numerics/nda_functions.hpp"
 #include "AFQMC/config.h"
 
@@ -192,12 +192,13 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
     if constexpr (REAL)
       utils::check(not l.has_complex_attribute,base_error+"Found complex " + name + " with REAL factory.");
     if (reshape_type==0) {
-      utils::read_h5(g,name,A());
+      auto Av = A();
+      nda::h5_read(g,name,Av);
     } else if (reshape_type==1) {
       if constexpr (nda::get_rank<decltype(A())> == 3) {
         auto s = A().shape();
         auto h4d = nda::reshape(A(),std::array<long,4>{s[0],1l,s[1],s[2]});
-        utils::read_h5(g,name,h4d);
+        nda::h5_read(g,name,h4d);
       } else {
         utils::check(false,"Invalid use of read_helper");
       }
@@ -205,7 +206,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       if constexpr (nda::get_rank<decltype(A())> == 2) {
         auto s = A().shape();
         auto h3d = nda::reshape(A(),std::array<long,3>{1l,s[0],s[1]});
-        utils::read_h5(g,name,h3d);
+        nda::h5_read(g,name,h3d);
       } else {
         utils::check(false,"Invalid use of read_helper");
       }

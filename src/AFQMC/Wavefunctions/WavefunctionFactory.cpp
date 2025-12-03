@@ -16,6 +16,7 @@
 
 #include <random>
 #include <boost/optional.hpp>
+#include "utilities/h5_utils.hpp"
 
 #include "AFQMC/Utilities/readWfn.h"
 #include "WavefunctionFactory.h"
@@ -235,8 +236,8 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
     {
       // RHF reference
       std::vector<size_t> nnzpr(get_nnz(PsiT_MO[0], active_combined.data(), active_combined.size(), 0));
-      PsiT.emplace_back(PsiT_Matrix(tp_ul_ul{active_combined.size(), NPOL*NMO}, 
-				    tp_ul_ul{0, 0}, nnzpr, Alloc(TGwfn.Node())));
+      PsiT.emplace_back(PsiT_Matrix({active_combined.size(), NPOL*NMO}, 
+				    {0, 0}, nnzpr, Alloc(TGwfn.Node())));
       if (TGwfn.Node().root())
       {
         for (int k = 0; k < active_combined.size(); k++)
@@ -256,8 +257,8 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
     {
       // UHF reference
       std::vector<size_t> nnzpr(get_nnz(PsiT_MO[0], active_alpha.data(), active_alpha.size(), 0));
-      PsiT.emplace_back(PsiT_Matrix(tp_ul_ul{active_alpha.size(), NPOL*NMO}, 
-				    tp_ul_ul{0, 0}, nnzpr, Alloc(TGwfn.Node())));
+      PsiT.emplace_back(PsiT_Matrix({active_alpha.size(), NPOL*NMO}, 
+				    {0, 0}, nnzpr, Alloc(TGwfn.Node())));
       if (TGwfn.Node().root())
       {
         for (int k = 0; k < active_alpha.size(); k++)
@@ -270,8 +271,8 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
         }
       }
       nnzpr = get_nnz(PsiT_MO[1], active_beta.data(), active_beta.size(), 0);
-      PsiT.emplace_back(PsiT_Matrix(tp_ul_ul{active_beta.size(), NPOL*NMO}, 
-				    tp_ul_ul{0, 0}, nnzpr, Alloc(TGwfn.Node())));
+      PsiT.emplace_back(PsiT_Matrix({active_beta.size(), NPOL*NMO}, 
+				    {0, 0}, nnzpr, Alloc(TGwfn.Node())));
       if (TGwfn.Node().root())
       {
         for (int k = 0; k < active_beta.size(); k++)
@@ -343,10 +344,10 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
                                   shared_allocator<ComplexType>, ma::sparse::is_root>;
     std::vector<ucsr_mat_t> unsorted_det_coupling;
     unsorted_det_coupling.reserve(2);
-    unsorted_det_coupling.emplace_back(ucsr_mat_t(tp_ul_ul{n_unique[0],n_unique[1]},
-                tp_ul_ul{0, 0}, counts_alpha, shared_allocator<ComplexType>{TGwfn.Node()}));
-    unsorted_det_coupling.emplace_back(ucsr_mat_t(tp_ul_ul{n_unique[1],n_unique[0]},
-                tp_ul_ul{0, 0}, counts_beta, shared_allocator<ComplexType>{TGwfn.Node()}));
+    unsorted_det_coupling.emplace_back(ucsr_mat_t({n_unique[0],n_unique[1]},
+                {0, 0}, counts_alpha, shared_allocator<ComplexType>{TGwfn.Node()}));
+    unsorted_det_coupling.emplace_back(ucsr_mat_t({n_unique[1],n_unique[0]},
+                {0, 0}, counts_beta, shared_allocator<ComplexType>{TGwfn.Node()}));
 
     if (TGwfn.Node().root())
     {
@@ -445,13 +446,13 @@ void WavefunctionFactory::getInitialGuess(h5::group grp,
     auto M = ((newg.first)->second)();
     M() = ComplexType(0.0, 0.0);
     auto Mup = M(0,nda::ellipsis{});
-    nda::h5_read(grp,"Psi0_alpha",Mup);
+    utils::h5_read(grp,"Psi0_alpha",Mup);
     if (walker_type == COLLINEAR)
     {
       if (wtype == COLLINEAR)
       {
         auto Mdn = M(1,nda::range::all,nda::range(ndown));
-        nda::h5_read(grp,"Psi0_beta",Mdn);
+        utils::h5_read(grp,"Psi0_beta",Mdn);
       }
       else if (wtype == CLOSED)
       {
@@ -700,8 +701,8 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
   if(trivial_ref) {
 
     PsiT_MO.reserve(1);
-    PsiT_MO.emplace_back(PsiT_Matrix(tp_ul_ul{NPOL*NMO, NPOL*NMO},
-                                     tp_ul_ul{0, 0}, 1, Alloc(TG.Node())));
+    PsiT_MO.emplace_back(PsiT_Matrix({NPOL*NMO, NPOL*NMO},
+                                     {0, 0}, 1, Alloc(TG.Node())));
 
     // makes sense to move the reordering of non-compact excitations to here!
     if (TG.Node().root())
@@ -729,10 +730,10 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
 
 
       PsiT_MO.reserve(2);
-      PsiT_MO.emplace_back(PsiT_Matrix(tp_ul_ul{NMO, NMO},
-                                       tp_ul_ul{0, 0}, 1, Alloc(TG.Node())));
-      PsiT_MO.emplace_back(PsiT_Matrix(tp_ul_ul{NMO, NMO},
-                                       tp_ul_ul{0, 0}, 1, Alloc(TG.Node())));
+      PsiT_MO.emplace_back(PsiT_Matrix({NMO, NMO},
+                                       {0, 0}, 1, Alloc(TG.Node())));
+      PsiT_MO.emplace_back(PsiT_Matrix({NMO, NMO},
+                                       {0, 0}, 1, Alloc(TG.Node())));
 
       if (TG.Node().root()) {
 
@@ -775,8 +776,8 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
     } else { // separate_references
 
       PsiT_MO.reserve(1);
-      PsiT_MO.emplace_back(PsiT_Matrix(tp_ul_ul{NPOL*NMO, NPOL*NMO},
-                                       tp_ul_ul{0, 0}, 1, Alloc(TG.Node())));
+      PsiT_MO.emplace_back(PsiT_Matrix({NPOL*NMO, NPOL*NMO},
+                                       {0, 0}, 1, Alloc(TG.Node())));
 
       if (TG.Node().root()) {
 

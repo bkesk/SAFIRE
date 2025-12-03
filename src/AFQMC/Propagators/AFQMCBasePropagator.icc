@@ -23,6 +23,7 @@
 
 #include "AFQMC/config.h"
 #include "utilities/Random.hpp"
+#include "AFQMC/Utilities/probit.h"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Propagators/WalkerSetUpdate.hpp"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
@@ -44,6 +45,8 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   AFQMCTimer.start(setup_timer);
   auto walker_type = wset.getWalkerType();
   int nwalk        = wset.size();
+  int npol  = ( walker_type == NONCOLLINEAR ? 2 : 1 );
+  int nspin = ( walker_type == COLLINEAR    ? 2 : 1 );
   SPRealType sqrtdt  = std::sqrt(SPRealType(dt));
   int nCV     = wfn->number_of_cholesky_vectors();
 
@@ -79,15 +82,33 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   if (bp_step >= 0 && bp_step < bp_max)
     wset.storeFields(bp_step,X);
 
-  // 3. Calculate vHS(M*M,nsteps,nwalk)/vHS(nsteps,nwalk,M*M)
-  AFQMCTimer.start(vHS_timer);
-  auto vHS = wfn->vHS(X, dt);
-  AFQMCTimer.stop(vHS_timer);
+  if(denseP2) {
+    // 3. Calculate vHS(M*M,nsteps,nwalk)/vHS(nsteps,nwalk,M*M)
+    AFQMCTimer.start(vHS_timer);
+    auto vHS = wfn->vHS(X, dt);
+    utils::check(vHS.shape() == std::array<long,4>{nwalk,nspins_in_vHS,npol_in_vHS*NMO,NMO}, 
+                 "Size mismatch");
+    AFQMCTimer.stop(vHS_timer);
 
-  // 4. Propagate walkers
-  AFQMCTimer.start(propagate_timer);
-  apply_propagators(wset,'N',vHS); 
-  AFQMCTimer.stop(propagate_timer);
+    // 4. Propagate walkers
+    AFQMCTimer.start(propagate_timer);
+    apply_propagators(wset,'N',vHS); 
+    AFQMCTimer.stop(propagate_timer);
+  } else {
+    // 3. Calculate vHS(M*M,nsteps,nwalk)/vHS(nsteps,nwalk,M*M)
+    AFQMCTimer.start(vHS_timer);
+    auto vHS = wfn->vHS_sparse(X, dt);
+    utils::check(vHS.extent(0) == nspin, "Size mismatch"); 
+    utils::check((vHS(0).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}) and
+                 (vHS(nspin-1).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}),
+                 "Size mismatch"); 
+    AFQMCTimer.stop(vHS_timer);
+
+    // 4. Propagate walkers
+    AFQMCTimer.start(propagate_timer);
+    apply_propagators(wset,'N',vHS);
+    AFQMCTimer.stop(propagate_timer);
+  }
 
   // 5. Calculate local energy/overlap
   AFQMCTimer.start(pseudo_energy_timer);
@@ -534,26 +555,21 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
 {
   using nda::range;
   auto all = range::all;
+  auto hamtype(wfn->getHamType());
   // On entry, X(iw,m) = vbias(iw,m);
   // remember to call vbi = apply_bound_vbias(*vb);
-  // X[iw,m] = rand[iw,m] + im * ( vbias[iw,m] - vMF[m]  )
-  // HW[iw] = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
-  //                     ( rand[iw,m] + halfim * ( vbias[iw,m] - vMF[m] ) ) ]
-  //           = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
-  //                     ( X[iw,m] - halfim * ( vbias[iw,m] - vMF[m] ) ) ]
-  // MF[iw] = sum_m ( im * X[iw,m] * vMF[m] )
 
   ComplexType im(0.0, 1.0);
   auto [nwalk,nCV] = X.shape();
   // generate random numbers
   utils::check( rng_block_size >= nCV, "Error in assemble_X: rng_block_size < nCV.");
-  memory::buffered_array<MEM,ComplexType,2> RNGbuff(nwalk,rng_block_size);
-  RNGbuff() = ComplexType(0.0);
+  memory::buffered_array<MEM,RealType,2> RNGbuff(nwalk,rng_block_size);
+  RNGbuff() = RealType(0.0);
   if (addRAND)
   {
     // always generate rng_block_size per walker, to keep generators synchronized in 
     // correlated sampling calculations
-    utils::sampleGaussianFields_n(RNGbuff.data(), RNGbuff.size(), *rng);
+    utils::sampleUniformFields_n(RNGbuff.data(), RNGbuff.size(), *rng);
   }
 
   // construct X
@@ -570,16 +586,54 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
     auto Xm = X(all,m);
     auto vmf_0 = vMF()(m);
     auto vmf_t = apply_bound_vbias(vmf_0, sqrtdt);
+    PropagatorTypes Fp = PropagatorTypes(FieldTypes(m));
+    // X[iw,m] = rand[iw,m] + im * ( vbias[iw,m] - vMF[m]  )
+    // HW[iw] = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
+    //                     ( rand[iw,m] + halfim * ( vbias[iw,m] - vMF[m] ) ) ]
+    //           = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
+    //                     ( X[iw,m] - halfim * ( vbias[iw,m] - vMF[m] ) ) ]
+    // MF[iw] = sum_m ( im * X[iw,m] * vMF[m] )
     for (int iw = 0; iw < nwalk; iw++)
     {
       auto vb_t = apply_bound_vbias(Xm(iw), sqrtdt);
-      ComplexType vdiff =
-          free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
-      Xm(iw) = RNGbuff(iw,m) + vdiff;
-      HWs(iw) -= vdiff * Xm(iw) - 0.5 * vdiff;
-      MF(iw) += im * Xm(iw) * vmf_0;
-    }
-  }
+
+      if (use_cp_constraint or use_real_vbias) {
+        if (Fp == ContinuousSpinPropagator) {
+          vb_t = ComplexType(0.0,std::imag(vb_t));
+        } else if (Fp == ContinuousChargePropagator) {
+          vb_t = ComplexType(std::real(vb_t),0.0);
+        }
+      }
+    
+      if( Fp == ContinuousChargePropagator or
+         Fp == ContinuousSpinPropagator) {
+        ComplexType vdiff =
+            free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
+        Xm(iw) = probit(RNGbuff(iw,m)) + vdiff;
+        HWs(iw) -= vdiff * Xm(iw) - 0.5 * vdiff;
+        MF(iw) += im * Xm(iw) * vmf_0;
+      } else if( Fp == DiscreteSpinPropagator or
+             Fp == DiscreteChargePropagator ) {
+        utils::check(not free_projection, "Finish FP DiscretePropagator");
+        ComplexType vdiff =
+            free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
+        auto wp = std::abs(std::exp(vdiff));
+        auto wm = std::abs(std::exp(-vdiff));
+        auto P = wm/(wp+wm);
+        if( RNGbuff(iw,m) < P ) {
+          Xm(iw) = ComplexType(-1.0);
+          HWs(iw) += std::log(1.0/P);
+        } else {
+          Xm(iw) = ComplexType(1.0);
+          HWs(iw) += std::log(1.0/(1.0-P));
+        }
+        // W_MSsub = exp(-MF), careful with sign convention
+        MF(iw) += im * ComplexType(Xm(iw)) * vmf_0;
+      } else {
+        utils::check(false," Error: Unknown field type: {}", FieldTypes(m));
+      }
+    } // iw
+  } // m
 #endif
 }
 

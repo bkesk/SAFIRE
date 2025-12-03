@@ -36,6 +36,8 @@ class THCOps
   static constexpr MEMORY_SPACE MEM = _MEM;
 
   using ValueType     = typename std::conditional_t<REAL, RealType, ComplexType>;
+  template<class T>
+  using csrMat = math::sparse::csr_matrix<T, MEM, int, int>;
 
 public:
   static constexpr HamiltonianTypes HamOpType = THC;
@@ -129,12 +131,14 @@ public:
     utils::check(vMF.size() == number_of_cholesky_vectors(), "Size mismatch");
 
     // v[nstot][nwalk=1][nptot*NMO][NMO]
-    nda::array<ComplexType, 4> v;
-    {
+    //nda::array<ComplexType, 4> v;
+    //{
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
-      v = std::move(nda::to_host(vHS(vMF_2d, dt)));
-    }
+      //v = std::move(nda::to_host(vHS(vMF_2d, dt)));
+      auto v = vHS(vMF_2d, dt);
+      utils::check(v.shape() == std::array<long,4>{1,nspin,npol*NMO,NMO}, "Size mismatch");
+   // }
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
     H1() = ComplexType(0.0);
@@ -151,7 +155,7 @@ public:
             for (int j = 0 ; j < NMO; j++)
             {
               if(p1==p2) {
-                H1(is,p1*NMO+i,p2*NMO+j) = v(is_,0,p1_*NMO+i,j) + 
+                H1(is,p1*NMO+i,p2*NMO+j) = v(0,is_,p1_*NMO+i,j) + 
                                            dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,i,j));
               } else {
                 // only spin-orbit terms here coming from hij
@@ -187,6 +191,9 @@ public:
     nda::array<int,1> v(nvc, int(ContinuousChargePropagator));
     return v;
   }
+
+  // nothing to update 
+  template<class... Args> void update_potentials([[maybe_unused]] Args&&... args) {}
 
   void energy(nda::MemoryArrayOfRank<2> auto && E,
               nda::MemoryArrayOfRank<2> auto const& G,
@@ -558,6 +565,13 @@ public:
   }
 */
 
+  auto vHS_sparse(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  {
+    utils::check(false, "vHS_sparse not implemented in THCOps.");
+    nda::array<csrMat<ComplexType>,1> spvHS;
+    return spvHS();
+  } 
+
   // returns v[nwalk, nspin_in_basis*npol_in_basis, NMO, NMO]
   // no spin-orbit vHS yet
   auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
@@ -575,7 +589,7 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
+    memory::buffered_array<MEM,ComplexType,4> v(nwalk,nstot,nptot*NMO,NMO);
     v() = ComplexType(0.0);
 
     // scale by sqrt(dt)
@@ -623,7 +637,7 @@ public:
               nda::tensor::elementwise(Twu_r,"wuc",Xiu,"iu",Qwiu_r,"wiuc",nda::tensor::op::MUL); 
             }
             
-            auto vij = v(is,range(iw,iw+nw),range(ip*NMO,(ip+1)*NMO),all);
+            auto vij = v(range(iw,iw+nw),is,range(ip*NMO,(ip+1)*NMO),all);
             auto vij_r = memory::to_real_view(vij);
             nda::tensor::contract(a,Qwiu_r,"wiuc",Xiu,"ju",
                                   RealType(0.0),vij_r,"wijc");
@@ -639,7 +653,7 @@ public:
               nda::tensor::elementwise(Twu,"wu",nda::conj(Xiu),"iu",Qwiu,"wiu",nda::tensor::op::MUL); 
             }
 
-            auto vij = v(is,range(iw,iw+nw),range(ip*NMO,(ip+1)*NMO),all);
+            auto vij = v(range(iw,iw+nw),is,range(ip*NMO,(ip+1)*NMO),all);
             nda::tensor::contract(ComplexType(a),Qwiu,"wiu",Xiu,"ju",
                                   ComplexType(0.0),vij,"wij");
 
@@ -695,17 +709,14 @@ public:
       memory::array_view<MEM,const ComplexType,4> G3d(std::array<long,4>{nwalk,nspin,npol*NMO,npol*NMO},G.data());
     }
   }
-/*
-  template<class Mat, class MatB>
-  void generalizedFockMatrix([[maybe_unused]] Mat&& G, [[maybe_unused]] MatB&& Fp, [[maybe_unused]] MatB&& Fm)
+
+  template<class... Args> void generalizedFockMatrix([[maybe_unused]] Args&&... args)
   {
     APP_ABORT(" Error: generalizedFockMatrix not implemented for this hamiltonian.");
   }
-
-*/
   
   /// Returns the number of spins and polarizations in the VHS potential.
-  auto vHS_dims() const {
+  std::tuple<int,int> vHS_dims() const {
     return std::make_tuple(_Xsiu_().shape()[0],_Xsiu_().shape()[1]/NMO);
   }
   int number_of_ke_vectors() const { 

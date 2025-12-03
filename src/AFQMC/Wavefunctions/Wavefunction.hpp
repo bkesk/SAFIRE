@@ -111,6 +111,12 @@ public:
     return std::visit([&](auto&& a) { return a.vHS(std::forward<Args>(args)...); }, var);
   }
 
+  template<class... Args>
+  auto vHS_sparse(Args&&... args)
+  {
+    return std::visit([&](auto&& a) { return a.vHS_sparse(std::forward<Args>(args)...); }, var);
+  }
+
   auto vHS_dims() const
   {
     return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
@@ -169,10 +175,9 @@ public:
     return std::visit([&](auto&& a) { return a.getHamType(); }, var);
   }
 
-  template<class... Args>
-  void getFieldTypes(Args&&... args)
+  auto getFieldTypes()
   {
-    std::visit([&](auto&& a) { a.getFieldTypes(std::forward<Args>(args)...); }, var);
+    return std::visit([&](auto&& a) { return a.getFieldTypes(); }, var);
   }
 
   template<class... Args>
@@ -186,13 +191,6 @@ public:
   {
     return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); }, var);
   }
-/*
-  template<class... Args>
-  std::tuple<dev_csr_Matrix<ComplexType> const*, dev_csr_Matrix<ComplexType> const*> vHS_sparse(Args&&... args)
-  {
-    return std::visit([&](auto&& a) { return a.vHS_sparse(std::forward<Args>(args)...); }, var);
-  }
-*/
   
   private:
 
