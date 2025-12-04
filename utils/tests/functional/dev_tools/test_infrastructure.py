@@ -184,6 +184,9 @@ def _wfn_is_implemented(case: AFQMCInputSet) -> bool:
     if case.wavefunction.type == WavefunctionClass.PHMSD:
         # currently, only collinear PHMSD wavefunctions are implemented
         return case.wavefunction.spin_symm == SpinSymm.COLLINEAR
+    if case.wavefunction.type == WavefunctionClass.PHMSD and case.walker.spin_symm == SpinSymm.CLOSED:
+        # this was intentionally not implemented since it would require special handling - i.e. perfect pairing
+        return False
     elif case.wavefunction.type == WavefunctionClass.NOMSD:
         return True
     else:
@@ -223,15 +226,17 @@ def _compatible_spin_H_walker(case: AFQMCInputSet) -> bool:
     return case.walker.spin_symm >= case.hamiltonian.spin_symm
 
 
-def _compatible_spin_wfn_walker(case: AFQMCInputSet) -> bool:
+def _noncollinear_walker_wfn_must_match(case: AFQMCInputSet) -> bool:
     """
-    Check spin symmetry compatibility between wavefunction and walker.
-    
-    The walker must have equal or less spin symmetry than the wavefunction.
-    (Higher enum value means less spin symmetry)
-    """
-    return case.walker.spin_symm >= case.wavefunction.spin_symm
+    Ensure that non-collinear walkers are only used with non-collinear wavefunctions,
+    and vice versa.
 
+    Note: This is not desirable behavior, but it is how SAFIRE is currently implemented.
+    Future versions may relax this restriction.
+    """
+    noncollinear_walker = case.walker.spin_symm == SpinSymm.NONCOLLINEAR
+    noncollinear_wfn = case.wavefunction.spin_symm == SpinSymm.NONCOLLINEAR
+    return noncollinear_walker == noncollinear_wfn
 
 # Define all rules with human-readable descriptions
 WFN_IS_IMPLEMENTED = TestRule(
@@ -248,6 +253,16 @@ NOT_CLOSED_THC_WITH_NONCOLLINEAR_WFN = TestRule(
     check_func=_not_closed_thc_with_noncollinear_wfn
 )
 
+NOT_CLOSED_FOR_LATTICE_HAMILTONIANS = TestRule(
+    name="Lattice Hamiltonian Closed Spin Symmetry",
+    description="Ensures that lattice Hamiltonians do not use CLOSED spin symmetry, "
+                "which is not supported for lattice models.",
+    check_func=lambda case: not (
+        case.hamiltonian.type == HamiltonianClass.MODEL and
+        case.hamiltonian.spin_symm == SpinSymm.CLOSED
+    )
+)
+
 COMPATIBLE_SPIN_H_WFN = TestRule(
     name="Hamiltonian-Wavefunction Spin Compatibility",
     description="Ensures the wavefunction spin symmetry is compatible with the Hamiltonian. "
@@ -262,11 +277,6 @@ COMPATIBLE_SPIN_H_WALKER = TestRule(
     check_func=_compatible_spin_H_walker
 )
 
-COMPATIBLE_SPIN_WFN_WALKER = TestRule(
-    name="Wavefunction-Walker Spin Compatibility",
-    description="Ensures the walker spin symmetry is compatible with the wavefunction. "
-                "The walker must have equal or less spin symmetry.",
-    check_func=_compatible_spin_wfn_walker
 )
 
 COMPATIBLE_FULLYPOLARIZED_WFN = TestRule(
@@ -279,6 +289,12 @@ COMPATIBLE_FULLYPOLARIZED_WFN = TestRule(
         (case.wavefunction.spin_symm != SpinSymm.FULLYPOLARIZED and
          case.walker.spin_symm != SpinSymm.FULLYPOLARIZED)
     )
+)
+
+NONCOLLINEAR_WALKER_WFN_MUST_MATCH = TestRule(
+    name="Non-collinear Walker-Wavefunction Symmetry Match",
+    description="Ensures that non-collinear walkers are only used with non-collinear wavefunctions, and vice versa.",
+    check_func=_noncollinear_walker_wfn_must_match
 )
 
 def get_all_rules() -> List[TestRule]:
@@ -294,9 +310,10 @@ def get_all_rules() -> List[TestRule]:
         WFN_IS_IMPLEMENTED,
         COMPATIBLE_SPIN_H_WFN,
         COMPATIBLE_SPIN_H_WALKER,
-        COMPATIBLE_SPIN_WFN_WALKER,
         NOT_CLOSED_THC_WITH_NONCOLLINEAR_WFN,
-        COMPATIBLE_FULLYPOLARIZED_WFN
+        NOT_CLOSED_FOR_LATTICE_HAMILTONIANS,
+        COMPATIBLE_FULLYPOLARIZED_WFN,
+        NONCOLLINEAR_WALKER_WFN_MUST_MATCH,
     ]
 
 
@@ -432,7 +449,6 @@ def should_run_successfully(all_cases: List[AFQMCInputSet],
     """
     rules = get_all_rules()
     return [case for case in all_cases if check_rules(case, rules, verbose)]
-
 
 def should_exit_werror(all_cases: List[AFQMCInputSet],
                       verbose: bool = False) -> List[AFQMCInputSet]:
