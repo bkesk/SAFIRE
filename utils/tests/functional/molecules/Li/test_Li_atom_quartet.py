@@ -63,15 +63,13 @@ def wavefunction_type_dictionary():
     return {
         "rohf_wfn_fullypolarized": AFQMCWavefunction(
             INPUTS_DIR/"rohf_nomsd_fullypolarized.h5",
-            SpinSymm.COLLINEAR,
+            SpinSymm.FULLYPOLARIZED,
             WavefunctionClass.NOMSD
         )
     }
 
 def walker_type_list():
     return [
-        AFQMCWalker("CLOSED",SpinSymm.CLOSED),
-        AFQMCWalker("COLLINEAR",SpinSymm.COLLINEAR),
         AFQMCWalker("FULLYPOLARIZED",SpinSymm.FULLYPOLARIZED)
     ]
 
