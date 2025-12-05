@@ -67,6 +67,12 @@ It is recommended to use the Director whenever possible.
    :width: 1000
 
 
+Imaginary-Time Propagation
+--------------------------
+
+Explain the trotterization, and Hubbard-Stratonovich transformation for the lattice Hamiltonian. 
+Be sure to explicitly show each type of Hubbard-Stratonovich transformation (discrete spin, continuous charge, discrete charge, continuous spin).
+
 Trial wavefunctions
 -------------------
 
@@ -119,14 +125,24 @@ and some of the main features of SAFIRE.
 Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
-1. `Hello AuxiliaryFields <https://colab.research.google.com/drive/1zfdEh-c1mClzhXGOVdzANNzyhG1gBMBG>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Understanding the input file <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`_ `🧑‍💻 ready for edits 🧑‍💻`
-3. `Setting up a Lattice <https://colab.research.google.com/drive/1fefjMiXED0shSl4RJKv3Zu93l9FOw5sj>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `Building and writing a Hamiltonian <https://colab.research.google.com/drive/1LMxAtaSkE1-zIKAlEBu66MFarzgHZ-8i>`_ `🧑‍💻 ready for edits 🧑‍💻`
-5. `(optional) Finer control of the Hamiltonian <https://colab.research.google.com/drive/1iUBLuxhuvfbNOYgT-K63_HrL-pzVq25g>`_ `🛠️ Under construction 🛠️`
-6. `Writing a Trial wavefunction <https://colab.research.google.com/drive/1OxejnAc2_3a5OsCFligaHTwOkZJduMea>`_ `🧑‍💻 ready for edits 🧑‍💻`
-7. `autoHF crash course <https://colab.research.google.com/drive/1Bgp8PN_PEm7ZwR-qH2J0DOy6NuwrV8kw#scrollTo=VjaOtDOltPAj>`_ `💭 Idea 💭`
-8. `Computing Observables <https://colab.research.google.com/drive/1GsgOvR_nf4yLwcVOsOypcLEjeX51B2lL>`_ `🛠️ Under construction 🛠️` - base this on the molecules case once it is complete.
+.. toctree::
+   :hidden:
+
+   01_hello_safire/01_hello_safire_executed.ipynb
+   02_understanding_the_input_file/02_understanding_the_input_file_executed.ipynb
+   03_setting_up_a_lattice/03_setting_up_a_lattice_executed.ipynb
+   04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.ipynb
+   06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.ipynb
+   07_computing_observables/07_computing_observables_executed.ipynb
+
+1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1zfdEh-c1mClzhXGOVdzANNzyhG1gBMBG>`__ 🧑‍💻
+2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`__ 🧑‍💻
+3. `Setting up a Lattice <03_setting_up_a_lattice/03_setting_up_a_lattice_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1fefjMiXED0shSl4RJKv3Zu93l9FOw5sj>`__ 🧑‍💻
+4. `Building and writing a Hamiltonian <04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1LMxAtaSkE1-zIKAlEBu66MFarzgHZ-8i>`__ 🧑‍💻
+5. *(optional) Finer control of the Hamiltonian* | `Colab <https://colab.research.google.com/drive/1iUBLuxhuvfbNOYgT-K63_HrL-pzVq25g>`__ 🛠️
+6. `Writing a Trial wavefunction <06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1OxejnAc2_3a5OsCFligaHTwOkZJduMea>`__ 🧑‍💻
+7. *autoHF crash course* | `Colab <https://colab.research.google.com/drive/1Bgp8PN_PEm7ZwR-qH2J0DOy6NuwrV8kw#scrollTo=VjaOtDOltPAj>`__ 💭
+8. `Computing Observables <07_computing_observables/07_computing_observables_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1XlSH9RKjSpcd_CmNWgFT6MQmAVqMXCM8>`__ 🧑‍💻
 
 Worked Examples
 ===============
