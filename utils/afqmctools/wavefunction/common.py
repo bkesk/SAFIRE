@@ -406,12 +406,12 @@ def write_nomsd_ghf(fh5, wfn, nelec, thresh=1e-8, init=None, orthonormalize=True
     if init is not None:
         # Check and optionally orthonormalize init parameter
         norm, is_ortho = check_slater_matrix_orthonormality(
-            init, nelec=nalpha, matrix_type='init (noncollinear)'
+            init[0], nelec=nalpha, matrix_type='init (noncollinear)'
         )
         if not is_ortho and orthonormalize:
-            init = modified_gram_schmidt(init)
+            init[0] = modified_gram_schmidt(init[0])
         
-        add_dataset(fh5, 'Psi0_alpha', to_complex(init))
+        add_dataset(fh5, 'Psi0_alpha', to_complex(init[0]))
     else:
         # Check and optionally orthonormalize wfn[0] for use as init
         norm, is_ortho = check_slater_matrix_orthonormality(
