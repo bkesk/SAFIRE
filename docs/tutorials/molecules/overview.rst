@@ -200,7 +200,7 @@ and can print wavefunction information. Both of these features are
 ubiquitous in modern quantum chemistry codes.
 
 1. `Potential energy curve of the nitrogen dimer <https://colab.research.google.com/drive/1mGHyp2hxF-upogHeI_uTSlyegSyqimpu#scrollTo=HAXNMGv0fmdE>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Electron Affinity of the lead atom <https://colab.research.google.com/drive/1RUJ1buSrK8rBjreHA0oaPfOGPBuF3PAp#scrollTo=8rI2HhjiZRWO>`_ `🛠️ Under construction 🛠️`
+2. `Electron Affinity of the lead atom <https://colab.research.google.com/drive/1RUJ1buSrK8rBjreHA0oaPfOGPBuF3PAp#scrollTo=8rI2HhjiZRWO>`_ `🧑‍💻 ready for edits 🧑‍💻`
 3. `Charge density of the water molecule <https://colab.research.google.com/drive/1uiF2R6CE_cSQ7m9uj2R2aS0KB1Un3Bn_>`_  `🛠️ Under construction 🛠️`
 4. `B atom : SHCI trial wavefunction <https://colab.research.google.com/drive/1gC5CtD4Kw8PXFuPKAWuQReCEwzVQrvvd#scrollTo=UwuNT7DqI_rN>`_  `🧑‍💻 ready for edits 🧑‍💻`
 5. `Local embedding <https://colab.research.google.com/drive/1571aeCThqCVBlQeuXIASTbGRmD5BNlu8>`_  `🧑‍💻 ready for edits 🧑‍💻`
