@@ -18,7 +18,7 @@
 
 #include "config.h" // NOLINT(misc-include-cleaner)
 #include "AFQMC/config.h"
-#include "Utilities/check.hpp"
+#include "utilities/check.hpp"
 #include "utilities/mpi_context.h"
   
 #include "numerics/sparse/sparse.hpp"
@@ -38,17 +38,13 @@ class SparseEnergy
 
 public:
 
-  SparseEnergy() {}
-
-// MAM: make csrMat into a template, to allow host to device copies here
-  template<typename csrM>
   SparseEnergy(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
                           WALKER_TYPES type,
-                          std::vector<csrM> && hij_,
-                          std::vector<csrM> && vj_,
-                          std::vector<csrM> && vx_,
-                          csrM && u_,
-                          csrM && j_,
+                          std::vector<csrMat<ValueType>> && hij_,
+                          std::vector<csrMat<ValueType>> && vj_,
+                          std::vector<csrMat<ValueType>> && vx_,
+                          csrMat<ValueType> && u_,
+                          csrMat<ValueType> && j_,
                           nda::MemoryVector auto && n2ij_,
                           ComplexType e0 = 0.0
                 )
@@ -138,10 +134,10 @@ public:
   {
     using nda::range;
     auto all = range::all;
-    int nwalk  = G.extent(0);
+    int nwalk  = G.extent(1);
     int nIJ = n2IJ_dev.extent(0);
     utils::check(E.shape() == std::array<long,2>{nwalk,3}, "Shape mismatch");
-    utils::check(G.extent(1) == nIJ, "Size mismatch");
+    utils::check(G.extent(0) == nIJ, "Size mismatch");
 
     if( addE1 ) {
       if(ispin == 0) 
@@ -150,9 +146,9 @@ public:
       if constexpr (REAL) {
         auto G3d = memory::to_real_view(G);
         auto E3d = memory::to_real_view(E);
-        nda::tensor::contract(ValueType(1.0),G3d,"wnc",vals,"n",ValueType(1.0),E3d(all,0,all),"wc");
+        nda::tensor::contract(ValueType(1.0),G3d,"nwc",vals,"n",ValueType(1.0),E3d(all,0,all),"wc");
       } else {
-        nda::tensor::contract(ComplexType(1.0),G,"wn",vals,"n",ComplexType(1.0),E(all,0),"w");
+        nda::tensor::contract(ComplexType(1.0),G,"nw",vals,"n",ComplexType(1.0),E(all,0),"w");
       }
     }
 
@@ -161,14 +157,14 @@ public:
       return;
 
     // working array
-    memory::buffered_array<MEM,ComplexType,2> VG(nwalk,nIJ);
+    memory::buffered_array<MEM,ComplexType,2> VG(nIJ,nwalk);
 
     if( addEJ ) { 
       if( nnz_VJ[ispin] > 0 ) {
         // VJ[nIJ,nIJ] * G[nw,nij] = VG[nw,nIJ] 
-        math::sparse::csrmm<'N'>(SpVJ[ispin], nda::transpose(G), nda::transpose(VG));
+        math::sparse::csrmm<'N'>(SpVJ[ispin], G, VG); 
         // y[incy*n] = beta * y[incy*n] + alpha sum_m^{0,M} opA(A)[n,m] * opB(B)[n,m]  
-        nda::tensor::contract(ComplexType(1.0), G, "wn", VG, "wn", 
+        nda::tensor::contract(ComplexType(1.0), G, "nw", VG, "nw", 
     		              ComplexType(1.0), E(all,2), "w");
       }	
       if(walker_type == COLLINEAR) {
@@ -176,7 +172,7 @@ public:
         if(ispin==0) {
           if( nnz_VJ[2] > 0 ) {
             // SpVJ[2] = VJ(beta,alpha) + T( VJ(alpha,beta) )
-            math::sparse::csrmm<'N'>(SpVJ[2], nda::transpose(G), nda::transpose(EJn));
+            math::sparse::csrmm<'N'>(SpVJ[2], G, EJn);
 	  } else {
             EJn() = ComplexType(0.0);
 	  }
@@ -187,9 +183,9 @@ public:
     }
 
     if( addEXX and nnz_VXX[ispin] > 0 ) {
-      math::sparse::csrmm<'N'>(SpVX[ispin], nda::transpose(G), nda::transpose(VG));
+      math::sparse::csrmm<'N'>(SpVX[ispin], G, VG);
       // y[incy*n] = beta * y[incy*n] + alpha sum_m^{0,M} opA(A)[n,m] * opB(B)[n,m]  
-      nda::tensor::contract(ComplexType(1.0), G, "wn", VG, "wn", 
+      nda::tensor::contract(ComplexType(1.0), G, "nw", VG, "nw", 
   		            ComplexType(1.0), E(all,1), "w");
     }
   }

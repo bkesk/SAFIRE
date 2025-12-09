@@ -64,7 +64,7 @@ public:
          nda::array<int,2>&& nocc_per_kp_,
          nda::array<int,1>&& minusq_,
          nda::array<int,2>&& qk_to_k2_,
-         memory::shared_array<MEM,ComplexType,4>&& hij_,
+         memory::shared_array<HOST_MEMORY,ComplexType,4>&& hij_,
          memory::shared_array<MEM,ComplexType,3>&& haj_,
          memory::shared_array<MEM,ComplexType,4>&& x_,
          memory::shared_array<MEM,ComplexType,6>&& y_,
@@ -73,7 +73,7 @@ public:
          std::optional<memory::shared_array<MEM,ComplexType,4>>&& x_rot_,
          std::optional<memory::shared_array<MEM,ComplexType,6>>&& y_rot_,
          std::optional<memory::shared_array<MEM,ComplexType,3>>&& z_rot_,
-         memory::shared_array<MEM,ComplexType,4>&& v0_,
+         memory::shared_array<HOST_MEMORY,ComplexType,4>&& v0_,
          ComplexType e0_)
       : mpi(ctxt), 
         walker_type(type),
@@ -204,6 +204,9 @@ public:
     return H1;
   }
 
+  void runtime_optimization(nda::MemoryArrayOfRank<2> auto const& G)
+  {  /*nothing to do right now*/ }
+
   nda::array<int,1> getFieldTypes() const {
     int nvc = number_of_cholesky_vectors();
     nda::array<int,1> v(nvc, int(ContinuousChargePropagator));
@@ -306,7 +309,10 @@ public:
                   for(int i=0; i<nw; i++)
                     Guu(0,i,iq,all) += nda::diagonal(Guv(i,all,all));
                 } else {
-                  utils::check(false,"finish");
+                  std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
+                  nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm({nw,nu},str);
+                  memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
+                  nda::tensor::add(ComplexType(1.0),Guv_diag,ComplexType(1.0),Guu(0,all,iq,all));
                 }
                 // now right hand side, where need to find q such that qk_to_k2(q,k2) = k1
                 iq=-1;
@@ -320,7 +326,10 @@ public:
                   for(int i=0; i<nw; i++)
                     Guu(1,i,iq,all) += nda::diagonal(Guv(i,all,all));
                 } else {
-                  utils::check(false,"finish");
+                  std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
+                  nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm({nw,nu},str);
+                  memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
+                  nda::tensor::add(ComplexType(1.0),Guv_diag,ComplexType(1.0),Guu(1,all,iq,all));
                 }
               }
 
@@ -354,11 +363,7 @@ public:
                 auto Gwai = G5d(range(iw, iw + nw),range(ispin*nup+n0,ispin*nup+n0+nel_qk2),p1,qk1,all); 
                 memory::buffered_array<MEM,ComplexType,1> Ew(nw);
                 nda::tensor::contract(ComplexType(-0.5*scl/double(nkpts)),Twbi,"wai",Gwai,"wai",ComplexType(0.0),Ew,"w"); 
-
-                if constexpr (MEM==HOST_MEMORY) 
-                  E(range(iw, iw + nw), 1) += Ew();
-                else
-                  utils::check(false,"finish");
+                nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 1));
 
               } // iq
             } // k2
@@ -373,11 +378,7 @@ public:
         nda::tensor::contract(Guu(0,all,all,all),"wqu",Zuv,"quv",Twu,"wqv");
         nda::tensor::contract(ComplexType(RealType(0.5*scl*scl/nkpts)),Guu(1,all,all,all),"wqv",
                               Twu,"wqv", ComplexType(0.0),Ew,"w"); 
-// NEED ACCUMULATE WITH CASTING
-        if constexpr (MEM==HOST_MEMORY) 
-          E(range(iw, iw + nw), 2) += Ew();
-        else
-          utils::check(false,"finish");
+        nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 2));
       }
       iw += nw;
     }
@@ -786,7 +787,7 @@ protected:
   int Q0_index = 0;
 
   // H1[nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<MEM,ComplexType,4> hij;
+  memory::shared_array<HOST_MEMORY,ComplexType,4> hij;
 
   // half rotated one body hamiltonian: [ndet][nup+ndn][npol*NMO]. Kept in full basis
   memory::shared_array<MEM,ComplexType,3> haj;
@@ -813,7 +814,7 @@ protected:
   std::optional<decltype(_Luv_)> _Zuv_rot_; 
 
   // vexx(i,l) = -0.5 * sum_j <ij|jl> : [nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<MEM,ComplexType,4> vexx;
+  memory::shared_array<HOST_MEMORY,ComplexType,4> vexx;
 
   ComplexType E0;
 

@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include "config.h"
 
+#include "nda/nda.hpp"
 
 #if defined(ENABLE_CUDA)
 
@@ -71,6 +72,10 @@ void init(bool active_log, int output_level=2, int debug_level=2)
 
  // setup shared memory, memory buffers, etc, etc
 }
+
+// this is a problem if the cuda system is disabled before this is destroyed
+std::vector<nda::devStream_t> device_streams;
+
 }
 }
 

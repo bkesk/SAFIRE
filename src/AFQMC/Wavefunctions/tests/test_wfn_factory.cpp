@@ -75,10 +75,8 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   // Remove file extension.
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
-
-  int NMO              = file_data.NMO;
-  int nup              = file_data.nup;
-  int ndown            = file_data.ndown;
+  auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
+  utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "any");
   int nspin            = (type == COLLINEAR) ? 2 : 1;

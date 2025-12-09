@@ -345,12 +345,16 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
   {
     h5::file file(hdf_read_restart,'r');
     restartFromHDF5(wset, nWalkers, file, set_nWalker_target);
+    // perform runtime optimization
+    wfn0.runtime_optimization(wset);   
     wfn0.Energy(wset);
   }
   else
   {
     auto initial_guess = WfnFac.getInitialGuess(wfn_name);
     wset.resize(nWalkers, initial_guess()); 
+    // perform runtime optimization
+    wfn0.runtime_optimization(wset);   
     wfn0.Energy(wset);
     print_initial_energy(wset);
     if (hybrid)

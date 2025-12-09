@@ -93,7 +93,7 @@ void copy_select_impl(bool expand, int dim, V1 const& m, T alpha, V3 const& A, T
       cub::DeviceFor::Bulk(N*M,f);
     }
   }
-  arch::synchronize_if_set();
+  sfqmc::arch::synchronize_if_set();
 }
 
 template<typename V1, typename V2, typename V3, typename V4, typename T>
@@ -141,7 +141,7 @@ void copy_select_impl(bool expand, int dim, V1 const& m, V2 const& s, T alpha, V
       cub::DeviceFor::Bulk(N*M,f);
     }
   }
-  arch::synchronize_if_set();
+  sfqmc::arch::synchronize_if_set();
 }
 
 template<typename V1, typename V3, typename V4, typename T>
@@ -164,7 +164,7 @@ void copy_select_impl(bool expand, V1 const& m, T alpha, V3 const& A, T scl, V4&
     };
     cub::DeviceFor::Bulk(N,f);
   }
-  arch::synchronize_if_set();
+  sfqmc::arch::synchronize_if_set();
 }
 
 template<typename V1, typename V2, typename V3, typename V4, typename T>
@@ -188,132 +188,49 @@ void copy_select_impl(bool expand, V1 const& m, V2 const& s, T alpha, V3 const& 
     };
     cub::DeviceFor::Bulk(N,f);
   }
-  arch::synchronize_if_set();
+  sfqmc::arch::synchronize_if_set();
 }
 
 //MAM: can I convert array_views to some type of common base?
 
 using memory::device_array_view;
-using memory::unified_array_view;
 using std::complex;
 
 template<int Rank>
 using basic_layout_t = typename nda::basic_layout<0, nda::C_stride_order<Rank>, nda::layout_prop_e::none>;
 
-#define _inst_(T,V) \
-template void copy_select_impl(bool,V<const long,1,basic_layout_t<1>> const&, \
+#define _inst_(T,V,I) \
+template void copy_select_impl(bool,V<const I,1,basic_layout_t<1>> const&, \
                           T,V<const T,1,basic_layout_t<1>> const&, \
                           T,V<T,1,basic_layout_t<1>> &);  \
-template void copy_select_impl(bool,V<const long,1,basic_layout_t<1>> const&, \
+template void copy_select_impl(bool,V<const I,1,basic_layout_t<1>> const&, \
                           V<const T,1,basic_layout_t<1>> const&, \
                           T,V<const T,1,basic_layout_t<1>> const&, \
                           T,V<T,1,basic_layout_t<1>> &);  \
-template void copy_select_impl(bool,int,V<const long,1,basic_layout_t<1>> const&, \
+template void copy_select_impl(bool,int,V<const I,1,basic_layout_t<1>> const&, \
                           T,V<const T,2,basic_layout_t<2>> const&, \
                           T,V<T,2,basic_layout_t<2>> &);  \
-template void copy_select_impl(bool,int,V<const long,1,basic_layout_t<1>> const&, \
+template void copy_select_impl(bool,int,V<const I,1,basic_layout_t<1>> const&, \
                           V<const T,1,basic_layout_t<1>> const&, \
                           T,V<const T,2,basic_layout_t<2>> const&, \
                           T,V<T,2,basic_layout_t<2>> &);  \
-template void copy_select_impl(bool,V<const long,1,basic_layout_t<1>> const&, \
+template void copy_select_impl(bool,V<const I,1,basic_layout_t<1>> const&, \
                           complex<T>,V<const complex<T>,1,basic_layout_t<1>> const&, \
                           complex<T>,V<complex<T>,1,basic_layout_t<1>> &); \
-template void copy_select_impl(bool,V<const long,1,basic_layout_t<1>> const&, \
+template void copy_select_impl(bool,V<const I,1,basic_layout_t<1>> const&, \
                           V<const complex<T>,1,basic_layout_t<1>> const&, \
                           complex<T>,V<const complex<T>,1,basic_layout_t<1>> const&, \
                           complex<T>,V<complex<T>,1,basic_layout_t<1>> &); \
-template void copy_select_impl(bool,int,V<const long,1,basic_layout_t<1>> const&, \
+template void copy_select_impl(bool,int,V<const I,1,basic_layout_t<1>> const&, \
                           complex<T>,V<const complex<T>,2,basic_layout_t<2>> const&, \
                           complex<T>,V<complex<T>,2,basic_layout_t<2>> &); \
-template void copy_select_impl(bool,int,V<const long,1,basic_layout_t<1>> const&, \
+template void copy_select_impl(bool,int,V<const I,1,basic_layout_t<1>> const&, \
                           V<const complex<T>,1,basic_layout_t<1>> const&, \
                           complex<T>,V<const complex<T>,2,basic_layout_t<2>> const&, \
                           complex<T>,V<complex<T>,2,basic_layout_t<2>> &); 
 
-_inst_(double,device_array_view)
-_inst_(double,unified_array_view) 
-
-#define _inst2_(T,V1,V3) \
-template void copy_select_impl(bool,V1<const long,1,basic_layout_t<1>> const&, \
-                          T,V3<const T,1,basic_layout_t<1>> const&, \
-                          T,V3<T,1,basic_layout_t<1>> &);  \
-template void copy_select_impl(bool,int,V1<const long,1,basic_layout_t<1>> const&, \
-                          T,V3<const T,2,basic_layout_t<2>> const&, \
-                          T,V3<T,2,basic_layout_t<2>> &);  \
-template void copy_select_impl(bool,V1<const long,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<const complex<T>,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<complex<T>,1,basic_layout_t<1>> &); \
-template void copy_select_impl(bool,int,V1<const long,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<const complex<T>,2,basic_layout_t<2>> const&, \
-                          complex<T>,V3<complex<T>,2,basic_layout_t<2>> &); 
-
-_inst2_(double,device_array_view,unified_array_view)
-_inst2_(double,unified_array_view,device_array_view)
-
-#define _inst3_2_(T,V1,V3,V4) \
-template void copy_select_impl(bool,V1<const long,1,basic_layout_t<1>> const&, \
-                          T,V3<const T,1,basic_layout_t<1>> const&, \
-                          T,V4<T,1,basic_layout_t<1>> &);  \
-template void copy_select_impl(bool,int,V1<const long,1,basic_layout_t<1>> const&, \
-                          T,V3<const T,2,basic_layout_t<2>> const&, \
-                          T,V4<T,2,basic_layout_t<2>> &);  \
-template void copy_select_impl(bool,V1<const long,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<const complex<T>,1,basic_layout_t<1>> const&, \
-                          complex<T>,V4<complex<T>,1,basic_layout_t<1>> &); \
-template void copy_select_impl(bool,int,V1<const long,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<const complex<T>,2,basic_layout_t<2>> const&, \
-                          complex<T>,V4<complex<T>,2,basic_layout_t<2>> &); 
-
-_inst3_2_(double,device_array_view,unified_array_view,device_array_view)
-_inst3_2_(double,unified_array_view,unified_array_view,device_array_view)
-_inst3_2_(double,device_array_view,device_array_view,unified_array_view)
-_inst3_2_(double,unified_array_view,device_array_view,unified_array_view)
-
-#define _inst3_(T,V1,V2,V3) \
-template void copy_select_impl(bool,V1<const long,1,basic_layout_t<1>> const&, \
-                          V2<const T,1,basic_layout_t<1>> const&, \
-                          T,V3<const T,1,basic_layout_t<1>> const&, \
-                          T,V3<T,1,basic_layout_t<1>> &);  \
-template void copy_select_impl(bool,int,V1<const long,1,basic_layout_t<1>> const&, \
-                          V2<const T,1,basic_layout_t<1>> const&, \
-                          T,V3<const T,2,basic_layout_t<2>> const&, \
-                          T,V3<T,2,basic_layout_t<2>> &);  \
-template void copy_select_impl(bool,V1<const long,1,basic_layout_t<1>> const&, \
-                          V2<const complex<T>,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<const complex<T>,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<complex<T>,1,basic_layout_t<1>> &); \
-template void copy_select_impl(bool,int,V1<const long,1,basic_layout_t<1>> const&, \
-                          V2<const complex<T>,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<const complex<T>,2,basic_layout_t<2>> const&, \
-                          complex<T>,V3<complex<T>,2,basic_layout_t<2>> &); 
-
-_inst3_(double,device_array_view,unified_array_view,device_array_view)
-_inst3_(double,unified_array_view,unified_array_view,device_array_view)
-_inst3_(double,unified_array_view,device_array_view,device_array_view)
-
-#define _inst4_(T,V1,V2,V3,V4) \
-template void copy_select_impl(bool,V1<const long,1,basic_layout_t<1>> const&, \
-                          V2<const T,1,basic_layout_t<1>> const&, \
-                          T,V3<const T,1,basic_layout_t<1>> const&, \
-                          T,V4<T,1,basic_layout_t<1>> &);  \
-template void copy_select_impl(bool,int,V1<const long,1,basic_layout_t<1>> const&, \
-                          V2<const T,1,basic_layout_t<1>> const&, \
-                          T,V3<const T,2,basic_layout_t<2>> const&, \
-                          T,V4<T,2,basic_layout_t<2>> &);  \
-template void copy_select_impl(bool,V1<const long,1,basic_layout_t<1>> const&, \
-                          V2<const complex<T>,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<const complex<T>,1,basic_layout_t<1>> const&, \
-                          complex<T>,V4<complex<T>,1,basic_layout_t<1>> &); \
-template void copy_select_impl(bool,int,V1<const long,1,basic_layout_t<1>> const&, \
-                          V2<const complex<T>,1,basic_layout_t<1>> const&, \
-                          complex<T>,V3<const complex<T>,2,basic_layout_t<2>> const&, \
-                          complex<T>,V4<complex<T>,2,basic_layout_t<2>> &); 
-
-_inst4_(double,device_array_view,device_array_view,device_array_view,unified_array_view)
-_inst4_(double,device_array_view,device_array_view,unified_array_view,device_array_view)
-_inst4_(double,unified_array_view,unified_array_view,device_array_view,unified_array_view)
-_inst4_(double,unified_array_view,unified_array_view,unified_array_view,device_array_view)
-
+_inst_(double,device_array_view,int)
+_inst_(double,device_array_view,long)
 
 } // namespace kernels::device::detail
 

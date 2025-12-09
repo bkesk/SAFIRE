@@ -29,7 +29,7 @@
 #include <cuda/std/complex>
 #include <cuda/std/mdspan>
 #include "arch/arch.h"
-#include "IO/AppAbort.hpp"
+#include "utilities/check.hpp"
 
 namespace kernels::device 
 { 
@@ -148,8 +148,7 @@ namespace kernels::device
   template<int rank, typename Arr>
   auto to_cuda_std_array(Arr const& A)
   {
-    if(rank != A.size())
-      APP_ABORT("Error in to_cuda_std_array: rank mismatch"); 
+    sfqmc::utils::check(rank==A.size(),"Error in to_cuda_std_array: rank mismatch"); 
     cuda::std::array<nda::get_value_t<Arr>, rank> cuA;
     std::copy_n(A.data(),rank,cuA.data());
     return cuA;
@@ -158,8 +157,7 @@ namespace kernels::device
   template<int rank, typename Arr>
   auto to_std_array(Arr const& A)
   {
-    if(rank != A.size())
-      APP_ABORT("Error in to_cuda_std_array: rank mismatch");
+    sfqmc::utils::check(rank==A.size(), "Error in to_cuda_std_array: rank mismatch");
     std::array<nda::get_value_t<Arr>, rank> stdA;
     std::copy_n(A.data(),rank,stdA.data());
     return stdA;

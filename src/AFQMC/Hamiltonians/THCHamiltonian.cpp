@@ -23,7 +23,7 @@
 
 #include "config.h"
 #include "utilities/check.hpp"
-//#include "utilities/h5_utils.hpp"
+#include "utilities/h5_utils.hpp"
 #include "numerics/nda_functions.hpp"
 #include "AFQMC/config.h"
 
@@ -192,13 +192,12 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
     if constexpr (REAL)
       utils::check(not l.has_complex_attribute,base_error+"Found complex " + name + " with REAL factory.");
     if (reshape_type==0) {
-      auto Av = A();
-      nda::h5_read(g,name,Av);
+      utils::h5_read(g,name,A());
     } else if (reshape_type==1) {
       if constexpr (nda::get_rank<decltype(A())> == 3) {
         auto s = A().shape();
         auto h4d = nda::reshape(A(),std::array<long,4>{s[0],1l,s[1],s[2]});
-        nda::h5_read(g,name,h4d);
+        utils::h5_read(g,name,h4d);
       } else {
         utils::check(false,"Invalid use of read_helper");
       }
@@ -206,7 +205,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       if constexpr (nda::get_rank<decltype(A())> == 2) {
         auto s = A().shape();
         auto h3d = nda::reshape(A(),std::array<long,3>{1l,s[0],s[1]});
-        nda::h5_read(g,name,h3d);
+        utils::h5_read(g,name,h3d);
       } else {
         utils::check(false,"Invalid use of read_helper");
       }
@@ -214,8 +213,8 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   };
 
   // allocate and read H1. 
-  // H0: /System/H0:   [nspin][nkpts][npol*nbnd][npol*nbnd]
-  auto H1 = memory::make_shared_array<MEM,ComplexType,3>(mpi,
+  // H0: /System/H0:   [nspin][nkpts][npol*nbnd][npol*nbnd]   Only needed in host memory
+  auto H1 = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
                       {nspin_in_file,npol_in_file*NMO,npol_in_file*NMO});
   // X: /Interaction/collocation_matrix:  [nspins,nkpts,npol*nbnd,Nu]
   // L: /Interaction/factorized_coulomb_matrix:  [nqpts][Nu][Nv] 
@@ -254,9 +253,11 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   }
 
   // broadcast, careful with shared memory
+  if(mpi->node_comm.root()) {
+    mpi->internode_comm.broadcast_n(H1.data(),H1.size(),0);
+  }
   if constexpr (MEM==HOST_MEMORY) {
     if(mpi->node_comm.root()) {
-      mpi->internode_comm.broadcast_n(H1.data(),H1.size(),0);
       mpi->internode_comm.broadcast_n(Xsiu.data(),Xsiu.size(),0);
       mpi->internode_comm.broadcast_n(Luv.data(),Luv.size(),0);
       if(have_rot_coul) {
@@ -267,14 +268,13 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       }
     }
   } else {
-    mpi->comm.broadcast<true>(H1);
-    mpi->comm.broadcast<true>(Xsiu);
-    mpi->comm.broadcast<true>(Luv);
+    mpi->broadcast(Xsiu);
+    mpi->broadcast(Luv);
     if(have_rot_coul) {
-      mpi->comm.broadcast<true>(*Zuv_rot);
-      mpi->comm.broadcast<true>(*Xsiu_rot);
+      mpi->broadcast(*Zuv_rot);
+      mpi->broadcast(*Xsiu_rot);
     } else {
-      mpi->comm.broadcast<true>(*Zuv);
+      mpi->broadcast(*Zuv);
     }
   }
   mpi->comm.barrier();
@@ -338,7 +338,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   //         = -0.5 sum_j,u,v ma::conj(Piu(s,i,u)) ma::conj(Piu(s,j,v)) Muv Piu(s,j,u) Piu(s,l,v)
   //         = -0.5 sum_u,v ma::conj(Piu(s,i,u)) W(s,u,v) Piu(s,l,v), where
   // W(s,u,v) = Muv(u,v) * sum_j Piu(s,j,u) ma::conj(Piu(s,j,v))
-  auto v0 = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{nspin_in_file*npol_in_file, NMO, NMO});
+  auto v0 = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,std::array<long,3>{nspin_in_file*npol_in_file, NMO, NMO});
   auto [u0, u1] = itertools::chunk_range(0, nu, mpi->comm.size(), mpi->comm.rank());
   // Note: If this uses too much memory, distribute "u" axis over nodes, then construct
   // W(s,u,v) on shared memory and distribute calculation of v0 over node on a single array. 
@@ -371,9 +371,13 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
     } 
     mpi->all_reduce(vt,std::plus<>{});
     if constexpr (MEM==HOST_MEMORY) {
-      if(mpi->node_comm.root()) nda::copy_cast(vt,v0());
+      if(mpi->node_comm.root()) {
+        auto v_h = nda::to_host(vt);
+        v0() = v_h();
+      }
     } else {
-      nda::copy_cast(vt,v0);      
+      auto v_h = nda::to_host(vt);
+      v0() = v_h();
     }
   }
   mpi->comm.barrier();
@@ -384,12 +388,21 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
     for(long id=0, itot=0; id<ndet; ++id) {
       for(long is=0; is<nspin; ++is, ++itot) {
         if( itot%mpi->comm.size() != mpi->comm.rank() ) continue; 
-        auto hij = H1()(is%nspin_in_file,all,all);
         auto h_ = haj()(id,range(is*nup,nup+is*ndn),all);
-        if constexpr (math::sparse::CSRMatrix<PsiT_Matrix<MEM>>) {
-          math::sparse::csrmm<'N'>(PsiT(id,is),hij,h_);
+        if constexpr (MEM==HOST_MEMORY) {
+          auto hij = H1()(is%nspin_in_file,all,all);
+          if constexpr (math::sparse::CSRMatrix<PsiT_Matrix<MEM>>) {
+            math::sparse::csrmm<'N'>(PsiT(id,is),hij,h_);
+          } else {
+            nda::blas::gemm(PsiT(id,is),hij,h_);
+          }
         } else {
-          nda::blas::gemm(PsiT(id,is),hij,h_);
+          auto hij = nda::to_device(H1()(is%nspin_in_file,all,all));
+          if constexpr (math::sparse::CSRMatrix<PsiT_Matrix<MEM>>) {
+            math::sparse::csrmm<'N'>(PsiT(id,is),hij,h_);
+          } else {
+            nda::blas::gemm(PsiT(id,is),hij,h_);
+          }
         }
       }  // is
     }  // id
@@ -442,7 +455,6 @@ THCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     return getHamiltonianOperations_impl<MEM,false>(type, mpi, PsiT);
 }
 
-//template HamiltonianOperations<HOST_MEMORY,true> 
 template HamiltonianOperations<HOST_MEMORY> 
   THCHamiltonian::getHamiltonianOperations<HOST_MEMORY>(WALKER_TYPES, 
      std::shared_ptr<utils::mpi_context_t<mpi3::communicator>>, 

@@ -107,8 +107,7 @@ void cufft_check(cufftResult_t result, std::string message)
       err = "CUFFT_UNKNOWN_ERROR";
   }
   sfqmc::app_error(message);
-  err = std::string(" Error code returned by cufft: ") + err;
-  APP_ABORT(err);
+  sfqmc::APP_ABORT_with_source(std::source_location::current(), err);
 }
 
 // MAM: Not using custom memory allocation for now, revisit if needed!

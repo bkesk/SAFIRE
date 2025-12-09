@@ -27,9 +27,12 @@
 #include "IO/app_loggers.h"
 #include "cuda_runtime.h" 
 
+#include "arch/CUDA/cuda_init.h"
 #include "mpi3/environment.hpp"
 #include "mpi3/communicator.hpp"
 #include "mpi3/shared_communicator.hpp"
+#include "utilities/check.hpp"
+
 
 namespace sfqmc {
 namespace cuda

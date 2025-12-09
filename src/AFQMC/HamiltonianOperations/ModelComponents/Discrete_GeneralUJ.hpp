@@ -19,7 +19,7 @@
 
 #include "config.h" 
 #include "AFQMC/config.h"
-#include "Utilities/check.hpp"
+#include "utilities/check.hpp"
 #include "utilities/mpi_context.h"
 
 #include "numerics/sparse/sparse.hpp"
@@ -144,8 +144,10 @@ public:
     // v(w,n) = v(w,n) + ia*h0(n);
     if constexpr (MEM==HOST_MEMORY)
       for(int iw=0; iw<v.extent(0); ++iw) v(iw,all) += ia*(h0()+hMF());     
-    else
-      utils::check(false,"finish");
+    else {
+      nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
+      nda::tensor::add(ia,hMF(),"i",ComplexType(1.0),v,"wi");
+    }
   }
 
   // v(w,n) = sum_IJ VnT(n,IJ) G(w,IJ)
@@ -345,7 +347,7 @@ private:
     if constexpr (MEM==HOST_MEMORY) {
       if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(hMF.data(),hMF.extent(0),0);
     } else {
-      mpi->broadcast(hMF.data());
+      mpi->broadcast(hMF);
     }
   }
 

@@ -198,7 +198,7 @@ void NOMSD<MEM,devPsiT>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&&
         G(w,all) /= Ov(w); 
     } else {
       Ot() = Ov();
-      nda::tensor::scale(ComplexType(1.0),Ot,nda::tensor::op::REC);
+      nda::tensor::scale(ComplexType(1.0),Ot,nda::tensor::op::RCP);
       // is this doing the righ thing???
       nda::tensor::elementwise(ComplexType(1.0),Ot,"w",ComplexType(1.0),G,"wi",nda::tensor::op::MUL);
     }
@@ -561,6 +561,7 @@ void NOMSD<MEM,devPsiT>::accumulate_estimators_single_ref_impl(int iav, WlkSet& 
  * Full green function of the trial wave function.
  */
 template<MEMORY_SPACE MEM, class devPsiT>
+template<MEMORY_SPACE M>
 auto NOMSD<MEM,devPsiT>::G_MF()
 {
   using nda::range;

@@ -89,8 +89,8 @@ protected:
   // location of last element of each row
   row_array_t row_end_;
   // device copies
-  larray<IntType> row_begin_dev_;
-  larray<IntType> row_end_dev_;
+  memory::array<MEM, IntType, 1> row_begin_dev_;
+  memory::array<MEM, IntType, 1> row_end_dev_;
 
 public:
 

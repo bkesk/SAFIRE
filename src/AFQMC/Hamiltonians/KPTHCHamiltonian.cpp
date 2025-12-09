@@ -245,7 +245,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
 
   // allocate and read H1. 
   // H0: /System/H0:   [nspin][nkpts][npol*nbnd][npol*nbnd]
-  auto H1 = memory::make_shared_array<MEM,ComplexType,4>(mpi,
+  auto H1 = memory::make_shared_array<HOST_MEMORY,ComplexType,4>(mpi,
                       {nspin_in_file,nkpts,npol_in_file*nbnd,npol_in_file*nbnd});
   // X: /Interaction/collocation_matrix:  [nspins,nkpts,npol*nbnd,Nu]
   // L: /Interaction/factorized_coulomb_matrix:  [nqpts][Nu][Nv] 
@@ -272,30 +272,25 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   {
     h5::group grp = h5::group(file);
     h5::group hgrp = grp.open_group("System");
-    auto H1v = H1();
-    nda::h5_read(hgrp,"H0",H1v);
+    utils::h5_read(hgrp,"H0",H1());
     {  // Interaction 
       h5::group igrp = grp.open_group("Interaction");
-      auto Xsiu_v = Xsiu();
-      auto Luv_v = Luv();
-      nda::h5_read(igrp,"collocation_matrix",Xsiu_v);
-      nda::h5_read(igrp,"factorized_coulomb_matrix",Luv_v);
+      utils::h5_read(igrp,"collocation_matrix",Xsiu());
+      utils::h5_read(igrp,"factorized_coulomb_matrix",Luv());
       if(have_rot_coul) {
-        auto Xsiu_rot_v = (*Xsiu_rot)();
-        auto Zuv_rot_v = (*Zuv_rot)();
-        nda::h5_read(igrp,"collocation_matrix_half_rotated",Xsiu_rot_v);
-        nda::h5_read(igrp,"half_rotated_coulomb_matrix",Zuv_rot_v);
+        utils::h5_read(igrp,"collocation_matrix_half_rotated",(*Xsiu_rot)());
+        utils::h5_read(igrp,"half_rotated_coulomb_matrix",(*Zuv_rot)());
       } else {
-        auto Zuv_v = (*Zuv)();
-        nda::h5_read(igrp,"coulomb_matrix",Zuv_v);
+        utils::h5_read(igrp,"coulomb_matrix",(*Zuv)());
       }
     }  // Interaction 
   }
 
   // broadcast, careful with shared memory
+  if(mpi->node_comm.root()) 
+    mpi->internode_comm.broadcast_n(H1.data(),H1.size(),0);
   if constexpr (MEM==HOST_MEMORY) {
     if(mpi->node_comm.root()) {
-      mpi->internode_comm.broadcast_n(H1.data(),H1.size(),0);
       mpi->internode_comm.broadcast_n(Xsiu.data(),Xsiu.size(),0);
       mpi->internode_comm.broadcast_n(Luv.data(),Luv.size(),0);
       if(have_rot_coul) {
@@ -306,14 +301,13 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       }
     }
   } else {
-    mpi->comm.broadcast<true>(H1);
-    mpi->comm.broadcast<true>(Xsiu);
-    mpi->comm.broadcast<true>(Luv);
+    mpi->broadcast(Xsiu);
+    mpi->broadcast(Luv);
     if(have_rot_coul) {
-      mpi->comm.broadcast<true>(*Zuv_rot);
-      mpi->comm.broadcast<true>(*Xsiu_rot);
+      mpi->broadcast(*Zuv_rot);
+      mpi->broadcast(*Xsiu_rot);
     } else {
-      mpi->comm.broadcast<true>(*Zuv);
+      mpi->broadcast(*Zuv);
     }
   }
   mpi->comm.barrier();
@@ -368,11 +362,8 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   // Partition work over spin, pol, kpts. 
   // v0(s,k,i,l) = -0.5*sum_k,q sum_j <i_k,j_k-q|j_k-q,l_k>
   //         = -0.5 sum_kq sum_j,u,v ma::conj(Piu(s,k,i,u)) ma::conj(Piu(s,k-q,j,v)) Mquv Piu(s,k-q,j,u) Piu(s,k,l,v)
-  auto v0 = memory::make_shared_array<MEM,ComplexType,4>(mpi,std::array<long,4>{nspin_in_file*npol_in_file, nkpts, nbnd, nbnd});
-  if constexpr (MEM == HOST_MEMORY)
-    if(mpi->node_comm.root()) v0() = ComplexType(0.0);
-  else
-    v0() = ComplexType(0.0);
+  auto v0 = memory::make_shared_array<HOST_MEMORY,ComplexType,4>(mpi,std::array<long,4>{nspin_in_file*npol_in_file, nkpts, nbnd, nbnd});
+  if(mpi->node_comm.root()) v0() = ComplexType(0.0);
   mpi->comm.barrier();
   if(have_rot_coul) {
     utils::check(false, "Finish");
@@ -380,6 +371,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     {
       memory::buffered_array<MEM,ComplexType,2> Tuv(nu,nu);
       memory::buffered_array<MEM,ComplexType,2> Wuv(nu,nu);
+      memory::buffered_array<MEM,ComplexType,2> vt(nbnd,nbnd);
       for(long is=0, isp=0, itot=0; is<nspin_in_file; is++) {
         for(long ip=0; ip<npol_in_file; ip++, isp++) {
           for(long ik=0; ik<nkpts; ik++, ++itot) {
@@ -402,17 +394,15 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
             auto Tiv = Tuv(range(nbnd),all);
             nda::tensor::contract(nda::conj(Xiu), "iu", Wuv, "uv", Tiv, "iv");
             nda::tensor::contract(ComplexType(-0.5),Tiv, "iv", Xiu, "jv", 
-                                  ComplexType(0.0),v0()(isp,ik,all,all), "ij");
+                                  ComplexType(0.0),vt, "ij");
+            v0()(isp,ik,all,all) = vt(); 
           }
         }
       }
     } 
     mpi->comm.barrier();
-    if constexpr (MEM==HOST_MEMORY) {
-      if(mpi->node_comm.root()) mpi->internode_comm.all_reduce_in_place_n(v0.data(),v0.size(),std::plus<>{}); 
-    } else {
-      mpi->all_reduce(v0,std::plus<>{});
-    }
+    if(mpi->node_comm.root()) 
+      mpi->internode_comm.all_reduce_in_place_n(v0.data(),v0.size(),std::plus<>{}); 
   }
   mpi->comm.barrier();
 
@@ -439,9 +429,14 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
             auto Aai = math::sparse::to_array<ComplexType>(PsiT(id,is),range(n0,n0+nk),range(ip1*NMO+ik*nbnd,ip1*NMO+(ik+1)*nbnd));
             for(long ip2=0; ip2<npol; ++ip2) {
               int ip2_ = ip2%npol_in_file;
-              auto hij = H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd));
               auto h_ = haj()(id,range(is*nup+n0,is*nup+n0+nk),nda::range(ip2*NMO+ik*nbnd,ip2*NMO+(ik+1)*nbnd));
-              nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
+              if constexpr (MEM==HOST_MEMORY) {
+                auto hij = H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd));
+                nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
+              } else {
+                auto hij = nda::to_device(H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd)));
+                nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
+              }
             }
           }
         }

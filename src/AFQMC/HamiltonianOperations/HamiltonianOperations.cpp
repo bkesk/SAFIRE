@@ -100,9 +100,9 @@ namespace afqmc
   }
 
 #define __getOneBodyPropagatorMatrix__(M)    \
-  template nda::array<ComplexType,3> HamiltonianOperations<M>::getOneBodyPropagatorMatrix_impl(double, memory::array_view<M,const ComplexType,1> const&);   \
-  template nda::array<ComplexType,3> HamiltonianOperations<M>::getOneBodyPropagatorMatrix_impl(double, memory::array_view<M,const ComplexType,1,nda::C_layout> const&);   \
-  template nda::array<ComplexType,3> HamiltonianOperations<M>::getOneBodyPropagatorMatrix_impl(double, memory::array_view<M,const ComplexType,1,nda::basic_layout<0,nda::C_stride_order<1>,nda::layout_prop_e::strided_1d>> const&);
+  template nda::array<ComplexType,3> HamiltonianOperations<M>::getOneBodyPropagatorMatrix_impl(double, memory::array_view<HOST_MEMORY,const ComplexType,1> const&);   \
+  template nda::array<ComplexType,3> HamiltonianOperations<M>::getOneBodyPropagatorMatrix_impl(double, memory::array_view<HOST_MEMORY,const ComplexType,1,nda::C_layout> const&);   \
+  template nda::array<ComplexType,3> HamiltonianOperations<M>::getOneBodyPropagatorMatrix_impl(double, memory::array_view<HOST_MEMORY,const ComplexType,1,nda::basic_layout<0,nda::C_stride_order<1>,nda::layout_prop_e::strided_1d>> const&);
 __getOneBodyPropagatorMatrix__(HOST_MEMORY)
 #if defined(ENABLE_DEVICE)
 __getOneBodyPropagatorMatrix__(DEVICE_MEMORY)
@@ -164,14 +164,14 @@ __vbias__(DEVICE_MEMORY)
     std::visit([&](auto&& s) { s.update_potentials(dt,nMF,vMF,natural_shift); }, var);
   }
 
-#define __update_potentials__(M) \
-  template void HamiltonianOperations<M>::update_potentials_impl(double,memory::array_view<M,ComplexType const,1>const&,memory::array_view<M,ComplexType,1>&,bool); \
-  template void HamiltonianOperations<M>::update_potentials_impl(double,memory::array_view<M,ComplexType const,1>const&,memory::array_view<M,ComplexType,1,nda::C_layout>&,bool); \
-  template void HamiltonianOperations<M>::update_potentials_impl(double,memory::array_view<M,ComplexType const,1,nda::C_layout>const&,memory::array_view<M,ComplexType,1>&,bool); \
-  template void HamiltonianOperations<M>::update_potentials_impl(double,memory::array_view<M,ComplexType const,1,nda::C_layout>const&,memory::array_view<M,ComplexType,1,nda::C_layout>&,bool); 
-__update_potentials__(HOST_MEMORY)
+#define __update_potentials__(M1,M2) \
+  template void HamiltonianOperations<M1>::update_potentials_impl(double,memory::array_view<M2,ComplexType const,1>const&,memory::array_view<M1,ComplexType,1>&,bool); \
+  template void HamiltonianOperations<M1>::update_potentials_impl(double,memory::array_view<M2,ComplexType const,1>const&,memory::array_view<M1,ComplexType,1,nda::C_layout>&,bool); \
+  template void HamiltonianOperations<M1>::update_potentials_impl(double,memory::array_view<M2,ComplexType const,1,nda::C_layout>const&,memory::array_view<M1,ComplexType,1>&,bool); \
+  template void HamiltonianOperations<M1>::update_potentials_impl(double,memory::array_view<M2,ComplexType const,1,nda::C_layout>const&,memory::array_view<M1,ComplexType,1,nda::C_layout>&,bool); 
+__update_potentials__(HOST_MEMORY,HOST_MEMORY)
 #if defined(ENABLE_DEVICE)
-__update_potentials__(DEVICE_MEMORY)
+__update_potentials__(DEVICE_MEMORY,HOST_MEMORY)
 #endif
 
   // accessors

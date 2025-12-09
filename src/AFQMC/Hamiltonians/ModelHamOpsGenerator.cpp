@@ -350,7 +350,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
 		collect_J[2], Hams, n2IJ, IJ2n);
 
   return HamiltonianOperations<MEM>(ModelHamOps<MEM,REAL>(mpi, type, nel_up, nel_dn,
-       std::move(PsiC), std::move(ET), std::move(Hams), n2IJ, sparse_g_eval)); 
+       std::move(PsiC), std::move(ET), std::move(Hams), n2IJ)); 
 }
 
 template<MEMORY_SPACE MEM> HamiltonianOperations<MEM> 

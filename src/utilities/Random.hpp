@@ -19,6 +19,7 @@
 #include "mpi3/communicator.hpp"
 #include "utilities/check.hpp"
 #include "AFQMC/Utilities/type_conversion.hpp"
+#include "arch/arch.h"
 
 #if defined(ENABLE_CUDA)
 

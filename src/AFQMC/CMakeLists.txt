@@ -6,14 +6,14 @@ set (AFQMC_SRCS
   Utilities/AFQMCTimer.cpp 
   Utilities/readWfn.cpp
   Utilities/probit.cpp
-  AFQMCFactory.cpp
-  Drivers/DriverFactory.cpp
-  Drivers/AFQMCDriver.cpp
+#  AFQMCFactory.cpp
+#  Drivers/DriverFactory.cpp
+#  Drivers/AFQMCDriver.cpp
 #  Drivers/CSAFQMCDriver.cpp
-  Propagators/AFQMCBasePropagator.cpp
+#  Propagators/AFQMCBasePropagator.cpp
 #  Propagators/AFQMCModelPropagator.cpp
-  Propagators/PropagatorFactory.cpp
-  Wavefunctions/WavefunctionFactory.cpp
+#  Propagators/PropagatorFactory.cpp
+#  Wavefunctions/WavefunctionFactory.cpp
   HamiltonianOperations/HamiltonianOperations.cpp
 #  Hamiltonians/KPFactorizedHamiltonian.cpp
 #  Hamiltonians/RealDenseHamiltonian.cpp
@@ -58,14 +58,14 @@ if (BUILD_UNIT_TESTS)
 #      ${PROJECT_SOURCE_DIR}/tests/unit_test_files/hubbard/4x4squareU1/wfn_uhf.h5
 #    )
 #  endif()
-  SUBDIRS(SlaterDeterminantOperations/tests)
+#  SUBDIRS(SlaterDeterminantOperations/tests)
 #  SUBDIRS(SlaterDeterminantOperations/time_propagation)
   SUBDIRS(Walkers/tests)
   SUBDIRS(Hamiltonians/tests)
   SUBDIRS(HamiltonianOperations/tests)
-  SUBDIRS(Wavefunctions/tests)
-  SUBDIRS(Propagators/tests)
-  SUBDIRS(Drivers/tests)
-  SUBDIRS(Estimators/tests)
+#  SUBDIRS(Wavefunctions/tests)
+#  SUBDIRS(Propagators/tests)
+#  SUBDIRS(Drivers/tests)
+#  SUBDIRS(Estimators/tests)
 endif()
 
