@@ -113,11 +113,11 @@ def slater_gto2mo(
 
     if _SlaterType(slater_type) is _SlaterType.CLOSED:
         phi_mo = np.zeros(
-            shape=(nmo,sum(nelec)),
+            shape=(nmo,na),
             dtype=np.complex128
         )
 
-        phi_mo[:,:na] = transform_matrix @ phi[:,:na]
+        phi_mo = transform_matrix @ phi
         return phi_mo
     
     elif _SlaterType(slater_type) is _SlaterType.COLLINEAR:
@@ -195,10 +195,9 @@ def make_slater(wfn_scf_data,basis_scf_data=None):
         AO basis (if wfn_scf_data['orthAO'] == True), or within the basis of orbitals defined in 
         `wfn_scf_data`.
     """
-
     walker_type = _slater_enum_map(
-            wfn_scf_data.get('walker_type',_SlaterType.CLOSED)
-        )
+        wfn_scf_data.get('walker_type',_SlaterType.CLOSED)
+    )
 
     phi_gto = _make_slater_gto(
         scf_data=wfn_scf_data,
