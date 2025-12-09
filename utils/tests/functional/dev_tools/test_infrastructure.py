@@ -277,8 +277,6 @@ COMPATIBLE_SPIN_H_WALKER = TestRule(
     check_func=_compatible_spin_H_walker
 )
 
-)
-
 COMPATIBLE_FULLYPOLARIZED_WFN = TestRule(
     name="Fully Polarized Wavefunction Compatibility",
     description="Ensures that fully polarized wavefunctions and walkers are only used together. "
