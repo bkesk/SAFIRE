@@ -141,7 +141,7 @@ We recommend going through them in order.
 4. `Building and writing a Hamiltonian <04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1LMxAtaSkE1-zIKAlEBu66MFarzgHZ-8i>`__ 🧑‍💻
 5. *(optional) Finer control of the Hamiltonian* | `Colab <https://colab.research.google.com/drive/1iUBLuxhuvfbNOYgT-K63_HrL-pzVq25g>`__ 🛠️
 6. `Writing a Trial wavefunction <06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1OxejnAc2_3a5OsCFligaHTwOkZJduMea>`__ 🧑‍💻
-7. *autoHF crash course* | `Colab <https://colab.research.google.com/drive/1Bgp8PN_PEm7ZwR-qH2J0DOy6NuwrV8kw#scrollTo=VjaOtDOltPAj>`__ 💭
+7. *autoHF crash course* | `Colab <https://colab.research.google.com/drive/1M9j2Hud7omJPCIkd9mdeL53K62KiMntu#scrollTo=d3YMrpqs5xcm>`__ 🛠️
 8. `Computing Observables <07_computing_observables/07_computing_observables_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1XlSH9RKjSpcd_CmNWgFT6MQmAVqMXCM8>`__ 🧑‍💻
 
 Worked Examples
