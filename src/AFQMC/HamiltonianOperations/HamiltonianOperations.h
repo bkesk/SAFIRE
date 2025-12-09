@@ -55,6 +55,11 @@ public:
   HamiltonianOperations& operator=(HamiltonianOperations const& other) = default;
   HamiltonianOperations& operator=(HamiltonianOperations&& other) = default;
 
+  void runtime_optimization(nda::MemoryArrayOfRank<2> auto const& G)
+  {
+    std::visit([&](auto&& a) { a.runtime_optimization(G); }, var);
+  }
+
   nda::array<ComplexType,3> getOneBodyPropagatorMatrix(double dt,
                                                        nda::MemoryVector auto const& vMF) 
   {

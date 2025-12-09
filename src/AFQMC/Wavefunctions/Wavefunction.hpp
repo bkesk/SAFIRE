@@ -83,6 +83,12 @@ public:
     return std::visit([&](auto&& a) { return a.number_of_references_for_back_propagation(); }, var);
   }
 
+  template<class WlkSet>
+  void runtime_optimization(WlkSet& wset)
+  {
+    std::visit([&](auto&& a) { a.runtime_optimization(wset); }, var);
+  }
+
   WALKER_TYPES getWalkerType() const
   {
     return std::visit([&](auto&& a) { return a.getWalkerType(); }, var);
@@ -94,9 +100,10 @@ public:
     std::visit([&](auto&& a) { a.vMF(std::forward<Args>(args)...); }, var);
   }
 
+  template<MEMORY_SPACE M = HOST_MEMORY>
   auto G_MF()
   {
-    return std::visit([&](auto&& a) { return a.G_MF(); }, var);
+    return std::visit([&](auto&& a) { return a.template G_MF<M>(); }, var);
   }
 
   template<class... Args>

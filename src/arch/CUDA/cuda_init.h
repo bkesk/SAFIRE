@@ -26,6 +26,7 @@
 
 #include <string>
 #include "cuda_runtime.h"
+#include "curand.h"
 
 namespace sfqmc {
 namespace cuda

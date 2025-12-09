@@ -16,8 +16,6 @@
 #include "nda/nda.hpp"
 #include <cuda/std/mdspan>
 #include "cub/device/device_for.cuh"
-#include "thrust/for_each.h"
-#include "thrust/iterator/counting_iterator.h"
 
 namespace kernels::device::detail
 {
@@ -27,17 +25,18 @@ template<typename A, typename B>
 void copy_cast_impl(A const& a, B & b)
 {
   static_assert(nda::get_rank<A> == nda::get_rank<B> and nda::get_rank<A> < 3, "Rank mismatch");
-  using T = get_value_t<B>;
+  using T = nda::get_value_t<B>;
+  constexpr int rank = nda::get_rank<A>;
   sfqmc::utils::check(a.shape() == b.shape(), "Shape mismatch");
   auto a_d = to_cuda_std_mdspan(a);
   auto b_d = to_cuda_std_mdspan(b);
   long sz = a.size();
-  if constexpr (nda::get_rank<A>==1) {
+  if constexpr (rank==1) {
     auto f = [=] __device__(long n) {
       b_d(n) = T(a_d(n));
     };
     cub::DeviceFor::Bulk(sz,f);
-  } else if constexpr (nda::get_rank<A>==2) {
+  } else if constexpr (rank==2) {
     if constexpr (std::decay_t<A>::is_stride_order_C()) {
       int N = a.extent(1); 
       auto f = [=] __device__(long n) {
@@ -56,11 +55,47 @@ void copy_cast_impl(A const& a, B & b)
       cub::DeviceFor::Bulk(sz,f);
     }
   } 
-  arch::synchronize_if_set();
+  sfqmc::arch::synchronize_if_set();
+}
+
+template<typename A, typename B>
+void accumulate_cast_impl(nda::get_value_t<A> alpha, A const& a, B & b)
+{
+  static_assert(nda::get_rank<A> == nda::get_rank<B> and nda::get_rank<A> < 3, "Rank mismatch");
+  using T = nda::get_value_t<B>;
+  constexpr int rank = nda::get_rank<A>;
+  sfqmc::utils::check(a.shape() == b.shape(), "Shape mismatch");
+  auto a_d = to_cuda_std_mdspan(a);
+  auto b_d = to_cuda_std_mdspan(b);
+  long sz = a.size();
+  if constexpr (rank==1) {
+    auto f = [=] __device__(long n) {
+      b_d(n) += T(alpha*a_d(n));
+    };
+    cub::DeviceFor::Bulk(sz,f);
+  } else if constexpr (rank==2) {
+    if constexpr (std::decay_t<A>::is_stride_order_C()) {
+      int N = a.extent(1);
+      auto f = [=] __device__(long n) {
+        long i = n/N;
+        long j = n - i*N;
+        b_d(i,j) += T(alpha*a_d(i,j));
+      };
+      cub::DeviceFor::Bulk(sz,f);
+    } else {
+      int N = a.extent(0);
+      auto f = [=] __device__(long n) {
+        long i = n/N;
+        long j = n - i*N;
+        b_d(j,i) += T(alpha*a_d(j,i));
+      };
+      cub::DeviceFor::Bulk(sz,f);
+    }
+  }
+  sfqmc::arch::synchronize_if_set();
 }
 
 using memory::device_array_view;
-using memory::unified_array_view;
 using std::complex;
 
 template<int Rank>
@@ -74,6 +109,7 @@ _inst_(device_array_view,double,device_array_view,float)
 _inst_(device_array_view,float,device_array_view,double)
 _inst_(device_array_view,std::complex<double>,device_array_view,std::complex<float>)
 _inst_(device_array_view,std::complex<float>,device_array_view,std::complex<double>)
+_inst_(device_array_view,double,device_array_view,std::complex<double>)
 // what else???
 
 

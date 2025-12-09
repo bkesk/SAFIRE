@@ -122,6 +122,21 @@ public:
   constexpr auto get_memory_space() const { return MEM; }
 
   /*
+   *  Performs runtime optimizations.
+   */       
+  template<class WlkSet>
+  void runtime_optimization(WlkSet& wset)
+  {
+    const int nw   = wset.size();
+    const int nel = (walker_type==COLLINEAR ? nup+ndown : nup );
+    const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
+    const int npol = (walker_type==NONCOLLINEAR ? 2 : 1 );
+    memory::array<MEM,ComplexType,2> G(nw,nel*npol*NMO);
+    // don't use buffered_array!!!
+    HamOp.runtime_optimization(G);
+  }
+
+  /*
    * Expectation value of Hubbard-Stratonovich potential with respect to trial wave-function.
    */
   void vMF(nda::MemoryVector auto&& v, double dt);
@@ -129,6 +144,7 @@ public:
   /*
    * Green function of the trial wave-funtion. 
    */
+  template<MEMORY_SPACE M>
   auto G_MF();
 
 /*

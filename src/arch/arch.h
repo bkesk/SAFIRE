@@ -30,6 +30,7 @@
 #endif
 
 #include "config.h"
+#include "nda/nda.hpp"
 
 namespace sfqmc {
 namespace arch
@@ -39,6 +40,9 @@ namespace arch
   void set_device_synchronization(bool);
   void synchronize_if_set();
   void synchronize();
+
+  // device streams
+  extern std::vector<nda::devStream_t> device_streams;
 }
 }
 

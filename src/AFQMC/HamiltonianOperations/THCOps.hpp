@@ -56,7 +56,7 @@ public:
          long nmo_,
          long nup_, 
          long ndn_, 
-         memory::shared_array<MEM,ComplexType,3>&& hij_,
+         memory::shared_array<HOST_MEMORY,ComplexType,3>&& hij_,
          memory::shared_array<MEM,ComplexType,3>&& haj_,
          memory::shared_array<MEM,ValueType,3>&& x_,
          memory::shared_array<MEM,ComplexType,5>&& y_,
@@ -65,7 +65,7 @@ public:
          std::optional<memory::shared_array<MEM,ValueType,3>>&& x_rot_,
          std::optional<memory::shared_array<MEM,ComplexType,5>>&& y_rot_,
          std::optional<memory::shared_array<MEM,ValueType,2>>&& z_rot_,
-         memory::shared_array<MEM,ComplexType,3>&& v0_,
+         memory::shared_array<HOST_MEMORY,ComplexType,3>&& v0_,
          ComplexType e0_)
       : mpi(ctxt), 
         walker_type(type),
@@ -131,14 +131,13 @@ public:
     utils::check(vMF.size() == number_of_cholesky_vectors(), "Size mismatch");
 
     // v[nstot][nwalk=1][nptot*NMO][NMO]
-    //nda::array<ComplexType, 4> v;
-    //{
+    nda::array<ComplexType, 4> v;
+    {
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
-      //v = std::move(nda::to_host(vHS(vMF_2d, dt)));
-      auto v = vHS(vMF_2d, dt);
+      v = std::move(vHS(vMF_2d, dt));
       utils::check(v.shape() == std::array<long,4>{1,nspin,npol*NMO,NMO}, "Size mismatch");
-   // }
+    }
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
     H1() = ComplexType(0.0);
@@ -185,6 +184,9 @@ public:
       
     return H1;
   }
+
+  void runtime_optimization(nda::MemoryArrayOfRank<2> auto const& G)
+  {  /*nothing to do right now*/ }
 
   nda::array<int,1> getFieldTypes() const {
     int nvc = number_of_cholesky_vectors();
@@ -270,8 +272,14 @@ public:
               for(int i=0; i<nw; ++i)
                 Guv(i,nda::ellipsis{}) *= Zuv();
             } else {
-              nda::tensor::elementwise(ComplexType(1.0),Zuv,"uv",
-                                       ComplexType(1.0),Guv,"wuv",nda::tensor::op::MUL);
+	      if constexpr(REAL) {
+                auto Guv4d = memory::to_real_view(Guv);
+                nda::tensor::elementwise(RealType(1.0),Zuv,"uv",
+                                         RealType(1.0),Guv4d,"wuvc",nda::tensor::op::MUL);
+              } else {
+                nda::tensor::elementwise(ComplexType(1.0),Zuv,"uv",
+                                         ComplexType(1.0),Guv,"wuv",nda::tensor::op::MUL);
+              }
             }
 
             // R[w,u][b] = sum_v Guv[w,u][v] * rotcXau[b][v]
@@ -296,10 +304,7 @@ public:
             memory::buffered_array<MEM,ComplexType,1> Ew(nw);
             nda::tensor::contract(ComplexType(-0.5*scl),Twbi,"wai",Gwai,"wai",ComplexType(0.0),Ew,"w"); 
 
-            if constexpr (MEM==HOST_MEMORY) 
-              E(range(iw, iw + nw), 1) += Ew();
-            else
-              utils::check(false,"finish");
+            nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 1));
           }
         }
       }
@@ -309,17 +314,15 @@ public:
         memory::buffered_array<MEM,ComplexType,1> Ew(nw);
 	if constexpr (REAL) {
           // use strategy in Guv_Guu
-          utils::check(false,"finish");
+          auto Guu3d = memory::to_real_view(Guu);
+          auto Twu3d = memory::to_real_view(Twu);
+          nda::tensor::contract(Guu3d,"wuc",Zuv,"uv",Twu3d,"wvc");
 	} else {
           nda::blas::gemm(Guu,Zuv,Twu);
 	}
         nda::tensor::contract(ComplexType(RealType(0.5 * scl * scl)),nda::conj(Guu),"wu",Twu,"wu",
                               ComplexType(0.0),Ew,"w"); 
-// NEED ACCUMULATE WITH CASTING
-        if constexpr (MEM==HOST_MEMORY) 
-          E(range(iw, iw + nw), 2) += Ew();
-        else
-          utils::check(false,"finish");
+        nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 2));
       }
       iw += nw;
     }
@@ -634,7 +637,7 @@ public:
                 for(int i=0; i<NMO; ++i)
                   Qwiu(w,i,all) = Twu(w,all) * Xiu(i,all);
             } else {
-              nda::tensor::elementwise(Twu_r,"wuc",Xiu,"iu",Qwiu_r,"wiuc",nda::tensor::op::MUL); 
+              nda::tensor::elementwise_trinary(1.0,Twu_r,"wuc",1.0,Xiu,"iu",0.0,Qwiu_r,"wiuc",nda::tensor::op::MUL,nda::tensor::op::SUM);
             }
             
             auto vij = v(range(iw,iw+nw),is,range(ip*NMO,(ip+1)*NMO),all);
@@ -650,7 +653,7 @@ public:
                 for(int i=0; i<NMO; ++i)
                   Qwiu(w,i,all) = Twu(w,all) * nda::conj(Xiu(i,all));
             } else {
-              nda::tensor::elementwise(Twu,"wu",nda::conj(Xiu),"iu",Qwiu,"wiu",nda::tensor::op::MUL); 
+              nda::tensor::elementwise_trinary(ComplexType(1.0),Twu,"wu",ComplexType(1.0),nda::conj(Xiu),"iu",ComplexType(0.0),Qwiu,"wiu",nda::tensor::op::MUL,nda::tensor::op::SUM); 
             }
 
             auto vij = v(range(iw,iw+nw),is,range(ip*NMO,(ip+1)*NMO),all);
@@ -876,7 +879,10 @@ protected:
         for(int i=0; i<nw; i++)
           Guu(i,all) += nda::diagonal(Guv(i,all,all));
       } else {
-        utils::check(false, "finish");
+        std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
+        nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(Guu.shape(),str);
+        memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
+        nda::tensor::add(ComplexType(1.0),Guv_diag,ComplexType(1.0),Guu);   
       }
     }
   }
@@ -942,7 +948,7 @@ protected:
   int nelec[2];
 
   // H1[nspin][npol*NMO][npol*NMO]
-  memory::shared_array<MEM,ComplexType,3> hij;
+  memory::shared_array<HOST_MEMORY,ComplexType,3> hij;
 
   // half rotated one body hamiltonian: [ndet][nup+ndn][npol*NMO]
   memory::shared_array<MEM,ComplexType,3> haj;
@@ -969,7 +975,7 @@ protected:
   std::optional<decltype(_Luv_)> _Zuv_rot_; 
 
   // vexx(i,l) = -0.5 * sum_j <ij|jl>
-  memory::shared_array<MEM,ComplexType,3> vexx;
+  memory::shared_array<HOST_MEMORY,ComplexType,3> vexx;
 
   ComplexType E0;
 

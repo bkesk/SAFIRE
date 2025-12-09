@@ -64,7 +64,7 @@ std::tuple<long,T> argmax(T const* x, long N)
   if constexpr (is_complex_v<T>) {
     auto res_d = thrust::max_element(thrust::device, it, it+N, op_less_real());
     pos = thrust::get<1>(*res_d);
-    thrust::complex<utils::remove_complex_t<T>> r_ = thrust::get<0>(*res_d);
+    thrust::complex<sfqmc::utils::remove_complex_t<T>> r_ = thrust::get<0>(*res_d);
     res = T{r_.real(),r_.imag()};
   } else {
     auto res_d = thrust::max_element(thrust::device, it, it+N);
@@ -72,8 +72,8 @@ std::tuple<long,T> argmax(T const* x, long N)
     res = thrust::get<0>(*res_d);
   }
 
-  cuda::cuda_check(cudaGetLastError());
-  cuda::cuda_check(cudaDeviceSynchronize());
+  sfqmc::cuda::cuda_check(cudaGetLastError());
+  sfqmc::cuda::cuda_check(cudaDeviceSynchronize());
 
   return std::tuple<long,T> {pos,res};
 }
@@ -93,7 +93,7 @@ std::tuple<long,T> argmin(T const* x, long N)
   if constexpr (is_complex_v<T>) {
     auto res_d = thrust::min_element(thrust::device, it, it+N, op_less_real());
     pos = thrust::get<1>(*res_d);
-    thrust::complex<utils::remove_complex_t<T>> r_ = thrust::get<0>(*res_d);
+    thrust::complex<sfqmc::utils::remove_complex_t<T>> r_ = thrust::get<0>(*res_d);
     res = T{r_.real(),r_.imag()};
   } else {
     auto res_d = thrust::min_element(thrust::device, it, it+N);
@@ -101,8 +101,8 @@ std::tuple<long,T> argmin(T const* x, long N)
     res = thrust::get<0>(*res_d);
   }
 
-  cuda::cuda_check(cudaGetLastError());
-  cuda::cuda_check(cudaDeviceSynchronize());
+  sfqmc::cuda::cuda_check(cudaGetLastError());
+  sfqmc::cuda::cuda_check(cudaDeviceSynchronize());
 
   return std::tuple<long,T> {pos,res};
 }

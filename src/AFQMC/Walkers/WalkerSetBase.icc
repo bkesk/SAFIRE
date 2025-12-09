@@ -45,6 +45,10 @@ void WalkerSetBase<_M_>::parse(ptree pt_in)
   min_weight        = pt.get<double>("min_weight");
   max_weight        = pt.get<double>("max_weight");
 
+  if constexpr (_M_ == HOST_MEMORY)
+    app_log(1, " Walker resides in CPU memory");
+  else
+    app_log(1, " Walker resides in GPU memory");
   io::tolower(walker_type);
   if (walker_type.find("closed") != std::string::npos)
   {

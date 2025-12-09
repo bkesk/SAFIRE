@@ -421,9 +421,27 @@ SparseEnergy<MEM,REAL> ModelHamOpsGenerator::make_SparseEnergy(
     }
   }   
 
-  return SparseEnergy<MEM,REAL>( mpi, type, std::move(compact_hij), std::move(VJ), 
-                std::move(VX), std::move(U),  std::move(J), std::move(n2IJ), E0);
+  if constexpr (MEM==HOST_MEMORY) {
+    return SparseEnergy<MEM,REAL>( mpi, type, std::move(compact_hij), std::move(VJ), 
+                  std::move(VX), std::move(U),  std::move(J), std::move(n2IJ), E0);
+  } else {
 
+    using csrM_dev = math::sparse::csr_matrix<ValueType, MEM, int, int>;
+    csrM_dev U_d(U), J_d(J);
+    std::vector<csrM_dev> VJ_d, VX_d, compact_hij_d;
+    VJ_d.reserve(VJ.size());
+    VX_d.reserve(VX.size());
+    compact_hij_d.reserve(compact_hij.size());
+    for(int n=0; n<compact_hij.size(); ++n)
+      compact_hij_d.emplace_back(csrM_dev(compact_hij[n]));
+    for(int n=0; n<VJ.size(); ++n)
+      VJ_d.emplace_back(csrM_dev(VJ[n]));
+    for(int n=0; n<VX.size(); ++n)
+      VX_d.emplace_back(csrM_dev(VX[n]));
+
+    return SparseEnergy<MEM,REAL>( mpi, type, std::move(compact_hij_d), std::move(VJ_d), 
+                  std::move(VX_d), std::move(U_d),  std::move(J_d), std::move(n2IJ), E0);
+  }
 }
 
 
@@ -621,10 +639,10 @@ void ModelHamOpsGenerator::addComponent( WALKER_TYPES wtype, PropagatorTypes pty
   // h0(0, IJ)  ... as a 1-row "linearized" sparse matrix   
   using csrM = math::sparse::csr_matrix<ComplexType, HOST_MEMORY, int, int>;
   csrM VnT({nFields, nIJ}, 4);
-  auto shm_h0 = memory::make_shared_array<MEM,ComplexType,1>(mpi,std::array<long,1>{nIJ});
+  auto shm_h0 = memory::make_shared_array<HOST_MEMORY,ComplexType,1>(mpi,std::array<long,1>{nIJ});
   auto h0 = shm_h0();
   nFields = 0;
-  bool writer = (MEM==HOST_MEMORY ? mpi->node_comm.root() : true);
+  bool writer = mpi->node_comm.root(); 
 
   int nspin = (wtype == COLLINEAR ? 2 : 1 );
   int npol = (wtype == NONCOLLINEAR ? 2 : 1 );
@@ -735,14 +753,18 @@ void ModelHamOpsGenerator::addComponent( WALKER_TYPES wtype, PropagatorTypes pty
   nda::array<ComplexType,2> Vn_array = nda::transpose(math::sparse::to_array<ComplexType>(VnT));
   csrM SpVn = math::sparse::to_csr<HOST_MEMORY,int,int>(Vn_array);
 
+  auto h0_dev = memory::make_shared_array<MEM,ComplexType,1>(mpi,std::array<long,1>{nIJ});
+  if(writer) h0_dev() = h0();
+  mpi->comm.barrier();
+
   if(ContinuousPropg)
     Hams.emplace_back( ModelComponent<MEM,REAL>( 
                        Continuous_GeneralUJ<MEM>(mpi,wtype,ptype,
-						std::move(shm_h0),SpVn,VnT,shift_1body) ) );
+						std::move(h0_dev),SpVn,VnT,shift_1body) ) );
   else
     Hams.emplace_back( ModelComponent<MEM,REAL>( 
                        Discrete_GeneralUJ<MEM,REAL>(mpi,wtype,ptype,
-						std::move(shm_h0),SpVn,VnT,U,shift_1body) ) );
+						std::move(h0_dev),SpVn,VnT,U,shift_1body) ) );
 }
 
 } // namespace afqmc

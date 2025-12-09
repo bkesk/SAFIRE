@@ -49,7 +49,6 @@ public:
     // initialize using verbose input
     fileName  = pt.get<std::string>("filename");
     name      = pt.get<std::string>("name");
-    sparse_g_eval = pt.get<bool>("sparse_gf_eval");
     shift_1body = pt.get<bool>("shift_1body");
   }
 
@@ -75,13 +74,11 @@ public:
     std::string name, filename;
     name      = pt0.get<std::string>("name", "ham0");
     filename  = pt0.get<std::string>("filename");
-    bool sparse_gf = pt0.get<bool>("sparse_gf_eval", true);
     bool shift_1b = pt0.get<bool>("shift_1body", false);
     // create verbose internal inputs
     ptree pt1;
     pt1.put("name", name);
     pt1.put("filename", filename);
-    pt1.put("sparse_gf_eval", sparse_gf);
     pt1.put("shift_1body", shift_1b);
     std::unordered_set<std::string> pass_through_keys = {
       "system"
@@ -97,7 +94,6 @@ protected:
   ComplexType FrozenCoreEnergy = 0.0;
 
   std::string fileName = "";
-  bool sparse_g_eval = true;
   bool shift_1body = false;
 
   template<MEMORY_SPACE MEM, bool REAL, typename ValueType>

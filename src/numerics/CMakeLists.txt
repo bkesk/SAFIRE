@@ -21,9 +21,7 @@ ENDIF()
 install(TARGETS numerics
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-if(ENABLE_TBLIS)
-add_subdirectory(sandbox)
-endif(ENABLE_TBLIS)
+#add_subdirectory(sandbox)
 
 IF (BUILD_UNIT_TESTS)
   add_subdirectory(fft/tests)

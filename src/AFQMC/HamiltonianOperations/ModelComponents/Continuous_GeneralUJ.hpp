@@ -17,7 +17,7 @@
 
 #include "config.h"
 #include "AFQMC/config.h"
-#include "Utilities/check.hpp"
+#include "utilities/check.hpp"
 #include "utilities/mpi_context.h"
 
 #include "numerics/sparse/sparse.hpp"
@@ -143,7 +143,7 @@ public:
     if constexpr (MEM==HOST_MEMORY) 
       for(int iw=0; iw<v.extent(0); ++iw) v(iw,all) += ia*h0(); 
     else
-      utils::check(false,"finish"); 
+      nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
   }
 
   // v(n,w) = sum_IJ VnT(n,IJ) G(w,IJ)

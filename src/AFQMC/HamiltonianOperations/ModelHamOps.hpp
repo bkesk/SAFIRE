@@ -18,11 +18,14 @@
 
 #include "config.h"
 #include "AFQMC/config.h"
+#include "arch/arch.h"
 #include "nda/nda.hpp"                                 
 #include "nda/tensor.hpp"
 #include "utilities/check.hpp"
+#include "utilities/Timer.hpp"
 #include "utilities/mpi_context.h"
 #include "utilities/check_strides.hpp"
+#include "utilities/memory_utils.hpp"
 #include "numerics/shared_array/shared_array.hpp"
 #include "numerics/nda_functions.hpp"
 #include "numerics/shared_array/shared_array.hpp"
@@ -54,8 +57,7 @@ public:
               memory::shared_array<MEM,ComplexType,4>&& psi_,
               SparseEnergy<MEM,REAL>&& et_,
               std::vector<ModelComponent<MEM,REAL>>&& h_,
-              nda::MemoryVector auto&& n2ij_,
-              bool sparse_g_eval_ = true 
+              nda::MemoryVector auto&& n2ij_
              )
       : mpi(_mpi),
         walker_type(type),
@@ -67,8 +69,7 @@ public:
         n2IJ(std::move(n2ij_)),
         n2IJ_dev(n2IJ),
         nIJ_first_beta(n2IJ.extent(0)),  // default value for noncollinear
-        n2IJ_vHS_dev(n2IJ_dev),          // default value for collinear
-        sparse_G_eval(sparse_g_eval_)
+        n2IJ_vHS_dev(n2IJ_dev)           // default value for collinear
   {
     num_ke_vectors=0;
     nCV=0;
@@ -149,6 +150,19 @@ public:
     return H1;
   }
 
+  void runtime_optimization(nda::MemoryArrayOfRank<2> auto const& G)
+  {  
+    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+    int NMO   = PsiC.extent(2) / npol;
+    int nwalk = G.extent(0);
+
+    utils::check(G.is_contiguous(), "Layout mismatch");
+    memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel[0]+nel[1],npol*NMO},G.data());
+
+    // determines sparse_G_eval 
+    find_alg(G3d);
+  } 
+
   nda::array<int,1> getFieldTypes() const {
     int nvc = number_of_cholesky_vectors();
     nda::array<int,1> v(nvc);
@@ -194,11 +208,12 @@ public:
     // ET.get_n2IJ() runs over [0,M^2) in COLLINEAR case 
     int nIJ(ET.get_n2IJ().extent(0));
     bool allocate_EJn (addEJ and walker_type==COLLINEAR);
-    memory::buffered_array<MEM,ComplexType,3> EJn(nspin, (allocate_EJn?nwalk:1), (allocate_EJn?nIJ:1)); 
-    EJn() = ComplexType(0.0);
+    memory::buffered_array<MEM,ComplexType,3> EJn(nspin, (allocate_EJn?nIJ:1), (allocate_EJn?nwalk:1)); 
 
     utils::check(G.is_contiguous(), "Layout mismatch");
     memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel[0]+nel[1],npol*NMO},G.data());
+
+    EJn() = ComplexType(0.0);
     
     // generate GIJ with custom mapping
     if( sparse_G_eval ) {
@@ -211,16 +226,16 @@ public:
       auto ET_n2IJ = ET.get_n2IJ_dev();
       memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
       for(int is=0; is<nspin; is++ ) {
-        auto Gfull = getGFull(idet,is,G3d);
+        auto Gfull = getGFull_for_energy(idet,is,G3d);
         // B[n][:] = A[ I[n] ][:] 
-        nda::copy_select(false, 1, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
+        nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
         ET.accumulate_energy(is, E, GIJ, EJn(is,all,all), addE1, addEJ, addEXX); 
       }
     }
 
     // opposite spin EJ contribution
     if(addEJ and walker_type == COLLINEAR)
-      nda::tensor::contract(ComplexType(1.0), EJn(0,all,all), "wi", EJn(1,all,all), "wi",
+      nda::tensor::contract(ComplexType(1.0), EJn(0,all,all), "iw", EJn(1,all,all), "iw",
                             ComplexType(1.0), E(all,2), "w");
   }
 /*
@@ -315,7 +330,7 @@ public:
     memory::buffered_array<MEM,ComplexType,4> v(nwalk,nspin,npol*NMO,NMO);
     auto v2d = nda::reshape(v,std::array<long,2>{nwalk,nspin*npol*NMO*NMO});
     v() = ComplexType(0.0);
-    // B[ I[n] ][:] += A[n][:] 
+    // B[:][I[n]] += A[:][n] 
     nda::copy_select(true, 1, n2IJ_vHS_dev, ComplexType(1.0), vIJ, ComplexType(0.0), v2d);
     return v;
   }
@@ -466,9 +481,10 @@ private:
   int num_ke_vectors = 0;
   int nCV = 0;  
 
+  // Use sparse/dense GIJ evaluation, default choice is true, adjusted at runtime
   bool sparse_G_eval = true;
 
-  auto getGFull(int idet, int ispin, nda::MemoryArrayOfRank<3> auto const& Gc) 
+  auto getGFull_for_energy(int idet, int ispin, nda::MemoryArrayOfRank<3> auto const& Gc) 
   {
     using nda::range;
     auto all = range::all;
@@ -477,12 +493,12 @@ private:
     int NMO    = PsiC.extent(2) / npol;
     int nwalk  = Gc.extent(0);
     utils::check( Gc.shape() == std::array<long,3>{nwalk,nel[0]+nel[1],npol*NMO}, "Shape mismatch");
-    memory::buffered_array<MEM,ComplexType,2> Gfull(nwalk, npol * NMO * npol * NMO);
-    auto Gfull_3d = nda::reshape(Gfull, std::array<long,3>{nwalk, npol * NMO, npol * NMO});
+    memory::buffered_array<MEM,ComplexType,2> Gfull(npol * NMO * npol * NMO, nwalk);
+    auto Gfull_3d = nda::reshape(Gfull, std::array<long,3>{npol * NMO, npol * NMO, nwalk});
 
     auto psi = PsiC()(idet,ispin,all,range(nel[ispin]));
     int n0 = (ispin == 0 ? 0 : nel[0]);
-    nda::tensor::contract(psi,"ia",Gc(all,range(n0,n0+nel[ispin]),all),"waj",Gfull_3d(all,all,all),"wij");
+    nda::tensor::contract(psi,"ia",Gc(all,range(n0,n0+nel[ispin]),all),"waj",Gfull_3d(all,all,all),"ijw");
     return Gfull;
   }
 
@@ -519,9 +535,9 @@ private:
     int NMO    = PsiC.extent(2) / npol;
     int nwalk  = Gc.extent(0);
     utils::check( Gc.shape() == std::array<long,3>{nwalk,nel[0]+nel[1],npol*NMO}, "Shape mismatch");
-    auto ET_n2IJ = ET.get_n2IJ_dev();
+    auto ET_n2IJ = ET.get_n2IJ();
     int nIJ = ET_n2IJ.extent(0);
-    memory::buffered_array<MEM,ComplexType,2> GIJ(nwalk, nIJ);
+    memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
 
     auto psi = PsiC()(idet,ispin,all,range(nel[ispin]));
     int n0 = (ispin == 0 ? 0 : nel[0]);
@@ -532,11 +548,26 @@ private:
       for(int n=0; n<nIJ; ++n) {
         int In = int(ET_n2IJ(n)/M);
         int Jn = int(ET_n2IJ(n)%M);
-        nda::tensor::contract(psi(In,all),"a",Gwaj(all,all,Jn),"wa",GIJ(all,n),"w");
+        nda::tensor::contract(psi(In,all),"a",Gwaj(all,all,Jn),"wa",GIJ(n,all),"w");
       }
     } else {
-      utils::check(false, "finish");
-      // dispatch with batched gemm interface
+      // batched gemm (gemv), with transposed Gwaj 
+      memory::buffered_array<MEM,ComplexType,3> Gt(npol*NMO,nel[ispin],nwalk);
+      nda::tensor::assign(Gwaj,"waj",Gt,"jaw");
+      using At = decltype(psi(range(0,1),all));
+      using Bt = decltype(Gt(0,all,all));
+      using Ct = decltype(GIJ(range(0,1),all));
+      std::vector<At> vA; vA.reserve(nIJ);
+      std::vector<Bt> vB; vB.reserve(nIJ);
+      std::vector<Ct> vC; vC.reserve(nIJ);
+      for(int n=0; n<nIJ; ++n) {
+        int In = int(ET_n2IJ(n)/M);
+        int Jn = int(ET_n2IJ(n)%M);
+        vA.emplace_back(psi(range(In,In+1),all));
+        vB.emplace_back(Gt(Jn,all,all));
+        vC.emplace_back(GIJ(range(n,n+1),all));
+      }
+      nda::blas::gemm_batch<false>(ComplexType(1.0),vA,vB,ComplexType(0.0),vC);
     }
 
     return GIJ;
@@ -576,8 +607,42 @@ private:
         }
       }
     } else {
-      utils::check(false, "finish");
-      // dispatch with batched gemv interface
+      // batched gemm (gemv), with transposed Gc
+      memory::buffered_array<MEM,ComplexType,3> Gt(npol*NMO,nel[0]+nel[1],nwalk);
+      memory::buffered_array<MEM,ComplexType,2> C(nIJ,nwalk);
+      nda::tensor::assign(Gc,"waj",Gt,"jaw");
+      auto _psi_ = PsiC()(0,0,all,range(nel[0]));
+      auto _Gjaw_ = Gt(all,range(nel[0]),all);
+      using At = decltype(_psi_(range(0,1),all));
+      using Bt = decltype(_Gjaw_(0,all,all));
+      using Ct = decltype(C(range(0,1),all));
+      std::vector<At> vA; vA.reserve(nIJ);
+      std::vector<Bt> vB; vB.reserve(nIJ);
+      std::vector<Ct> vC; vC.reserve(nIJ);
+      {
+        auto psi = PsiC()(0,0,all,range(nel[0]));
+        auto Gjaw = Gt(all,range(nel[0]),all);
+        for(int n=0; n<nIJ_first_beta; ++n) {
+          int In = int(n2IJ(n)/M);
+          int Jn = int(n2IJ(n)%M);
+          vA.emplace_back(psi(range(In,In+1),all));
+          vB.emplace_back(Gjaw(Jn,all,all));
+          vC.emplace_back(C(range(n,n+1),all));
+        }
+      }
+      if(walker_type == COLLINEAR) {
+        auto psi = PsiC()(0,1,all,range(nel[1]));
+        auto Gjaw = Gt(all,range(nel[0],nel[0]+nel[1]),all);
+        for(int n=nIJ_first_beta; n<nIJ; ++n) {
+          int In = int(n2IJ(n)/M) - NMO;
+          int Jn = int(n2IJ(n)%M);
+          vA.emplace_back(psi(range(In,In+1),all));
+          vB.emplace_back(Gjaw(Jn,all,all));
+          vC.emplace_back(C(range(n,n+1),all));
+        }
+      }
+      nda::blas::gemm_batch<false>(ComplexType(1.0),vA,vB,ComplexType(0.0),vC);
+      nda::tensor::assign(C,"iw",GIJ,"wi");
     }
   }
 
@@ -628,6 +693,74 @@ private:
       spvHS(1) = std::move(v_h);
     }
 
+  }
+
+  /// Determine algorithm for evaluation of GIJ. Using energy workflow as benchmark 
+  void find_alg(nda::MemoryArrayOfRank<3> auto const& G3d) 
+  {
+    using nda::range;
+    auto all = range::all;
+    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
+    int NMO   = PsiC.extent(2) / npol;
+    int nwalk = G3d.extent(0);
+    TimerManager Timer;
+
+    {
+      int nIJ(ET.get_n2IJ().extent(0));
+      {
+        for(int is=0; is<nspin; is++ ) 
+          auto GIJ = getGIJ_for_energy(0,is,G3d);
+      }
+   
+      {
+        // generate full G
+        auto ET_n2IJ = ET.get_n2IJ_dev();
+        memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
+        for(int is=0; is<nspin; is++ ) {
+          auto Gfull = getGFull_for_energy(0,is,G3d);
+          // B[n][:] = A[ I[n] ][:] 
+          nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
+        }
+      }
+
+    }
+
+    // now resize allocators to remove allocation overhead. This will fail if
+    // buffer space was allocated previous to calling this routine!!!
+    utils::resize_nda_static_allocator();
+
+    {
+      int nIJ(ET.get_n2IJ().extent(0));
+      {
+        Timer.start("sp");
+        for(int is=0; is<nspin; is++ )
+          auto GIJ = getGIJ_for_energy(0,is,G3d);
+        Timer.stop("sp");
+      }
+
+      Timer.start("gfull");
+      {
+        // generate full G
+        auto ET_n2IJ = ET.get_n2IJ_dev();
+        memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
+        for(int is=0; is<nspin; is++ ) {
+          auto Gfull = getGFull_for_energy(0,is,G3d);
+          // B[n][:] = A[ I[n] ][:] 
+          nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
+        }
+      }
+      Timer.stop("gfull");
+    }
+
+    app_log(2," Runtime optimization of Model Hamiltonian Operations"); 
+    app_log(2,"   - G Full: {}",Timer.elapsed("gfull"));
+    app_log(2,"   - G sparse {}",Timer.elapsed("sp"));
+    sparse_G_eval = (Timer.elapsed("gfull") > Timer.elapsed("sp")); 
+    if(sparse_G_eval)
+      app_log(2, " Using sparse algorithm to evaluate GIJ in Model Hamiltonian Operations.");
+    else
+      app_log(2, " Using dense algorithm to evaluate GIJ in Model Hamiltonian Operations.");
   }
 
 };

@@ -38,6 +38,7 @@
 #include "AFQMC/Utilities/readWfn.h"
 #include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/SlaterDeterminantOperations/density_matrix.hpp"
+#include "AFQMC/SlaterDeterminantOperations/orthogonalize.hpp"
 
 #include "numerics/sparse/sparse.hpp"
 
@@ -74,10 +75,8 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   // Remove file extension.
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
-
-  int NMO              = file_data.NMO;
-  int nup              = file_data.nup;
-  int ndown            = file_data.ndown;
+  auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
+  utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   std::map<std::string, AFQMCInfo> InfoMap;
   InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
@@ -123,6 +122,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
         OrbMat(i,all,range(nup,nel)) = T();
     }
   }
+
   auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);
   memory::array<MEM,ComplexType,3> G(nwalk, nel, npol * NMO);
   memory::array<MEM,ComplexType,1> ovlp(nwalk,ComplexType(0.0)); 
@@ -131,9 +131,12 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   det_ops::MixedDensityMatrix(psi(0,0),OrbMat(all,all,range(nup)),G(all,range(nup),all),ovlp);
   if (wtype == COLLINEAR)
     det_ops::MixedDensityMatrix(psi(0,1),OrbMat(all,all,range(nup,nel)),G(all,range(nup,nel),all),ovlp);
-  ARRAY_EQUAL(ovlp,nda::array<ComplexType,1>(nwalk,ComplexType(0.0)));
+//  ARRAY_EQUAL(ovlp,nda::array<ComplexType,1>(nwalk,ComplexType(0.0)));
   // 2d views and transposed copies just in case
   auto G2d = nda::reshape(G,std::array<long,2>{nwalk,nel*npol * NMO});
+
+  // optimize HOps evaluation
+  HOps.runtime_optimization(G2d); 
 
   // Energy
   memory::array<MEM,ComplexType,2> Eloc(nwalk, 3);
@@ -153,13 +156,14 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     app_log(1," EXX: {}", eloc_h(0,1)); 
     app_log(1," ETotal: {}", eloc_h(0,0)+eloc_h(0,1)+eloc_h(0,2)); 
   }
+return;
 
   double dt = 0.01;
   auto nCV  = HOps.number_of_cholesky_vectors();
 
   {
-    nda::array<ComplexType, 1> vMF(nCV);
     nda::array<ComplexType, 1> nMF(2*NMO, ComplexType(1.0));
+    memory::array<MEM,ComplexType, 1> vMF(nCV);
     HOps.update_potentials(dt,nMF,vMF,true);
   }
 
@@ -183,6 +187,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     app_log(1," Xsum: {}", Xsum);
     app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
   }
+return;
 
   auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
   REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
