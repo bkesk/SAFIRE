@@ -46,6 +46,8 @@ public:
   using decay_value_type = typename std::decay<value_type>::type;
   template<MEMORY_SPACE _M_>
   using SMType  = memory::array_view<_M_,value_type,2,nda::C_layout>;
+  template<MEMORY_SPACE _M_>
+  using SVType  = memory::array_view<_M_,value_type,1,nda::C_layout>;
 
   walker() {
     utils::check(false, "Error: Empty walker not allowed");
@@ -80,6 +82,30 @@ public:
     utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in SlaterMatrix(SpinType).");
     return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]}, getw_(SM)))
                         : (SMType<_M_>({desc[0], desc[2]}, getw_(SM) + desc[0] * desc[1]));
+  }
+  template<MEMORY_SPACE _M_>
+  auto UMatrix(SpinTypes s)
+  {
+    utils::check(_M_ == MEM, "Memory space mismatch.");
+    utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in UMatrix(SpinType).");
+    return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]}, getw_(UR)))
+                        : (SMType<_M_>({desc[0], desc[2]}, getw_(UR) + desc[0] * desc[1]));
+  }
+  template<MEMORY_SPACE _M_>
+  auto DMatrix(SpinTypes s)
+  {
+    utils::check(_M_ == MEM, "Memory space mismatch.");
+    utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in UMatrix(SpinType).");
+    return (s == Alpha) ? (SVType<_M_>({desc[0]}, getw_(DR)))
+                        : (SVType<_M_>({desc[0]}, getw_(DR) + desc[0]));
+  }
+  template<MEMORY_SPACE _M_>
+  auto VMatrix(SpinTypes s)
+  {
+    utils::check(_M_ == MEM, "Memory space mismatch.");
+    utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in UMatrix(SpinType).");
+    return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]}, getw_(VR)))
+                        : (SMType<_M_>({desc[0], desc[2]}, getw_(VR) + desc[0] * desc[1]));
   }
   template<MEMORY_SPACE _M_>
   auto SlaterMatrixN(SpinTypes s)
@@ -131,7 +157,8 @@ private:
 
   void check_allowed_property(walker_data P) const {
     utils::check(P==WEIGHT or P==PHASE or P==PHASE1 or P==PHASE2 or P==THETA or 
-        P==PSEUDO_ELOC_ or P==E1_ or P==EXX_ or P==EJ_ or P==OVLP, "Invalid property.");
+        P==PSEUDO_ELOC_ or P==E1_ or P==EXX_ or P==EJ_ or P==OVLP or P==LOGSCL_UP
+        or P==LOGSCL_DN or P==IS_UNITARY, "Invalid property.");
   }
 
   decay_value_type get_value(walker_data P) const {

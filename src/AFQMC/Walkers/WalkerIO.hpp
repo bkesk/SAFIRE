@@ -214,11 +214,24 @@ bool restartFromHDF5(WalkerSet& wset,
 
   int nw_local = nWN - nW0;
   { // to limit scope
-    int nspin = ((walker_type == COLLINEAR) ? 2 : 1);
-    int npol = ((walker_type == NONCOLLINEAR) ? 2 : 1);
-    nda::array<ComplexType, 3> Psi(nspin, npol*NMO, nup);
-    Psi() = ComplexType(0.0);
-    wset.resize(nw_local, Psi);
+    if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
+      int nspin = ((walker_type == COLLINEAR) ? 2 : 1);
+      int npol = ((walker_type == NONCOLLINEAR) ? 2 : 1);
+      nda::array<ComplexType, 3> Psi(nspin, npol*NMO, nup);
+      Psi() = ComplexType(0.0);
+      wset.resize(nw_local, Psi);
+    }
+    else{
+      int nspin = ((walker_type == COLLINEAR_FT) ? 2 : 1);
+      int npol = ((walker_type == NONCOLLINEAR_FT) ? 2 : 1);
+      nda::array<ComplexType, 3> U(nspin, npol*NMO, npol*NMO);
+      nda::array<ComplexType, 2> D(nspin, npol*NMO);
+      nda::array<ComplexType, 3> V(nspin, npol*NMO, npol*NMO);
+      U() = ComplexType(0.0);
+      D() = ComplexType(0.0);
+      V() = ComplexType(0.0);
+      wset.resize(nw_local, U, D, V);
+    }
   }
 
   std::vector<int> wlk_per_blk;
@@ -287,29 +300,47 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
     [[maybe_unused]] long NMO = 0, nup = 0, ndn = 0;
     { // to limit the scope
       auto w = wset[0];
-      if(MEM == HOST_MEMORY) {
-        auto SM = w.template SlaterMatrix<HOST_MEMORY>(Alpha);
-        NMO = SM.extent(0); 
-        nup = SM.extent(1); 
-        if (walker_type == COLLINEAR)
-          ndn = w.template SlaterMatrix<HOST_MEMORY>(Beta).extent(1);
-      } else if(MEM == DEVICE_MEMORY) {
-        auto SM = w.template SlaterMatrix<DEVICE_MEMORY>(Alpha);
-        NMO = SM.extent(0); 
-        nup = SM.extent(1); 
-        if (walker_type == COLLINEAR)
-          ndn = w.template SlaterMatrix<DEVICE_MEMORY>(Beta).extent(1);
-      } else if(MEM == UNIFIED_MEMORY) {
-        auto SM = w.template SlaterMatrix<UNIFIED_MEMORY>(Alpha);
-        NMO = SM.extent(0); 
-        nup = SM.extent(1); 
-        if (walker_type == COLLINEAR)
-          ndn = w.template SlaterMatrix<UNIFIED_MEMORY>(Beta).extent(1);
-      } else {
-        utils::check(false,"Invalid memory space");
+      if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
+        if(MEM == HOST_MEMORY) {
+          auto SM = w.template SlaterMatrix<HOST_MEMORY>(Alpha);
+          NMO = SM.extent(0); 
+          nup = SM.extent(1); 
+          if (walker_type == COLLINEAR)
+            ndn = w.template SlaterMatrix<HOST_MEMORY>(Beta).extent(1);
+        } else if(MEM == DEVICE_MEMORY) {
+          auto SM = w.template SlaterMatrix<DEVICE_MEMORY>(Alpha);
+          NMO = SM.extent(0); 
+          nup = SM.extent(1); 
+          if (walker_type == COLLINEAR)
+            ndn = w.template SlaterMatrix<DEVICE_MEMORY>(Beta).extent(1);
+        } else if(MEM == UNIFIED_MEMORY) {
+          auto SM = w.template SlaterMatrix<UNIFIED_MEMORY>(Alpha);
+          NMO = SM.extent(0); 
+          nup = SM.extent(1); 
+          if (walker_type == COLLINEAR)
+            ndn = w.template SlaterMatrix<UNIFIED_MEMORY>(Beta).extent(1);
+        } else {
+          utils::check(false,"Invalid memory space");
+        }
+        if (walker_type == NONCOLLINEAR)
+          NMO /= 2;
       }
-      if (walker_type == NONCOLLINEAR)
-        NMO /= 2;
+      else{
+          if(MEM == HOST_MEMORY) {
+          auto UR = w.template UMatrix<HOST_MEMORY>(Alpha);
+          NMO = UR.extent(0); 
+        } else if(MEM == DEVICE_MEMORY) {
+          auto UR = w.template UMatrix<DEVICE_MEMORY>(Alpha);
+          NMO = UR.extent(0); 
+        } else if(MEM == UNIFIED_MEMORY) {
+          auto UR = w.template UMatrix<UNIFIED_MEMORY>(Alpha);
+          NMO = UR.extent(0); 
+        } else {
+          utils::check(false,"Invalid memory space");
+        }
+        if (walker_type == NONCOLLINEAR_FT)
+          NMO /= 2;
+      }
     }
 
     std::vector<int> Idata(7);

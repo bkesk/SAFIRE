@@ -249,6 +249,13 @@ public:
   void resize(int n, nda::MemoryArrayOfRank<3> auto const& A);
 
   /*
+   * Finite temperature resize
+  */
+  void resize(int n, nda::MemoryArrayOfRank<3> auto const& U,
+                     nda::MemoryArrayOfRank<2> auto const& D,
+                     nda::MemoryArrayOfRank<3> auto const& V);
+
+  /*
    * Resizes back propagation buffers.
    * Must be called before any call to bp-related routines.
    */     
@@ -307,6 +314,55 @@ public:
     return memory::array_view<_M_,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
   }
 
+  /*
+   * extract finite temperature walker matrices
+  */
+  template<MEMORY_SPACE _M_, walker_data D>
+  auto extract_UM( SpinTypes s ) {
+    utils::check(D == UR or D == VR, "Invalid enum");
+    utils::check(_M_ == MEM, "Incompatible memory space");
+    auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
+    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
+    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
+    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<_M_,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+  } 
+
+  template<MEMORY_SPACE _M_, walker_data D>
+  auto extract_UM( SpinTypes s ) const {
+    static_assert(D == UR or DR == VR, "Invalid enum");
+    utils::check(_M_ == MEM, "Incompatible memory space");
+    auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
+    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
+    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
+    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<_M_,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+  }
+
+  template<MEMORY_SPACE _M_>
+  auto extract_DM( SpinTypes s ) {
+    utils::check(_M_ == MEM, "Incompatible memory space");
+    auto i0 = (s==Alpha?data_displ[DR]:data_displ[DR]+wlk_desc[0]);
+    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
+    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
+    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<_M_,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+  } 
+
+  template<MEMORY_SPACE _M_>
+  auto extract_DM( SpinTypes s ) const {
+    utils::check(_M_ == MEM, "Incompatible memory space");
+    auto i0 = (s==Alpha?data_displ[DR]:data_displ[DR]+wlk_desc[0]);
+    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
+    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
+    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
+    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<_M_,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+  }
+
   public:
 
   template<MEMORY_SPACE _M_>
@@ -320,6 +376,42 @@ public:
   {
     return extract_SM<_M_,SM>(s);
   }
+
+  template<MEMORY_SPACE _M_>
+  auto UMatrices( SpinTypes s )  
+  {
+    return extract_UM<_M_,UR>(s);
+  } 
+
+  template<MEMORY_SPACE _M_>
+  auto DMatrices( SpinTypes s )  
+  {
+    return extract_DM<_M_>(s);
+  } 
+
+  template<MEMORY_SPACE _M_>
+  auto VMatrices( SpinTypes s )  
+  {
+    return extract_UM<_M_,VR>(s);
+  } 
+
+  template<MEMORY_SPACE _M_>
+  auto UMatrices( SpinTypes s ) const
+  {
+    return extract_UM<_M_,UR>(s);
+  } 
+
+  template<MEMORY_SPACE _M_>
+  auto DMatrices( SpinTypes s ) const  
+  {
+    return extract_DM<_M_>(s);
+  } 
+
+  template<MEMORY_SPACE _M_>
+  auto VMatrices( SpinTypes s ) const  
+  {
+    return extract_UM<_M_,VR>(s);
+  } 
 
   template<MEMORY_SPACE _M_>
   auto SlaterMatricesN( SpinTypes s )
