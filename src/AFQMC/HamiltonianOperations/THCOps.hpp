@@ -327,20 +327,20 @@ public:
       iw += nw;
     }
   }
-/*
-  template<class Mat, class MatB, class MatC>
+
   void energy([[maybe_unused]] SpinTypes spin_component,
-              [[maybe_unused]] Mat&& E,
-              [[maybe_unused]] MatB const& Gc,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto && E,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto const& Gc,
               [[maybe_unused]] int nd,
-              [[maybe_unused]] MatC&& EJn,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto && EJn,
               [[maybe_unused]] bool addH1  = true,
               [[maybe_unused]] bool addEJ  = true,
               [[maybe_unused]] bool addEXX = true)
   {
-    APP_ABORT(" Error: spin-dependent energy not implemented ");
+    utils::check(false," Error: spin-dependent energy not implemented ");
   }
 
+/*
   template<class MatE, class MatO, class MatG, class MatQ, class MatB, class index_aos>
   void fast_energy([[maybe_unused]] MatE&& E,
                    [[maybe_unused]] MatO&& Ov,
@@ -351,8 +351,12 @@ public:
                    [[maybe_unused]] MatB&& Qwork,
                    [[maybe_unused]] ph_excitations<int, ComplexType> const& abij,
                    [[maybe_unused]] std::array<index_aos, 2> const& det_couplings)
+*/
+  template<class... Args>
+  void fast_energy([[maybe_unused]] Args&&... args)
   {
     APP_ABORT(" Error: fast_energy not yet working");
+/*
     if (haj.size() != 1)
       APP_ABORT(" Error: Single reference implementation currently in THCOps::fast_energy.");
     if (walker_type != CLOSED)
@@ -552,7 +556,7 @@ public:
         }
       }
       comm->barrier();
-* /
+*/
   }
 
   template<class... Args>
@@ -566,7 +570,6 @@ public:
   {
     APP_ABORT(" Error: ph_excited_energy not implemented yet. ");
   }
-*/
 
   auto vHS_sparse(nda::MemoryArrayOfRank<2> auto && X, double dt)
   {

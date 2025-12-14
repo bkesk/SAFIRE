@@ -73,6 +73,11 @@ public:
     energy_impl(E_,G(),idet,addH1,addEJ,addEXX);
   }
 
+  void energy(SpinTypes spin, nda::MemoryArrayOfRank<2> auto && E, nda::MemoryArrayOfRank<2> auto const& G, int idet, nda::MemoryArrayOfRank<2> auto && EJn,  bool addH1  = true, bool addEJ  = true,bool addEXX = true)
+  { 
+    std::visit([&](auto&& s) { s.energy(spin,E,G,idet,EJn,addH1,addEJ,addEXX); }, var);
+  }
+
   template<class... Args>
   void generalizedFockMatrix(Args&&... args)
   {
@@ -97,7 +102,13 @@ public:
     auto v_ = vMF();
     update_potentials_impl(dt,n_,v_,natural_shift);
   }
-/*
+
+  template<class... Args>
+  void fast_energy(Args&&... args)
+  { 
+    std::visit([&](auto&& s) { s.fast_energy(std::forward<Args>(args)...); }, var);
+  }
+
   template<class... Args>
   void ph_reference_energy(Args&&... args)
   { 
@@ -109,7 +120,6 @@ public:
   { 
     std::visit([&](auto&& s) { s.ph_excited_energy(std::forward<Args>(args)...); }, var);
   }
-*/
 
   void vbias(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto&& v, double dt)
   {  

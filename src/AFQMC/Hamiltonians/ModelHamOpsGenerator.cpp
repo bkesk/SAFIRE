@@ -358,7 +358,7 @@ ModelHamOpsGenerator::getHamiltonianOperations(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
                  nda::array<PsiT_Matrix<MEM>,2> const& PsiT)
 {
-  bool Real = false;
+  bool Real = true;
   if(mpi->comm.root()) { 
     // check file structure, check types
     std::string base_error("Error in ModelHamOpsGenerator::getHamiltonianOperations(): ");
@@ -390,7 +390,8 @@ ModelHamOpsGenerator::getHamiltonianOperations(WALKER_TYPES type,
       // Allowing mixed types
       h5::group dn = gn.open_group(dset);
       auto l = h5::array_interface::get_dataset_info(dn,"data_");
-      if(l.has_complex_attribute) Real = false;
+      utils::check((l.rank() == 1) or (l.rank() == 2), "Rank mismatch");
+      if(l.has_complex_attribute or (l.rank() == 2)) Real = false;
     } // for(n)
   }
   mpi->comm.broadcast_n(&Real, 1, 0);

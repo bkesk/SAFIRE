@@ -61,7 +61,6 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
   utils::check((walker_type != NONCOLLINEAR) or (ndown == 0),
     " Error in Wavefunctions/WavefunctionFactory::fromHDF5: noncollinear && ndown!=0. \n\n\n ");
 
-  std::vector<int> excitations;
   WAVEFUNCTION_TYPES wfn_type; 
   if(mpi->comm.root()) { 
     wfn_type = afqmc::getWavefunctionType(filename); 
@@ -147,72 +146,55 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
   }
   else if (wfn_type == PHMSD_WFN)
   {
-/*
     app_log(1," Wavefunction type: PHMSD");
 
-    / * Implementation notes:
+    /* Implementation notes:
      *  - PsiT: [Nact, NMO] where Nact is the number of active space orbitals,
      *                     those that participate in the ci expansion
      *  - The half rotation is done with respect to the supermatrix PsiT
      *  - Need to calculate Nact and create a mapping from orbital index to actice space index.
      *    Those orbitals in the corresponding virtual space (not in active) map to -1 as a precaution.
-     * /
+     */
 
-    // assuming walker_type==COLLINEAR for now, specialize a type for perfect pairing PHMSD
-    std::vector<PsiT_Matrix> PsiT_MO;
-    std::string wfn_type;
-    if (dump.push("PHMSD", false)<0)
-      APP_ABORT(" Error in WavefunctionFactory: Group PHMSD not found. ");
-    std::vector<int> occbuff;
-    std::vector<ComplexType> coeffs;
+    nda::array<PsiT_Matrix<HOST_MEMORY>, 1> PsiT_MO;
+
+    std::string orb_type;
+    h5::group ngrp = wgrp.open_group("PHMSD");
+
+    nda::array<int,2> occs;
+    nda::array<ComplexType,1> coeffs;
     // 1. Read occupancies and coefficients.
     app_log(1," Reading PHMSD wavefunction from {}", filename);
-    read_ph_wavefunction_hdf(dump, coeffs, occbuff, ndets_to_read, walker_type, TGwfn.Node(), 
-				NMO, nup, ndown, PsiT_MO, wfn_type);
+    read_ph_wavefunction_hdf(ngrp, coeffs, occs, ndets_to_read, walker_type, 
+				NMO, nup, ndown, PsiT_MO, orb_type);
+    utils::check(occs.shape() == std::array<long,2>{ndets_to_read, nup + ndown}, "Size mismatch");
     app_log(1," Finished reading PHMSD wavefunction ");
-    boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, nup + ndown});
     if(recompute_ci) {
+      utils::check(false, "finish");
       // 2. Compute Variational Energy / update coefficients
       app_log(1," Computing variational energy of trial wavefunction.");
-      computeVariationalEnergyPHMSD(TGwfn, h, occs, coeffs, ndets_to_read, nup, ndown, NMO, recompute_ci);
+//      computeVariationalEnergyPHMSD(TGwfn, h, occs, coeffs, ndets_to_read, nup, ndown, NMO, recompute_ci);
       app_log(1," Finished computing variational energy of trial wavefunction.");
     }
 
     // build reference MOs (PsiT_MO) if needed...
-    if (wfn_type == "occ")
-    {
-      build_PsiT_MO_phmsd(TGwfn,walker_type,NPOL,NMO,nup,ndown,ndets_to_read,coeffs,occbuff,PsiT_MO);
-    }
-    else if (wfn_type == "mixed")
-    {
-      // nothing to do
-      for( auto& v: PsiT_MO)
-        RUNTIME_CHECK(v.size(1) == NPOL*NMO, "");
-    }
-    else if (wfn_type == "matrix")
-    {
-      APP_ABORT("Error: wfn_type=matrix not allowed in WavefunctionFactory with PHMSD wavefunction.");
-    }
-    else
-    {
-      APP_ABORT("Error: Unknown wfn_type in WavefunctionFactory with MSD wavefunction.");
-    }
-    TGwfn.Node().barrier();
+    utils::check((orb_type == "occ") or (orb_type == "mixed"), "Invalid wavefunction type:{}",orb_type);
+    if (orb_type == "occ")
+      build_PsiT_MO_phmsd(walker_type,npol,NMO,nup,ndown,ndets_to_read,coeffs,occs,PsiT_MO);
 
     // 3. Construct Structures.
-    ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, TGwfn.Node(), NPOL*NMO, nup, ndown);
+    ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, npol*NMO, nup, ndown);
 
     // find active space orbitals and create super trial matrix PsiT
-    std::vector<PsiT_Matrix> PsiT;
-    PsiT.reserve(2);
+    nda::array<PsiT_Matrix<HOST_MEMORY>,1> PsiT(PsiT_MO.extent(0));
     // expect mapped over range [0-2*NMO], but alpha and beta sectors with 0-based active indexes
-    std::map<int, int> mo2active(find_active_space(PsiT_MO.size() == 1, walker_type, abij, NMO, nup, ndown));
+    std::map<int, int> mo2active(find_active_space(PsiT_MO.extent(0) == 1, walker_type, abij, NMO, nup, ndown));
     std::map<int, int> acta2mo;
     std::map<int, int> actb2mo;
     std::vector<int> active_alpha;
     std::vector<int> active_beta;
     std::vector<int> active_combined;
-    for (int i = 0; i < NPOL*NMO; i++)
+    for (int i = 0; i < npol*NMO; i++)
     {
       if (mo2active[i] >= 0)
       {
@@ -232,62 +214,62 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
           active_combined.push_back(i);
       }
     }
-    if (PsiT_MO.size() == 1)
+
+    if (PsiT_MO.extent(0) == 1)
     {
       // RHF reference
-      std::vector<size_t> nnzpr(get_nnz(PsiT_MO[0], active_combined.data(), active_combined.size(), 0));
-      PsiT.emplace_back(PsiT_Matrix({active_combined.size(), NPOL*NMO}, 
-				    {0, 0}, nnzpr, Alloc(TGwfn.Node())));
-      if (TGwfn.Node().root())
+      auto nnzpr = get_nnz(PsiT_MO(0), active_combined.data(), active_combined.size(), 0);
+      PsiT(0) = std::move(PsiT_Matrix<HOST_MEMORY>({active_combined.size(),npol*NMO},nnzpr));
       {
+        auto vals = PsiT_MO(0).values();
+        auto cols = PsiT_MO(0).columns();
+        auto row_begin = PsiT_MO(0).row_begin();
+        auto row_end = PsiT_MO(0).row_end();
         for (int k = 0; k < active_combined.size(); k++)
         {
           size_t ki = active_combined[k]; // occupied state #k
-          auto col  = PsiT_MO[0].non_zero_indices2_data(ki);
-          auto val  = PsiT_MO[0].non_zero_values_data(ki);
-          for (size_t ic = 0, icend = PsiT_MO[0].num_non_zero_elements(ki); ic < icend; ic++, ++col, ++val)
-            PsiT[0].emplace_back({k, *col}, *val);
+          for (long ic = row_begin(ki); ic < row_end(ki); ic++)
+            PsiT(0).emplace_back({k, cols(ic)}, vals(ic));
         }
       }
       // add second component
       if( walker_type == COLLINEAR )  
-        PsiT.emplace_back(PsiT[0]);
+        PsiT(1) = PsiT[0];
     }
     else
     {
       // UHF reference
-      std::vector<size_t> nnzpr(get_nnz(PsiT_MO[0], active_alpha.data(), active_alpha.size(), 0));
-      PsiT.emplace_back(PsiT_Matrix({active_alpha.size(), NPOL*NMO}, 
-				    {0, 0}, nnzpr, Alloc(TGwfn.Node())));
-      if (TGwfn.Node().root())
       {
+        auto nnzpr = get_nnz(PsiT_MO[0], active_alpha.data(), active_alpha.size(), 0);
+        PsiT(0) = std::move(PsiT_Matrix<HOST_MEMORY>({active_alpha.size(),npol*NMO},nnzpr));
+        auto vals = PsiT_MO(0).values();
+        auto cols = PsiT_MO(0).columns();
+        auto row_begin = PsiT_MO(0).row_begin();
+        auto row_end = PsiT_MO(0).row_end();
         for (int k = 0; k < active_alpha.size(); k++)
         {
           size_t ki = active_alpha[k]; // occupied state #k
-          auto col  = PsiT_MO[0].non_zero_indices2_data(ki);
-          auto val  = PsiT_MO[0].non_zero_values_data(ki);
-          for (size_t ic = 0, icend = PsiT_MO[0].num_non_zero_elements(ki); ic < icend; ic++, ++col, ++val)
-            PsiT.back().emplace_back({k, *col}, *val);
+          for (long ic = row_begin(ki); ic < row_end(ki); ic++)
+            PsiT(0).emplace_back({k, cols(ic)}, vals(ic));
         }
       }
-      nnzpr = get_nnz(PsiT_MO[1], active_beta.data(), active_beta.size(), 0);
-      PsiT.emplace_back(PsiT_Matrix({active_beta.size(), NPOL*NMO}, 
-				    {0, 0}, nnzpr, Alloc(TGwfn.Node())));
-      if (TGwfn.Node().root())
       {
+        auto nnzpr = get_nnz(PsiT_MO[1], active_beta.data(), active_beta.size(), 0);
+        PsiT(1) = std::move(PsiT_Matrix<HOST_MEMORY>({active_beta.size(),npol*NMO},nnzpr));
+        auto vals = PsiT_MO(1).values();
+        auto cols = PsiT_MO(1).columns();
+        auto row_begin = PsiT_MO(1).row_begin();
+        auto row_end = PsiT_MO(1).row_end();
         for (int k = 0; k < active_beta.size(); k++)
-        {
+        { 
           size_t ki = active_beta[k]; // occupied state #k
-          auto col  = PsiT_MO[1].non_zero_indices2_data(ki);
-          auto val  = PsiT_MO[1].non_zero_values_data(ki);
-          for (size_t ic = 0, icend = PsiT_MO[1].num_non_zero_elements(ki); ic < icend; ic++, ++col, ++val)
-            PsiT[1].emplace_back({k, *col}, *val);
+          for (long ic = row_begin(ki); ic < row_end(ki); ic++)
+            PsiT(1).emplace_back({k, cols(ic)}, vals(ic));
         }
       }
     }
     // now that mappings have been constructed, map indexes of excited state orbitals
     // to the corresponding active space indexes
-    if (TGwfn.Node().root())
     {
       // map reference
       auto refc = abij.reference_configuration();
@@ -316,106 +298,61 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
         }
       }
     }
-    TGwfn.Node().barrier();
 
-    getInitialGuess(dump, mpi, name, NMO, nup, ndown, walker_type);
-
-    // csr matrix with determinant couplings in COLLINEAR case
-    std::vector<PsiT_Matrix> det_coupling_matrix;
-    det_coupling_matrix.reserve(2);
+    getInitialGuess(ngrp, mpi, name, NMO, nup, ndown, walker_type);
 
     auto n_unique(abij.number_of_unique_excitations());
     app_log(1," Number of unique determinants per spin channel: {} {} ",
                 n_unique[0],n_unique[1]);
-    std::vector<int> counts_alpha(n_unique[0]);
-    std::vector<int> counts_beta(n_unique[1]);
-    if (TGwfn.Node().root())
+    nda::array<int,1> counts_alpha(n_unique[0],0);
+    nda::array<int,1> counts_beta(n_unique[1],0);
     {
       for (auto it = abij.configurations_begin(); it < abij.configurations_end(); ++it)
       {
-        ++counts_alpha[std::get<0>(*it)];
-        ++counts_beta[std::get<1>(*it)];
+        ++counts_alpha(std::get<0>(*it));
+        ++counts_beta(std::get<1>(*it));
       }
     }
-    TGwfn.Node().broadcast_n(counts_alpha.begin(), counts_alpha.size());
-    TGwfn.Node().broadcast_n(counts_beta.begin(), counts_beta.size());
 
-    using ucsr_mat_t = ma::sparse::ucsr_matrix<ComplexType, int, int,
-                                  shared_allocator<ComplexType>, ma::sparse::is_root>;
+    using ucsr_mat_t = math::sparse::ucsr_matrix<ComplexType, HOST_MEMORY, int, int>;
     std::vector<ucsr_mat_t> unsorted_det_coupling;
     unsorted_det_coupling.reserve(2);
-    unsorted_det_coupling.emplace_back(ucsr_mat_t({n_unique[0],n_unique[1]},
-                {0, 0}, counts_alpha, shared_allocator<ComplexType>{TGwfn.Node()}));
-    unsorted_det_coupling.emplace_back(ucsr_mat_t({n_unique[1],n_unique[0]},
-                {0, 0}, counts_beta, shared_allocator<ComplexType>{TGwfn.Node()}));
+    unsorted_det_coupling.emplace_back(ucsr_mat_t({n_unique[0],n_unique[1]}, counts_alpha));
+    unsorted_det_coupling.emplace_back(ucsr_mat_t({n_unique[1],n_unique[0]}, counts_beta));
 
-    if (TGwfn.Node().root())
     {
       int ni = 0;
       for (auto it = abij.configurations_begin(); it < abij.configurations_end(); ++it, ++ni)
       {
         // sparse matrix
-        unsorted_det_coupling[0].emplace(std::array<int, 2>{std::get<0>(*it),std::get<1>(*it)},
-                                       ma::conj(std::get<2>(*it)));
-        unsorted_det_coupling[1].emplace(std::array<int, 2>{std::get<1>(*it),std::get<0>(*it)},
-                                       ma::conj(std::get<2>(*it)));
+        unsorted_det_coupling[0].emplace({std::get<0>(*it),std::get<1>(*it)},
+                                       std::conj(std::get<2>(*it)));
+        unsorted_det_coupling[1].emplace({std::get<1>(*it),std::get<0>(*it)},
+                                       std::conj(std::get<2>(*it)));
       }
     }
-    TGwfn.Node().barrier();
 
-    // ucsr -> csr	
-    det_coupling_matrix.emplace_back( unsorted_det_coupling[0] );
-    det_coupling_matrix.emplace_back( unsorted_det_coupling[1] );
-    TGwfn.Node().barrier();
+    // csr matrix with determinant couplings in COLLINEAR case
+    nda::array<PsiT_Matrix<MEM>,1> det_coupling_matrix;
+    det_coupling_matrix.resize(2);
+    det_coupling_matrix(0) = unsorted_det_coupling[0];
+    det_coupling_matrix(1) = unsorted_det_coupling[1];
 
-#if !defined(ENABLE_CUDA) && !defined(ENABLE_HIP)
-    if (TGwfn.TG_local().size() > 1)
-    {
-      SlaterDetOperations SDetOp(SlaterDetOperations_shared<ComplexType>(NPOL * NMO, nup));
-      if(mixed_precision) {
-        auto HOps(getHamOps<true>(restart_file, walker_type, NMO, nup, ndown, PsiT,
-		TGprop, TGwfn, h));
-        TGwfn.Node().barrier();
-        return Wavefunction(PHMSD<true>(AFinfo, pt, TGwfn, std::move(SDetOp), std::move(HOps),
+    // move to 2d version just for getHamiltonianOperations
+    nda::array<PsiT_Matrix<MEM>, 2> PsiT_2d(1,PsiT_MO.extent(0));
+    for(int i=0; i<PsiT_MO.extent(0); i++)
+      PsiT_2d(0,i) = std::move(PsiT_MO(i));
+    auto HOps = h.getHamiltonianOperations<MEM>(walker_type, mpi, PsiT_2d);
+
+    // move to 1-d array for PHMSD
+    nda::array<PsiT_Matrix<MEM>, 1> PsiT_1d(PsiT_2d.extent(1));
+    for(int i=0; i<PsiT_2d.extent(1); i++)
+      PsiT_1d(i) = std::move(PsiT_2d(0,i));
+    
+    return Wavefunction(PHMSD<MEM>(AFinfo, pt, walker_type, mpi, std::move(HOps),
                     std::move(acta2mo), std::move(actb2mo), std::move(abij), 
                     std::move(det_coupling_matrix),
-                    std::move(PsiT), walker_type, NCE, targetNW));
-      } else {
-        auto HOps(getHamOps<false>(restart_file, walker_type, NMO, nup, ndown, PsiT,
-		TGprop, TGwfn, h));
-        TGwfn.Node().barrier();
-        return Wavefunction(PHMSD<false>(AFinfo, pt, TGwfn, std::move(SDetOp), std::move(HOps),
-                    std::move(acta2mo), std::move(actb2mo), std::move(abij), 
-                    std::move(det_coupling_matrix),
-                    std::move(PsiT), walker_type, NCE, targetNW));
-      }
-    } 
-    else 
-#endif
-    {
-      SlaterDetOperations SDetOp(
-                SlaterDetOperations_serial<ComplexType, DeviceBufferManager>(NPOL * NMO, 
-                        nup, DeviceBufferManager{})
-                                );
-      if(mixed_precision) {
-        auto HOps(getHamOps<true>(restart_file, walker_type, NMO, nup, ndown, PsiT,
-		TGprop, TGwfn, h));
-        TGwfn.Node().barrier();
-        return Wavefunction(PHMSD<true>(AFinfo, pt, TGwfn, std::move(SDetOp), std::move(HOps),
-                    std::move(acta2mo), std::move(actb2mo), std::move(abij), 
-                    std::move(det_coupling_matrix),
-                    std::move(PsiT), walker_type, NCE, targetNW));
-      } else {
-        auto HOps(getHamOps<false>(restart_file, walker_type, NMO, nup, ndown, PsiT,
-		TGprop, TGwfn, h));
-        TGwfn.Node().barrier();
-        return Wavefunction(PHMSD<false>(AFinfo, pt, TGwfn, std::move(SDetOp), std::move(HOps),
-                    std::move(acta2mo), std::move(actb2mo), std::move(abij), 
-                    std::move(det_coupling_matrix),
-                    std::move(PsiT), walker_type, NCE, targetNW));
-      }
-    }
-*/
+                    std::move(PsiT_1d), NCE, targetNW));
   }
   else
   {
@@ -660,31 +597,27 @@ ComplexType WavefunctionFactory::slaterCondon2([[maybe_unused]] Hamiltonian& ham
 * /
   return ComplexType(0.0);
 }
-
-void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG, 
-      WALKER_TYPES walker_type, int NPOL, 
-      int NMO, int nup, int ndown, int ndets_to_read, 
-      std::vector<ComplexType>& coeffs, 
-      std::vector<int>& occbuff, std::vector<PsiT_Matrix>& PsiT_MO)
+*/
+void WavefunctionFactory::build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int npol, int NMO, int nup, 
+      int ndown, int ndets, nda::array<ComplexType,1>& coeffs,
+      nda::array<int,2>& occs, nda::array<PsiT_Matrix<HOST_MEMORY>,1>& PsiT_MO)
 {
-  using Alloc = shared_allocator<ComplexType>;
+  using nda::range;
+  auto all = range::all;
   ComplexType one(1.0, 0.0);
-  boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, nup + ndown});
-  PsiT_MO.clear();
-
   bool trivial_ref = true;
   for(int i=0; i<nup; i++)
-    if(occs[0][i] != i) {
+    if(occs(0,i) != i) {
       trivial_ref = false;
       break;
     }
   for(int i=0; i<ndown; i++)
-    if(occs[0][nup+i] != NMO+i) {
+    if(occs(0,nup+i) != NMO+i) {
       trivial_ref = false;
       break;
     }
 
-  auto sort_with_sign = [](int NE, int* Iwork) {
+  auto sort_with_sign = [](int NE, auto&& Iwork) {
     RealType ci=1.0;
     for (int i = 0; i < NE; i++)
       for (int j = i + 1; j < NE; j++)
@@ -700,14 +633,12 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
 
   if(trivial_ref) {
 
-    PsiT_MO.reserve(1);
-    PsiT_MO.emplace_back(PsiT_Matrix({NPOL*NMO, NPOL*NMO},
-                                     {0, 0}, 1, Alloc(TG.Node())));
+    PsiT_MO.resize(1);
+    PsiT_MO(0) = std::move(PsiT_Matrix<HOST_MEMORY>({npol*NMO,npol*NMO},1)); 
 
     // makes sense to move the reordering of non-compact excitations to here!
-    if (TG.Node().root())
-      for (int k = 0; k < NPOL*NMO; k++)
-        PsiT_MO.back().emplace_back({k, k}, one);
+    for (int k = 0; k < npol*NMO; k++)
+      PsiT_MO(0).emplace_back({k, k}, one);
 
   } else {
 
@@ -720,8 +651,8 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
     bool separate_references = false;
     if(walker_type == COLLINEAR)
       for(int i=0; i<ndown; ++i) 
-        if( *std::find(occbuff.begin(), occbuff.begin() + nup, occbuff[nup+i]-NMO) !=
-          occbuff[nup+i]-NMO ) {
+        if( *std::find(occs.begin(), occs.begin() + nup, occs(0,nup+i)-NMO) !=
+          occs(0,nup+i)-NMO ) {
           separate_references = true;
           break;
         }
@@ -729,13 +660,11 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
     if(separate_references) { // only if collinear and can't find a unique reference
 
 
-      PsiT_MO.reserve(2);
-      PsiT_MO.emplace_back(PsiT_Matrix({NMO, NMO},
-                                       {0, 0}, 1, Alloc(TG.Node())));
-      PsiT_MO.emplace_back(PsiT_Matrix({NMO, NMO},
-                                       {0, 0}, 1, Alloc(TG.Node())));
+      PsiT_MO.resize(2);
+      PsiT_MO(0) = std::move(PsiT_Matrix<HOST_MEMORY>({NMO,NMO},1)); 
+      PsiT_MO(1) = std::move(PsiT_Matrix<HOST_MEMORY>({NMO,NMO},1)); 
 
-      if (TG.Node().root()) {
+      {
 
         // each spin has its own reference
         int dN_[2] = {0,NMO};
@@ -750,118 +679,94 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(TaskGroup_& TG,
           int norbs=0;  // number of states found so far
           // doubly occupied first, and since we checked all beta are doubly occp
           for(int i=E0; i<E1; i++) { 
-            im[occs[0][i]-dN] = norbs;
-            m[norbs++] = occs[0][i]-dN;
+            im[occs(0,i)-dN] = norbs;
+            m[norbs++] = occs(0,i)-dN;
           }
           // now add all remaining states
-          for(int n=1; n<occs.size(0); ++n) { 
+          for(int n=1; n<occs.extent(0); ++n) { 
             for(int i=E0; i<E1; i++) 
-              if(im[occs[n][i]-dN] < 0) {
-                im[occs[n][i]-dN] = norbs;
-                m[norbs++] = occs[n][i]-dN;
+              if(im[occs(n,i)-dN] < 0) {
+                im[occs(n,i)-dN] = norbs;
+                m[norbs++] = occs(n,i)-dN;
               } 
           }
           // now change occupation strings according to the generated map
-          for(int n=0; n<occs.size(0); ++n) { 
-            for(int i=E0; i<E1; i++) occs[n][i] = im[occs[n][i]-dN]+dN;    
-            //std::sort(occs[n].origin()+E0,occs[n].origin()+E1);
-            coeffs[n] *= sort_with_sign(E1-E0,occs[n].origin()+E0);
+          for(int n=0; n<occs.extent(0); ++n) { 
+            for(int i=E0; i<E1; i++) occs(n,i) = im[occs(n,i)-dN]+dN;    
+            coeffs[n] *= sort_with_sign(E1-E0,occs(n,range(E0,E1)));
           }
           for (int k = 0; k < norbs; k++) 
-            PsiT_MO[is].emplace_back({k, m[k]}, one);
+            PsiT_MO(is).emplace_back({k, m[k]}, one);
         } // is
     
-      } // Node().root()
+      } 
 
     } else { // separate_references
 
-      PsiT_MO.reserve(1);
-      PsiT_MO.emplace_back(PsiT_Matrix({NPOL*NMO, NPOL*NMO},
-                                       {0, 0}, 1, Alloc(TG.Node())));
+      PsiT_MO.resize(1);
+      PsiT_MO(0) = std::move(PsiT_Matrix<HOST_MEMORY>({npol*NMO,npol*NMO},1)); 
 
-      if (TG.Node().root()) {
+      {
 
-        std::vector<int> m(NPOL*NMO,-1);  
-        std::vector<int> im(NPOL*NMO,-1);
+        std::vector<int> m(npol*NMO,-1);  
+        std::vector<int> im(npol*NMO,-1);
         int norbs=0;  // number of states found so far
         if(walker_type == NONCOLLINEAR) {
           for(int i=0; i<nup; i++) {
-	    im[occs[0][i]] = norbs;
-	    m[norbs++] = occs[0][i];
+	    im[occs(0,i)] = norbs;
+	    m[norbs++] = occs(0,i);
 	  }
           // now add all remaining states
-          for(int n=1; n<occs.size(0); ++n) {
+          for(int n=1; n<occs.extent(0); ++n) {
             for(int i=0; i<nup; i++) 
-              if(im[occs[n][i]] < 0) {
-                im[occs[n][i]] = norbs;
-                m[norbs++] = occs[n][i];
+              if(im[occs(n,i)] < 0) {
+                im[occs(n,i)] = norbs;
+                m[norbs++] = occs(n,i);
               }
           }
         } else {
           // doubly occupied first, and since we checked all beta are doubly occp
           for(int i=0; i<ndown; i++) { 
-            im[occs[0][nup+i]-NMO] = norbs;
-            m[norbs++] = occs[0][nup+i]-NMO;
+            im[occs(0,nup+i)-NMO] = norbs;
+            m[norbs++] = occs(0,nup+i)-NMO;
           }
           // singly occupied now
           for(int i=0; i<nup; ++i) 
-            if( *std::find(occbuff.begin()+nup, occbuff.begin()+nup+ndown, 
-		occbuff[i]+NMO) != occbuff[i]+NMO ) { 
-              im[occs[0][i]] = norbs;
-              m[norbs++] = occs[0][i];
+            if( *std::find(occs.begin()+nup, occs.begin()+nup+ndown, 
+		occs(0,i)+NMO) != occs(0,i)+NMO ) { 
+              im[occs(0,i)] = norbs;
+              m[norbs++] = occs(0,i);
 	    }
           // now add all remaining states
-          for(int n=1; n<occs.size(0); ++n) { 
+          for(int n=1; n<occs.extent(0); ++n) { 
             for(int i=0; i<nup; i++) 
-              if(im[occs[n][i]] < 0) {
-                im[occs[n][i]] = norbs;
-                m[norbs++] = occs[n][i];
+              if(im[occs(n,i)] < 0) {
+                im[occs(n,i)] = norbs;
+                m[norbs++] = occs(n,i);
               } 
             for(int i=nup; i<nup+ndown; i++)        
-              if(im[occs[n][i]-NMO] < 0) {
-                im[occs[n][i]-NMO] = norbs;
-                m[norbs++] = occs[n][i]-NMO;
+              if(im[occs(n,i)-NMO] < 0) {
+                im[occs(n,i)-NMO] = norbs;
+                m[norbs++] = occs(n,i)-NMO;
               }
           }
         }
         // now change occupation strings according to the generated map
-        for(int n=0; n<occs.size(0); ++n) { 
-          for(int i=0; i<nup; i++) occs[n][i] = im[occs[n][i]];    
+        for(int n=0; n<occs.extent(0); ++n) { 
+          for(int i=0; i<nup; i++) occs(n,i) = im[occs(n,i)];    
           if(walker_type == COLLINEAR)  
-            for(int i=nup; i<nup+ndown; i++) occs[n][i] = im[occs[n][i]-NMO]+NMO;    
-          //std::sort(occs[n].origin(),occs[n].origin()+nup+ndown);
-          coeffs[n] *= sort_with_sign(nup+ndown,occs[n].origin());
+            for(int i=nup; i<nup+ndown; i++) occs(n,i) = im[occs(n,i)-NMO]+NMO;    
+          coeffs[n] *= sort_with_sign(nup+ndown,occs(n,all));
         }
         for (int k = 0; k < norbs; k++) 
-          PsiT_MO.back().emplace_back({k, m[k]}, one);
+          PsiT_MO(0).emplace_back({k, m[k]}, one);
 
-      } // Node().root()
+      } 
 
     } // separate_references
 
-    if(TG.Node().size() > 1) TG.Node().broadcast_n(occs.origin(),occs.num_elements(),0);
-
   } // trivial_ref
-  TG.Node().barrier();
 }
-
-//ComplexType WavefunctionFactory::contractOneBody(std::vector<int>& det, std::vector<int>& excit, boost::multi::array_ref<ComplexType,2>& HSPot, int NMO)
-//{
-//ComplexType oneBody = ComplexType(0.0);
-//int spini, spina;
-//if(excit.size()==0) {
-//for(auto i : det) {
-//int oi = decodeSpinOrbital(i, spini, NMO);
-//oneBody += HSPot[oi][oi];
-//}
-//} else {
-//int oi = decodeSpinOrbital(excit[0], spini, NMO);
-//int oa = decodeSpinOrbital(excit[1], spina, NMO);
-//oneBody = HSPot[oi][oa];
-//}
-//return oneBody;
-//}
-*/
 
 // Instantiate templates
 

@@ -383,18 +383,23 @@ public:
       iw += nw;
     }
   }
-/*
-  template<class Mat, class MatB, class MatC>
+
   void energy([[maybe_unused]] SpinTypes spin_component,
-              [[maybe_unused]] Mat&& E,
-              [[maybe_unused]] MatB const& Gc,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto && E,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto const& Gc,
               [[maybe_unused]] int nd,
-              [[maybe_unused]] MatC&& EJn,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto && EJn,
               [[maybe_unused]] bool addH1  = true,
               [[maybe_unused]] bool addEJ  = true,
               [[maybe_unused]] bool addEXX = true)
   {
-    APP_ABORT(" Error: spin-dependent energy not implemented ");
+    utils::check(false," Error: spin-dependent energy not implemented ");
+  }
+
+  template<class... Args>
+  void fast_energy([[maybe_unused]] Args&&... args)
+  {
+    APP_ABORT(" Error: fast_energy not implemented in ModelHamOps. ");
   }
 
   template<class... Args>
@@ -408,7 +413,6 @@ public:
   {
     APP_ABORT(" Error: ph_excited_energy not implemented yet. ");
   }
-*/
 
   auto vHS_sparse(nda::MemoryArrayOfRank<2> auto && X, double dt)
   {

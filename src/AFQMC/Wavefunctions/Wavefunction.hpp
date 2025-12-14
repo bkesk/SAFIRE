@@ -20,20 +20,14 @@
 #include "AFQMC/config.h"
 
 #include "AFQMC/Wavefunctions/NOMSD.hpp"
-//#include "AFQMC/Wavefunctions/PHMSD.hpp"
+#include "AFQMC/Wavefunctions/PHMSD.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
 
-class Wavefunction //: public boost::variant<
-                   //                      NOMSD<true,local_csr_Matrix<ComplexType>>,
-                   //                      NOMSD<false,local_csr_Matrix<ComplexType>>,
-                   //                      NOMSD<true,ComplexMatrix<node_allocator<ComplexType>>>,
-                   //                      NOMSD<false,ComplexMatrix<node_allocator<ComplexType>>>,
-                   //                      PHMSD<true>,
-                   //                      PHMSD<false>>
+class Wavefunction 
 {
 public:
   Wavefunction() { APP_ABORT(" Error: Reached default constructor of Wavefunction. "); }
@@ -44,21 +38,20 @@ public:
   explicit Wavefunction(NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>> const& other) = delete; 
 
+  explicit Wavefunction(PHMSD<HOST_MEMORY>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(PHMSD<HOST_MEMORY> const& other) = delete;
+
 #if defined(ENABLE_DEVICE)
   explicit Wavefunction(NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>> const& other) = delete;
 
   explicit Wavefunction(NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>> const& other) = delete;
+
+  explicit Wavefunction(PHMSD<DEVICE_MEMORY>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(PHMSD<DEVICE_MEMORY> const& other) = delete;
 #endif
 
-/*
-  explicit Wavefunction(PHMSD<true>&& other) : variant(std::move(other)) {}
-  explicit Wavefunction(PHMSD<true> const& other) = delete;
-
-  explicit Wavefunction(PHMSD<false>&& other) : variant(std::move(other)) {}
-  explicit Wavefunction(PHMSD<false> const& other) = delete;
-*/
   Wavefunction(Wavefunction const& other) = delete;
   Wavefunction(Wavefunction&& other)      = default;
 
@@ -148,9 +141,9 @@ public:
   }
 
   template<class... Args>
-  void Overlap(Args&&... args)
+  void Log_Overlap(Args&&... args)
   {
-    std::visit([&](auto&& a) { a.Overlap(std::forward<Args>(args)...); }, var);
+    std::visit([&](auto&& a) { a.Log_Overlap(std::forward<Args>(args)...); }, var);
   }
 
   template<class... Args>
@@ -205,11 +198,15 @@ public:
   std::variant<NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
                NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
                NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>,
-               NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>
+               NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>,
+               PHMSD<HOST_MEMORY>,
+               PHMSD<DEVICE_MEMORY>
               > var;
 #else
   std::variant<NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
-               NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>> var;
+               NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
+               PHMSD<HOST_MEMORY>
+              > var;
 #endif
 
 };

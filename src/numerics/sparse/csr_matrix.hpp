@@ -115,7 +115,7 @@ public:
   }
   template<typename IType = long>
   requires ( std::is_integral_v<IType> )
-  csr_matrix(std::tuple<IType, IType> const& dims, ::nda::MemoryArrayOfRank<1> auto && nnzpr)
+  csr_matrix(std::tuple<IType, IType> const& dims, nda::MemoryVector auto && nnzpr)
       : base(dims, nnzpr)
   {
     if constexpr (MEM==DEVICE_MEMORY) {

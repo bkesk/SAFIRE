@@ -434,7 +434,8 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                 auto hij = H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd));
                 nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
               } else {
-                auto hij = nda::to_device(H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd)));
+//                auto hij = nda::to_device(H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd)));
+                memory::array<MEM,ComplexType,2> hij(H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd)));
                 nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
               }
             }
