@@ -11,34 +11,24 @@
  *
  */
 
-#ifndef PHMSD_DETAIL_IMPLEMENTATION_HPP 
-#define PHMSD_DETAIL_IMPLEMENTATION_HPP 
+#pragma once
 
 #include <cassert>
 
+/*
 #if defined(ENABLE_CUDA)
 #include "Numerics/detail/CUDA/Kernels/phmsd_energy.cuh"
 #include "Numerics/detail/CUDA/Kernels/phmsd_determinants.cuh"
 #include "Numerics/detail/CUDA/Kernels/phmsd_inverse.cuh"
 #include "Numerics/detail/CUDA/Kernels/extract_overlap_matrix.cuh"
 #include "Numerics/detail/CUDA/Kernels/construct_phmsd_R.cuh"
-#elif defined(ENABLE_HIP)
-// Need to finish kernels!!!
-#error
 #endif
+*/
 
-#include "Memory/buffer_managers.h"
-#include "Numerics/ma_operations.hpp"
-#include "multi/array.hpp"
-#include "multi/array_ref.hpp"
-
-namespace ma
+namespace sfqmc::afqmc 
 {
-#if defined (ENABLE_DEVICE)
-using sfqmc::afqmc::is_host_array;
-using sfqmc::afqmc::is_device_array;
-#endif
 
+/*
 // E[w] = sum_abpqdn w[d][w] T[w][i[p]][n][a] * T[w][i[q]][n][b] * Rwdpa * Rwdqb 
 // KE[d][w][n] = sum_pa T[w][i[p]][a][n] * Rwdpa
 // R is the compact version of the ph R matrix, where for each determinant there
@@ -462,6 +452,7 @@ void ph_excited_1body_energy(device::device_pointer<I1> iexcit, device::device_p
 
 } // namespace ma
 #endif
+*/
 
+} // sfqmc::afqmc
 
-#endif

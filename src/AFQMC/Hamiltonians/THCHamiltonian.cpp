@@ -213,14 +213,14 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   };
 
   // allocate and read H1. 
-  // H0: /System/H0:   [nspin][nkpts][npol*nbnd][npol*nbnd]   Only needed in host memory
+  // H0: /System/H0:   [nspin][npol*nbnd][npol*nbnd]   Only needed in host memory
   auto H1 = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
                       {nspin_in_file,npol_in_file*NMO,npol_in_file*NMO});
-  // X: /Interaction/collocation_matrix:  [nspins,nkpts,npol*nbnd,Nu]
-  // L: /Interaction/factorized_coulomb_matrix:  [nqpts][Nu][Nv] 
+  // X: /Interaction/collocation_matrix:  [nspins,npol*nbnd,Nu]
+  // L: /Interaction/factorized_coulomb_matrix:  [Nu][Nv] 
   // Z: /Interaction/coulomb_matrix:  [Nq][Nu][Nv]  
   // with half rotation:
-  // Xrot: /Interaction/collocation_matrix_half_rotated:  [nspins,nkpts,nbnd,Nu]
+  // Xrot: /Interaction/collocation_matrix_half_rotated:  [nspins,nbnd,Nu]
   // Zrot: /Interaction/half_rotated_coulomb_matrix:      [Nq][Nu][Nv]
   auto Xsiu = memory::make_shared_array<MEM,ValueType,3>(mpi,
                       {nspin_in_file,npol_in_file*NMO,nu});
@@ -396,8 +396,9 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
           } else {
             nda::blas::gemm(PsiT(id,is),hij,h_);
           }
-        } else {
-          auto hij = nda::to_device(H1()(is%nspin_in_file,all,all));
+        } else if constexpr (MEM==DEVICE_MEMORY) {
+//          auto hij = nda::to_device(H1()(is%nspin_in_file,all,all));
+          memory::array<MEM,ComplexType,2> hij(H1()(is%nspin_in_file,all,all));
           if constexpr (math::sparse::CSRMatrix<PsiT_Matrix<MEM>>) {
             math::sparse::csrmm<'N'>(PsiT(id,is),hij,h_);
           } else {
@@ -438,12 +439,15 @@ THCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       utils::check(igrp.has_dataset("factorized_coulomb_matrix"),"Missing dataset factorized_coulomb_matrix."); 
       auto l = h5::array_interface::get_dataset_info(igrp,"factorized_coulomb_matrix");
       if(l.has_complex_attribute) Real = false;
+      utils::check((l.rank() == 2) or (l.rank() == 3), "Rank mismatch");
+      if(l.has_complex_attribute or (l.rank() == 3)) Real = false;
     }
     { // check collocation_matrix 
       utils::check(igrp.has_dataset("collocation_matrix"),"Missing dataset collocation_matrix."); 
       auto l = h5::array_interface::get_dataset_info(igrp,"collocation_matrix");
-      utils::check((Real and not l.has_complex_attribute) or 
-                   (not Real and l.has_complex_attribute), "Incompatible datatypes in Interaction.");
+      utils::check((l.rank() == 3) or (l.rank() == 4), "Rank mismatch");
+      utils::check((Real and not (l.has_complex_attribute or (l.rank() == 4))) or 
+                   (not Real and (l.has_complex_attribute or (l.rank() == 4))), "Incompatible datatypes in Interaction.");
     }
     // should I check the other ones???
   }

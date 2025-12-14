@@ -208,7 +208,7 @@ void NOMSD<MEM,devPsiT>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&&
 
 template<MEMORY_SPACE MEM, class devPsiT>
 template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-void NOMSD<MEM,devPsiT>::Overlap(const WlkSet& wset, TVec&& Ov)
+void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
 {
   auto all = nda::range::all;
   memory::check_memory_space<MEM>(Ov);

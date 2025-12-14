@@ -114,7 +114,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   AFQMCTimer.start(pseudo_energy_timer);
   if (hybrid)
   {
-    wfn->Overlap(wset, new_overlaps);
+    wfn->Log_Overlap(wset, new_overlaps);
   }
   else
   {

@@ -124,7 +124,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   wset.resize(nwalk, initial_guess);
 
   // Overlap
-  wfn.Overlap(wset);
+  wfn.Log_Overlap(wset);
 
   Watch Time;
   Time.reset();

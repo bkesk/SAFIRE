@@ -217,16 +217,18 @@ public:
     
     // generate GIJ with custom mapping
     if( sparse_G_eval ) {
-      for(int is=0; is<nspin; is++ ) {
-        auto GIJ = getGIJ_for_energy(idet,is,G3d);
+      for(int is=0, n0=0; is<nspin; is++, n0+=nel[0] ) {
+        auto Gwaj = G3d(all,range(n0,n0+nel[is]),all);
+        auto GIJ = getGIJ_for_energy(idet,is,Gwaj);
         ET.accumulate_energy(is, E, GIJ, EJn(is,all,all), addE1, addEJ, addEXX); 
       }
     } else {
       // generate full G
       auto ET_n2IJ = ET.get_n2IJ_dev();
       memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
-      for(int is=0; is<nspin; is++ ) {
-        auto Gfull = getGFull_for_energy(idet,is,G3d);
+      for(int is=0, n0=0; is<nspin; is++, n0+=nel[0] ) {
+        auto Gwaj = G3d(all,range(n0,n0+nel[is]),all);
+        auto Gfull = getGFull_for_energy(idet,is,Gwaj);
         // B[n][:] = A[ I[n] ][:] 
         nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
         ET.accumulate_energy(is, E, GIJ, EJn(is,all,all), addE1, addEJ, addEXX); 
@@ -238,14 +240,12 @@ public:
       nda::tensor::contract(ComplexType(1.0), EJn(0,all,all), "iw", EJn(1,all,all), "iw",
                             ComplexType(1.0), E(all,2), "w");
   }
-/*
-  template<class Mat, class MatB, class MatC,
-	typename = std::enable_if_t<std::is_same_v<SPComplexType,typename std::decay_t<MatC>::element_type>>>
+
   void energy(SpinTypes spin_component,
-              Mat&& E,
-              MatB const& Gc,
-              int nd,
-              MatC&& EJn,
+              nda::MemoryArrayOfRank<2> auto && E,
+              nda::MemoryArrayOfRank<2> auto const& G,
+              int idet,
+              nda::MemoryArrayOfRank<2> auto && EJn,
               bool addE1  = true,
               bool addEJ  = true,
               bool addEXX = true)
@@ -253,46 +253,42 @@ public:
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int ispin = ( spin_component==Alpha ? 0 : 1 );
-    int NMO   = PsiC[0].size(0) / npol;
-    int nel = PsiC[ nspin * nd + ispin].size(1);
-    int nwalk = Gc.size(0);
-    int nIJ(ET.get_n2IJ()->size());
-    for (int n = 0; n < nwalk; n++)
-      std::fill_n(E[n].origin(), 3, ComplexType(0.));    
-    RUNTIME_CHECK(PsiC.size() >= nspin*nd + (nspin-1), "");
-    if(addEJ and walker_type==COLLINEAR) {
-      RUNTIME_CHECK(EJn.size(0) == nwalk, "");
-      RUNTIME_CHECK(EJn.size(1) == nIJ, "");
-    }
-
-    // buffer allocators
-    DeviceBufferManager device_buffer_manager{};
+    int NMO   = PsiC.extent(2) / npol;
+    int nwalk = G.extent(0);
+    int nIJ(ET.get_n2IJ().extent(0));
     
-    StaticMatrix GIJ( {nIJ, nwalk}, SPComplexType(0.0),
-      device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-    auto ET_n2IJ = ET.get_n2IJ_dev();
+    utils::check(idet >= 0 and idet < PsiC.extent(0), "idet out of bounds:{} ndet:{}",idet, PsiC.extent(0));
 
-    // generate GIJ with custom mapping
-    if( sparse_G_eval ) {
+    utils::check(G.is_contiguous(), "Layout mismatch");
+    utils::check(G.shape() == std::array<long,2>{nwalk,nel[ispin]*npol*NMO}, "Size mismatch");
+    memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel[ispin],npol*NMO},G.data());
 
-      auto&& G3D = Gc.rotated().partitioned(nel).unrotated();
-      ma::getGIJ(G3D,GIJ,PsiC[ nspin * nd + ispin], *ET_n2IJ);
-
-    } else {
-
-      // generate full G
-      StaticMatrix Gfull({npol * NMO * npol * NMO, nwalk},
-             device_buffer_manager.get_generator().template get_allocator<SPComplexType>());
-      getGFull(Gc,Gfull,PsiC[ nspin * nd + ispin]);
-
-      // B[n][:] = A[ I[n] ][:] 
-      ma::copy_select(Gfull, GIJ, *ET_n2IJ, false);
-
+    E() = ComplexType(0.0);
+    bool allocate_EJn (addEJ and walker_type==COLLINEAR);
+    if(allocate_EJn) {
+      utils::check(EJn.shape() == std::array<long,2>{nwalk,nIJ}, "Size mismatch");
+      EJn() = ComplexType(0.0);
     }
-    ET.accumulate_energy(ispin, E, GIJ, EJn, addE1, addEJ, addEXX); 
 
+    memory::buffered_array<MEM,ComplexType,2> J((allocate_EJn ? nIJ : 0),nwalk); 
+    if( sparse_G_eval ) {
+      // generate GIJ with custom mapping
+      auto GIJ = getGIJ_for_energy(idet,ispin,G3d);
+      ET.accumulate_energy(ispin, E, GIJ, J, addE1, addEJ, addEXX); 
+    } else {
+      auto ET_n2IJ = ET.get_n2IJ_dev();
+      auto Gfull = getGFull_for_energy(idet,ispin,G3d);
+      memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
+      // B[n][:] = A[ I[n] ][:] 
+      nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
+      ET.accumulate_energy(ispin, E, GIJ, J, addE1, addEJ, addEXX);
+    }
+    if(allocate_EJn)
+      if constexpr (MEM==HOST_MEMORY)
+        EJn() = nda::transpose(J);
+      else
+        nda::tensor::add(ComplexType(1.0),J,"nw",ComplexType(1.0),EJn,"wn");
   }
-*/
 
   template<class... Args>
   void fast_energy([[maybe_unused]] Args&&... args)
@@ -492,13 +488,13 @@ private:
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int NMO    = PsiC.extent(2) / npol;
     int nwalk  = Gc.extent(0);
-    utils::check( Gc.shape() == std::array<long,3>{nwalk,nel[0]+nel[1],npol*NMO}, "Shape mismatch");
+    utils::check( Gc.shape() == std::array<long,3>{nwalk,nel[ispin],npol*NMO}, "Shape mismatch");
     memory::buffered_array<MEM,ComplexType,2> Gfull(npol * NMO * npol * NMO, nwalk);
     auto Gfull_3d = nda::reshape(Gfull, std::array<long,3>{npol * NMO, npol * NMO, nwalk});
 
     auto psi = PsiC()(idet,ispin,all,range(nel[ispin]));
     int n0 = (ispin == 0 ? 0 : nel[0]);
-    nda::tensor::contract(psi,"ia",Gc(all,range(n0,n0+nel[ispin]),all),"waj",Gfull_3d(all,all,all),"ijw");
+    nda::tensor::contract(psi,"ia",Gc,"waj",Gfull_3d(all,all,all),"ijw");
     return Gfull;
   }
 
@@ -534,26 +530,24 @@ private:
     int M      = PsiC.extent(2);
     int NMO    = PsiC.extent(2) / npol;
     int nwalk  = Gc.extent(0);
-    utils::check( Gc.shape() == std::array<long,3>{nwalk,nel[0]+nel[1],npol*NMO}, "Shape mismatch");
+    utils::check( Gc.shape() == std::array<long,3>{nwalk,nel[ispin],npol*NMO}, "Shape mismatch");
     auto ET_n2IJ = ET.get_n2IJ();
     int nIJ = ET_n2IJ.extent(0);
     memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
 
     auto psi = PsiC()(idet,ispin,all,range(nel[ispin]));
-    int n0 = (ispin == 0 ? 0 : nel[0]);
-    auto Gwaj = Gc(all,range(n0,n0+nel[ispin]),all);
  
     if constexpr (MEM==HOST_MEMORY) {
-      //C[w][n] = sum_a psi[ I[n] ][a] Gwaj[w][a][ J[n] ]
+      //C[w][n] = sum_a psi[ I[n] ][a] Gc[w][a][ J[n] ]
       for(int n=0; n<nIJ; ++n) {
         int In = int(ET_n2IJ(n)/M);
         int Jn = int(ET_n2IJ(n)%M);
-        nda::tensor::contract(psi(In,all),"a",Gwaj(all,all,Jn),"wa",GIJ(n,all),"w");
+        nda::tensor::contract(psi(In,all),"a",Gc(all,all,Jn),"wa",GIJ(n,all),"w");
       }
     } else {
-      // batched gemm (gemv), with transposed Gwaj 
+      // batched gemm (gemv), with transposed Gc 
       memory::buffered_array<MEM,ComplexType,3> Gt(npol*NMO,nel[ispin],nwalk);
-      nda::tensor::assign(Gwaj,"waj",Gt,"jaw");
+      nda::tensor::assign(Gc,"waj",Gt,"jaw");
       using At = decltype(psi(range(0,1),all));
       using Bt = decltype(Gt(0,all,all));
       using Ct = decltype(GIJ(range(0,1),all));
@@ -709,16 +703,19 @@ private:
     {
       int nIJ(ET.get_n2IJ().extent(0));
       {
-        for(int is=0; is<nspin; is++ ) 
-          auto GIJ = getGIJ_for_energy(0,is,G3d);
+        for(int is=0, n0=0; is<nspin; is++, n0+=nel[0] ) { 
+          auto Gwaj = G3d(all,range(n0,n0+nel[is]),all);
+          auto GIJ = getGIJ_for_energy(0,is,Gwaj);
+        }
       }
    
       {
         // generate full G
         auto ET_n2IJ = ET.get_n2IJ_dev();
         memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
-        for(int is=0; is<nspin; is++ ) {
-          auto Gfull = getGFull_for_energy(0,is,G3d);
+        for(int is=0, n0=0; is<nspin; is++, n0+=nel[0] ) {
+          auto Gwaj = G3d(all,range(n0,n0+nel[is]),all);
+          auto Gfull = getGFull_for_energy(0,is,Gwaj);
           // B[n][:] = A[ I[n] ][:] 
           nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
         }
@@ -734,8 +731,10 @@ private:
       int nIJ(ET.get_n2IJ().extent(0));
       {
         Timer.start("sp");
-        for(int is=0; is<nspin; is++ )
-          auto GIJ = getGIJ_for_energy(0,is,G3d);
+        for(int is=0, n0=0; is<nspin; is++, n0+=nel[0] ) {
+          auto Gwaj = G3d(all,range(n0,n0+nel[is]),all);
+          auto GIJ = getGIJ_for_energy(0,is,Gwaj);
+        }
         Timer.stop("sp");
       }
 
@@ -744,8 +743,9 @@ private:
         // generate full G
         auto ET_n2IJ = ET.get_n2IJ_dev();
         memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
-        for(int is=0; is<nspin; is++ ) {
-          auto Gfull = getGFull_for_energy(0,is,G3d);
+        for(int is=0, n0=0; is<nspin; is++, n0+=nel[0] ) {
+          auto Gwaj = G3d(all,range(n0,n0+nel[is]),all);
+          auto Gfull = getGFull_for_energy(0,is,Gwaj);
           // B[n][:] = A[ I[n] ][:] 
           nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
         }

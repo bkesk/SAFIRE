@@ -47,6 +47,14 @@ namespace math
 namespace sparse
 {
 
+namespace detail
+{
+  template <typename A>
+  concept Vector = requires(A const &a) {
+    { a.size() } -> std::same_as<long>;
+  };
+}
+
 template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
 class ucsr_matrix  
 {
@@ -119,7 +127,7 @@ public:
 
   template<typename IType = long>
   requires ( std::is_integral_v<IType> ) 
-  ucsr_matrix(std::tuple<IType, IType> const& dims, ::nda::MemoryArrayOfRank<1> auto const& nnzpr) 
+  ucsr_matrix(std::tuple<IType, IType> const& dims, nda::MemoryVector auto const& nnzpr) 
       : size1_(long(std::get<0>(dims))),
         size2_(long(std::get<1>(dims))),
         data_(long(std::accumulate(nnzpr.begin(), nnzpr.end(), 0))),

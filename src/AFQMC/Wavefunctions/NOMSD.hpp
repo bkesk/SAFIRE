@@ -147,15 +147,11 @@ public:
   template<MEMORY_SPACE M>
   auto G_MF();
 
-/*
-  SlaterDetOperations* getSlaterDetOperations() { return std::addressof(SDetOp); }
   template<class... Args>
   void generalizedFockMatrix(Args&&... args)
   {
     HamOp.generalizedFockMatrix(std::forward<Args>(args)...); 
-    TG.TG_local().barrier();
   }
-*/
 
   HamiltonianTypes getHamType() const { return HamOp.getHamType(); }
 
@@ -279,17 +275,17 @@ public:
    * Calculates the overlaps of all walkers in the set. Returns values in arrays. 
    */
   template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-  void Overlap(const WlkSet& wset, TVec && Ov);
+  void Log_Overlap(const WlkSet& wset, TVec && Ov);
 
   /*
    * Calculates the overlaps of all walkers in the set. Updates values in wset. 
    */
   template<class WlkSet>
-  void Overlap(WlkSet& wset)
+  void Log_Overlap(WlkSet& wset)
   {
     int nw = wset.size();
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
-    Overlap(wset, ovlp);
+    Log_Overlap(wset, ovlp);
     wset.setProperty(OVLP, ovlp);
   }
 /*
@@ -334,6 +330,7 @@ protected:
   nda::array<devPsiT,2> OrbMats;
 
   // RefOrbMats[ndet][nspin][nel][NMO]
+  // this should be a shared_array!!!
   memory::array<MEM,ComplexType,4> RefOrbMats;
 
   ComplexType NuclearCoulombEnergy;

@@ -232,11 +232,11 @@ protected:
   ComplexType slaterCondon0(Hamiltonian& ham, nda::MemoryVector auto& det, int NMO);
   ComplexType slaterCondon1(Hamiltonian& ham, std::vector<int>& excit, nda::MemoryVector auto& det, int NMO);
   ComplexType slaterCondon2(Hamiltonian& ham, std::vector<int>& excit, int NMO);
-
-  void build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int NPOL, int NMO, int nup, 
-	int ndown, int ndets, std::vector<ComplexType>& coeffs, 
-        std::vector<int>& occbuff, std::vector<PsiT_Matrix>& PsiT_MO);
 */
+
+  void build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int npol, int NMO, int nup, 
+	int ndown, int ndets, nda::array<ComplexType,1>& coeffs, 
+        nda::array<int,2>& occs, nda::array<PsiT_Matrix<HOST_MEMORY>,1>& PsiT_MO);
 
   std::map<std::string, ptree> wfnBlocks;
 
