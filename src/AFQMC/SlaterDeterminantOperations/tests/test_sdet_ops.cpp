@@ -60,6 +60,7 @@ void SDetOps()
 
   using Type        = ComplexType;
   using namespace std::complex_literals;
+  using vector       = memory::array<MEM,Type,1>;
   using matrix       = memory::array<MEM,Type,2>;
   using matrix_view  = memory::array_view<MEM,Type,2>;
   using array       = memory::array<MEM,Type,3>;
@@ -109,10 +110,13 @@ void SDetOps()
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(A, B, ovlp);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(Aref, B, ovlp);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(A, Bref, ovlp);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(Aref, Bref, ovlp);
     ARRAY_EQUAL(ovlp,ov);
   }
@@ -122,8 +126,10 @@ void SDetOps()
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(A_, B_, ovlp);
     ARRAY_EQUAL(ovlp,ov2);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(A(range(0,2),range(0,3)), B_, ovlp);
     ARRAY_EQUAL(ovlp,ov2);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(A_, B(all,range(0,3),range(0,2)), ovlp);
     ARRAY_EQUAL(ovlp,ov2);
   }
@@ -132,6 +138,7 @@ void SDetOps()
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(Acsr, B, ovlp);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(Acsr, Bref, ovlp);
     ARRAY_EQUAL(ovlp,ov);
   } 
@@ -177,6 +184,7 @@ void SDetOps()
     det_ops::MixedDensityMatrix(A, B, G, ovlp, false);
     ARRAY_EQUAL(G,g_ref);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A(), B(), G(), ovlp(), false);
     ARRAY_EQUAL(G,g_ref);
     ARRAY_EQUAL(ovlp,ov);
@@ -184,9 +192,11 @@ void SDetOps()
     det_ops::MixedDensityMatrix(A_, B_, G_, ovlp, false);
     ARRAY_EQUAL(G_,g_ref_2);
 
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A, B, Gc, ovlp, true);
     ARRAY_EQUAL(Gc,gc_ref);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A(), B(), Gc(), ovlp(), true);
     ARRAY_EQUAL(Gc,gc_ref);
     ARRAY_EQUAL(ovlp,ov);
@@ -205,13 +215,16 @@ void SDetOps()
     det_ops::MixedDensityMatrix(Acsr, B, G, ovlp, false);
     ARRAY_EQUAL(G,g_ref);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B(), G(), ovlp(), false);
     ARRAY_EQUAL(G,g_ref);
     ARRAY_EQUAL(ovlp,ov);
 
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B, Gc, ovlp, true);
     ARRAY_EQUAL(Gc,gc_ref);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B(), Gc(), ovlp(), true);
     ARRAY_EQUAL(Gc,gc_ref);
     ARRAY_EQUAL(ovlp,ov);
@@ -290,6 +303,238 @@ void SDetOps()
     det_ops::Log_Overlap(Q, Q, ovlp);
     ARRAY_EQUAL(oref,ovlp);
   }
+
+  // Finite temperature functions
+  {
+    // split D matrix test
+    {
+      nda::array<Type,1> dv = {506.26906413962735, 4.0262905743657393, 0.10523520631662062, 0.0019752342594731467};
+      matrix D(nwalk, NMO);
+      copy_to_array(dv,D);
+
+      nda::array<Type,1> vmin_ref = {1.0, 1.0, 0.462554865, 0.00868202048};
+      nda::array<Type,1> vmax_ref = {0.000449382766, 0.0565057559, 1.0, 1.0};
+      matrix dmin_ref(nwalk,NMO);    copy_to_array(vmin_ref,dmin_ref);
+      matrix dmax_ref(nwalk,NMO);    copy_to_array(vmax_ref,dmax_ref);
+
+      memory::array<MEM,Type,1> logdet_ref(nwalk,Type(10.5810483195353414));
+      memory::array<MEM,Type,1> logdetD(nwalk,Type(0.0));
+      memory::array<MEM,Type,1> scl0(nwalk,Type(1.4805672725966263));
+
+      matrix Dmin(nwalk, NMO);
+      matrix Dmax(nwalk, NMO);
+      det_ops::detail::splitDmatrix(D, Dmin, Dmax, logdetD, scl0);
+
+      ARRAY_EQUAL(Dmin,dmin_ref);
+      ARRAY_EQUAL(Dmax,dmax_ref);
+      ARRAY_EQUAL(logdetD,logdet_ref);
+    }
+
+    // inverse test
+    {
+      nda::array<Type,2> m_a = {{1.90000 + 0.60000i, 1.40000 + 0.70000i, 0.40000 + 0.80000i,  2.00000 + 0.10000i}, 
+                                {1.40000 + 0.90000i, 0.20000 + 0.50000i, 2.20000 + 0.60000i, -0.60000 + 0.80000i}, 
+                                {0.40000 + 0.70000i, 2.60000 + 0.80000i, 0.60000 + 0.90000i,  1.40000 - 1.10000i}, 
+                                {1.10000 + 0.50000i, 0.30000 + 0.60000i, 0.90000 + 0.70000i,  0.30000 + 0.70000i} 
+                              };
+      nda::array<Type,2> inv_ref = {{ 0.42120131 - 0.79358205i,  0.24087796 - 0.92608723i, -0.06087011 + 0.14999537i, -0.19921920 + 2.19730690i}, 
+                                    {-0.80186316 - 0.02502527i, -0.86324921 - 0.55817475i,  0.62514059 - 0.28389416i,  1.93426356 + 0.72351121i}, 
+                                    { 0.05999586 + 0.48146939i,  0.54984296 + 0.82497444i, -0.15735853 - 0.01084387i, -0.69851294 - 1.94260659i}, 
+                                    { 0.63360508 + 0.77373987i,  0.17760259 + 1.10656683i, -0.40993694 - 0.05869883i, -1.01426961 - 2.49248591i} 
+                                  };
+      array ainv_ref(nwalk,NMO,NMO); copy_to_array(inv_ref,ainv_ref);
+      array A(nwalk,NMO,NMO); copy_to_array(m_a,A);
+      array Ainv(nwalk,NMO,NMO);
+      memory::array<MEM,Type,1> logdetA(nwalk,Type(0.0));
+      memory::array<MEM,Type,1> logdetA_ref(nwalk,Type(1.3679659506769708-0.727156173959969i));
+
+      det_ops::detail::inverse_logdet(A, logdetA, Ainv);
+
+      ARRAY_EQUAL(Ainv,ainv_ref);
+      ARRAY_EQUAL(logdetA,logdetA_ref);
+    }
+
+    // LU solve test
+    {
+      nda::array<Type, 2> ma_lu = {{2.1 + 0.2i,  5.0 + 1.1i, -8.0 + 0.0i,  3.4 + 1.0i},
+                                  {5.3 + 0.0i, -2.1 + 3.0i,  2.0 + 0.8i,  6.0 - 2.0i},
+                                  {7.2 + 0.0i,  5.1 + 0.0i, -4.0 + 2.2i,  6.0 + 0.3i},
+                                  {5.0 + 5.0i,  4.2 + 0.0i,  4.2 + 0.0i,  8.0 + 2.0i}
+                                  };
+      nda::array<Type, 2> mb_lu = {{1.0 + 0.2i, 1.0 + 0.1i, 1.0 - 0.5i,  1.0 + 2.0i},
+                                  {1.0 + 0.2i, 1.0 + 0.1i, 1.0 - 0.5i,  1.0 + 2.0i},
+                                  {1.0 + 0.2i, 1.0 + 0.1i, 1.0 - 0.5i,  1.0 + 2.0i},
+                                  {1.0 + 0.2i, 1.0 + 0.1i, 1.0 - 0.5i,  1.0 + 2.0i}
+                                  };
+
+      array A_LU(nwalk,NMO,NMO);  copy_to_array(ma_lu,A_LU);
+      array b_LU(nwalk,NMO,NMO);  copy_to_array(mb_lu,b_LU);
+      memory::array<MEM,Type,1> ovlp_LU(nwalk,Type(0.0));
+
+      nda::array<Type,2> xv_ref = {{-0.07789269 + 0.03749502i, -0.07278947 + 0.04426364i, -0.04217011 + 0.08487539i, -0.16975077 - 0.08434021i},
+                                  { 0.03043269 - 0.06735672i,  0.02337084 - 0.06898762i, -0.01900027 - 0.07877301i,  0.15754602 - 0.03800055i},
+                                  {-0.03422502 - 0.01203025i, -0.03472360 - 0.00850803i, -0.03771509 + 0.01262528i, -0.02525056 - 0.07543017i},
+                                  { 0.20902585 + 0.03967024i,  0.20882057 + 0.01880871i,  0.20758888 - 0.10636046i,  0.21272093 + 0.41517776i}
+                                  };
+      
+      array x_ref(nwalk,NMO,NMO); copy_to_array(xv_ref,x_ref);
+      memory::array<MEM,Type,1> ovlp_ref(nwalk,Type(7.726505629380666+2.2393501663324344i));
+
+      det_ops::detail::LUsolve(A_LU,b_LU,ovlp_LU);
+
+      ARRAY_EQUAL(b_LU,x_ref);
+      ARRAY_EQUAL(ovlp_LU,ovlp_ref);
+    }
+
+    // density matrix test
+    {
+      array G(nwalk, NMO, NMO);
+      nda::array<Type,2> v_ref = {{ 0.46345438,  0.28564532,  0.26386935, -0.02614665},
+                                  { 0.19396395,  0.65316095, -0.01660395,  0.15844344},
+                                  { 0.20418108, -0.00392008,  0.61425088,  0.16850104},
+                                  {-0.04220508,  0.33912258,  0.31593366,  0.37148018},
+                                };
+
+      memory::array<MEM,Type,1> pt_ref(nwalk,Type(5.932363985793293+6.283185307179586i));
+
+      array g_ref(nwalk, NMO, NMO);  copy_to_array(v_ref,g_ref);
+      memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
+
+      memory::array<MEM,Type,1> sclL(1,Type(0.0));
+      memory::array<MEM,Type,1> sclR(nwalk,Type(0.22320241149072362));
+
+      nda::array<Type,2> m_ul = {{ 0.50000000,  0.50000000,  0.50000000,  0.50000000},
+                                { 0.50000000, -0.50000000,  0.50000000, -0.50000000},
+                                {-0.50000000, -0.50000000,  0.50000000,  0.50000000},
+                                { 0.50000000, -0.50000000, -0.50000000,  0.50000000}};
+      nda::array<Type,2> m_vl = {{ 0.50000000,  0.50000000, -0.50000000,  0.50000000},
+                                { 0.50000000, -0.50000000, -0.50000000, -0.50000000},
+                                { 0.50000000,  0.50000000,  0.50000000, -0.50000000},
+                                { 0.50000000, -0.50000000,  0.50000000,  0.50000000}
+                              };
+      matrix UL(m_ul);
+      vector DL = {35.3041316, 1.0, 1.0, 0.0283252966};
+      matrix VL(m_vl);
+
+      nda::array<Type,2> m_ur = {{-0.19527141,  0.12443070,  0.97257064,  0.02219069},
+                                {-0.97012366, -0.08000177, -0.18135273, -0.13989632},
+                                {-0.04090810,  0.98447559, -0.13168960, -0.10859187},
+                                {-0.13804231,  0.09446977, -0.06225259,  0.98394329}
+                                };
+      nda::array<Type,1> m_dr = {1.94845449, 1.31603516, 0.75428619, 0.51322728};
+      nda::array<Type,2> m_vr = {{-0.18227532, -0.97104555, -0.06830941, -0.13849211},
+                                { 0.24320168,  0.00000000,  0.94671838,  0.21113328},
+                                { 0.99730866,  0.00000000,  0.00000000, -0.07331733},
+                                { 0.00000000,  0.00000000,  0.00000000,  1.00000000}
+                                };    
+
+      array UR(nwalk,NMO,NMO); copy_to_array(m_ur,UR);
+      matrix DR(nwalk,NMO); copy_to_array(m_dr,DR);
+      array VR(nwalk,NMO,NMO); copy_to_array(m_vr,VR);
+
+      det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL(0), sclR, false, false);
+
+      ARRAY_EQUAL(G,g_ref);
+      ARRAY_EQUAL(ovlp,pt_ref);
+    }
+
+    // orthogonalization test
+    {
+      // for SVD decomp.
+      nda::array<Type,2> m_ur_svd = {{ 2.95338068636468 + 8.23020525387664e-01i, 1.89676350413418 + 1.88249259364426i,  2.29295527394499 + 2.54894000652995i,  2.34319847964629e-01 + 5.69443156844357e-01i},
+                                     { 1.07343274485525e-01 + 1.07167361317400i, 1.92056258506920 + 2.12568744821291i,  1.05142390313059 + 2.90726943932716i,  2.46015990539850 + 5.04272927692950e-03i},
+                                     { 2.04044215935208 + 1.95148570447483i, 1.19694076923315 + 2.81689476834468i,  1.80597460855661 + 1.07259625639558i,  7.51581660566915e-01 + 4.15770164097312e-01i},
+                                     { 8.32958929770565e-01 + 1.50468432457451i, 2.47276306737397 + 1.81400088581423i,  2.77946314878267 + 3.64908871831275e-01i,  2.99383312596269 + 7.34679640128662e-01i}
+                                    };
+
+      nda::array<Type,1> m_dr_svd = {0.26519788 + 1.51042223i, 1.5752775 + 1.66297619i, 2.87599057 + 2.26262453i, 2.57607341 + 1.70967221i};
+
+      nda::array<Type,2> m_vr_svd = {{ 1.83965103054304 + 5.29357037247383e-01i, 1.68166291717844 +  2.23117260340332i,  3.14025115582430e-01 +  2.23141555986307i,  7.71050134912238e-01 +  1.92197278642536e-01i},
+                                     { 1.65538404671351 + 6.70258570197244e-01i, 2.90453815076438 +  7.72131424613451e-01i,  6.99186093684204e-01 +  2.28887778837954i,  2.07529667375284 +  1.75148520153162i},
+                                     { 1.50496021591414 + 2.88822990564639e-01i, 1.41407831854736 +  2.32583684589254i,  8.58239250378548e-01 +  1.46127638795796i,  1.78466387814102 +  1.43713954493769e-02i},
+                                     { 2.10401127914222 + 2.27165885379993i, 8.33481745909602e-01 +  1.55877970335202i,  1.15031317629187e-01 +  5.94375327177343e-01i,  2.55076604051466 +  3.34673606490562e-01i}
+                                    };
+  
+      array UR(nwalk,NMO,NMO); copy_to_array(m_ur_svd,UR);
+      matrix DR(nwalk,NMO); copy_to_array(m_dr_svd,DR);
+      array VR(nwalk,NMO,NMO); copy_to_array(m_vr_svd,VR);
+
+      nda::array<Type, 2> ur_ref_svd = {{-3.13074962194799e-01 + 4.05727253574901e-01i, -1.56946908394071e-01 - 5.33243410376989e-01i, -3.01556616691782e-01 - 2.24106472382379e-01i, -1.14318359385931e-01 + 5.23602717393058e-01i},
+                                        {-3.84270161991100e-01 + 3.52293726026162e-01i,  5.49207215017357e-01 + 1.56686078437565e-01i, -4.16754112488346e-01 + 2.88016928591331e-01i,  3.05146942521259e-01 - 2.28678995628081e-01i},
+                                        {-2.26345495898854e-01 + 3.33101755824866e-01i, -1.14595633095295e-01 - 7.58128418359314e-02i,  4.83154696473021e-01 - 5.08065622180795e-01i,  4.56847574399749e-01 - 3.44459500144956e-01i},
+                                        {-1.20674470947688e-01 + 5.37441760354944e-01i, -7.10701673442954e-02 +  5.83874409641062e-01i,  3.18282993820371e-01 +  9.65865063735368e-02i, -4.41147431111152e-01 + 2.13048487493711e-01i}
+                                       };
+      nda::array<Type, 1> dr_ref_svd = {4.61565437, 1.52510772, 0.9012235,  0.216654};
+      nda::array<Type, 2> vr_ref_svd = {{ 1.07467805374828 + 2.75773089244049i,  5.01838471139805e-01 + 3.96758786249728i, -6.53008349335917e-01 + 2.97121567186875i,  1.82682991718206 + 3.14947566923050i},
+                                        {-2.31489691662133e-01 + 2.28973264030207i, -6.83223283303873e-01 - 1.80064129962341e-01i, -4.14519630034220e-01 - 3.99424636160462e-01i,  1.15783220572493 + 1.40721470842219i},
+                                        {-1.85879340707760 + 2.56260547629091e-01i, -2.67115933499547 - 2.29362056591275e-01i, -7.52288199316324e-01 - 1.93692135134025i, -9.97302404690169e-01 - 2.16349183079278e-01i},
+                                        { 4.38481754999984e-01 + 1.01003701842688e+00i, -6.23966576449804e-01 + 1.81725749149449i, -2.43644148445721e-01 + 2.84945714731756e-01i, -3.27873911604687e-02 - 4.35698350896047e-01i}
+                                       };
+
+      array UR_ref(nwalk,NMO,NMO); copy_to_array(ur_ref_svd,UR_ref);
+      matrix DR_ref(nwalk,NMO); copy_to_array(dr_ref_svd,DR_ref);
+      array VR_ref(nwalk,NMO,NMO); copy_to_array(vr_ref_svd,VR_ref);
+
+      memory::array<MEM, Type, 1> scl(nwalk,Type(0.0));
+      memory::array<MEM, Type, 1> scl_ref(nwalk,Type(1.7667744977546749));
+
+      det_ops::orthogonalize_wSVD(UR,DR,VR,scl);
+
+      ARRAY_EQUAL(UR,UR_ref);
+      ARRAY_EQUAL(DR,DR_ref);
+      ARRAY_EQUAL(VR,VR_ref);
+
+      ARRAY_EQUAL(scl,scl_ref);
+
+      // for QR decomp.
+      nda::array<Type,2> m_ur_qr = {{-2.06492078,  0.66442708, -0.53408209, -0.67936867},
+                                    {-14.87318197, 0.80202448, -3.61794482, -3.45620579},
+                                    {-8.43967188,  6.33054898, -3.64130307, -4.36980777},
+                                    {-3.08958567,  1.08766034, -1.16092514, -1.03539805}
+                                   };
+      nda::array<Type,1> m_dr_qr = {11.34491213, 0.89275541, 0.51657435, 0.08814524};
+      nda::array<Type,2> m_vr_qr = {{-0.38745756, -0.84147122, -0.22808805, -0.29963088},
+                                    { 0.55985516,  0.00000000,  0.76027931,  0.32945040},
+                                    { 0.84666756,  0.00000000,  0.00000000, -0.53212220},
+                                    { 0.00000000,  0.00000000,  0.00000000,  1.00000000}
+                                   };
+
+      copy_to_array(m_ur_qr,UR);
+      copy_to_array(m_dr_qr,DR);
+      copy_to_array(m_vr_qr,VR);
+
+      scl() = Type(0.0);
+
+      nda::array<Type, 2> ur_ref_qr = {{-1.17995658061036e-01, 3.74066157227406e-02, 6.03730390383380e-01, 7.87519768327402e-01},
+                                       {-8.49897443684194e-01, -5.07325053133282e-01,  4.26388554484346e-02, -1.35932165760838e-01},
+                                       {-4.82267719617467e-01,  8.57738672631395e-01,  6.75103812037739e-02, -1.64756075812764e-01},
+                                       {-1.76548028912200e-01,  7.42051550501439e-02, -7.93179609018852e-01,  5.78092117476014e-01}
+                                      };
+      nda::array<Type, 1> dr_ref_qr = {2.00237040e+02, 4.67714422, 1.03320492e-01, 4.99408102e-03};
+      nda::array<Type, 2> vr_ref_qr = {{-3.86209893710637e-01, -8.41258443758524e-01, -2.41719280228549e-01, -3.10188868329600e-01},
+                                       { 4.21185207839637e-01,  0.00000000000000,  7.50451538255373e-01,  3.67947927578920e-01},
+                                       { 8.46361103937350e-01,  0.00000000000000,  0.00000000000000, -5.58832858622569e-01},
+                                       { 0.00000000000000,  0.00000000000000,  0.00000000000000,  1.00000000000000}
+                                      };
+
+      copy_to_array(ur_ref_qr,UR_ref);
+      copy_to_array(dr_ref_qr,DR_ref);
+      copy_to_array(vr_ref_qr,VR_ref);
+
+      scl_ref() = -0.008280282078320766;          
+
+      det_ops::orthogonalize_wQR(UR,DR,VR,scl);
+
+      ARRAY_EQUAL(UR,UR_ref);
+      ARRAY_EQUAL(DR,DR_ref);
+      ARRAY_EQUAL(VR,VR_ref);
+
+      ARRAY_EQUAL(scl,scl_ref);
+
+    }
+
+  }
+
 }
 
 
