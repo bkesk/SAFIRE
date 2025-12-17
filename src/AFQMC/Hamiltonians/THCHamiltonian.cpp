@@ -72,6 +72,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.size(1)%npol != 0");
   utils::check(PsiT.extent(1) == nspin, "Size mismatch");
   utils::check(ndet==1, "Error: ndet > 1 not yet implemented in THCHamiltonian::getHamiltonianOperations.");
+  // MAM: should this be zero with CLOSED shell???
   long ndn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
               (type == CLOSED ? nup : PsiT(0,1).extent(0) ) );
   for(int i=0; i<ndet; ++i) 
@@ -296,7 +297,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       if( itot%mpi->comm.size() != mpi->comm.rank() ) continue; 
       long is_ = is%nspin_in_file;
       long nel = (is==0 ? nup : ndn);
-      auto Aai = math::sparse::to_array<ComplexType>(PsiT(id,is));
+      auto Aai = math::sparse::to_array<'N'>(PsiT(id,is));
       // need to loop over npol since npol_in_file might be != than npol 
       if constexpr (REAL) {
         auto Yau = matrix_t(nel,nu);
@@ -382,6 +383,9 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   }
   mpi->comm.barrier();
 
+  // incomplete if npol>1
+  // this assumes that npol==npol_in_file, FIX!!!
+  utils::check(npol==1, "finish");
   long nel[] = {nup, (type == COLLINEAR ? ndn : 0l) }; 
   auto haj = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO});
   {

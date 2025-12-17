@@ -109,10 +109,10 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   if(mpi->node_comm.root()) {
     for(int id=0; id<ndet; id++) {
       utils::check(PsiT(id,0).shape() == std::array<long,2>{nel_up,npol*NMO}, "Size mismatch");
-      PsiC()(id,0,all,all) = nda::transpose(math::sparse::to_array<ComplexType>(PsiT(id,0))); 
+      PsiC()(id,0,all,all) = math::sparse::to_array<'T'>(PsiT(id,0)); 
       if(type == COLLINEAR) {
         utils::check(PsiT(id,1).shape() == std::array<long,2>{nel_dn,npol*NMO}, "Size mismatch");
-        PsiC()(id,1,all,range(nel_dn)) = nda::transpose(math::sparse::to_array<ComplexType>(PsiT(id,1))); 
+        PsiC()(id,1,all,range(nel_dn)) = math::sparse::to_array<'T'>(PsiT(id,1));
      }  
     }
   }

@@ -194,18 +194,12 @@ public:
   /*
    * Expectation value of Hubbard-Stratonovich potential with respect to trial wave-function.
    */
-  void vMF(nda::MemoryVector auto&& v, double dt)   
-  {}
+  void vMF(nda::MemoryVector auto&& v, double dt); 
 
   /*
    * Green function of the trial wave-funtion. 
    */
-  template<MEMORY_SPACE M>
-  auto G_MF()
-  {
-    auto gMF = memory::make_shared_array<M,ComplexType,3>(mpi,{1,1,1});
-    return gMF;
-  }
+  auto G_MF();
 
   template<class... Args>
   void generalizedFockMatrix(Args&&... args)
@@ -484,11 +478,11 @@ protected:
 
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
   void energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
-  {}
+  { utils::check(false, "fiinish"); }
 
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
   void energy_alg2(const WlkSet& wset, Mat&& E, TVec&& Ov)
-  {}
+  { utils::check(false, "fiinish"); }
 
 };
 

@@ -93,10 +93,9 @@ public:
     std::visit([&](auto&& a) { a.vMF(std::forward<Args>(args)...); }, var);
   }
 
-  template<MEMORY_SPACE M = HOST_MEMORY>
   auto G_MF()
   {
-    return std::visit([&](auto&& a) { return a.template G_MF<M>(); }, var);
+    return std::visit([&](auto&& a) { return a.template G_MF(); }, var);
   }
 
   template<class... Args>

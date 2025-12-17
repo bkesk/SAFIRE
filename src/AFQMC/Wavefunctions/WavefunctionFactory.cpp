@@ -128,11 +128,11 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
         if(mpi->node_comm.root()) 
           for(int id=0; id<ndets_to_read; ++id)
             for(int is=0; is<nspin; ++is)
-              PsiT_dense(id,is)() = math::sparse::to_array<ComplexType>(PsiT(id,is));
+              PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
       } else {
         for(int id=0; id<ndets_to_read; ++id)
           for(int is=0; is<nspin; ++is)
-            PsiT_dense(id,is)() = math::sparse::to_array<ComplexType>(PsiT(id,is));
+            PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
       }
       mpi->comm.barrier();
       return Wavefunction(NOMSD<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 

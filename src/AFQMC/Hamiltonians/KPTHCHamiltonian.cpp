@@ -341,7 +341,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         int n0 = ( ik==0 ? 0 : nda::sum(nocc(is,range(ik))) );
         int nel = nocc(is,ik); 
         for(int ip=0; ip<npol; ++ip) { 
-          auto Aai = math::sparse::to_array<ComplexType>(PsiT(id,is),range(n0,n0+nel),range(ip*NMO+ik*nbnd,ip*NMO+(ik+1)*nbnd));
+          auto Aai = math::sparse::to_array<'N'>(PsiT(id,is),range(n0,n0+nel),range(ip*NMO+ik*nbnd,ip*NMO+(ik+1)*nbnd));
           auto Yau = Ydsau()(id,is,ip,ik,range(nel),all);
           long ip_ = ip%npol_in_file;
           auto Xiu = Xsiu()(is_,ik,range(ip_*nbnd,(ip_+1)*nbnd),all);
@@ -426,7 +426,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
           int nk = nocc(is,ik); 
           for(long ip1=0; ip1<npol; ++ip1) {
             int ip1_ = ip1%npol_in_file;
-            auto Aai = math::sparse::to_array<ComplexType>(PsiT(id,is),range(n0,n0+nk),range(ip1*NMO+ik*nbnd,ip1*NMO+(ik+1)*nbnd));
+            auto Aai = math::sparse::to_array<'N'>(PsiT(id,is),range(n0,n0+nk),range(ip1*NMO+ik*nbnd,ip1*NMO+(ik+1)*nbnd));
             for(long ip2=0; ip2<npol; ++ip2) {
               int ip2_ = ip2%npol_in_file;
               auto h_ = haj()(id,range(is*nup+n0,is*nup+n0+nk),nda::range(ip2*NMO+ik*nbnd,ip2*NMO+(ik+1)*nbnd));

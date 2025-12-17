@@ -16,8 +16,7 @@ set (AFQMC_SRCS
   Wavefunctions/WavefunctionFactory.cpp
   HamiltonianOperations/HamiltonianOperations.cpp
 #  Hamiltonians/KPFactorizedHamiltonian.cpp
-#  Hamiltonians/RealDenseHamiltonian.cpp
-#  Hamiltonians/RealDenseHamiltonian_v2.cpp
+  Hamiltonians/RealDenseHamiltonian.cpp
   Hamiltonians/ModelHamOpsGenerator.cpp
   Hamiltonians/HamiltonianFactory.cpp
   Hamiltonians/THCHamiltonian.cpp

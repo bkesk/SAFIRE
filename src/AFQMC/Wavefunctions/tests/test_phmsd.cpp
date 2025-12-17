@@ -160,12 +160,13 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "PHMSD");
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
-  WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "PHMSD");
-  int nspin            = (type == COLLINEAR) ? 2 : 1;
-  int npol             = (type == NONCOLLINEAR) ? 2 : 1;
-  int nel              = (type == COLLINEAR) ? nup+ndown : nup;
-  int nwalk            = 1; 
-  int ndets            = 100; 
+  WALKER_TYPES type = afqmc::getWalkerType(wfn_file, "PHMSD");
+  int nspin         = (type == COLLINEAR) ? 2 : 1;
+  int npol          = (type == NONCOLLINEAR) ? 2 : 1;
+  int nel           = (type == COLLINEAR) ? nup+ndown : nup;
+  int nwalk         = 1; 
+  int ndets         = 100; 
+  double dt         = 0.01;
   std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
   std::map<std::string, AFQMCInfo> InfoMap;
@@ -276,7 +277,20 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   ARRAY_EQUAL(G,Gt);
 
   wfn.Energy(wset);
+  app_log(2, "Ov: {}  {}",wset[0].get_property(OVLP),ovlp_sum); 
   app_log(2, "Energy: E1:{}, EJ:{}, EXX:{}",wset[0].get_property(E1_),wset[0].get_property(EJ_),wset[0].get_property(EXX_));
+
+  // vMF
+  {
+    memory::array<MEM,ComplexType,1> v(wfn.number_of_cholesky_vectors());
+    wfn.vMF(v,dt);
+  }
+
+  // G_MF
+  {
+    auto gMF = wfn.G_MF();
+  }
+
 }
 
 TEST_CASE("test_read_phmsd", "[test_read_phmsd]")

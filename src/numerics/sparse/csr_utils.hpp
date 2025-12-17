@@ -165,8 +165,8 @@ auto to_compact(csr_matrix<ValType,MEM,IndxType,IntType> const& csr)
 }
 
 
-template<typename NewValType, typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
-requires( std::is_assignable_v<NewValType&,ValType> )
+template<char op, typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
+requires( (op == 'N' or op == 'T' or op == 'H') )
 auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr, nda::range row_range, nda::range col_range)
 {
   sfqmc::utils::check(row_range.first() >= 0 and row_range.first() <= csr.extent(0) and
@@ -187,37 +187,72 @@ auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr, nda::range ro
   long c0 = col_range.first();
   long c1 = col_range.last();
 
-  auto A = memory::host_array<NewValType, 2>::zeros({nr,nc});
+  if constexpr (op=='T') {
+    auto A = memory::host_array<ValType, 2>::zeros({nc,nr});
+    for(long r=row_range.first(); r<row_range.last(); r++)
+      for(long i=row_begin(r); i<row_end(r); ++i)
+        if( cols(i-i0) >= c0 and cols(i-i0) < c1 )
+          A(cols(i-i0)-c0,r-r0) = ValType(vals(i-i0));
+    if constexpr (MEM == HOST_MEMORY) {
+      return A;
+    } else {
+      return memory::array<MEM,ValType,2>(A);
+    }
+  } else if constexpr (op=='H' or op=='C') {
+    auto A = memory::host_array<ValType, 2>::zeros({nc,nr});
+    for(long r=row_range.first(); r<row_range.last(); r++)
+      for(long i=row_begin(r); i<row_end(r); ++i)
+        if( cols(i-i0) >= c0 and cols(i-i0) < c1 )
+          A(cols(i-i0)-c0,r-r0) = std::conj(ValType(vals(i-i0)));
+    if constexpr (MEM == HOST_MEMORY) {
+      return A;
+    } else {
+      return memory::array<MEM,ValType,2>(A);
+    }
+  }
+
+  auto A = memory::host_array<ValType, 2>::zeros({nr,nc});
   for(long r=row_range.first(); r<row_range.last(); r++)
     for(long i=row_begin(r); i<row_end(r); ++i)
       if( cols(i-i0) >= c0 and cols(i-i0) < c1 )
-        A(r-r0,cols(i-i0)-c0) = NewValType(vals(i-i0));
-
+        A(r-r0,cols(i-i0)-c0) = ValType(vals(i-i0));
   if constexpr (MEM == HOST_MEMORY) {
     return A;
   } else {
-    return memory::array<MEM,NewValType,2>(A);
+    return memory::array<MEM,ValType,2>(A);
   }
 }
 
-template<typename NewValType, typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
-requires( std::is_assignable_v<NewValType&,ValType> )
+template<char op, typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
+requires( (op == 'N' or op == 'T' or op == 'H') )
 auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr)
 {
-  return to_array<NewValType>(csr,nda::range(csr.extent(0)),nda::range(csr.extent(1)));
+  return to_array<op>(csr,nda::range(csr.extent(0)),nda::range(csr.extent(1)));
 }
 
 // Useful routine, does nothing
-template<typename... Args>
+template<char op, typename... Args>
+requires( (op == 'N' or op == 'T' or op == 'H' or op == 'C') )
 auto to_array(nda::MemoryMatrix auto const& view, nda::range row_range, nda::range col_range)
 {
-  return view(row_range,col_range);
+  if constexpr (op=='T')
+    return nda::transpose(view(row_range,col_range));
+  else if constexpr (op=='H' or op=='C')
+    return nda::dagger(view(row_range,col_range));
+  else 
+    return view(row_range,col_range);
 }
 
-template<typename... Args> 
+template<char op, typename... Args> 
+requires( (op == 'N' or op == 'T' or op == 'H' or op=='C') )
 auto to_array(nda::MemoryMatrix auto const& view)
 {
-  return view();
+  if constexpr (op=='T')
+    return nda::transpose(view());
+  else if constexpr (op=='H' or op=='C')
+    return nda::dagger(view());
+  else
+    return view();
 }
 
 template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>

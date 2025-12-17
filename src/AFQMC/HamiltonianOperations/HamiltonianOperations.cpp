@@ -19,15 +19,11 @@
 #include "AFQMC/config.h"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
-//#if !defined(ENABLE_DEVICE)
-//#include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
-//#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
-//#endif
 #include "AFQMC/HamiltonianOperations/THCOps.hpp"
 #include "AFQMC/HamiltonianOperations/KPTHCOps.hpp"
 //#include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
-//#include "AFQMC/HamiltonianOperations/Real3IndexFactorization_batched_v2.hpp"
-//#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
+#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
+#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
 
 
 // MAM: Once all hamiltonians are implemented, measure the compilation time 
@@ -61,6 +57,7 @@ namespace afqmc
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KPTHCOps<HOST_MEMORY>&&);
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,true>&&);
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,false>&&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(Real3IndexFactorization<HOST_MEMORY>&&);
 
 #if defined(ENABLE_DEVICE)
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,true>&&);
@@ -68,6 +65,7 @@ namespace afqmc
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KPTHCOps<DEVICE_MEMORY>&&);
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,true>&&);
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,false>&&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(Real3IndexFactorization<DEVICE_MEMORY>&&);
 #endif
 
   // copy constructor
@@ -80,6 +78,7 @@ namespace afqmc
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KPTHCOps<HOST_MEMORY>const&);
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,true>const&);
   template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,false>const&);
+  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(Real3IndexFactorization<HOST_MEMORY>const&);
 
 #if defined(ENABLE_DEVICE)
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,true>const&);
@@ -87,6 +86,7 @@ namespace afqmc
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KPTHCOps<DEVICE_MEMORY>const&);
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,true>const&);
   template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,false>const&);
+  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(Real3IndexFactorization<DEVICE_MEMORY>const&);
 #endif
 
 

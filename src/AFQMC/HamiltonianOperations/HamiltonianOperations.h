@@ -17,16 +17,11 @@
 #pragma once
 
 #include "AFQMC/config.h"
-//#include "AFQMC/Utilities/type_conversion.hpp"
 
-//#if !defined(ENABLE_DEVICE)
-//#include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
-//#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
-//#endif
 #include "AFQMC/HamiltonianOperations/THCOps.hpp"
 #include "AFQMC/HamiltonianOperations/KPTHCOps.hpp"
 //#include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
-//#include "AFQMC/HamiltonianOperations/Real3IndexFactorization_batched_v2.hpp"
+#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
 #include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
 
 
@@ -140,7 +135,8 @@ public:
   private:
 
   std::variant<THCOps<MEM,true>, THCOps<MEM,false>, KPTHCOps<MEM>,
-               ModelHamOps<MEM,true>, ModelHamOps<MEM,false>> var;
+               ModelHamOps<MEM,true>, ModelHamOps<MEM,false>, 
+               Real3IndexFactorization<MEM> > var;
 
   // makes instantiations easier
   nda::array<ComplexType,3> getOneBodyPropagatorMatrix_impl(double dt,
