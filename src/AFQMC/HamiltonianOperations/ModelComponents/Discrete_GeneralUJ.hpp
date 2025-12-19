@@ -90,8 +90,8 @@ public:
   {
 
     utils::check(initialized, " Error: Using uninitialized Discrete_GeneralUJ object. Call update first."); 
-    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol  = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
+    int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     int NMO = H1.extent(1) / npol;
 
     utils::check(H1.shape() == std::array<long,3>{nspin, npol*NMO, npol*NMO}, "Shape mismatch");
@@ -142,8 +142,9 @@ public:
     ComplexType ia(0.0, dt);
 
     // v(w,n) = v(w,n) + ia*h0(n);
-    if constexpr (MEM==HOST_MEMORY)
+    if constexpr (MEM==HOST_MEMORY){
       for(int iw=0; iw<v.extent(0); ++iw) v(iw,all) += ia*(h0()+hMF());     
+    }
     else {
       nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
       nda::tensor::add(ia,hMF(),"i",ComplexType(1.0),v,"wi");
@@ -236,8 +237,8 @@ private:
     RealType sign = (propg_type == DiscreteChargePropagator) ? RealType(1.0) : RealType(-1.0);
     ComplexType scl = (propg_type == DiscreteChargePropagator?(1.0):ComplexType(0.0,-1.0));
     int M = NMO;	
-    int M2 = (walker_type == NONCOLLINEAR) ? 2*M : M;
-    int Madd = (walker_type == NONCOLLINEAR) ? M : 0;
+    int M2 = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2*M : M;
+    int Madd = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? M : 0;
     bool head_shared = ( MEM==HOST_MEMORY ? mpi->node_comm.root() : true ); 
 
     if(mpi->comm.root()) {
