@@ -70,6 +70,7 @@ void NOMSD<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov)
     auto ovlp_h = nda::to_host(ovlp);
     auto eloc_h = nda::to_host(eloc);
     nda::array<ComplexType,2> E_h(nw,3); 
+    nda::array<ComplexType,1> Ov_h(nw,ComplexType(0.0)); 
     nda::array<ComplexType,1> sum(3,0.0);
     for(int i=0; i<nw; i++) {
       ComplexType log_m = *std::max_element(ovlp_h(all,i).begin(),ovlp_h(all,i).end());
@@ -81,10 +82,11 @@ void NOMSD<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov)
         deno += std::conj(ci(d)) * expm;
       }
       E_h(i,all) = sum() / deno;  
+      Ov_h(i) = std::log(deno) + log_m;
     }
     // copy to device/host
     E() = E_h();
-
+    Ov() = Ov_h();
   }
 }
 
@@ -239,7 +241,7 @@ void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
       ComplexType val( std::log( (std::abs(ci(d)) < 1e-12 ? ComplexType(1e-12) : std::conj(ci(d)) ) ) );
       memory::buffered_array<MEM,ComplexType,1> buff(nw,val);
       // log_ovlp(d,w) = log( ci(d) ) + log( Ov(d, Beta) ) + log( Ov(d, Alpha) )
-      nda::tensor::add(buff,log_ovlps(d,all));
+      nda::tensor::add(ComplexType(1.0),buff,"w",ComplexType(1.0),log_ovlps(d,all),"w");
     }
   
     // now assemble avoiding round-off problems 
@@ -561,7 +563,6 @@ void NOMSD<MEM,devPsiT>::accumulate_estimators_single_ref_impl(int iav, WlkSet& 
  * Full green function of the trial wave function.
  */
 template<MEMORY_SPACE MEM, class devPsiT>
-template<MEMORY_SPACE M>
 auto NOMSD<MEM,devPsiT>::G_MF()
 {
   using nda::range;
@@ -584,10 +585,10 @@ auto NOMSD<MEM,devPsiT>::G_MF()
       gMF() = ComplexType(0.0);
 
       memory::buffered_array<MEM,ComplexType,3> PsiT(1,npol*NMO,nup);
-      PsiT(0,all,all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,0)()));
+      PsiT(0,all,all) = math::sparse::to_array<'H'>(OrbMats(0,0)());
       det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,G3d(all,nda::range(npol*NMO),all),Ov,false);
       if( walker_type == COLLINEAR ) { 
-        PsiT(0,all,range(ndown)) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,1)()));
+        PsiT(0,all,range(ndown)) = math::sparse::to_array<'H'>(OrbMats(0,1)());
         det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all),Ov,false);
       }
     }
@@ -624,9 +625,9 @@ auto NOMSD<MEM,devPsiT>::G_MF()
           if( pq >= n1 ) break; 
           if( last_p != p ) {
             last_p = p;
-            PsiT(0,all,all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(p,0)()));
+            PsiT(0,all,all) = math::sparse::to_array<'H'>(OrbMats(p,0)());
             if( walker_type == COLLINEAR ) 
-              PsiTB(0,all,all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(p,1)()));
+              PsiTB(0,all,all) = math::sparse::to_array<'H'>(OrbMats(p,1)());
           }
 
           Ov() = ComplexType(0.0);
@@ -689,10 +690,10 @@ void NOMSD<MEM,devPsiT>::vMF(nda::MemoryVector auto&& v, double dt)
     auto G3d = nda::reshape(G,std::array<long,3>{1,nel,npol*NMO});
 
     memory::buffered_array<MEM,ComplexType,3> PsiT(1,npol*NMO,nup);
-    PsiT(0,all,all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,0)()));
+    PsiT(0,all,all) = math::sparse::to_array<'H'>(OrbMats(0,0)());
     det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,G3d(all,nda::range(nup),all),Ov);
     if( walker_type == COLLINEAR ) { 
-      PsiT(0,all,range(ndown)) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(0,1)()));
+      PsiT(0,all,range(ndown)) = math::sparse::to_array<'H'>(OrbMats(0,1)());
       det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),G3d(all,nda::range(nup,nel),all),Ov);
     }
     HamOp.vbias(G, v2d, dt);
@@ -723,9 +724,9 @@ void NOMSD<MEM,devPsiT>::vMF(nda::MemoryVector auto&& v, double dt)
           if( pq >= n1 ) break; 
           if( last_p != p ) {
             last_p = p;
-            PsiT(0,all,all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(p,0)()));
+            PsiT(0,all,all) = math::sparse::to_array<'H'>(OrbMats(p,0)());
             if( walker_type == COLLINEAR ) 
-              PsiTB(0,all,all) = nda::dagger(math::sparse::to_array<ComplexType>(OrbMats(p,1)()));
+              PsiTB(0,all,all) = math::sparse::to_array<'H'>(OrbMats(p,1)());
           }
 
           Ov() = ComplexType(0.0);

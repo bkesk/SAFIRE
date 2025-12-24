@@ -47,7 +47,7 @@ void calculate_overlaps(int spin, ph_excitations<int, ComplexType>& abij,  T_t c
       } else if (nex == 2) {
         for (auto it = abij.unique_begin(2)[spin]; it < abij.unique_end(2)[spin]; ++it, ++nd) {
           auto e = *it;
-          for(int iw=0; iw<nw; ++iw)
+          for(int iw=0; iw<nw; ++iw) 
             ov(nd,iw) = math::D2x2(T(iw,e[2],e[0]), T(iw,e[2],e[1]), T(iw,e[3],e[0]), T(iw,e[3],e[1]));
         }
       } else if (nex == 3) {
@@ -97,6 +97,7 @@ void calculate_overlaps(int spin, ph_excitations<int, ComplexType>& abij,  T_t c
       }
     } // nex
   } else { // MEM
+    // custom kernel dispatch
     utils::check(false,"finish");
   }
 }
@@ -183,78 +184,71 @@ void calculate_R(int spin, ph_excitations<int, ComplexType>& abij,  T_t const& T
       } // it
     } // nex
   } else {
+    // custom kernel dispatch
     utils::check(false,"finish");
   }
 }
-/*
+
 // R[nwalk,ndet,nex,nact]
 // T(nwalk,nact,nelec]
-template<class MatA, class MatC, class PH_EXCT, class Iptr
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-         ,typename = std::enable_if_t< is_host_array<std::decay_t<MatA>>::value >,
-         typename = std::enable_if_t< is_host_array<std::decay_t<MatC>>::value >
-#endif
-        >
-inline void get_compact_ph_R_matrices(int rank, int ngrp, [[maybe_unused]) int spin, int nwalk, 
-               int ndet, int nex, int nelec, int nact, Iptr const iexcit, Iptr const refc, 
-               [[maybe_unused]) PH_EXCT& abij, MatA&& Tw, MatC&& Rw, [[maybe_unused]) int buffer_size_in_MB=0)
+template<MEMORY_SPACE MEM>
+void get_compact_ph_R_matrices(nda::MemoryVector auto const& iexcit,
+     nda::MemoryVector auto const& refc, nda::MemoryArrayOfRank<3> auto&& Tw, 
+     nda::MemoryArrayOfRank<4> auto&& Rw) 
 {
-  using ma::conj;
-  using std::get;
-  using buffer_alloc_type       = HostBufferManager::template allocator_t<ComplexType>;
-  HostBufferManager buffer_manager;
-  StaticMatrix<ComplexType, buffer_alloc_type> Q({nex, nex},
-                   buffer_manager.get_generator().template get_allocator<ComplexType>());
-  std::vector<int> IWORK(nex+1);
-  std::vector<ComplexType> WORK(nex*nex);
-  RUNTIME_CHECK(Rw.size(0) == nwalk, "");
-  RUNTIME_CHECK(Rw.size(1) == ndet, "");
-  RUNTIME_CHECK(Rw.size(2) == nex, "");
-  RUNTIME_CHECK(Rw.size(3) == nact, "");
-  RUNTIME_CHECK(Tw.size(0) == nwalk, "");
-  RUNTIME_CHECK(Tw.size(1) == nact, "");
-  RUNTIME_CHECK(Tw.size(2) == nelec, "");
-  std::vector<int> orbs(nelec);
+  using nda::range;
+  auto all = range::all;
+  memory::check_memory_space<MEM>(Tw,Rw);
+  auto [nwalk,ndet,nex,nact] = Rw.shape();
+  int nelec = Tw.extent(2);
+  utils::check(Tw.extent(0) == nwalk and Tw.extent(1)==nact, "Size mismatch");
+  memory::buffered_array<MEM,ComplexType,2> Q(nex,nex); 
+  memory::buffered_array<MEM,ComplexType,1> work(nex*nex); 
+  memory::buffered_array<MEM,int,1> ipiv(nex); 
+  memory::buffered_array<MEM,int,1> orbs(nelec); 
   ComplexType ov_a;
-  for(int iw=0; iw<nwalk; iw++) 
-  {  
-    auto T = Tw[iw]; 
-    for(int nd=0; nd<ndet; nd++) 
-    {
-      if (nd % ngrp == rank)
+  if constexpr (MEM==HOST_MEMORY) {
+    for(int iw=0; iw<nwalk; iw++) 
+    {  
+      auto T = Tw(iw,all,all);
+      for(int nd=0; nd<ndet; nd++) 
       {
-        auto R = Rw[iw,nd]; 
-        auto e = iexcit+2*nex*nd;
+        auto R = Rw(iw,nd,all,all); 
+        auto e = iexcit.data()+2*nex*nd;
         for(int i=0; i<nelec; i++) {
-          orbs[i] = refc[i];
+          orbs(i) = refc(i);
           for(int p=0; p<nex; p++) {
-            if(e[p]==i) {
-              orbs[i] = e[nex+p];
+             if(e[p]==i) {
+              orbs(i) = e[nex+p];
               break;
             }  
           }  
         }
         if (nex == 1)
         {
-          ov_a    = T(iw,e[1],e[0]);
-          Q[0,0] = 1.0 / ov_a;
+          ov_a    = T(e[1],e[0]);
+          Q(0,0) = 1.0 / ov_a;
         }
         else if (nex == 2)
         {
-          ov_a = ma::I2x2(T(iw,e[2],e[0]), T(iw,e[2],e[1]), T(iw,e[3],e[0]), T(iw,e[3],e[1]), Q);
+          ov_a = math::I2x2(T(e[2],e[0]), T(e[2],e[1]), T(e[3],e[0]), T(e[3],e[1]), Q);
         }
         else if (nex == 3)
         {
-          ov_a = ma::I3x3(T(iw,e[3],e[0]), T(iw,e[3],e[1]), T(iw,e[3],e[2]), 
-                          T(iw,e[4],e[0]), T(iw,e[4],e[1]), T(iw,e[4],e[2]),
-                          T(iw,e[5],e[0]), T(iw,e[5],e[1]), T(iw,e[5],e[2]), Q);
+          ov_a = math::I3x3(T(e[3],e[0]), T(e[3],e[1]), T(e[3],e[2]), 
+                          T(e[4],e[0]), T(e[4],e[1]), T(e[4],e[2]),
+                          T(e[5],e[0]), T(e[5],e[1]), T(e[5],e[2]), Q);
         }
         else
         {
           for (int p = 0; p < nex; p++)
             for (int q = 0; q < nex; q++)
-              Q[p,q] = T(iw,e[p + nex],e[q]);
-          ov_a = ma::invert<ComplexType>(Q, IWORK, WORK, 0.0);
+              Q(p,q) = T(e[p + nex],e[q]);
+          nda::lapack::getrf(Q,ipiv,work);
+          math::log_determinant_from_getrf(Q,ipiv,ov_a);
+          // how to handle cases where this is basically zero?
+          ov_a = std::exp(ov_a);
+          if(std::abs(ov_a) != 0.0) nda::lapack::getri(Q,ipiv,work);
         }
         if( std::abs(ov_a) != 0.0) {
           // compact notation:
@@ -262,20 +256,22 @@ inline void get_compact_ph_R_matrices(int rank, int ngrp, [[maybe_unused]) int s
           // R[nex,nact] for diagonal term    
           for (int p = 0; p < nex; ++p)
           {
-            auto Rp = R[p];
-            auto Ip = Q[p];
+            auto Ip = Q(p,all);
             for (int q = 0; q < nex; ++q)
             {
-              auto Ipq = Ip[q];
-              auto Tq  = T(iw,e[q + nex]);
+              auto Ipq = Q(p,q);
+              auto Tq  = T(e[q + nex],all);
               for (int i = 0; i < nelec; ++i)
-                Rp[orbs[i]) -= Ipq * Tq[i];
-              Rp[orbs[e[q])] += Ipq;
+                R(p,orbs(i)) -= Ipq * Tq(i);
+              R(p,orbs(e[q])) += Ipq;
             }
           }
         }
-      }
-    }
+      } // nd
+    } // iw
+  } else {
+    // custom kernel dispatch
+    utils::check(false,"finish");
   }
 }
 
@@ -285,24 +281,25 @@ inline void get_compact_ph_R_matrices(int rank, int ngrp, [[maybe_unused]) int s
 // T(nwalk,nact,nelec]
 // E[nwalk,3]
 // KE[ndet,nwalk,nke]
-template<class PH_EXCT, class MatW, class MatT, class MatE, class MatK, class Op>
-inline void ph_excited_energies_first_step(int nelec, int nact, PH_EXCT& abij, MatW&& wgt,
-                    MatT&& T, MatE&& E, MatK&& KE, Op& HamOps, [[maybe_unused]) int buffer_size_in_MB = 2048)
+template<class Op>
+void ph_excited_energies_first_step(ph_excitations<int, ComplexType>& abij,
+         nda::MemoryMatrix auto&& wgt, nda::MemoryArrayOfRank<3> auto T,
+         nda::MemoryMatrix auto&& E, nda::MemoryArrayOfRank<3> auto&& KE, Op& HamOps)
 {
-  using VType = typename std::decay_t<MatK>::element_type;
-  using ptr = device_ptr<VType>;  
-  using buffer_alloc_type       = DeviceBufferManager::template allocator_t<VType>;
-
-  DeviceBufferManager buffer_manager;
-  int nwalk = E.size(0);
+  using nda::range;
+  auto all = range::all;
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<decltype(T)>(); 
+  memory::check_memory_space<MEM>(wgt,T,E,KE);
+  auto [nwalk,nact,nelec] = T.shape();
+  int nconfg = KE.extent(0);
+  int nke = KE.extent(2);
+  utils::check(E.extent(0) == nwalk and E.extent(1)==3, "Size mismatch");
+  utils::check(wgt.extent(0) == nconfg and wgt.extent(1)==nwalk, "Size mismatch");
+  utils::check(KE.extent(1) == nwalk, "Size mismatch");
+  E() = ComplexType(0.0);
+  
   int spin(0);
-  RUNTIME_CHECK(T.size(0) == nwalk, "");
-  RUNTIME_CHECK(T.size(1) == nact, "");
-  RUNTIME_CHECK(T.size(2) == nelec, "");
-  RUNTIME_CHECK(wgt.size(1) == nwalk, "");
-  RUNTIME_CHECK(E.size(1) == 3, "");
-  RUNTIME_CHECK(KE.size(0) == wgt.size(0), "");
-  RUNTIME_CHECK(KE.size(1) == nwalk, "");
+  auto refc=abij.get_reference_configuration_device(spin);
   // no use of blocks yet! 
   long max2=0, max3=0;
   for (int nex = 1; nex < abij.maximum_excitation_number()[spin]; nex++)
@@ -311,28 +308,23 @@ inline void ph_excited_energies_first_step(int nelec, int nact, PH_EXCT& abij, M
     if( ndet > max2 ) max2 = ndet;
     if( ndet * nex * nact > max3 ) max3 = ndet * nex * nact;
   }
-  StaticVector<VType, buffer_alloc_type> RBuff(iextensions<1u>{nwalk*max3},
-                buffer_manager.get_generator().template get_allocator<VType>());
-  auto refc=abij.get_reference_configuration_device(spin);
 
-  ma::fill(E, ComplexType(0.0));  
-    
   for (int nex = 1, idet=1; nex < abij.maximum_excitation_number()[spin]; nex++)
   {
     int ndet = abij.number_of_unique_excitations(nex)[spin];
     if(ndet > 0) {
       auto iexcit=abij.get_excitation_list_device(spin, nex);
-      Array_ref<VType, 4, ptr> R(RBuff.origin(), {nwalk, ndet, nex, nact});
+      memory::buffered_array<MEM,ComplexType,4> R(nwalk, ndet, nex, nact);
+      R() = ComplexType(0.0);
 
       // generate R matrices for current excitation shell
-      fill_n(R.origin(), R.num_elements(), VType(0.0));  
-      get_compact_ph_R_matrices(0, 1, spin, nwalk, ndet, nex, nelec, nact, iexcit, refc, abij, T, R); 
+      get_compact_ph_R_matrices<MEM>(iexcit, refc, T, R); 
 
       // assumes no TG_local parallelization for now, needs TG for this
       // calculate E and KE for current shell of excitations
-      auto KEr=KE.sliced(idet,idet+ndet);
-      HamOps.ph_excited_energy(Alpha, ndet, nex, nelec, nact, iexcit, refc, E, 
-                wgt.sliced(idet, idet+ndet), R, KEr, true); 
+      auto KEr=KE(range(idet,idet+ndet),all,all);
+      HamOps.ph_excited_energy(Alpha, nelec, iexcit, refc, E, 
+                wgt(range(idet, idet+ndet),all), R, KEr, true); 
 
       idet += ndet;
     }
@@ -345,26 +337,25 @@ inline void ph_excited_energies_first_step(int nelec, int nact, PH_EXCT& abij, M
 // T(nwalk,nact,nelec]
 // E[nwalk,3]
 // KE[ndet,nwalk,nke]
-template<class PH_EXCT, class MatW, class MatT, class MatE, class MatKr, class Op>
-inline void ph_excited_energies_second_step(int nelec, int nact, PH_EXCT& abij, MatW&& wgt,
-       MatT&& T, MatE&& E, MatKr&& KE, Op& HamOps, [[maybe_unused]) int buffer_size_in_MB = 2048)
+template<class Op>
+void ph_excited_energies_second_step(ph_excitations<int, ComplexType>& abij,
+         nda::MemoryMatrix auto&& wgt, nda::MemoryArrayOfRank<3> auto T,
+         nda::MemoryMatrix auto&& E, nda::MemoryArrayOfRank<3> auto&& KE, Op& HamOps)
 {
-  using VType = typename std::decay_t<MatKr>::element_type;
-  using ptr = device_ptr<VType>;  
-  using buffer_alloc_type       = DeviceBufferManager::template allocator_t<VType>;
-  using Cbuffer_alloc_type       = DeviceBufferManager::template allocator_t<ComplexType>;
+  using nda::range;
+  auto all = range::all;
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<decltype(T)>(); 
+  memory::check_memory_space<MEM>(wgt,T,E,KE);
+  auto [nwalk,nact,nelec] = T.shape();
+  int nconfg = KE.extent(0);
+  int nke = KE.extent(2);
+  utils::check(E.extent(0) == nwalk and E.extent(1)==3, "Size mismatch");
+  utils::check(wgt.extent(0) == nconfg and wgt.extent(1)==nwalk, "Size mismatch");
+  utils::check(KE.extent(1) == nwalk, "Size mismatch");
+  E() = ComplexType(0.0);
 
-  DeviceBufferManager buffer_manager;
-  int nwalk = E.size(0);
   int spin(1);
-  int nke = KE.size(2);
-  RUNTIME_CHECK(T.size(0) == nwalk, "");
-  RUNTIME_CHECK(T.size(1) == nact, "");
-  RUNTIME_CHECK(T.size(2) == nelec, "");
-  RUNTIME_CHECK(wgt.size(1) == nwalk, "");
-  RUNTIME_CHECK(E.size(1) == 3, "");
-  RUNTIME_CHECK(KE.size(0) == wgt.size(0), "");
-  RUNTIME_CHECK(KE.size(1) == nwalk, "");
+  auto refc=abij.get_reference_configuration_device(spin);
   // no use of blocks yet!
   long max2=0, max3=0;
   for (int nex = 1; nex < abij.maximum_excitation_number()[spin]; nex++)
@@ -373,45 +364,33 @@ inline void ph_excited_energies_second_step(int nelec, int nact, PH_EXCT& abij, 
     if( ndet > max2 ) max2 = ndet;
     if( ndet * nex * nact > max3 ) max3 = ndet * nex * nact;
   }
-  StaticVector<VType, buffer_alloc_type> RBuff(iextensions<1u>{nwalk*max3},
-                buffer_manager.get_generator().template get_allocator<VType>());
-  StaticVector<VType, buffer_alloc_type> KEBuff(iextensions<1u>{nwalk*max2*nke},
-                buffer_manager.get_generator().template get_allocator<VType>());
-  StaticVector<ComplexType, Cbuffer_alloc_type> eloc(iextensions<1u>{nwalk},
-                buffer_manager.get_generator().template get_allocator<ComplexType>());
-  auto refc=abij.get_reference_configuration_device(spin);
 
-  ma::fill(E, ComplexType(0.0));  
-    
   for (int nex = 1, idet=1; nex < abij.maximum_excitation_number()[spin]; nex++)
   {
     int ndet = abij.number_of_unique_excitations(nex)[spin];
     if(ndet > 0) {
       auto iexcit=abij.get_excitation_list_device(spin, nex);
-      Array_ref<VType, 4, ptr> R(RBuff.origin(), {nwalk, ndet, nex, nact});
-      Array_ref<VType, 3, ptr> KEl(KEBuff.origin(), {ndet, nwalk, nke});
+      memory::buffered_array<MEM,ComplexType,4> R(nwalk, ndet, nex, nact);
+      memory::buffered_array<MEM,ComplexType,3> KEl(ndet, nwalk, nke);
+      R() = ComplexType(0.0);
+      KEl() = ComplexType(0.0);
 
       // generate R matrices for current excitation shell
-      fill_n(R.origin(), R.num_elements(), VType(0.0));  
-      get_compact_ph_R_matrices(0, 1, spin, nwalk, ndet, nex, nelec, nact, iexcit, refc, abij, T, R);
+      get_compact_ph_R_matrices<MEM>(iexcit, refc, T, R);
 
-      // assumes no TG_local parallelization for now, needs TG for this
       // calculate E and KE for current shell of excitations
-      HamOps.ph_excited_energy(Beta, ndet, nex, nelec, nact, iexcit, refc, E, 
-                wgt.sliced(idet, idet+ndet), R, KEl, true); 
+      HamOps.ph_excited_energy(Beta, nelec, iexcit, refc, E, 
+                wgt(range(idet, idet+ndet),all), R, KEl, true); 
 
-      ma::fill(eloc, ComplexType(0.0));
-      // MAM: FIX why loop over idet? Run all simultaneously!	
       // eloc[iw] = sum_d_ke KE[d,iw,ke] KEl[d,iw,ke]
-      for(int d=0; d<ndet; d++)  
-	ma::dot('N','N', ComplexType(1.0), KE[idet+d], KEl[d], ComplexType(1.0), eloc);
-      ma::axpy(ComplexType(1.0), eloc, E({0,nwalk},2));
+      nda::tensor::contract(ComplexType(1.0),KE(range(idet,idet+ndet),all,all),"dwn",KEl,"dwn",
+                            ComplexType(1.0),E(all,2),"w");
  
       idet += ndet;
     }
   }
 }
-
+/*
 #if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
 template<class MArray, class MatA, class PH_EXCT,
          typename = std::enable_if_t< is_device_array<MatA>::value >,

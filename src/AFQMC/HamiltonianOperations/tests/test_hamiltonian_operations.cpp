@@ -148,6 +148,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     app_log(1," E1: {} ", eloc_h(0,0));
   if (std::abs(file_data.E2) > 1e-8)
   {
+    eloc_h(all,1) += eloc_h(all,2);
     ARRAY_EQUAL(eloc_h(all,1), nda::array<ComplexType,1>(nwalk,file_data.E2)); 
   }
   else
@@ -156,7 +157,6 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     app_log(1," EXX: {}", eloc_h(0,1)); 
     app_log(1," ETotal: {}", eloc_h(0,0)+eloc_h(0,1)+eloc_h(0,2)); 
   }
-return;
 
   double dt = 0.01;
   auto nCV  = HOps.number_of_cholesky_vectors();
@@ -187,10 +187,9 @@ return;
     app_log(1," Xsum: {}", Xsum);
     app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
   }
-return;
 
-  auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
-  REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
+//  auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
+//  REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
 
   auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
   auto vHS = HOps.vHS(X,dt);

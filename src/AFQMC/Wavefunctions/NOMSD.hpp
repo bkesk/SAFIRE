@@ -144,7 +144,6 @@ public:
   /*
    * Green function of the trial wave-funtion. 
    */
-  template<MEMORY_SPACE M>
   auto G_MF();
 
   template<class... Args>

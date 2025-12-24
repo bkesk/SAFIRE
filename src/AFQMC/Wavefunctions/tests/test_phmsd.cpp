@@ -45,12 +45,6 @@
 #include "AFQMC/Utilities/readWfn.h"
 #include "numerics/sparse/sparse.hpp"
 
-using std::complex;
-using std::ifstream;
-using std::string;
-using std::real;
-using std::imag;
-
 extern std::string UTEST_HAMIL, UTEST_WFN;
 
 namespace sfqmc
@@ -123,27 +117,31 @@ void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communica
 }
 
 template<class Mat>
-void getSlaterMatrix(Mat&& SM, math::sparse::CSRMatrix auto&& Orbs, nda::MemoryVector auto&& occs, std::string orb_type)
+void getSlaterMatrix_mixed(Mat&& SM, math::sparse::CSRMatrix auto&& Orbs, nda::MemoryVector auto&& occs)
 {
   SM() = ComplexType(0.0);
-  if( orb_type == "mixed" ) {
-    auto row_begin = Orbs.row_begin();
-    auto row_end = Orbs.row_end();
-    auto vals = Orbs.values();
-    auto cols = Orbs.columns();
-    for (int r = 0; r < occs.extent(0); r++)
-      for(int j=row_begin(occs(r)); j<row_end(occs(r)); ++j)
-        SM(r,cols(j)) = vals(j); 
-  } else {
-    for (int r = 0; r < occs.extent(0); r++)
-      SM(r,occs(r)) = ComplexType(1.0); 
-  }
+  auto row_begin = Orbs.row_begin();
+  auto row_end = Orbs.row_end();
+  auto vals = Orbs.values();
+  auto cols = Orbs.columns();
+  for (int r = 0; r < occs.extent(0); r++)
+    for(int j=row_begin(occs(r)); j<row_end(occs(r)); ++j)
+      SM(r,cols(j)) = vals(j); 
+}
+
+template<class Mat>
+void getSlaterMatrix_occ(Mat&& SM, nda::MemoryVector auto&& occs)
+{
+  SM() = ComplexType(0.0);
+  for (int r = 0; r < occs.extent(0); r++)
+    SM(r,occs(r)) = ComplexType(1.0);
 }
 
 template<MEMORY_SPACE MEM>
 void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
+  using sfqmc::utils::VALUE_EQUAL;
   using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   auto all = range::all;
@@ -160,12 +158,13 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "PHMSD");
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
-  WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "PHMSD");
-  int nspin            = (type == COLLINEAR) ? 2 : 1;
-  int npol             = (type == NONCOLLINEAR) ? 2 : 1;
-  int nel              = (type == COLLINEAR) ? nup+ndown : nup;
-  int nwalk            = 1; 
-  int ndets            = 100; 
+  WALKER_TYPES type = afqmc::getWalkerType(wfn_file, "PHMSD");
+  int nspin         = (type == COLLINEAR) ? 2 : 1;
+  int npol          = (type == NONCOLLINEAR) ? 2 : 1;
+  int nel           = (type == COLLINEAR) ? nup+ndown : nup;
+  int nwalk         = 1; 
+  int ndets         = 100; 
+  double dt         = 0.01;
   std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
 
   std::map<std::string, AFQMCInfo> InfoMap;
@@ -206,8 +205,12 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   // apply small unitary rotation to initial_guess
   // add different rotations to every walker to test routines
   {
+//    std::mt19937 generator(0);
+//    std::normal_distribution<RealType> distribution(0.0, 1.0);
     nda::array<ComplexType,3> rotated_initial_guess(nspin,npol*NMO,nup);
     nda::array<ComplexType,2> R = nda::rand(std::array<long,2>{npol*NMO,npol*NMO});
+//    nda::array<ComplexType,2> R(npol*NMO,npol*NMO);
+//    for(auto &v : R) v = ComplexType(distribution(generator),distribution(generator)); 
     nda::array<ComplexType,1> tau(npol*NMO);
     nda::lapack::geqrf(nda::transpose(R),tau);
     nda::lapack::gqr(nda::transpose(R),tau);
@@ -228,17 +231,76 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   read_ph_wavefunction_hdf(g, coeffs, occs, ndets, type, 
                                 NMO, nup, ndown, PsiT_MO, orb_type);
 
+  if(orb_type=="occ") {
+    PsiT_MO.resize(1);
+    PsiT_MO(0) = PsiT_Matrix<HOST_MEMORY>({npol*NMO,npol*NMO},1);
+    for(int i=0; i<npol*NMO; ++i)
+      PsiT_MO(0).emplace_back({i,i},ComplexType(1.0));
+  }
+
+  // Using NOMSD as reference. Making h5 from input phmsd wfn
+  std::string nomsd_file = "_nomsd_dummy_.h5";
+  if(mpi->comm.root()) {
+    // 
+    h5::file f_(nomsd_file,'w');
+    h5::group g_(f_);
+    h5::group wg = g_.create_group("Wavefunction");
+    h5::group ng = wg.create_group("NOMSD");
+ 
+    nda::vector<int> dims = {NMO,nup,ndown,int(type),coeffs.size()};
+    nda::h5_write(ng,"dims",dims);
+    nda::h5_write(ng,"ci_coeffs",coeffs);
+
+    {
+      auto Psi0 = initial_guess(0,all,all);
+      nda::h5_write(ng,"Psi0_alpha",Psi0);
+    }
+    if(type == COLLINEAR) {
+      auto Psi0 = initial_guess(1,all,range(ndown));
+      nda::h5_write(ng,"Psi0_beta",Psi0);
+    }
+
+    for(int idet=0, n=0; idet<ndets; ++idet) {
+      {
+        h5::group gi = ng.create_group(std::string("PsiT_")+std::to_string(n));
+        math::sparse::CSR2HDF(gi,PsiT_MO(0),occs(idet,range(nup)));
+        n++;
+      }
+      if(type == COLLINEAR) {
+        h5::group gi = ng.create_group(std::string("PsiT_")+std::to_string(n));
+        nda::vector<int> ob = occs(idet,range(nup,nup+ndown))-NMO;
+        math::sparse::CSR2HDF(gi,PsiT_MO( PsiT_MO.extent(0)-1 ),ob);
+        n++;
+      }
+    }
+  }
+  mpi->comm.barrier();
+
+  ptree nomsd_pt;
+  nomsd_pt.put("name","nomsd");
+  nomsd_pt.put("system","info0");
+  nomsd_pt.put("filename",nomsd_file);
+
+  WfnFac.push("nomsd", nomsd_pt);
+  Wavefunction& nomsd = WfnFac.getWavefunction(mpi, "nomsd", type, &ham, nwalk);
+
   // 1. Overlap 
   ComplexType ovlp_sum = ComplexType(0.0);
   for (int idet = 0; idet < ndets; idet++)
   {
     // Construct slater matrix from given set of occupied orbitals.
     nda::array<ComplexType,1> ov(nwalk,ComplexType(0.0));
-    getSlaterMatrix(PsiA, PsiT_MO(0), occs(idet,range(nup)),orb_type);
+    if(orb_type == "mixed")
+      getSlaterMatrix_mixed(PsiA, PsiT_MO(0), occs(idet,range(nup)));
+    else
+      getSlaterMatrix_occ(PsiA, occs(idet,range(nup)));
     det_ops::Log_Overlap(PsiA,wset.template SlaterMatrices<HOST_MEMORY>(Alpha),ov);
     if(type == COLLINEAR) {
       nda::array<int, 1> ob = occs(idet,range(nup,nup+ndown)) - NMO; 
-      getSlaterMatrix(PsiB, PsiT_MO(1), ob,orb_type);
+      if(orb_type == "mixed")
+        getSlaterMatrix_mixed(PsiB, PsiT_MO(PsiT_MO.size()-1), ob);
+      else
+        getSlaterMatrix_occ(PsiB, ob);
       det_ops::Log_Overlap(PsiB,wset.template SlaterMatrices<HOST_MEMORY>(Beta),ov);
     }
     ovlp_sum += std::conj(coeffs[idet]) * std::exp(ov(0));
@@ -246,37 +308,154 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   wfn.Log_Overlap(wset);
   
   // log(ovlp_sum)
-  ovlp_sum = std::log(ovlp_sum);
+  ComplexType log_ovlp_sum = std::log(ovlp_sum);
 
   // the phase can be off by 2*pi due to small round-off errors around 0, what to do???
   for (auto it = wset.begin(); it != wset.end(); ++it)
-    REQUIRE(std::abs(it->get_property(OVLP)) == Approx(std::abs(ovlp_sum)));
+    VALUE_EQUAL(std::exp(it->get_property(OVLP)), ovlp_sum);
+
+  {
+    memory::array<MEM,ComplexType,1> log_ov(nwalk);
+    nomsd.Log_Overlap(wset,log_ov); 
+    auto ov_h = nda::to_host(log_ov);
+    ov_h() = nda::exp(ov_h());
+    for(int i=0; i<nwalk; ++i)
+      VALUE_EQUAL(std::exp(wset[i].get_property(OVLP)), ov_h(i)); 
+  }
 
   // 2. Green function
-  nda::array<ComplexType,3> G(nwalk,nspin*npol*NMO,npol*NMO);
-  nda::array<ComplexType,3> Gt(nwalk,nspin*npol*NMO,npol*NMO);
-  G() = ComplexType(0.0);
-  for (int idet = 0; idet < ndets; idet++)
   {
-    nda::array<ComplexType,1> ov(nwalk,ComplexType(0.0));
-    Gt() = ComplexType(0.0);
-    getSlaterMatrix(PsiA, PsiT_MO(0), occs(idet,range(nup)),orb_type);
-    det_ops::MixedDensityMatrix(PsiA,wset.template SlaterMatrices<HOST_MEMORY>(Alpha),Gt(all,range(npol*NMO),all),ov,false);
-    if(type == COLLINEAR) {
-      nda::array<int, 1> ob = occs(idet,range(nup,nup+ndown)) - NMO;
-      getSlaterMatrix(PsiB, PsiT_MO(1), ob,orb_type);
-      det_ops::MixedDensityMatrix(PsiB,wset.template SlaterMatrices<HOST_MEMORY>(Beta),Gt(all,range(npol*NMO,2*npol*NMO),all),ov,false);
+    nda::array<ComplexType,3> G(nwalk,nspin*npol*NMO,npol*NMO);
+    nda::array<ComplexType,3> Gt(nwalk,nspin*npol*NMO,npol*NMO);
+    G() = ComplexType(0.0);
+    for (int idet = 0; idet < ndets; idet++)
+    {
+      nda::array<ComplexType,1> ov(nwalk,ComplexType(0.0));
+      Gt() = ComplexType(0.0);
+      if(orb_type == "mixed")
+        getSlaterMatrix_mixed(PsiA, PsiT_MO(0), occs(idet,range(nup)));
+      else
+        getSlaterMatrix_occ(PsiA, occs(idet,range(nup)));
+      det_ops::MixedDensityMatrix(PsiA,wset.template SlaterMatrices<HOST_MEMORY>(Alpha),Gt(all,range(npol*NMO),all),ov,false);
+      if(type == COLLINEAR) {
+        nda::array<int, 1> ob = occs(idet,range(nup,nup+ndown)) - NMO;
+        if(orb_type == "mixed")
+          getSlaterMatrix_mixed(PsiB, PsiT_MO(PsiT_MO.size()-1), ob);
+        else
+          getSlaterMatrix_occ(PsiB, ob);
+        det_ops::MixedDensityMatrix(PsiB,wset.template SlaterMatrices<HOST_MEMORY>(Beta),Gt(all,range(npol*NMO,2*npol*NMO),all),ov,false);
+      }
+      for(int iw=0; iw<nwalk; ++iw)
+        G(iw,all,all) += std::conj(coeffs[idet]) * std::exp(ov(iw) - log_ovlp_sum) * Gt(iw,all,all); 
     }
-    for(int iw=0; iw<nwalk; ++iw)
-      G(iw,all,all) += std::conj(coeffs[idet]) * std::exp(ov(iw) - ovlp_sum) * Gt(iw,all,all); 
+    memory::array<MEM,ComplexType,3> Gd(nwalk,nspin*npol*NMO,npol*NMO);
+    auto Gt2d = nda::reshape(Gd,std::array<long,2>{nwalk,nspin*npol*NMO*npol*NMO});
+    Gt2d() = ComplexType(0.0);
+    wfn.MixedDensityMatrix(wset,Gt2d,false);
+    ARRAY_EQUAL(G,Gd);
   }
-  auto Gt2d = nda::reshape(Gt,std::array<long,2>{nwalk,nspin*npol*NMO*npol*NMO});
-  Gt2d() = ComplexType(0.0);
-  wfn.MixedDensityMatrix(wset,Gt2d,false);
-  ARRAY_EQUAL(G,Gt);
 
-  wfn.Energy(wset);
-  app_log(2, "Energy: E1:{}, EJ:{}, EXX:{}",wset[0].get_property(E1_),wset[0].get_property(EJ_),wset[0].get_property(EXX_));
+  memory::array<MEM,ComplexType,2> eloc_ph0(nwalk,3);
+  memory::array<MEM,ComplexType,1> ov_ph0(nwalk);
+  wfn.Energy(wset,eloc_ph0,ov_ph0);
+  nda::tensor::scale(ComplexType(1.0),ov_ph0,nda::tensor::op::EXP);
+
+  {
+    memory::array<MEM,ComplexType,2> eloc(nwalk,3);
+    memory::array<MEM,ComplexType,1> ov(nwalk);
+    nomsd.Energy(wset,eloc,ov);
+    nda::tensor::scale(ComplexType(1.0),ov,nda::tensor::op::EXP);
+    ARRAY_EQUAL(ov_ph0,ov);
+    ARRAY_EQUAL(eloc_ph0,eloc);
+  }
+
+  if(wfn.getHamType() == RealDenseFactorized)  // add THC
+  {
+    ptree wfn1_pt;
+    wfn1_pt.put("name","wfn1");
+    wfn1_pt.put("system","info0");
+    wfn1_pt.put("filename",wfn_file);
+    wfn1_pt.put("rediag","no");
+    wfn1_pt.put("ndets_to_read",ndets);
+    wfn1_pt.put("algorithm",1);
+
+    WfnFac.push("wfn1", wfn1_pt);
+    Wavefunction& wfn1 = WfnFac.getWavefunction(mpi, "wfn1", type, &ham, nwalk);
+
+    memory::array<MEM,ComplexType,2> eloc(nwalk,3);
+    memory::array<MEM,ComplexType,1> ov(nwalk);
+    wfn1.Energy(wset,eloc,ov);
+    nda::tensor::scale(ComplexType(1.0),ov,nda::tensor::op::EXP);
+
+    ARRAY_EQUAL(ov_ph0,ov);
+    ARRAY_EQUAL(eloc_ph0,eloc);
+  }
+
+  // vMF
+  {
+    memory::array<MEM,ComplexType,1> v(wfn.number_of_cholesky_vectors());
+    wfn.vMF(v,dt);
+  }
+
+  // G_MF
+  {
+    auto gMF = wfn.G_MF();
+  }
+
+  // vbias
+  memory::array<MEM,ComplexType,2> X(nwalk,wfn.number_of_cholesky_vectors());
+  wfn.vbias(wset, X, dt);
+  {
+    auto X_h = nda::to_host(X);
+    ComplexType Xsum = 0;
+    if (std::abs(file_data.Xsum) > 1e-8)
+    {
+      for (int n = 0; n < nwalk; n++)
+      {
+        Xsum = nda::sum(X_h(n,all));
+        REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
+        REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
+      }
+    }
+    else
+    {
+      Xsum = nda::sum(X_h(0,all));
+      ComplexType Xsum2 = 0;
+      for (auto& v: X_h(0,all) )
+        Xsum2 += ComplexType(0.5) * v * v;
+      app_log(1," Xsum: {}", Xsum);
+      app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
+    }
+
+    memory::array<MEM,ComplexType,2> X2(nwalk,nomsd.number_of_cholesky_vectors());
+    nomsd.vbias(wset, X2, dt);
+    ARRAY_EQUAL(X,X2);
+  }
+
+  // vHS
+  auto vHS_d = wfn.vHS(X, dt);
+  auto vHS = nda::to_host(vHS_d);
+
+  ComplexType Vsum = 0;
+  if (std::abs(file_data.Vsum) > 1e-8)
+  {
+    for (int n = 0; n < nwalk; n++)
+    {
+      Vsum = nda::sum(vHS(all,n,all,all));
+      REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
+      REQUIRE(imag(Vsum) == Approx(imag(file_data.Vsum)));
+    }
+  }
+  else
+  {
+    Vsum = nda::sum(vHS(all,0,all,all));
+    app_log(1," Vsum: {}", Vsum);
+  }
+
+  mpi->comm.barrier();
+  if(mpi->comm.root()) remove(nomsd_file.c_str());
+  mpi->comm.barrier();
+
 }
 
 TEST_CASE("test_read_phmsd", "[test_read_phmsd]")

@@ -67,14 +67,15 @@ long find_excitation(Vector const& abij, Vector& v)
 }
 
 template<class excitations>
-std::map<int, int> find_active_space(bool single_list, WALKER_TYPES walker_type, excitations const& abij, int NMO, int nup, int ndown)
+//std::map<int, int> find_active_space(bool single_list, WALKER_TYPES walker_type, excitations const& abij, int NMO, int nup, int ndown)
+std::vector<long> find_active_space(WALKER_TYPES walker_type, excitations const& abij, int NMO, int nup, int ndown)
 {
   int npol = ( (walker_type == NONCOLLINEAR) ? 2 : 1 );
   if( walker_type == NONCOLLINEAR ) utils::check(ndown == 0, "ndown>0 with non-collinear");
-  std::map<int, int> mo2active;
-  for (int i = 0; i < 2 * NMO; i++)
-    mo2active[i] = -1;
-  std::vector<long> count(2 * NMO);
+//  std::map<int, int> mo2active;
+//  for (int i = 0; i < 2 * NMO; i++)
+//    mo2active[i] = -1;
+  std::vector<long> count(2 * NMO, 0);
   // reference first
   auto refc = abij.reference_configuration();
   for (int i = 0; i < nup + ndown; i++, ++refc)
@@ -104,8 +105,11 @@ std::map<int, int> find_active_space(bool single_list, WALKER_TYPES walker_type,
       }
     }
   }
+  return count;
+/*
   if (not single_list)
   {
+// check!!!!!
     utils::check(walker_type == COLLINEAR, "single_list=false requires collinear.");
     int ik = 0;
     for (int i = 0; i < NMO; ++i)
@@ -132,6 +136,7 @@ std::map<int, int> find_active_space(bool single_list, WALKER_TYPES walker_type,
     }
   }
   return mo2active;
+*/
 }
 
 /*

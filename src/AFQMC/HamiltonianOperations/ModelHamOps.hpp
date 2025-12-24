@@ -291,12 +291,6 @@ public:
   }
 
   template<class... Args>
-  void fast_energy([[maybe_unused]] Args&&... args)
-  {
-    APP_ABORT(" Error: fast_energy not implemented in ModelHamOps. ");
-  }
-
-  template<class... Args>
   void ph_reference_energy([[maybe_unused]] Args&&... args)
   {
     APP_ABORT(" Error: ph_reference_energy not implemented yet. ");
@@ -422,8 +416,6 @@ public:
   }
   int number_of_cholesky_vectors() const { return nCV; }
   int number_of_ke_vectors() const { return ET.get_n2IJ().extent(0); }
-
-  bool fast_ph_energy() const { return false; }
 
   nda::array<ComplexType, 2> getHSPotentials()
   { return nda::array<ComplexType, 2>{}; }

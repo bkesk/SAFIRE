@@ -329,7 +329,7 @@ private:
       }
       {
         // now transpose  
-        nda::array<ComplexType,2> Vn_array = nda::transpose(math::sparse::to_array<ComplexType>(VnT));
+        nda::array<ComplexType,2> Vn_array = math::sparse::to_array<'T'>(VnT);
         auto Vn = math::sparse::to_csr<HOST_MEMORY,int,int>(Vn_array);
         utils::check(Vn.nnz() == SpVn.nnz(), "Error: Contact developers.");                  
         nda::range rng(Vn.nnz());

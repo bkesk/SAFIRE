@@ -128,11 +128,11 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
         if(mpi->node_comm.root()) 
           for(int id=0; id<ndets_to_read; ++id)
             for(int is=0; is<nspin; ++is)
-              PsiT_dense(id,is)() = math::sparse::to_array<ComplexType>(PsiT(id,is));
+              PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
       } else {
         for(int id=0; id<ndets_to_read; ++id)
           for(int is=0; is<nspin; ++is)
-            PsiT_dense(id,is)() = math::sparse::to_array<ComplexType>(PsiT(id,is));
+            PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
       }
       mpi->comm.barrier();
       return Wavefunction(NOMSD<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
@@ -185,39 +185,38 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
     // 3. Construct Structures.
     ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, npol*NMO, nup, ndown);
 
-    // find active space orbitals and create super trial matrix PsiT
+    // Final Psi matrix, where we will remove orbitals that do not appear in any configuration 
+    // and relabel occupation indexes
     nda::array<PsiT_Matrix<HOST_MEMORY>,1> PsiT(PsiT_MO.extent(0));
-    // expect mapped over range [0-2*NMO], but alpha and beta sectors with 0-based active indexes
-    std::map<int, int> mo2active(find_active_space(PsiT_MO.extent(0) == 1, walker_type, abij, NMO, nup, ndown));
-    std::map<int, int> acta2mo;
-    std::map<int, int> actb2mo;
-    std::vector<int> active_alpha;
-    std::vector<int> active_beta;
-    std::vector<int> active_combined;
-    for (int i = 0; i < npol*NMO; i++)
-    {
-      if (mo2active[i] >= 0)
-      {
-        active_alpha.push_back(i);
-        acta2mo[mo2active[i]] = i;
-      }
-      if (walker_type == COLLINEAR) {
-        if(mo2active[i + NMO] >= 0)
-        {
-          active_beta.push_back(i);
-          actb2mo[mo2active[i + NMO]] = i + NMO;
-        }
-        if (mo2active[i] >= 0 || mo2active[i + NMO] >= 0)
-          active_combined.push_back(i);
-      } else {
-        if (mo2active[i] >= 0) 
-          active_combined.push_back(i);
-      }
-    }
+
+    // returns the number of times a given orbital appears in the ci expansion
+    auto orb_counts = find_active_space(walker_type, abij, NMO, nup, ndown);
+
+    // mapping from old to new occupation indexes 
+    std::map<int, int> mo2active;
+    for (int i = 0; i < 2 * NMO; i++) mo2active[i] = -1;
 
     if (PsiT_MO.extent(0) == 1)
     {
-      // RHF reference
+
+      std::vector<int> active_combined;
+      for (int i = 0; i < npol*NMO; i++)
+      {
+        if (walker_type == COLLINEAR) {
+          if (orb_counts[i] >= 0 || orb_counts[i + NMO] >= 0) {
+            if(orb_counts[i] >= 0) mo2active[i] = active_combined.size();
+            if(orb_counts[i+NMO] >= 0) mo2active[i+NMO] = active_combined.size();
+            active_combined.push_back(i);
+          }
+        } else {
+          if (orb_counts[i] >= 0) { 
+            mo2active[i] = active_combined.size();
+            active_combined.push_back(i);
+          } 
+        } 
+      }
+
+      // RHF/GHF reference
       auto nnzpr = get_nnz(PsiT_MO(0), active_combined.data(), active_combined.size(), 0);
       PsiT(0) = std::move(PsiT_Matrix<HOST_MEMORY>({active_combined.size(),npol*NMO},nnzpr));
       {
@@ -228,17 +227,24 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
         for (int k = 0; k < active_combined.size(); k++)
         {
           size_t ki = active_combined[k]; // occupied state #k
+          // change alpha occupation from ki to k
           for (long ic = row_begin(ki); ic < row_end(ki); ic++)
             PsiT(0).emplace_back({k, cols(ic)}, vals(ic));
         }
       }
-      // add second component
-      if( walker_type == COLLINEAR )  
-        PsiT(1) = PsiT[0];
+
     }
     else
     {
       // UHF reference
+      std::vector<int> active_alpha;
+      std::vector<int> active_beta;
+      for (int i = 0; i < npol*NMO; i++)
+      {
+        if(orb_counts[i] >= 0) active_alpha.push_back(i);
+        if(orb_counts[i + NMO] >= 0) active_beta.push_back(i);
+      }
+
       {
         auto nnzpr = get_nnz(PsiT_MO[0], active_alpha.data(), active_alpha.size(), 0);
         PsiT(0) = std::move(PsiT_Matrix<HOST_MEMORY>({active_alpha.size(),npol*NMO},nnzpr));
@@ -249,6 +255,8 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
         for (int k = 0; k < active_alpha.size(); k++)
         {
           size_t ki = active_alpha[k]; // occupied state #k
+          // change alpha occupation from ki to k
+          mo2active[ki] = k;
           for (long ic = row_begin(ki); ic < row_end(ki); ic++)
             PsiT(0).emplace_back({k, cols(ic)}, vals(ic));
         }
@@ -262,7 +270,9 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
         auto row_end = PsiT_MO(1).row_end();
         for (int k = 0; k < active_beta.size(); k++)
         { 
+          // change beta occupation from ki to k
           size_t ki = active_beta[k]; // occupied state #k
+          mo2active[ki+NMO] = k;
           for (long ic = row_begin(ki); ic < row_end(ki); ic++)
             PsiT(1).emplace_back({k, cols(ic)}, vals(ic));
         }
@@ -293,7 +303,7 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
         for (; it < ite; ++it)
         {
           auto exct = (*it) + n; // only need to map excited state indexes
-          for (int np = 0; np < n; ++np, ++exct)
+          for (int np = 0; np < n; ++np, ++exct) 
             *exct = mo2active[*exct];
         }
       }
@@ -348,10 +358,9 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
     nda::array<PsiT_Matrix<MEM>, 1> PsiT_1d(PsiT_2d.extent(1));
     for(int i=0; i<PsiT_2d.extent(1); i++)
       PsiT_1d(i) = std::move(PsiT_2d(0,i));
-    
+
     return Wavefunction(PHMSD<MEM>(AFinfo, pt, walker_type, mpi, std::move(HOps),
-                    std::move(acta2mo), std::move(actb2mo), std::move(abij), 
-                    std::move(det_coupling_matrix),
+                    std::move(abij), std::move(det_coupling_matrix),
                     std::move(PsiT_1d), NCE, targetNW));
   }
   else
