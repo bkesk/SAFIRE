@@ -64,8 +64,6 @@ public:
         WALKER_TYPES wlk,
         std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
         HamiltonianOperations<MEM>&& hop_,
-        std::map<int, int>&& acta2mo_,
-        std::map<int, int>&& actb2mo_,
         ph_excitations<int, ComplexType>&& abij_,
         nda::array<csrM,1>&& op_spin_det_coupling_,
         nda::array<csrM,1>&& orbs_,
@@ -75,8 +73,6 @@ public:
         mpi(_mpi),
         walker_type(wlk),
         HamOp(std::move(hop_)),
-        acta2mo(std::move(acta2mo_)),
-        actb2mo(std::move(actb2mo_)),
         abij(std::move(abij_)),
         OpSpinDetCouplings(std::move(op_spin_det_coupling_)),
         OrbMats(std::move(orbs_)),
@@ -99,6 +95,9 @@ public:
 
     if (walker_type == FULLYPOLARIZED)
       APP_ABORT("PHMSD has not yet been implemented for FULLYPOLARIZED walkers.");
+
+    const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
+    utils::check(OrbMats.extent(0)==1 or OrbMats.extent(0)==nspin, "PHMSD: Invalid sise of OrbMats");
 
     // setup device structures
 
@@ -153,7 +152,8 @@ public:
       "ndets_to_read",
       "restart_file",
       "filename",
-      "rediag"
+      "rediag",
+      "compute"
     };
     io::compare_known_keys("particle-hole multi-Slater det. (PHMSD) Wavefunction", pt1, pt0,pass_through_keys);
     return pt1;
@@ -242,7 +242,7 @@ public:
   { 
     memory::check_memory_space<MEM>(v);
     AFQMCTimer.start(G_for_vbias_timer);
-    int nact  = OrbMats(0).extent(0) + (walker_type==COLLINEAR ? 0 : OrbMats(1).extent(0));
+    int nact  = OrbMats(0).extent(0) + (walker_type==COLLINEAR ? OrbMats(OrbMats.extent(0)-1).extent(0) : 0);
     int nspin = (walker_type==COLLINEAR ? 2 : 1);
     int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
     int nw = wset.size();
@@ -455,9 +455,6 @@ protected:
   // 2: calculate Fapbq and call ph_energy_Fapbq
   int energy_algorithm = 0;
 
-  std::map<int, int> acta2mo;
-  std::map<int, int> actb2mo;
-
   ph_excitations<int, ComplexType> abij; 
 
   // sparse matrix with opposite spin determinant couplings
@@ -477,8 +474,7 @@ protected:
   void energy_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov);
 
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
-  void energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
-  { utils::check(false, "fiinish"); }
+  void energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov);
 
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
   void energy_alg2(const WlkSet& wset, Mat&& E, TVec&& Ov)

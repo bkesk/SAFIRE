@@ -101,7 +101,8 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   int npol   = ((type == NONCOLLINEAR) ? 2 : 1);
   int nel_up = PsiT(0,0).extent(0); 
   int nel_dn = ( type == COLLINEAR ? PsiT(0,1).extent(0) : 0 ); 
-  utils::check(PsiT.extent(1) == nspin, base_error + "PsiT.extent(1) != nspin");
+  int nspin_in_PsiT = PsiT.extent(1);
+  utils::check(nspin_in_PsiT==1 or nspin_in_PsiT==nspin, base_error + "Invalid PsiT shape");
 
   // generate trial wavefunctions in appropriate form
   // ModelHamOps expects a vector of PsiC(i,a) = (psiT(a,i)) (complex of trial wfn Slater Matrix)
@@ -111,8 +112,8 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
       utils::check(PsiT(id,0).shape() == std::array<long,2>{nel_up,npol*NMO}, "Size mismatch");
       PsiC()(id,0,all,all) = math::sparse::to_array<'T'>(PsiT(id,0)); 
       if(type == COLLINEAR) {
-        utils::check(PsiT(id,1).shape() == std::array<long,2>{nel_dn,npol*NMO}, "Size mismatch");
-        PsiC()(id,1,all,range(nel_dn)) = math::sparse::to_array<'T'>(PsiT(id,1));
+        utils::check(PsiT(id,nspin_in_PsiT).shape() == std::array<long,2>{nel_dn,npol*NMO}, "Size mismatch");
+        PsiC()(id,1,all,range(nel_dn)) = math::sparse::to_array<'T'>(PsiT(id,nspin_in_PsiT));
      }  
     }
   }

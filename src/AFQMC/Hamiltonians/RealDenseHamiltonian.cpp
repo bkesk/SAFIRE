@@ -47,6 +47,8 @@ namespace sfqmc
 namespace afqmc
 {
 
+// NOTE: remove AFQMCInfo object from Hamiltonian generators, NMO/nup/ndown should be provided by calling routine
+
 template<MEMORY_SPACE MEM> HamiltonianOperations<MEM> 
 RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
@@ -58,14 +60,15 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   int nspin = ((type != COLLINEAR) ? 1 : 2);
   int npol  = ((type == NONCOLLINEAR) ? 2 : 1);
   int ndet = PsiT.extent(0);
-  int nup = PsiT(0,0).extent(0);
+  int nact_up = PsiT(0,0).extent(0);
   int NMO = PsiT(0,0).extent(1)/npol;
+  int nspin_in_PsiT = PsiT.extent(1);
   int nspin_in_file = 1, npol_in_file = 1; // read/broadcast below
   utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.size(1)%npol != 0");
-  utils::check(PsiT.extent(1) == nspin, base_error + "Size mismatch");
+  utils::check(nspin_in_PsiT == 1 or nspin_in_PsiT == nspin, base_error + "Size mismatch PsiT");
   // MAM: should this be zero with CLOSED shell???
-  int ndn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
-              (type == CLOSED ? nup : PsiT(0,1).extent(0) ) );
+  int nact_dn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
+              (type == CLOSED ? nact_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
   bool head_shared = (MEM==HOST_MEMORY ? mpi->node_comm.root() : true );
 
   std::vector<int> Idata(8);
@@ -172,21 +175,21 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     mpi->broadcast(Likn());
   mpi->comm.barrier();
 
-  long nel[] = {nup, (type == COLLINEAR ? ndn : 0l) };
+  long nel[] = {nact_up, (type == COLLINEAR ? nact_dn : 0l) };
   auto haj = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO});
-  auto Lnak = memory::make_shared_array<MEM,ComplexType,6>(mpi,{ndet,nspin,npol,ncv,nup,NMO});
+// use nspin_in_PsiT and propagate into HamOps
+  auto Lnak = memory::make_shared_array<MEM,ComplexType,6>(mpi,{ndet,nspin,npol,ncv,nact_up,NMO});
 
   // for simplicity
   for (int id = 0, itot=0; id<ndet; id++) {
     for(long is=0; is<nspin; ++is, ++itot) {
       if( itot%mpi->comm.size() != mpi->comm.rank() ) continue;
-      auto Aai = math::sparse::to_array<'N'>(PsiT(id,is));
+      auto Aai = math::sparse::to_array<'N'>(PsiT(id,is%nspin_in_PsiT));
       int is_f = is%nspin_in_file;
 
       // H1
       {
-        auto Aai_is = Aai(range(is*nup,nup+is*ndn),all);
-        auto h_ = haj()(id,range(is*nup,nup+is*ndn),all);
+        auto h_ = haj()(id,range(is*nact_up,nact_up+is*nact_dn),all);
         nda::array<ComplexType,2> hc(npol*NMO,npol*NMO);
         hc() = ComplexType(0.0);
         if(npol_in_file==1) {
@@ -200,10 +203,10 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
               hc(a,b) = ComplexType(H1()(is_f,a,b));
         }  
         if constexpr (MEM==HOST_MEMORY) {
-          nda::blas::gemm(Aai_is,hc,h_);
+          nda::blas::gemm(Aai,hc,h_);
         } else {
           memory::array<MEM,ComplexType,2> hc_d(hc);
-          nda::blas::gemm(Aai_is,hc_d,h_);
+          nda::blas::gemm(Aai,hc_d,h_);
         }
       } 
 
@@ -214,7 +217,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         for(int p=0; p<npol; ++p) {
           int ip_f = p%npol_in_file;
           nda::range rng(ip_f*NMO,(ip_f+1)*NMO);
-          auto Aai_is = Aai_r(range(is*nup,nup+is*ndn),nda::range(p*NMO,(p+1)*NMO),all);
+          auto Aai_is = Aai_r(all,nda::range(p*NMO,(p+1)*NMO),all);
           nda::tensor::contract(RealType(1.0),Aai_is,"aic",Likn()(is_f,rng,rng,all),"ijn",
                                 RealType(0.0),L_r(p,all,range(nel[is]),all,all),"najc");
         }
@@ -251,7 +254,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   }
   mpi->comm.barrier();
 
-  return HamiltonianOperations<MEM>(Real3IndexFactorization<MEM>(mpi,type,NMO,nup,ndown,
+  return HamiltonianOperations<MEM>(Real3IndexFactorization<MEM>(mpi,type,NMO,nact_up,nact_dn,
        std::move(H1), std::move(haj), std::move(Likn), std::move(Lnak), std::move(v0), E0,
        max_memory_MB));
 }

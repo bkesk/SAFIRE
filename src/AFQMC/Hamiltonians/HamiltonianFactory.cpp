@@ -31,7 +31,7 @@
 
 #include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
-//#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
+#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
 #include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
 
 #include "numerics/sparse/sparse.hpp"
@@ -143,8 +143,9 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   }
   else if (htype == KPFactorized)
   {
-    utils::check(false," Error: KPFactorized hamiltonian not yet working. ");
-//    return Hamiltonian(KPFactorizedHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
+    if(mpi->comm.root())
+      utils::check(format == "coqui", "Error: format: {} not yet implemented with this hamiltonian type.", format);
+    return Hamiltonian(KPFactorizedHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if (htype == RealDenseFactorized)
   {

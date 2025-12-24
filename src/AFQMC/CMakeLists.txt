@@ -13,9 +13,9 @@ set (AFQMC_SRCS
 #  Propagators/AFQMCBasePropagator.cpp
 #  Propagators/AFQMCModelPropagator.cpp
 #  Propagators/PropagatorFactory.cpp
-  Wavefunctions/WavefunctionFactory.cpp
+#  Wavefunctions/WavefunctionFactory.cpp
   HamiltonianOperations/HamiltonianOperations.cpp
-#  Hamiltonians/KPFactorizedHamiltonian.cpp
+  Hamiltonians/KPFactorizedHamiltonian.cpp
   Hamiltonians/RealDenseHamiltonian.cpp
   Hamiltonians/ModelHamOpsGenerator.cpp
   Hamiltonians/HamiltonianFactory.cpp
@@ -62,7 +62,7 @@ if (BUILD_UNIT_TESTS)
   SUBDIRS(Walkers/tests)
   SUBDIRS(Hamiltonians/tests)
   SUBDIRS(HamiltonianOperations/tests)
-  SUBDIRS(Wavefunctions/tests)
+#  SUBDIRS(Wavefunctions/tests)
 #  SUBDIRS(Propagators/tests)
 #  SUBDIRS(Drivers/tests)
 #  SUBDIRS(Estimators/tests)

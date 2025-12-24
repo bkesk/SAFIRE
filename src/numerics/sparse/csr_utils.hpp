@@ -269,7 +269,7 @@ auto HDF2CSR(h5::group grp)
   // - pointers_end_
 
   long nrows, ncols, nnz;
-  std::vector<long> dims(3);
+  std::vector<int> dims(3);
   h5::h5_read(grp,"dims",dims);
   sfqmc::utils::check(dims.size() == 3, "Size mismatch");
   nrows = dims[0];
@@ -304,6 +304,99 @@ auto HDF2CSR(h5::group grp)
     return SpM;
   else
     return csr{SpM};
+}
+
+template<typename ValType, MEMORY_SPACE MEM, typename IndxType, typename IntType>
+auto CSR2HDF(h5::group grp, csr_matrix<ValType,MEM,IndxType,IntType> const& A)
+{
+  using nda::range;
+  int nrows = int(A.extent(0));
+  int ncols = int(A.extent(1)); 
+  int nnz = int(A.nnz());
+  std::vector<int> dims = {nrows, ncols, nnz};
+  h5::h5_write(grp,"dims",dims);
+
+  {
+    auto ptrb = A.row_begin()(range(nrows)); // always on host
+    nda::h5_write(grp,"pointers_begin_",ptrb);
+    auto ptre = A.row_end(); // always on host
+    nda::h5_write(grp,"pointers_end_",ptre);
+  }
+  
+  auto ptrb = A.row_begin();
+  auto ptre = A.row_end(); 
+  {
+    auto Avals = A.values();
+    nda::array<ValType,1> vals(nnz);
+    for(long r=0, c=0; r<nrows; ++r) { 
+      long nr = ptre(r)-ptrb(r);
+      vals(range(c,c+nr)) = Avals(range(ptrb(r),ptre(r))); 
+      c += nr;  
+    } 
+    nda::h5_write(grp,"data_",vals);  
+  }
+  {
+    auto Acols = A.columns();
+    nda::array<IndxType,1> cols(nnz);
+    for(long r=0, c=0; r<nrows; ++r) {
+      long nr = ptre(r)-ptrb(r);
+      cols(range(c,c+nr)) = Acols(range(ptrb(r),ptre(r)));     
+      c += nr;
+    }  
+    nda::h5_write(grp,"jdata_",cols);  
+  }
+}
+
+template<typename ValType, MEMORY_SPACE MEM, typename IndxType, typename IntType, typename O_t>
+auto CSR2HDF(h5::group grp, csr_matrix<ValType,MEM,IndxType,IntType> const& A, O_t const& rows)
+{
+  using nda::range;
+  int nrows = int(rows.size());
+  sfqmc::utils::check(nrows <= A.extent(0), "Size mismatch");
+  int ncols = int(A.extent(1));
+  int nnz = 0;
+  for( auto r : rows ) nnz += A.nnz(r); 
+  std::vector<int> dims = {nrows, ncols, nnz};
+  h5::h5_write(grp,"dims",dims);
+
+  auto ptrb = A.row_begin();
+  auto ptre = A.row_end();
+  {
+    nda::array<IntType,1> ptrb(nrows);
+    nda::array<IntType,1> ptre(nrows);
+    long n=0;
+    for( auto [i,r] : itertools::enumerate(rows) ) {
+      IntType nr = IntType(A.nnz(r));
+      ptrb(i) = n;
+      ptre(i) = n+nr;
+      n += nr;
+    } 
+    nda::h5_write(grp,"pointers_begin_",ptrb);
+    nda::h5_write(grp,"pointers_end_",ptre);
+  }
+
+  {
+    auto Avals = A.values();
+    nda::array<ValType,1> vals(nnz);
+    long n=0;
+    for( auto [i,r] : itertools::enumerate(rows) ) {
+      long nr = ptre(r)-ptrb(r);
+      vals(range(n,n+nr)) = Avals(range(ptrb(r),ptre(r)));
+      n += nr;
+    }
+    nda::h5_write(grp,"data_",vals);
+  }
+  {
+    auto Acols = A.columns();
+    nda::array<IndxType,1> cols(nnz);
+    long n=0;
+    for( auto [i,r] : itertools::enumerate(rows) ) {
+      long nr = ptre(r)-ptrb(r);
+      cols(range(n,n+nr)) = Acols(range(ptrb(r),ptre(r)));
+      n += nr;
+    }
+    nda::h5_write(grp,"jdata_",cols);
+  }
 }
 
 /*

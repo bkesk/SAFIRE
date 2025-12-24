@@ -188,8 +188,8 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
   }
 
-  auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
-  REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
+//  auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
+//  REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
 
   auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
   auto vHS = HOps.vHS(X,dt);

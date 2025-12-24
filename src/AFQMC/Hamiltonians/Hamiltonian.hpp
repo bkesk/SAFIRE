@@ -24,7 +24,7 @@
 #include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
 #include "AFQMC/Hamiltonians/KPTHCHamiltonian.h"
-//#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
+#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
 #include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 
@@ -41,13 +41,13 @@ public:
   explicit Hamiltonian(THCHamiltonian&& other) : var(std::move(other)) {}
   explicit Hamiltonian(KPTHCHamiltonian&& other) : var(std::move(other)) {}
   explicit Hamiltonian(ModelHamOpsGenerator&& other) : var(std::move(other)) {}
-//  explicit Hamiltonian(KPFactorizedHamiltonian&& other) : var(std::move(other)) {}
+  explicit Hamiltonian(KPFactorizedHamiltonian&& other) : var(std::move(other)) {}
   explicit Hamiltonian(RealDenseHamiltonian&& other) : var(std::move(other)) {}
 
   explicit Hamiltonian(THCHamiltonian const& other) : var(other) {}  
   explicit Hamiltonian(KPTHCHamiltonian const& other) : var(other) {}  
   explicit Hamiltonian(ModelHamOpsGenerator const& other) : var(other) {}
-//  explicit Hamiltonian(KPFactorizedHamiltonian const& other) = delete;
+  explicit Hamiltonian(KPFactorizedHamiltonian const& other) : var(other) {}
   explicit Hamiltonian(RealDenseHamiltonian const& other) : var(other) {}
 
   Hamiltonian(Hamiltonian const& other) = default;
@@ -75,10 +75,11 @@ public:
 
   private:
 
-    std::variant<THCHamiltonian,KPTHCHamiltonian,ModelHamOpsGenerator 
-              ,RealDenseHamiltonian
-//              ,KPFactorizedHamiltonian
-//              ,RealDenseHamiltonian_v2
+    std::variant<THCHamiltonian, 
+                 KPTHCHamiltonian, 
+                 ModelHamOpsGenerator, 
+                 RealDenseHamiltonian, 
+                 KPFactorizedHamiltonian 
                 > var;
 
 };

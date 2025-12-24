@@ -20,7 +20,7 @@
 
 #include "AFQMC/HamiltonianOperations/THCOps.hpp"
 #include "AFQMC/HamiltonianOperations/KPTHCOps.hpp"
-//#include "AFQMC/HamiltonianOperations/KP3IndexFactorization_batched.hpp"
+#include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
 #include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
 #include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
 
@@ -99,12 +99,6 @@ public:
   }
 
   template<class... Args>
-  void fast_energy(Args&&... args)
-  { 
-    std::visit([&](auto&& s) { s.fast_energy(std::forward<Args>(args)...); }, var);
-  }
-
-  template<class... Args>
   void ph_reference_energy(Args&&... args)
   { 
     std::visit([&](auto&& s) { s.ph_reference_energy(std::forward<Args>(args)...); }, var);
@@ -136,7 +130,7 @@ public:
 
   std::variant<THCOps<MEM,true>, THCOps<MEM,false>, KPTHCOps<MEM>,
                ModelHamOps<MEM,true>, ModelHamOps<MEM,false>, 
-               Real3IndexFactorization<MEM> > var;
+               Real3IndexFactorization<MEM>, KP3IndexFactorization<MEM> > var;
 
   // makes instantiations easier
   nda::array<ComplexType,3> getOneBodyPropagatorMatrix_impl(double dt,

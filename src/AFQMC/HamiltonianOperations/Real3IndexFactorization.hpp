@@ -29,7 +29,7 @@
 #include "numerics/shared_array/shared_array.hpp"
 #include "numerics/nda_functions.hpp"
 
-//#include "AFQMC/Wavefunctions/detail/phmsd_impl.hpp"
+#include "AFQMC/Wavefunctions/detail/phmsd_impl.hpp"
 
 namespace sfqmc
 {
@@ -280,30 +280,43 @@ public:
   }
 
   void ph_excited_energy(SpinTypes spin_component,
-              int ndet,
-              int nex,
               int nelec,
-              int nact,
               nda::MemoryVector auto const& iexcit,
               nda::MemoryVector auto const& refc,
               nda::MemoryArrayOfRank<2> auto && E,
               nda::MemoryArrayOfRank<2> auto && wgt,
-              nda::MemoryArrayOfRank<2> auto const& R,
-              nda::MemoryArrayOfRank<2> auto && EJn,
+              nda::MemoryArrayOfRank<4> auto const& R,
+              nda::MemoryArrayOfRank<3> auto && K,
               bool addH1 = true)
   {
-/*
-    // HamOps and Wfn must have the same mixed_precision setting, otherwise abort
-    using RType = typename std::decay_t<typename std::decay_t<MatB>::element_type>;
-    using EJType = typename std::decay_t<typename std::decay_t<MatC>::element_type>;
-    if constexpr (std::is_same<SPComplexType, RType>::value and
-                  std::is_same<SPComplexType, EJType>::value) {
-        ph_excited_energy_impl(spin_component, ndet, nex, nelec, nact, iexcit, refc, E, wgt, R, EJn, addH1);
-    } else {
-        // Reaching this line at runtime is a bug! 
-        APP_ABORT("Inconsistent mixed_precision definition. Submit issue to developers. ");
+    memory::check_memory_space<MEM>(E,wgt,R,K);
+    utils::check_strides(E,wgt,R,K);
+    using nda::range;
+    auto all = range::all; 
+    // R[nwalk, ndet, nex, nact] 
+    // E[nwalk, 3]
+    // wgt[ndet, nwalk]
+    // K[ndet, nwalk, nkev]
+    auto [nwalk, ndet, nex, nact] = R.shape();
+  
+    utils::check(E.shape() == std::array<long,2>{nwalk,3}, "Size mismatch");
+    utils::check(wgt.shape() == std::array<long,2>{ndet,nwalk}, "Size mismatch");
+    utils::check(K.shape() == std::array<long,3>{ndet,nwalk,nCV}, "Size mismatch");
+
+    // by convention, add E0 only to Alpha
+    /* One body terms */
+    if(addH1) {
+      utils::check(Swia_ph.extent(0) >= nwalk * nelec * nact, "Error in ph_excited_energy: Unexpected size in Swia_ph.");
+      memory::array_view<MEM,ComplexType,3> Swia({nwalk,nelec,nact},Swia_ph.data());
+      ph_excited_1body_energy(iexcit, refc, Swia, R, wgt, E(all,0));
     }
-*/
+
+    /* Two body terms */
+    // Make sure Twina_ph has appropriate dimensions
+    utils::check(Twina_ph.extent(0) >= nwalk * nelec * nCV * nact, "Error in ph_excited_energy: Unexpected size in Twina_ph.");
+    memory::array_view<MEM,ComplexType,4> Twina({nwalk,nelec,nCV,nact},Twina_ph.data());
+
+    ph_excited_2body_energy_dense_cholesky(iexcit, refc, Twina, R, wgt, E(all,1), E(all,2), K);
   }
 
   auto vHS_sparse(nda::MemoryArrayOfRank<2> auto && X, double dt)
@@ -853,9 +866,9 @@ private:
       if(Swia_ph.extent(0) < nwalk*nel*std::max(nup,ndown)) 
         Swia_ph = memory::array<MEM,ComplexType,1>(nwalk*nel*std::max(nup,ndown)); 
                            
-      memory::array_view<MEM,ComplexType,3> Swia({nwalk,nel,nact[is]},Swia_ph.data());
+      memory::array_view<MEM,ComplexType,3> Swia(std::array<long,3>{nwalk,nel,nact[is]},Swia_ph.data());
       nda::tensor::contract(ComplexType(1.0),G,"wik",
-                                             haj(0,range(is*nup,nup+is*ndown),all),"ak",
+                                             haj()(0,range(is*nup,nup+is*ndown),all),"ak",
                             ComplexType(0.0),Swia,"wia");
       // right now this only works if the reference configuration is refc[i] = i!!!!
       // need refc array otherwise
@@ -873,10 +886,10 @@ private:
 
     // try to catch exception???
     if(Twina_ph.extent(0) < nwalk*nel*nCV*std::max(nup,ndown)) 
-      Twina_ph = memory::array<MEM,ComplexType,1>(nwalk,nel,nCV,std::max(nup,ndown)); 
+      Twina_ph = memory::array<MEM,ComplexType,1>(nwalk*nel*nCV*std::max(nup,ndown)); 
 
     auto Lna = Lnak()(0,is,0,all,range(nact[is]),all);
-    memory::array_view<MEM,ComplexType,3> Twina({nwalk,nel,nCV,nact[is]},Twina_ph.data());
+    memory::array_view<MEM,ComplexType,4> Twina({nwalk,nel,nCV,nact[is]},Twina_ph.data());
 
     nda::tensor::contract(ComplexType(1.0),G,"wik",Lna,"nak",ComplexType(0.0),Twina,"wina");
 
@@ -897,68 +910,6 @@ private:
     }
 
   }  // ph_ref_energy_impl 
-
-/*
-  template<class Iptr, class Mat, class MatB, class MatC, class MatW,
-           typename = typename std::enable_if_t<(std::decay<Mat>::type::dimensionality == 2)>,
-           typename = typename std::enable_if_t<(std::decay<MatW>::type::dimensionality == 2)>,
-           typename = typename std::enable_if_t<(std::decay<MatB>::type::dimensionality == 4)>
-          >
-  void ph_excited_energy_impl([[maybe_unused]] SpinTypes spin_component,
-              int ndet,
-              int nex,
-              int nelec,
-              int nact,
-              Iptr const iexcit,
-              Iptr const refc,
-              Mat&& E,
-              MatW&& wgt,
-              MatB const& R,
-              MatC& Kl,
-              bool addH1)
-  {
-    using std::copy_n;
-    // R[nwalk, ndet, nex, nact] 
-    // E[nwalk, 3]
-    // wgt[ndet, nwalk]
-    // K[ndet, nwalk, nkev]
-    int nwalk = R.size(0);
-
-    utils::check(R.size(1) == ndet, "");
-    utils::check(R.size(2) == nex, "");
-    utils::check(R.size(3) == nact, "");
-    utils::check(E.size(0) == nwalk, "");
-    utils::check(E.size(1) == 3, "");
-    utils::check(wgt.size(0) == ndet, "");
-    utils::check(wgt.size(1) == nwalk, "");
-
-    // by convention, add E0 only to Alpha
-    / * One body terms * /
-    if(addH1) {
-      if(Swia_ph.size(0) < nwalk * nelec * nact)
-        APP_ABORT("Error in ph_excited_energy: Unexpected size in Swia_ph.");
-      Array_ref<ComplexType, 3, pointer> Swia(Swia_ph.origin(), {nwalk, nelec, nact});
-      using ma::ph_excited_1body_energy;
-      ph_excited_1body_energy(iexcit, refc, Swia, R, wgt, E.rotated()[0]);
-    }
-
-    / * Two body terms * /
-    // Make sure Twina_ph has appropriate dimensions
-    if(Twina_ph.size(0) < nwalk * nelec * local_nCV * nact)
-      APP_ABORT("Error in ph_excited_energy: Unexpected size in Twina_ph.");
-    SpC4Tensor_ref Twina(Twina_ph.origin(), {nwalk, nelec, local_nCV, nact});
-
-    using ma::ph_excited_2body_energy_dense_cholesky_Tpna;
-    utils::check(Kl.stride(0) == Kl.size(1)*Kl.size(2), ""); 
-    utils::check(Kl.stride(1) == Kl.size(2), ""); 
-    utils::check(Kl.stride(2) == 1, ""); 
-    utils::check(Kl.size(0) == ndet, "");
-    utils::check(Kl.size(1) == nwalk, "");
-    utils::check(Kl.size(2) == local_nCV, "");
-    ph_excited_2body_energy_dense_cholesky_Tpna(iexcit, refc, Twina, R, wgt,
-        E.rotated()[1], E.rotated()[2], Kl);
-  }
-*/
 
 };
 

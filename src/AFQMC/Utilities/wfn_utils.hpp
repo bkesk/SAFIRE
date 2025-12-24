@@ -38,10 +38,11 @@ auto nocc_per_kpoint(WALKER_TYPES type, int nkpts, nda::array<PsiT_Matrix<MEM>,2
   int nspin = (type == COLLINEAR?2:1);
   int npol = (type == NONCOLLINEAR?2:1);
   int ndet = PsiT.extent(0);
+  int nspin_in_PsiT = PsiT.extent(1);
   int NMO = PsiT(0,0).extent(1)/npol;
   int nbnd = NMO/nkpts;
   utils::check(NMO%nkpts==0, "NMO%nkpts != 0");
-  utils::check(PsiT.extent(1) == nspin, "Shape mismatch"); 
+  utils::check(nspin_in_PsiT==1 or nspin_in_PsiT==nspin, "Shape mismatch"); 
 
   // compute based on first determinant, check all others match
   nda::array<int, 2> nocc_per_kp(nspin,nkpts);
@@ -49,12 +50,12 @@ auto nocc_per_kpoint(WALKER_TYPES type, int nkpts, nda::array<PsiT_Matrix<MEM>,2
   // 1st det
   {
     for(int is=0; is<nspin; is++) { 
-      auto vals = nda::to_host(PsiT(0,is).values());
-      auto cols = nda::to_host(PsiT(0,is).columns());
-      auto row_begin = nda::to_host(PsiT(0,is).row_begin());
-      auto row_end = nda::to_host(PsiT(0,is).row_end());
+      auto vals = nda::to_host(PsiT(0,is%nspin_in_PsiT).values());
+      auto cols = nda::to_host(PsiT(0,is%nspin_in_PsiT).columns());
+      auto row_begin = nda::to_host(PsiT(0,is%nspin_in_PsiT).row_begin());
+      auto row_end = nda::to_host(PsiT(0,is%nspin_in_PsiT).row_end());
       int kp = 0;
-      int nel = PsiT(0,is).extent(0);
+      int nel = PsiT(0,is%nspin_in_PsiT).extent(0);
       for(int ia=0; ia<nel; ++ia) {
         auto k0 = (cols(row_begin(ia))/nbnd)%nkpts;  
         auto k1 = (cols(row_end(ia)-1)/nbnd)%nkpts;  
@@ -69,12 +70,12 @@ auto nocc_per_kpoint(WALKER_TYPES type, int nkpts, nda::array<PsiT_Matrix<MEM>,2
     nda::array<int, 2> nocc(nspin,nkpts);
     nocc() = 0;
     for(int is=0; is<nspin; is++) {
-      auto vals = nda::to_host(PsiT(id,is).values());
-      auto cols = nda::to_host(PsiT(id,is).columns());
-      auto row_begin = nda::to_host(PsiT(id,is).row_begin());
-      auto row_end = nda::to_host(PsiT(id,is).row_end());
+      auto vals = nda::to_host(PsiT(id,is%nspin_in_PsiT).values());
+      auto cols = nda::to_host(PsiT(id,is%nspin_in_PsiT).columns());
+      auto row_begin = nda::to_host(PsiT(id,is%nspin_in_PsiT).row_begin());
+      auto row_end = nda::to_host(PsiT(id,is%nspin_in_PsiT).row_end());
       int kp = 0;
-      int nel = PsiT(id,is).extent(0);
+      int nel = PsiT(id,is%nspin_in_PsiT).extent(0);
       for(int ia=0; ia<nel; ++ia) {
         auto k0 = (cols(row_begin(ia))/nbnd)%nkpts;
         auto k1 = (cols(row_end(ia)-1)/nbnd)%nkpts;

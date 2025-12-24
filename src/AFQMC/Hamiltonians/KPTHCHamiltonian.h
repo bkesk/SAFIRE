@@ -16,17 +16,11 @@
 
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <map>
-#include <fstream>
-
 #include "IO/ptree/ptree_utilities.hpp"
 #include "IO/app_loggers.h"
 #include "utilities/mpi_context.h"
 
 #include "AFQMC/config.h"
-#include "nda/h5.hpp"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
 

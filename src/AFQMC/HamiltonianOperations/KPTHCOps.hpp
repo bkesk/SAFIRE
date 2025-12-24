@@ -36,7 +36,6 @@ namespace afqmc
  * v+(q,n) = 0.5 * ( L(q,n) + dagger(L(q,n)) )
  * v-(q,n) = i*0.5 * ( L(q,n) - dagger(L(q,n)) )
  * L(q,n) = sum_k sum_ab L^{k,q}_{ab,n} dagger( c^{k}_a ) c^{k-q}_b
- *
  */
 
 
@@ -397,12 +396,6 @@ public:
   }
 
   template<class... Args>
-  void fast_energy([[maybe_unused]] Args&&... args)
-  {
-    APP_ABORT(" Error: fast_energy not implemented in ModelHamOps. ");
-  }
-
-  template<class... Args>
   void ph_reference_energy([[maybe_unused]] Args&&... args)
   {
     APP_ABORT(" Error: ph_reference_energy not implemented yet. ");
@@ -676,7 +669,6 @@ public:
   }
   int number_of_cholesky_vectors() const { return 2 * nkpts * _Luv_().extent(2); }
 
-  bool fast_ph_energy() const { return false; }
   nda::array<ComplexType, 2> getHSPotentials() 
   { return nda::array<ComplexType, 2>{}; }
 

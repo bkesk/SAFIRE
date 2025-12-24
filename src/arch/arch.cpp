@@ -28,6 +28,8 @@
 
 #if defined(ENABLE_CUDA)
 
+// MAM: Consider setting OMP_NUM_THREADS and TBLIS threading variables to 1 here!
+
 #include "CUDA/cuda_init.h"
 #include "CUDA/cuda_sync.h"
 

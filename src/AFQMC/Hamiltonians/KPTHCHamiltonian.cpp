@@ -52,7 +52,7 @@ namespace afqmc
 // Xrot: /Interaction/collocation_matrix_half_rotated:  [nspins,nkpts,nbnd,Nu]
 // Zrot: /Interaction/half_rotated_coulomb_matrix:      [Nq][Nu][Nv]
 
-// PsiT[idet][ispin][ik] -> csr_mat( nup/ndn, NMO )
+// PsiT[idet][ispin][ik] -> csr_mat( nel_up/nel_dn, NMO )
 template<MEMORY_SPACE MEM> HamiltonianOperations<MEM> 
 KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
@@ -66,21 +66,22 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   std::string format;  // only meaningful at root
   long nspin = (type == COLLINEAR?2:1);
   long npol = (type == NONCOLLINEAR?2:1);
+  int nspin_in_PsiT = PsiT.extent(1);
   long ndet = PsiT.extent(0); 
-  long nup = PsiT(0,0).extent(0);
+  long nel_up = PsiT(0,0).extent(0);
   long NMO = PsiT(0,0).extent(1)/npol;
   utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.size(1)%npol != 0");
-  utils::check(PsiT.extent(1) == nspin, "Size mismatch");
+  utils::check(nspin_in_PsiT==1 or nspin_in_PsiT==nspin, "Size mismatch");
   utils::check(ndet==1, "Error: ndet > 1 not yet implemented in KPTHCHamiltonian::getHamiltonianOperations.");
-  long ndn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
-              (type == CLOSED ? nup : PsiT(0,1).extent(0) ) );
+  long nel_dn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
+              (type == CLOSED ? nel_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
   for(int i=0; i<ndet; ++i) 
     for(int ip=0; ip<npol; ++ip) {
-      utils::check(PsiT(i,0).shape() == std::array<long,2>{nup,NMO},"PsiT shape mismatch.");
+      utils::check(PsiT(i,0).shape() == std::array<long,2>{nel_up,NMO},"PsiT shape mismatch.");
       if(type == COLLINEAR)
-        utils::check(PsiT(i,1).shape() == std::array<long,2>{ndn,NMO},"PsiT shape mismatch.");
+        utils::check(PsiT(i,nspin_in_PsiT-1).shape() == std::array<long,2>{nel_dn,NMO},"PsiT shape mismatch.");
     }
-  utils::check(nup >= ndn, base_error + "nup:{} < ndn:{} not allowed.",nup,ndn);
+  utils::check(nel_up >= nel_dn, base_error + "nel_up:{} < nel_dn:{} not allowed.",nel_up,nel_dn);
 
   // THC variables
   long nspin_in_file = nspin;
@@ -317,9 +318,9 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     nocc = nocc_per_kpoint(type,nkpts,PsiT);
   mpi->broadcast(nocc);
   auto nocc_max = nda::max_element(nocc);
-  utils::check(nup == nda::sum(nocc(0,all)), "Error: Mismatch in number of electrons: nup:{} sum(nup(k)):{}",nup,nda::sum(nocc(0,all)));
+  utils::check(nel_up == nda::sum(nocc(0,all)), "Error: Mismatch in number of electrons: nel_up:{} sum(nel_up(k)):{}",nel_up,nda::sum(nocc(0,all)));
   if(type == COLLINEAR)
-    utils::check(ndn == nda::sum(nocc(1,all)), "Error: Mismatch in number of electrons: ndown:{} sum(ndown(k)):{}",ndn,nda::sum(nocc(1,all)));
+    utils::check(nel_dn == nda::sum(nocc(1,all)), "Error: Mismatch in number of electrons: ndown:{} sum(ndown(k)):{}",nel_dn,nda::sum(nocc(1,all)));
 
   // Y = PsiT*conj(X): (since PsiT is already conjugated/transposed) 
   auto Ydsau = memory::make_shared_array<MEM,ComplexType,6>(mpi,
@@ -341,7 +342,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         int n0 = ( ik==0 ? 0 : nda::sum(nocc(is,range(ik))) );
         int nel = nocc(is,ik); 
         for(int ip=0; ip<npol; ++ip) { 
-          auto Aai = math::sparse::to_array<'N'>(PsiT(id,is),range(n0,n0+nel),range(ip*NMO+ik*nbnd,ip*NMO+(ik+1)*nbnd));
+          auto Aai = math::sparse::to_array<'N'>(PsiT(id,is%nspin_in_PsiT),range(n0,n0+nel),range(ip*NMO+ik*nbnd,ip*NMO+(ik+1)*nbnd));
           auto Yau = Ydsau()(id,is,ip,ik,range(nel),all);
           long ip_ = ip%npol_in_file;
           auto Xiu = Xsiu()(is_,ik,range(ip_*nbnd,(ip_+1)*nbnd),all);
@@ -410,7 +411,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   // MAM: this uses a lot more memory/compute, but can be batched into a single call (energy eval)
   // time the two versions and change to k-dependent haj if the timing in gpu is not that different
   // You can also write a kernel that dispatches all the gemms from device side using the new library
-  long nel[] = {nup, (type == COLLINEAR ? ndn : 0l) }; 
+  long nel[] = {nel_up, (type == COLLINEAR ? nel_dn : 0l) }; 
   auto haj = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO});
   if constexpr (MEM == HOST_MEMORY)
     if(mpi->node_comm.root()) haj() = ComplexType(0.0);
@@ -426,15 +427,14 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
           int nk = nocc(is,ik); 
           for(long ip1=0; ip1<npol; ++ip1) {
             int ip1_ = ip1%npol_in_file;
-            auto Aai = math::sparse::to_array<'N'>(PsiT(id,is),range(n0,n0+nk),range(ip1*NMO+ik*nbnd,ip1*NMO+(ik+1)*nbnd));
+            auto Aai = math::sparse::to_array<'N'>(PsiT(id,is%nspin_in_PsiT),range(n0,n0+nk),range(ip1*NMO+ik*nbnd,ip1*NMO+(ik+1)*nbnd));
             for(long ip2=0; ip2<npol; ++ip2) {
               int ip2_ = ip2%npol_in_file;
-              auto h_ = haj()(id,range(is*nup+n0,is*nup+n0+nk),nda::range(ip2*NMO+ik*nbnd,ip2*NMO+(ik+1)*nbnd));
+              auto h_ = haj()(id,range(is*nel_up+n0,is*nel_up+n0+nk),nda::range(ip2*NMO+ik*nbnd,ip2*NMO+(ik+1)*nbnd));
               if constexpr (MEM==HOST_MEMORY) {
                 auto hij = H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd));
                 nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
               } else {
-//                auto hij = nda::to_device(H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd)));
                 memory::array<MEM,ComplexType,2> hij(H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd)));
                 nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
               }
@@ -453,7 +453,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   mpi->comm.barrier();
 
   ComplexType E0 = NuclearCoulombEnergy + FrozenCoreEnergy;
-  return HamiltonianOperations<MEM>(KPTHCOps<MEM>(mpi,type,NMO,nup,ndn,nkpts,Q0_index,std::move(nocc),
+  return HamiltonianOperations<MEM>(KPTHCOps<MEM>(mpi,type,NMO,nel_up,nel_dn,nkpts,Q0_index,std::move(nocc),
      std::move(minusq),std::move(qk_to_k2),std::move(H1),std::move(haj),std::move(Xsiu),
      std::move(Ydsau),std::move(Luv),std::move(Zuv),std::move(Xsiu_rot),std::move(Ydsau_rot),
      std::move(Zuv_rot),std::move(v0),E0)); 

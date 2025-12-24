@@ -70,6 +70,7 @@ void NOMSD<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov)
     auto ovlp_h = nda::to_host(ovlp);
     auto eloc_h = nda::to_host(eloc);
     nda::array<ComplexType,2> E_h(nw,3); 
+    nda::array<ComplexType,1> Ov_h(nw,ComplexType(0.0)); 
     nda::array<ComplexType,1> sum(3,0.0);
     for(int i=0; i<nw; i++) {
       ComplexType log_m = *std::max_element(ovlp_h(all,i).begin(),ovlp_h(all,i).end());
@@ -81,10 +82,11 @@ void NOMSD<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov)
         deno += std::conj(ci(d)) * expm;
       }
       E_h(i,all) = sum() / deno;  
+      Ov_h(i) = std::log(deno) + log_m;
     }
     // copy to device/host
     E() = E_h();
-
+    Ov() = Ov_h();
   }
 }
 
@@ -239,7 +241,7 @@ void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
       ComplexType val( std::log( (std::abs(ci(d)) < 1e-12 ? ComplexType(1e-12) : std::conj(ci(d)) ) ) );
       memory::buffered_array<MEM,ComplexType,1> buff(nw,val);
       // log_ovlp(d,w) = log( ci(d) ) + log( Ov(d, Beta) ) + log( Ov(d, Alpha) )
-      nda::tensor::add(buff,log_ovlps(d,all));
+      nda::tensor::add(ComplexType(1.0),buff,"w",ComplexType(1.0),log_ovlps(d,all),"w");
     }
   
     // now assemble avoiding round-off problems 
