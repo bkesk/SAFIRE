@@ -161,9 +161,9 @@ public:
       for (int p1 = 0; p1 < npol; p1++) {
         int p1_ = p1%nptot;
         // vHS finite 'q' contributions (full NMO*NMO) 
-//        for (int I = 0; I < NMO; I++)
-//          for (int J = 0 ; J < NMO; J++)
-//              H1(is,p1*NMO+I,p1*NMO+J) += v(0,is_,p1_*NMO+I,J);
+        for (int I = 0; I < NMO; I++)
+          for (int J = 0 ; J < NMO; J++)
+              H1(is,p1*NMO+I,p1*NMO+J) += v(0,is_,p1_*NMO+I,J);
 
         // hij and vexx only have q=0 contributions  
         for (int p2 = 0; p2 < npol; p2++) {
@@ -260,7 +260,6 @@ public:
       // batch_size includes the factor of 2 from Q/Qm pair
       batch_size = std::min(bz0, (nkpts * nkpts));
     }
-batch_size=10;
 
     memory::buffered_array<MEM,ComplexType,2> Kleft((addEJ?nwalk:0),ncvecs);
     memory::buffered_array<MEM,ComplexType,2> Kright((addEJ?nwalk:0),ncvecs);
@@ -527,10 +526,10 @@ batch_size=10;
         auto LB = ( Q==Qm ? Lbnk(Qmap(Q))() : Lank(Qm)() ); 
         auto Lb = nda::reshape(LB(idet,is,nda::ellipsis{}),std::array<long,3>{nkpts,nocc_max*nchol,npol*nbnd}); 
 
-        auto Tl3d = nda::reshape(T1buff,std::array<long,3>{batch_size,nwalk*nocc_max,nocc_max*nchol});   
-        auto Tl5d = nda::reshape(T1buff,std::array<long,5>{batch_size,nwalk,nocc_max,nocc_max,nchol});   
-        auto Tr3d = nda::reshape(T2buff,std::array<long,3>{batch_size,nwalk*nocc_max,nocc_max*nchol});   
-        auto Tr5d = nda::reshape(T2buff,std::array<long,5>{batch_size,nwalk,nocc_max,nocc_max,nchol});   
+        auto Tl3d = memory::array_view<MEM,ComplexType,3>({batch_size,nwalk*nocc_max,nocc_max*nchol},T1buff.data());
+        auto Tr3d = memory::array_view<MEM,ComplexType,3>({batch_size,nwalk*nocc_max,nocc_max*nchol},T2buff.data());
+        auto Tl5d = memory::array_view<MEM,ComplexType,5>({batch_size,nwalk,nocc_max,nocc_max,nchol},T1buff.data());
+        auto Tr5d = memory::array_view<MEM,ComplexType,5>({batch_size,nwalk,nocc_max,nocc_max,nchol},T2buff.data());
 
         // simple implementation for now
         Av.clear();
@@ -840,7 +839,6 @@ batch_size=10;
       utils::check(false," Error: KP3Index not yet implemented for multiple references.");
     }
 
-    //vbias_from_v1(halfa, v1, v);
   }
 
   template<class... Args> void generalizedFockMatrix([[maybe_unused]] Args&&... args)
@@ -960,7 +958,7 @@ protected:
     int nup   = nda::sum(nocc(0,all));
     int ndown = (walker_type==COLLINEAR ? nda::sum(nocc(1,all)) : 0);
 
-    auto G6d = nda::reshape(GQK,std::array<long,6>{nkpts,nkpts,nwalk,nocc_max,npol,nbnd});
+    auto G6d = nda::reshape(GQK,std::array<long,6>{nkpts,nwalk,nkpts,nocc_max,npol,nbnd});
     GQK() = ComplexType(0.0);
     if constexpr (MEM==HOST_MEMORY) {
       for(int iq=0; iq<nkpts; ++iq)

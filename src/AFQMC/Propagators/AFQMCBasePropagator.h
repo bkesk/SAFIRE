@@ -134,9 +134,9 @@ public:
     else
       app_log(1," Using local energy method to calculate the weights during the propagation.");
     if(natural_shift)
-      app_log(1, "Using natural shifts with discrete propagators. ");
-    if(not symmetric_split)
-      app_log(1, "Not using symmetric split of walker weight update.");
+      app_log(1, " Using natural shifts with discrete propagators. ");
+    if(symmetric_split)
+      app_log(1, " Using symmetric split of walker weight update.");
 
     if (debug_verbosity)
     {

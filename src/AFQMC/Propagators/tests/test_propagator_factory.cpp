@@ -167,6 +167,8 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
     app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
     prop.Orthogonalize(wset);
   }
+std::cout<<" setup: " <<AFQMCTimer.elapsed(setup_timer) <<std::endl;
+  if(mpi->comm.root()) AFQMCTimer.print_all();
 }
 
 TEST_CASE("propg_fac", "[propagator_factory]")
