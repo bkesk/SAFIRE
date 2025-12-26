@@ -266,7 +266,7 @@ public:
           {
             // Buffer space
             memory::buffered_array<MEM,ComplexType,3> Tav(nw,nelec[ispin],nu);
-            Guv_Guu(ispin, p1, p2, G3d(range(iw, iw + nw), all, all), Guv, Guu, Tav, idet);
+            Guv_Guu(ispin, p1, p2, G3d(range(iw, iw + nw), range(ispin*nup,nup+ispin*ndown), all), Guv, Guu, Tav, idet);
 
             if constexpr (MEM==HOST_MEMORY) {
               for(int i=0; i<nw; ++i)
@@ -328,16 +328,135 @@ public:
     }
   }
 
-  void energy([[maybe_unused]] SpinTypes spin_component,
-              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto && E,
-              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto const& Gc,
-              [[maybe_unused]] int nd,
-              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto && EJn,
-              [[maybe_unused]] bool addH1  = true,
-              [[maybe_unused]] bool addEJ  = true,
-              [[maybe_unused]] bool addEXX = true)
+  void energy(SpinTypes spin_component,
+              nda::MemoryArrayOfRank<2> auto && E,
+              nda::MemoryArrayOfRank<2> auto const& G,
+              int idet,
+              nda::MemoryArrayOfRank<2> auto && EJn,
+              bool addH1  = true,
+              bool addEJ  = true,
+              bool addEXX = true)
   {
-    utils::check(false," Error: spin-dependent energy not implemented ");
+    memory::check_memory_space<MEM>(E,G); 
+    using nda::range;
+    auto all  = range::all;
+    int nwalk = G.extent(0);
+    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+    int nel   = G.extent(1)/(npol*NMO); 
+    int ispin = (spin_component == Alpha ? 0 : 1);
+    utils::check(E.shape() == std::array<long,2>{nwalk,3}, "THC::energy: Size mismatch.");
+    utils::check(G.extent(1) == nel*npol*NMO, "THC::energy: Size mismatch.");
+    utils::check(nel == nelec[ispin], "G.extent(1) != nelec[ispin].");
+    if(addEJ)
+      utils::check(EJn.shape() == std::array<long,2>{nwalk,number_of_ke_vectors()}, "Size mismatch.");
+    utils::check_strides(E,G);
+    // limiting G to contiguous arrays for simplicity now, reconsider if necessary
+
+    utils::check(G.is_contiguous(), "Layout mismatch");
+    memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel,npol*NMO},G.data());
+
+    // addH1
+    E() = ComplexType(0.0);
+    if (addH1)
+    {
+      if(spin_component==Alpha) E(all,0) = E0; 
+      nda::tensor::contract(ComplexType(1.0), G3d, "wai", 
+                            haj()(idet,range(ispin*nup,nup+ispin*ndown),all), "ai", 
+                            ComplexType(1.0), E(all,0), "w");
+    }
+    if (not(addEJ || addEXX))
+      return;
+
+    // get array_views to the correct data and correct determinant
+    bool has_rot = _Xsiu_rot_.has_value();
+    const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_() );
+    const auto Ysau = ( has_rot ? (*_Ydsau_rot_)()(idet,nda::ellipsis{}) : _Ydsau_()(idet,nda::ellipsis{}) );
+    const auto Zuv = ( has_rot ? (*_Zuv_rot_)() : (*_Zuv_)() );
+
+    int nu = Zuv.extent(0);
+    long nstot = _Xsiu_().shape()[0];
+    long nptot = _Xsiu_().shape()[1]/NMO; 
+
+    // calculate how many walkers can be done concurrently
+    long Bytes = default_buffer_size_in_MB * 1024L * 1024L;
+    Bytes /= long((nu * nu + nu + nu * nup) * sizeof(ComplexType));
+    int nwmax = std::min(nwalk, std::max(1, int(Bytes)));
+    
+    int iw(0);
+    while (iw < nwalk)
+    {
+      int nw = std::min(nwmax, nwalk - iw);
+      // Guv[nspin][nu][nv]
+      memory::buffered_array<MEM,ComplexType,3> Guv(nw,nu,nu);
+      // Guu[u]: summed over spin
+      memory::buffered_array<MEM,ComplexType,2> Guu(nw,nu);
+      Guu() = ComplexType(0.0);
+
+      long is_ = long(ispin)%nstot; 
+      for (int p1 = 0; p1 < npol; ++p1)
+      {
+        long ip1_ = long(p1)%nptot; 
+        for (int p2 = 0; p2 < npol; ++p2)
+        {
+          // Buffer space
+          memory::buffered_array<MEM,ComplexType,3> Tav(nw,nelec[ispin],nu);
+          Guv_Guu(ispin, p1, p2, G3d(range(iw, iw + nw), all, all), Guv, Guu, Tav, idet);
+
+          if constexpr (MEM==HOST_MEMORY) {
+            for(int i=0; i<nw; ++i)
+              Guv(i,nda::ellipsis{}) *= Zuv();
+          } else {
+            if constexpr(REAL) {
+              auto Guv4d = memory::to_real_view(Guv);
+              nda::tensor::elementwise(RealType(1.0),Zuv,"uv",
+                                       RealType(1.0),Guv4d,"wuvc",nda::tensor::op::MUL);
+            } else {
+              nda::tensor::elementwise(ComplexType(1.0),Zuv,"uv",
+                                       ComplexType(1.0),Guv,"wuv",nda::tensor::op::MUL);
+            }
+          }
+
+          // R[w,u][b] = sum_v Guv[w,u][v] * rotcXau[b][v]
+          auto Yau = Ysau(ispin,p2,range(nelec[ispin]),all);
+          nda::tensor::contract(Yau,"av",Guv,"wuv",Tav,"wau"); 
+
+          // reuse Guv memory
+          memory::array_view<MEM,ComplexType,3> Twbi(std::array<long,3>{nw,nelec[ispin],NMO},Guv.data());
+          //T[w][b][k] = sum_u R[w][u][b] * Piu[k][u]
+          if constexpr(REAL) {
+            auto Xiu = Xsiu(is_,range(ip1_*NMO,(ip1_+1)*NMO),all);
+            auto Ta4d = memory::to_real_view(Tav);
+            auto Tb4d = memory::to_real_view(Twbi);
+            nda::tensor::contract(Ta4d,"wauc",Xiu,"iu",Tb4d,"waic"); 
+          } else {
+            auto Xiu = Xsiu(is_,range(ip1_*NMO,(ip1_+1)*NMO),all);
+            nda::tensor::contract(Tav,"wau",Xiu,"iu",Twbi,"wai"); 
+          }
+
+          // E[w] = sum_ai T[w][a][i] * G[w][a][i] 
+          auto Gwai = G3d(range(iw, iw + nw),range(ispin*nup,nup+ispin*ndown),range(p1*NMO,(p1+1)*NMO)); 
+          nda::tensor::contract(ComplexType(-0.5),Twbi,"wai",Gwai,"wai",
+                                ComplexType(1.0),E(range(iw, iw + nw), 1),"w"); 
+        }
+      }
+
+      if (addEJ)
+      {
+        EJn() = ComplexType(0.0);
+	if constexpr (REAL) {
+          // use strategy in Guv_Guu
+          auto Guu3d = memory::to_real_view(Guu);
+          auto EJn3d = memory::to_real_view(EJn);
+          nda::tensor::contract(Guu3d,"wuc",Zuv,"uv",EJn3d,"wvc");
+	} else {
+          nda::blas::gemm(Guu,Zuv,EJn);
+	}
+        nda::tensor::contract(ComplexType(RealType(0.5)),nda::conj(Guu),"wu",EJn,"wu",
+                              ComplexType(1.0),E(range(iw, iw + nw), 2),"w"); 
+      }
+      iw += nw;
+    }
   }
 
   template<class... Args>
@@ -538,8 +657,8 @@ protected:
     long nu   = Xsiu.extent(2);
 
     // G3d[w][a][j]
-    utils::check(G.shape() == std::array<long,3>{nw,nel,npol*NMO}, "THC::Guv_Guu: Shape mismatch");
-    utils::check(Guu.shape() == std::array<long,2>{nw,nu}, "THC::Guv_Guu: Shape mismatch");
+    utils::check(G.shape() == std::array<long,3>{nw,nel,npol*NMO}, "THC::Guu_from_compact: Shape mismatch");
+    utils::check(Guu.shape() == std::array<long,2>{nw,nu}, "THC::Guu_from_compact: Shape mismatch");
     Guu() = ComplexType(0.0);
     ComplexType a = (walker_type == CLOSED) ? ComplexType(2.0) : ComplexType(1.0);
     for( int is=0; is<nspin; is++ ) {
@@ -627,7 +746,7 @@ protected:
     long ip_ = long(p2)%nptot;
     range M_rng(ip_*NMO,(ip_+1)*NMO);
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
+    int nel  = G.extent(1); 
     bool has_rot = _Xsiu_rot_.has_value();
     const auto Xiu = ( has_rot ? (*_Xsiu_rot_)()(ispin%nstot,M_rng,all) : 
                                   _Xsiu_()(ispin%nstot,M_rng,all) );
@@ -645,11 +764,11 @@ protected:
       auto G4d = memory::to_real_view(G);
       auto T4d = memory::to_real_view(Twav);
       // choose electron range compatible with ispin
-      auto Gwaic = G4d(all,range(ispin*nup,nup+ispin*ndown),range(p2*NMO,(p2+1)*NMO),all);
+      auto Gwaic = G4d(all,all,range(p2*NMO,(p2+1)*NMO),all);
       // Twav[w][a][v] = sum_j G[w][a][j] X[j][v]
       nda::tensor::contract(Gwaic,"wajc",Xiu,"jv",T4d,"wavc");
     } else {
-      auto Gwai = G(all,range(ispin*nup,nup+ispin*ndown),range(p2*NMO,(p2+1)*NMO));
+      auto Gwai = G(all,all,range(p2*NMO,(p2+1)*NMO));
       // Twav[w][a][v] = sum_j G[w][a][j] X[j][v]
       nda::tensor::contract(Gwai,"wai",Xiu,"iv",Twav,"wav");
     }
