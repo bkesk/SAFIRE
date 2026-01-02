@@ -29,7 +29,7 @@ namespace afqmc
 {
 
 template<MEMORY_SPACE MEM>
-Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                                            ptree pt_in,
                                            WALKER_TYPES walker_type,
                                            Hamiltonian& h,
@@ -140,7 +140,7 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
     }
     else
     {
-      return Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+      return Wavefunction<MEM>(NOMSD<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
                                      std::move(ci), std::move(PsiT),NCE,targetNW)); 
     }
   }
@@ -183,7 +183,7 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
       build_PsiT_MO_phmsd(walker_type,npol,NMO,nup,ndown,ndets_to_read,coeffs,occs,PsiT_MO);
 
     // 3. Construct Structures.
-    ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, npol*NMO, nup, ndown);
+    ph_excitations<int, ComplexType, MEM> abij = build_ph_struct<MEM>(coeffs, occs, ndets_to_read, npol*NMO, nup, ndown);
 
     // Final Psi matrix, where we will remove orbitals that do not appear in any configuration 
     // and relabel occupation indexes
@@ -359,22 +359,23 @@ Wavefunction WavefunctionFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<
     for(int i=0; i<PsiT_2d.extent(1); i++)
       PsiT_1d(i) = std::move(PsiT_2d(0,i));
 
-    return Wavefunction(PHMSD<MEM>(AFinfo, pt, walker_type, mpi, std::move(HOps),
+    return Wavefunction<MEM>(PHMSD<MEM>(AFinfo, pt, walker_type, mpi, std::move(HOps),
                     std::move(abij), std::move(det_coupling_matrix),
                     std::move(PsiT_1d), NCE, targetNW));
   }
   else
   {
     utils::check(false," Error: Unknown wave-function wfn_type: {}", int(wfn_type));
-    return Wavefunction{};
+    return Wavefunction<MEM>{};
   }
-  return Wavefunction{};
+  return Wavefunction<MEM>{};
 }
 
 /*
  * Read Initial walker from file. Needs all mpi tasks, since it allocates on shared memory.
 */
-void WavefunctionFactory::getInitialGuess(h5::group grp,
+template<MEMORY_SPACE MEM>
+void WavefunctionFactory<MEM>::getInitialGuess(h5::group grp,
          std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
          std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type)
 {
@@ -607,7 +608,8 @@ ComplexType WavefunctionFactory::slaterCondon2([[maybe_unused]] Hamiltonian& ham
   return ComplexType(0.0);
 }
 */
-void WavefunctionFactory::build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int npol, int NMO, int nup, 
+template<MEMORY_SPACE MEM>
+void WavefunctionFactory<MEM>::build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int npol, int NMO, int nup, 
       int ndown, int ndets, nda::array<ComplexType,1>& coeffs,
       nda::array<int,2>& occs, nda::array<PsiT_Matrix<HOST_MEMORY>,1>& PsiT_MO)
 {
@@ -779,11 +781,11 @@ void WavefunctionFactory::build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int npol
 
 // Instantiate templates
 
-template Wavefunction WavefunctionFactory::fromHDF5<HOST_MEMORY>(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,WALKER_TYPES,Hamiltonian&,int);
+template Wavefunction<HOST_MEMORY> WavefunctionFactory<HOST_MEMORY>::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,WALKER_TYPES,Hamiltonian&,int);
 
 #if defined(ENABLE_DEVICE)
 
-template Wavefunction WavefunctionFactory::fromHDF5<DEVICE_MEMORY>(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,WALKER_TYPES,Hamiltonian&,int);
+template Wavefunction<DEVICE_MEMORY> WavefunctionFactory<DEVICE_MEMORY>::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,WALKER_TYPES,Hamiltonian&,int);
 
 #endif
 

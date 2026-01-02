@@ -87,7 +87,7 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
   // calculate vMF for the current time step
   if (substractMF)
   { 
-    if(mpi->comm.root()) {
+    {
      auto hamtype(wfn->getHamType());
       memory::buffered_array<MEM,ComplexType,1> vt(vMF.shape());
       // collective call
@@ -110,10 +110,11 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
       }
       vMF() = vt(); 
     }
-    if constexpr (MEM==HOST_MEMORY) 
+    if constexpr (MEM==HOST_MEMORY) { 
       if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(vMF.data(),vMF.size(),0);
-    else
+    } else {
       mpi->broadcast(vMF());
+    }
   }
 
   if(mpi->comm.root()) {
@@ -149,7 +150,8 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
 
   // H1 is in host
   if(head_shared) {
-    auto H1 = wfn->getOneBodyPropagatorMatrix(dt, vMF());
+    auto vMF_h = nda::to_host(vMF());
+    auto H1 = wfn->getOneBodyPropagatorMatrix(dt, vMF_h);
     utils::check(H1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO}, "Shape mismatch.");
     if(external_H1) nda::tensor::add(ComplexType(1.0),H1ext(),"sij",ComplexType(1.0),H1(),"sij");
 

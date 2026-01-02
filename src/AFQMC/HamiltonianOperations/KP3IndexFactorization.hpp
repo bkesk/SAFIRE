@@ -76,6 +76,8 @@ public:
         haj(std::move(haj_)),
         LQ(std::move(lq_)),
         Lank(std::move(la_)),
+        Lakn(std::nullopt),
+        Lbkn(std::nullopt),
         Lbnk(std::move(lb_)),
         vexx(std::move(vexx_)),
         default_buffer_size_in_MB(bf_size),
@@ -123,6 +125,28 @@ public:
       ncv0(iq) = ncvecs;
       ncvecs += LQ(std::min(iq,minusq(iq))).extent(5);
       nchol_max = std::max(nchol_max,int(LQ(std::min(iq,minusq(iq))).extent(5)));
+    }
+
+    // setup Lakn if needed
+    if(ndet == 1) {
+      bool writer = (MEM==HOST_MEMORY?mpi->node_comm.root():true);
+      Lakn = std::make_optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>>(nkpts);
+      for(int iq=0; iq<nkpts; ++iq) {
+        int nc = LQ(iq).extent(5); 
+        (*Lakn)(iq) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
+        if(writer) 
+          nda::tensor::add(ComplexType(1.0),Lank(iq)()(0,nda::ellipsis{}),"skanj",
+                           ComplexType(0.0),(*Lakn)(iq)()(),"skajn");
+      }
+      int nsymQ = Lbnk.extent(0); 
+      Lbkn = std::make_optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>>(nsymQ);
+      for(int i=0; i<nsymQ; ++i) {
+        int nc = Lbnk(i).extent(4); 
+        (*Lbkn)(i) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
+        if(writer) 
+          nda::tensor::add(ComplexType(1.0),Lbnk(i)()(0,nda::ellipsis{}),"skanj",
+                           ComplexType(0.0),(*Lbkn)(i)()(),"skajn");
+      }
     }
   }
 
@@ -667,9 +691,10 @@ public:
     return spvHS();
   }
 
-  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  auto vHS(nda::MemoryMatrix auto&& X, double dt)
   {
-    memory::check_memory_space<MEM>(X);
+    constexpr MEMORY_SPACE MEM_X = memory::get_memory_space<decltype(X)>();
+    static_assert(MEM == MEM_X, "Memory space mismatch");
     using nda::range;
     auto all  = range::all;
     ComplexType one(1.0), zero(0.0);
@@ -682,7 +707,7 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM,ComplexType,4> v(nwalk,nstot,nptot*NMO,NMO);
+    memory::buffered_array<MEM_X,ComplexType,4> v(nwalk,nstot,nptot*NMO,NMO);
     auto v7d = nda::reshape(v,std::array<long,7>{nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd});
     v() = ComplexType(0.0);
 
@@ -706,61 +731,111 @@ public:
       }
     }
 
-    memory::buffered_array<MEM,ComplexType,5> vKK(nwalk,npol,nkpts,nbnd,nbnd);
-    for(int is=0; is<nstot; ++is) {
+    if constexpr (MEM==HOST_MEMORY) {
+      memory::buffered_array<MEM,ComplexType,3> vKK(nwalk,nbnd,nbnd);
+      auto v2d = nda::reshape(vKK,std::array<long,2>{nwalk,nbnd*nbnd});
+      for(int is=0; is<nstot; ++is) {
+        for (int Q = 0; Q < nkpts; ++Q) {
+          int nchol = Lank(Q).extent(4);
+          for (int ip = 0; ip < npol; ++ip) {
+            auto Lq_ = nda::reshape(LQ(Q)()(is,ip,nda::ellipsis{}),std::array<long,3>{nkpts,nbnd*nbnd,nchol});
+            auto Lqm_ = nda::reshape(LQ(minusq(Q))()(is,ip,nda::ellipsis{}),std::array<long,3>{nkpts,nbnd*nbnd,nchol});
+            for (int ik = 0; ik < nkpts; ++ik) 
+            { 
+              // v[nw][i(in K)][k(in Q(K))] += sum_n LQK[i][k][n] X[Q][0][n][nw]
+              if (Q <= minusq(Q))
+              {
+                // ci^dagger cj term
+                // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
+                nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
+                      nda::transpose(Lq_(ik,all,all)),zero,v2d);
 
-      for (int Q = 0; Q < nkpts; ++Q)
-      { 
-        int nchol = Lank(Q).extent(4);
-        // v[nw][i(in K)][k(in Q(K))] += sum_n LQK[i][k][n] X[Q][0][n][nw]
-        if (Q <= minusq(Q))
-        {
-          // ci^dagger cj term
-          // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
-          nda::tensor::contract(one,LQ(Q)()(is,nda::ellipsis{}),"pkijn",
-               X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
+                // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+                // write kernel if this is too slow, or fix streams in cutensor!!!
+                int k2 = qk_to_k2(Q,ik);
+                nda::tensor::add(one,vKK,"wij",one,v7d(all,is,ip,ik,all,k2,all),"wij");
+              } else {
+                // cj^dagger ci term
+                // the kpoint index of LQ(Qm) refers to k2 
+                int k2 = qk_to_k2(Q,ik);
+                nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
+                      nda::dagger(Lqm_(k2,all,all)),zero,v2d);
 
-          // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-          // write kernel if this is too slow, or fix streams in cutensor!!!
-          for(int ik=0; ik<nkpts; ++ik) {
-            int k2 = qk_to_k2(Q,ik);
-            nda::tensor::add(one,vKK(all,all,ik,all,all),"wpij",
-                             one,v7d(all,is,all,ik,all,k2,all),"wpij");
+                // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+                // write kernel if this is too slow, or fix streams in cutensor!!!
+                nda::tensor::add(one,vKK,"wij",one,v7d(all,is,ip,ik,all,k2,all),"wij");
+              }
+              // v[nw][k(in Q(K))][i(in K)] += sum_n conj(LQK[i][k][n]) X[Q][n-][nw]
+              if(Q == minusq(Q)) {
+                // cj^dagger ci term for Q==minusq(Q)
+                // the kpoint index refers to k2 
+                nda::blas::gemm(one,X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),
+                      nda::dagger(Lq_(ik,all,all)),zero,v2d);
+
+                // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+                // write kernel if this is too slow, or fix streams in cutensor!!!
+                int k2 = qk_to_k2(Q,ik);
+                nda::tensor::add(one,vKK,"wij",one,v7d(all,is,ip,k2,all,ik,all),"wji");
+              }
+            } // ik
+          } // ip 
+        } // Q
+      } // is
+    } else {
+      memory::buffered_array<MEM,ComplexType,5> vKK(nwalk,npol,nkpts,nbnd,nbnd);
+      for(int is=0; is<nstot; ++is) {
+        for (int Q = 0; Q < nkpts; ++Q)
+        { 
+          int nchol = Lank(Q).extent(4);
+          // v[nw][i(in K)][k(in Q(K))] += sum_n LQK[i][k][n] X[Q][0][n][nw]
+          if (Q <= minusq(Q))
+          {
+            // ci^dagger cj term
+            // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
+            nda::tensor::contract(one,LQ(Q)()(is,nda::ellipsis{}),"pkijn",
+                 X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
+
+            // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+            // write kernel if this is too slow, or fix streams in cutensor!!!
+            for(int ik=0; ik<nkpts; ++ik) {
+              int k2 = qk_to_k2(Q,ik);
+              nda::tensor::add(one,vKK(all,all,ik,all,all),"wpij",
+                               one,v7d(all,is,all,ik,all,k2,all),"wpij");
+            }
+          } else {
+            // cj^dagger ci term
+            // the kpoint index of LQ(Qm) refers to k2 
+            nda::tensor::contract(one,nda::conj(LQ(minusq(Q))()(is,nda::ellipsis{})),"pkijn",
+                 X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
+
+            // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+            // write kernel if this is too slow, or fix streams in cutensor!!!
+            for(int ik=0; ik<nkpts; ++ik) {
+              int k2 = qk_to_k2(Q,ik);
+              nda::tensor::add(one,vKK(all,all,k2,all,all),"wpji",
+                               one,v7d(all,is,all,ik,all,k2,all),"wpij");
+            }
           }
-        } else {
-          // cj^dagger ci term
-          // the kpoint index of LQ(Qm) refers to k2 
-          nda::tensor::contract(one,nda::conj(LQ(minusq(Q))()(is,nda::ellipsis{})),"pkijn",
-               X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
+          // v[nw][k(in Q(K))][i(in K)] += sum_n conj(LQK[i][k][n]) X[Q][n-][nw]
+          if(Q == minusq(Q)) {
+            // cj^dagger ci term for Q==minusq(Q)
+            // the kpoint index refers to k2 
+            nda::tensor::contract(one,nda::conj(LQ(Q)()(is,nda::ellipsis{})),"pkijn",
+                 X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
 
-          // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-          // write kernel if this is too slow, or fix streams in cutensor!!!
-          for(int ik=0; ik<nkpts; ++ik) {
-            int k2 = qk_to_k2(Q,ik);
-            nda::tensor::add(one,vKK(all,all,k2,all,all),"wpji",
-                             one,v7d(all,is,all,ik,all,k2,all),"wpij");
-          }
-        }
-        // v[nw][k(in Q(K))][i(in K)] += sum_n conj(LQK[i][k][n]) X[Q][n-][nw]
-        if(Q == minusq(Q)) {
-          // cj^dagger ci term for Q==minusq(Q)
-          // the kpoint index refers to k2 
-          nda::tensor::contract(one,nda::conj(LQ(Q)()(is,nda::ellipsis{})),"pkijn",
-               X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
-
-          // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-          // write kernel if this is too slow, or fix streams in cutensor!!!
-          for(int ik=0; ik<nkpts; ++ik) {
-            int k2 = qk_to_k2(Q,ik);
+            // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+            // write kernel if this is too slow, or fix streams in cutensor!!!
+            for(int ik=0; ik<nkpts; ++ik) {
+              int k2 = qk_to_k2(Q,ik);
 // this needs checking !!!
-            nda::tensor::add(one,vKK(all,all,ik,all,all),"wpij",
-                             one,v7d(all,is,all,k2,all,ik,all),"wpji");
+              nda::tensor::add(one,vKK(all,all,ik,all,all),"wpij",
+                               one,v7d(all,is,all,k2,all,ik,all),"wpji");
+            }
           }
-        }
 
-      } // Q
-    } // is
-
+        } // Q
+      } // is
+    }
     return v;
   }
 
@@ -796,24 +871,23 @@ public:
     utils::check(G.is_contiguous(), "Layout mismatch");
 
     // G in new layout
-    memory::buffered_array<MEM,ComplexType,5> GQK(nkpts,nwalk,nkpts,nocc_max,npol*nbnd);
 
     if (haj.extent(0) == 1)
     {
       memory::array_view<MEM,const ComplexType,5> G5d(std::array<long,5>{nwalk,nel,npol,nkpts,nbnd},G.data());
       for(int is=0; is<nspin; ++is)  {
-
-        // do I gain anything by doing all Q at the same time, uses more memory!
-        Gc_to_GQKwaj(is,is*nup,G5d,GQK);
         for(int iq=0; iq<nkpts; ++iq) {
 
           int nchol = Lank(iq).extent(4);
           int iqm = minusq(iq);
+          memory::buffered_array<MEM,ComplexType,4> GQK(nwalk,nkpts,nocc_max,npol*nbnd);
           memory::buffered_array<MEM,ComplexType,2> vn(nwalk,nchol);
-     
-          nda::tensor::contract(one,Lank(iq)()(0,is,nda::ellipsis{}),"kanj",
-                                    GQK(iq,nda::ellipsis{}),"wkaj",zero,vn,"wn");
+          auto G2d = nda::reshape(GQK,std::array<long,2>{nwalk,nkpts*nocc_max*npol*nbnd});
 
+          Gc_to_GQKwaj(is,is*nup,iq,G5d,GQK);
+          auto La = nda::reshape((*Lakn)(iq)()(is,nda::ellipsis{}),std::array<long,2>{nkpts*nocc_max*npol*nbnd,nchol});
+          nda::blas::gemm(one,G2d,La,zero,vn);
+         
           // accumulate on v3d
           // v+ = a*(v[Q]+v[-Q])
           nda::tensor::add(a,vn,"wn",one,v3d(all,0,range(ncv0(iq),ncv0(iq)+nchol)),"wn");
@@ -821,8 +895,9 @@ public:
           nda::tensor::add(-ia,vn,"wn",one,v3d(all,1,range(ncv0(iq),ncv0(iq)+nchol)),"wn");
 
           if(iq == iqm) {
-            nda::tensor::contract(one,Lbnk(Qmap(iq))()(0,is,nda::ellipsis{}),"kanj",
-                                      GQK(iq,nda::ellipsis{}),"wkaj",zero,vn,"wn");
+            auto Lb = nda::reshape((*Lbkn)(Qmap(iq))()(is,nda::ellipsis{}),std::array<long,2>{nkpts*nocc_max*npol*nbnd,nchol});
+            nda::blas::gemm(one,G2d,Lb,zero,vn);
+
             // accumulate on v3d
             nda::tensor::add(a,vn,"wn",one,v3d(all,0,range(ncv0(iqm),ncv0(iqm)+nchol)),"wn");
             nda::tensor::add(ia,vn,"wn",one,v3d(all,1,range(ncv0(iqm),ncv0(iqm)+nchol)),"wn");
@@ -830,7 +905,6 @@ public:
             nda::tensor::add(a,vn,"wn",one,v3d(all,0,range(ncv0(iqm),ncv0(iqm)+nchol)),"wn");
             nda::tensor::add(ia,vn,"wn",one,v3d(all,1,range(ncv0(iqm),ncv0(iqm)+nchol)),"wn");
           }
-
         } // iq
       } // is  
     }
@@ -891,6 +965,10 @@ protected:
   // Lank(Q)(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd) 
   nda::array<memory::shared_array<MEM,ComplexType,6>,1> Lank; 
 
+  // if ndet==1, this is used for faster evaluation of vbias
+  std::optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>> Lakn;    
+  std::optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>> Lbkn;    
+
   // Lbnk(Qmap(Q))(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd), only for q==minusq(q) 
   nda::array<memory::shared_array<MEM,ComplexType,6>,1> Lbnk; 
 
@@ -947,8 +1025,8 @@ protected:
   // Changes the layout of G:
   //    From: G(nwalk,nel_tot,npol,nkpts,nbnd)
   //    To:   GQK(nkpts,nwalk,nkpts,nocc_max,npol*nbnd)
-  void Gc_to_GQKwaj(int is, int n0, nda::MemoryArrayOfRank<5> auto const& G,
-                    nda::MemoryArrayOfRank<5> auto && GQK)
+  void Gc_to_GQKwaj(int is, int n0, int iq, nda::MemoryArrayOfRank<5> auto const& G,
+                    nda::MemoryArrayOfRank<4> auto && GQK)
   {
     using nda::range;
     auto all  = range::all;
@@ -958,35 +1036,29 @@ protected:
     int nup   = nda::sum(nocc(0,all));
     int ndown = (walker_type==COLLINEAR ? nda::sum(nocc(1,all)) : 0);
 
-    auto G6d = nda::reshape(GQK,std::array<long,6>{nkpts,nwalk,nkpts,nocc_max,npol,nbnd});
+    auto G5d = nda::reshape(GQK,std::array<long,5>{nwalk,nkpts,nocc_max,npol,nbnd});
     GQK() = ComplexType(0.0);
     if constexpr (MEM==HOST_MEMORY) {
-      for(int iq=0; iq<nkpts; ++iq)
+      int nk0 = n0; 
+      for(int ik=0; ik<nkpts; ++ik)
       {
-        int nk0 = n0; 
-        for(int ik=0; ik<nkpts; ++ik)
-        {
-          int k2 = qk_to_k2(iq,ik);
-          int nk = nocc(is,ik);
-          for(int ip=0; ip<npol; ++ip)
-            for(int iw=0; iw<nwalk; ++iw)
-              G6d(iq,iw,ik,range(nk),ip,all) = G(iw,range(nk0,nk0+nk),ip,k2,all);
-          nk0 += nk;
-        }
+        int k2 = qk_to_k2(iq,ik);
+        int nk = nocc(is,ik);
+        for(int ip=0; ip<npol; ++ip)
+          for(int iw=0; iw<nwalk; ++iw)
+            G5d(iw,ik,range(nk),ip,all) = G(iw,range(nk0,nk0+nk),ip,k2,all);
+        nk0 += nk;
       }
     } else {
       // figure out how to run cutensor calls concurrently, streams don't seem to do it
-      for(int iq=0; iq<nkpts; ++iq)
+      int nk0 = n0;
+      for(int ik=0; ik<nkpts; ++ik)
       {
-        int nk0 = n0;
-        for(int ik=0; ik<nkpts; ++ik)
-        {
-          int k2 = qk_to_k2(iq,ik);
-          int nk = nocc(is,ik);
-          nda::tensor::add(ComplexType(1.0),G(all,range(nk0,nk0+nk),all,k2,all),"wapj",
-                           ComplexType(0.0),G6d(iq,all,ik,range(nk),all,all),"wapj");
-          nk0 += nk;
-        }
+        int k2 = qk_to_k2(iq,ik);
+        int nk = nocc(is,ik);
+        nda::tensor::add(ComplexType(1.0),G(all,range(nk0,nk0+nk),all,k2,all),"wapj",
+                         ComplexType(0.0),G5d(all,ik,range(nk),all,all),"wapj");
+        nk0 += nk;
       }
     }
   }

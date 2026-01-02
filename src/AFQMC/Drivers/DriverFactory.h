@@ -30,6 +30,7 @@ namespace sfqmc
 {
 namespace afqmc
 {
+template<MEMORY_SPACE MEM>
 class DriverFactory
 {
   using communicator = boost::mpi3::communicator;
@@ -37,9 +38,9 @@ class DriverFactory
 public:
   DriverFactory(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                 std::map<std::string, AFQMCInfo>& info,
-                WalkerSetFactory& wsetfac_,
-                PropagatorFactory& pfac_,
-                WavefunctionFactory& wfnfac_,
+                WalkerSetFactory<MEM>& wsetfac_,
+                PropagatorFactory<MEM>& pfac_,
+                WavefunctionFactory<MEM>& wfnfac_,
                 HamiltonianFactory& hfac)
       : mpi(_mpi), 
         InfoMap(info),
@@ -173,16 +174,16 @@ private:
   std::map<std::string, AFQMCInfo>& InfoMap;
 
   // WalkerHandler factory
-  WalkerSetFactory& WSetFac;
+  WalkerSetFactory<MEM>& WSetFac;
 
   // Propagator factory
-  PropagatorFactory& PropFac;
+  PropagatorFactory<MEM>& PropFac;
 
   // Hamiltonian factory
   HamiltonianFactory& HamFac;
 
   // Wavefunction factory
-  WavefunctionFactory& WfnFac;
+  WavefunctionFactory<MEM>& WfnFac;
 
   int unique_id = 0;
 
@@ -193,6 +194,12 @@ private:
   // WfnFac.get_input(wfn_name) exists and it contains a non-empty filename.
   std::string get_wavefunction_id(ptree pt);
 
+  // similar to get_or_push, but customized for system
+  std::string get_system_id(ptree pt, std::string wfn_name); 
+
+  std::tuple<std::string,std::string,std::string,std::string,std::string>
+    get_component_ids(ptree pt); 
+
   // this routine gets the node with key "key" from the property tree ptree. Then:
   // 1. If the node has a non-empty string as a value, it will check that the Factory
   //    provided has an input block defined with this identifier, otherwise the code aborts.
@@ -202,13 +209,46 @@ private:
   // 3. If the node contains an empty string and no child ptrees or no node is found, 
   //    then the provided (default) ptree is pushed into the factory with a unique name.        
   template<class Factory>
-  std::string get_or_push(std::string key, ptree pt, Factory& fac, ptree default_ptree, std::string system); 
+  std::string get_or_push(std::string key, ptree pt, Factory& fac, ptree default_ptree, std::string system)
+  {
+    std::string name("");
+    if( auto pt_ = pt.get_child_optional(key) ) {
+      if( pt_->size() > 0 ) {
+        // assume declaration
+        if( pt_->get<std::string>("system","") == "")
+          pt_->put("system",system);
+        auto val = pt_->get<std::string>("name","");
+        if( val != "" ) {
+          fac.push(val, *pt_);
+          return val;
+        } else {
+          // unname block, set name and push
+          name = key + std::string("_unique_id_") + std::to_string(++unique_id);
+          pt_->put("name",name);
+          fac.push(name, *pt_);
+          return name;
+        }
+      } else if( auto val = pt_->get_value_optional<std::string>() ) {
+        if(*val != "") {
+          // a name is provided, retrieve it to make sure it exists 
+          ptree dummy = fac.get_input(*val);
+          if( dummy.get<std::string>("system","") == "" )
+            fac.get_input(*val).put("system",system);
+          return *val;
+        }
+      // if val=="", then construct further below
+      } else
+        utils::check(false," Error reading input: " + key);
+    }
+    // make name and push default
+    if(name == "") {
+      name = key + std::string("_unique_id_") + std::to_string(++unique_id);
+      default_ptree.put("name",name);
+      fac.push(name, default_ptree);
+    }
+    return name;
+  }
 
-  // similar to get_or_push, but customized for system
-  std::string get_system_id(ptree pt, std::string wfn_name); 
-
-  std::tuple<std::string,std::string,std::string,std::string,std::string>
-    get_component_ids(ptree pt); 
 
 };
 

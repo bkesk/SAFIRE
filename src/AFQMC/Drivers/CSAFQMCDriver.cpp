@@ -42,7 +42,6 @@ bool CSAFQMCDriver::run(std::vector<std::reference_wrapper<WalkerSet>>& wset_ref
   app_log(1,"****************************************************");
   app_log(1,"              Beginning AFQMC calculation           ");
   app_log(1,"****************************************************");
-  setup_AFQMC_timer();
 
   std::vector<ComplexType> curData(7); 
   Matrix<ComplexType> wData({nsys,7});

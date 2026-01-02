@@ -68,10 +68,10 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
 
   std::map<std::string, AFQMCInfo> InfoMap;
   HamiltonianFactory HamFac(InfoMap);
-  WalkerSetFactory WSetFac(InfoMap);
-  WavefunctionFactory WfnFac(InfoMap);
-  PropagatorFactory PropFac(InfoMap);
-  DriverFactory DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac);
+  WalkerSetFactory<MEM> WSetFac(InfoMap);
+  WavefunctionFactory<MEM> WfnFac(InfoMap);
+  PropagatorFactory<MEM> PropFac(InfoMap);
+  DriverFactory<MEM> DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac);
 
   const auto[NMO, nup, ndown] = read_info_from_wfn(hamil_file,"any");
   AFQMCInfo info("sys0",NMO,nup,ndown);

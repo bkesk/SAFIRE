@@ -201,7 +201,8 @@ nda::array<long,1> get_nnz(csr const& PsiT_MO, intT* refc, long N, long shift)
 
 // Holds information necessary to reconstruct particle-hole multi-determinant expansions
 template<class I       = int,
-         class VType   = std::complex<double>> 
+         class VType   = std::complex<double>,
+         MEMORY_SPACE MEM = HOST_MEMORY> 
 struct ph_excitations
 {
 public:
@@ -211,9 +212,7 @@ public:
 private:
   using confg_aos  = math::sparse::array_of_sequences<configuration_type,HOST_MEMORY,int>;
   using index_aos  = math::sparse::array_of_sequences<integer_type,HOST_MEMORY,int>; 
-#if defined(ENABLE_DEVICE)
-  using dev_index_aos  = math::sparse::array_of_sequences<integer_type,HOST_MEMORY,int>; 
-#endif
+  using dev_index_aos  = math::sparse::array_of_sequences<integer_type,MEM,int>; 
   template<typename Integer>
   class Iterator
       : public boost::
@@ -563,51 +562,48 @@ public:
       get_beta_configuration(index, confg);
   }
 
-#if defined(ENABLE_DEVICE)
   auto get_excitation_list_device(int ispin, int iex) 
   {
-    if(not dev_init) {
-      dev_init = true;
-      reference_dev = reference;
-      unique_alpha_dev = unique_alpha;
-      unique_beta_dev = unique_beta;  
-    }
-    if(ispin == 0) {
-      utils::check(iex >= 0 and iex < unique_alpha_dev.size(), "out of bounds");
-      return unique_alpha_dev.sequence(iex);
+    if constexpr (MEM==HOST_MEMORY) {
+      if(ispin == 0) {
+        utils::check(iex >= 0 and iex < unique_alpha.size(), "out of bounds");
+        return unique_alpha.sequence(iex);
+      } else {
+        utils::check(iex >= 0 and iex < unique_beta.size(), "out of bounds");
+        return unique_beta.sequence(iex);
+      }
     } else {
-      utils::check(iex >= 0 and iex < unique_beta_dev.size(), "out of bounds");
-      return unique_beta_dev.sequence(iex);
+      if(not dev_init) {
+        dev_init = true;
+        reference_dev = reference;
+        unique_alpha_dev = unique_alpha;
+        unique_beta_dev = unique_beta;  
+      }
+      if(ispin == 0) {
+        utils::check(iex >= 0 and iex < unique_alpha_dev.size(), "out of bounds");
+        return unique_alpha_dev.sequence(iex);
+      } else {
+        utils::check(iex >= 0 and iex < unique_beta_dev.size(), "out of bounds");
+        return unique_beta_dev.sequence(iex);
+      }
     }
   }
 
   auto get_reference_configuration_device(int ispin) 
   {
-    if(not dev_init) {
-      dev_init = true;
-      reference_dev = reference;
-      unique_alpha_dev = unique_alpha;   
-      unique_beta_dev = unique_beta;    
-    }
-    return reference_dev.sequence(0)(nda::range(ispin*nup,nup+ispin*ndown)); 
-  }
-#else
-  auto get_excitation_list_device(int ispin, int iex)
-  {
-    if(ispin == 0) {
-      utils::check(iex >= 0 and iex < unique_alpha.size(), "out of bounds");
-      return unique_alpha.sequence(iex);
+    if constexpr (MEM==HOST_MEMORY) {
+      return reference.sequence(0)(nda::range(ispin*nup,nup+ispin*ndown)); 
     } else {
-      utils::check(iex >= 0 and iex < unique_beta.size(), "out of bounds");
-      return unique_beta.sequence(iex);
+      if(not dev_init) {
+        dev_init = true;
+        reference_dev = reference;
+        unique_alpha_dev = unique_alpha;   
+       unique_beta_dev = unique_beta;    
+      } 
+      return reference_dev.sequence(0)(nda::range(ispin*nup,nup+ispin*ndown)); 
     }
   }
 
-  auto get_reference_configuration_device(int ispin)
-  {
-    return reference.sequence(0)(nda::range(ispin*nup,nup+ispin*ndown)); 
-  }
-#endif
 private:
 
   int nup, ndown;
@@ -616,12 +612,10 @@ private:
   index_aos unique_alpha;
   index_aos unique_beta;
   std::vector<std::array<long, 2>> sum_of_exct;
-#if defined(ENABLE_DEVICE)
   bool dev_init = false;
   dev_index_aos reference_dev;
   dev_index_aos unique_alpha_dev;
   dev_index_aos unique_beta_dev;
-#endif
 
 };
 

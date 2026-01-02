@@ -27,12 +27,12 @@ namespace sfqmc::afqmc
 {
 
 template<nda::MemoryArrayOfRank<3> T_t, nda::MemoryMatrix Mat>
-void calculate_overlaps(int spin, ph_excitations<int, ComplexType>& abij,  T_t const& T, Mat&& ov)
+void calculate_overlaps(int spin, ph_excitations<int, ComplexType, memory::get_memory_space<Mat>()>& abij,  T_t const& T, Mat&& ov)
 {
   using nda::range;
   auto all = range::all;
   static_assert(memory::get_memory_space<T_t>() == memory::get_memory_space<Mat>(), "Memory space mismatch");
-  constexpr MEMORY_SPACE MEM = memory::get_memory_space<Mat>(); 
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<Mat>();
   ov(0,all)=ComplexType(1.0); 
   int nw = ov.extent(1);
   utils::check(T.extent(0) == nw, "Size mismatch"); 
@@ -106,7 +106,7 @@ void calculate_overlaps(int spin, ph_excitations<int, ComplexType>& abij,  T_t c
 // weights(nd,nw)
 // R(nw,nel,nact)
 template<nda::MemoryArrayOfRank<3> T_t, nda::MemoryMatrix Mat, nda::MemoryArrayOfRank<3> R_t>
-void calculate_R(int spin, ph_excitations<int, ComplexType>& abij,  T_t const& T, Mat&& weights, R_t && R)
+void calculate_R(int spin, ph_excitations<int, ComplexType, memory::get_memory_space<Mat>()>& abij,  T_t const& T, Mat&& weights, R_t && R)
 {
   using nda::range;
   auto all = range::all;
@@ -281,9 +281,9 @@ void get_compact_ph_R_matrices(nda::MemoryVector auto const& iexcit,
 // T(nwalk,nact,nelec]
 // E[nwalk,3]
 // KE[ndet,nwalk,nke]
-template<class Op>
-void ph_excited_energies_first_step(ph_excitations<int, ComplexType>& abij,
-         nda::MemoryMatrix auto&& wgt, nda::MemoryArrayOfRank<3> auto T,
+template<class Op, nda::MemoryMatrix Mat>
+void ph_excited_energies_first_step(ph_excitations<int, ComplexType, memory::get_memory_space<Mat>()>& abij,
+         Mat&& wgt, nda::MemoryArrayOfRank<3> auto T,
          nda::MemoryMatrix auto&& E, nda::MemoryArrayOfRank<3> auto&& KE, Op& HamOps)
 {
   using nda::range;
@@ -337,9 +337,9 @@ void ph_excited_energies_first_step(ph_excitations<int, ComplexType>& abij,
 // T(nwalk,nact,nelec]
 // E[nwalk,3]
 // KE[ndet,nwalk,nke]
-template<class Op>
-void ph_excited_energies_second_step(ph_excitations<int, ComplexType>& abij,
-         nda::MemoryMatrix auto&& wgt, nda::MemoryArrayOfRank<3> auto T,
+template<class Op, nda::MemoryMatrix Mat>
+void ph_excited_energies_second_step(ph_excitations<int, ComplexType, 
+         memory::get_memory_space<Mat>()>& abij, Mat&& wgt, nda::MemoryArrayOfRank<3> auto T,
          nda::MemoryMatrix auto&& E, nda::MemoryArrayOfRank<3> auto&& KE, Op& HamOps)
 {
   using nda::range;

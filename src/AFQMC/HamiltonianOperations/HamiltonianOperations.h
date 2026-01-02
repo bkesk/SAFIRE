@@ -79,10 +79,13 @@ public:
     std::visit([&](auto&& a) { a.generalizedFockMatrix(std::forward<Args>(args)...); }, var);
   }
 
-  memory::buffered_array<MEM,ComplexType,4> vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  template<nda::MemoryMatrix X_t>
+  //memory::buffered_array<memory::get_memory_space<X_t>(),ComplexType,4> vHS(X_t&& X, double dt)
+  auto vHS(X_t&& X, double dt)
   {
-    auto X_ = X();
-    return vHS_impl(X_,dt);
+    //auto X_ = X();
+    //return vHS_impl(X_,dt);
+    return std::visit([&](auto&& a) { return a.vHS(X,dt); }, var);
   }
 
   auto vHS_sparse(nda::MemoryArrayOfRank<2> auto const& X, double dt)
@@ -141,7 +144,7 @@ public:
 
   void vbias_impl(nda::MemoryArrayOfRank<2> auto const& G, nda::MemoryArrayOfRank<2> auto& v, double dt);
 
-  memory::buffered_array<MEM,ComplexType,4> vHS_impl(nda::MemoryArrayOfRank<2> auto & X, double dt);
+  auto vHS_impl(nda::MemoryMatrix auto& X, double dt);
 
   void update_potentials_impl(double dt, nda::MemoryVector auto const& nMF, nda::MemoryVector auto& vMF, bool natural_shift);
 };

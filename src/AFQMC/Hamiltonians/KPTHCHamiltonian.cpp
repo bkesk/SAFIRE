@@ -325,10 +325,11 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   // Y = PsiT*conj(X): (since PsiT is already conjugated/transposed) 
   auto Ydsau = memory::make_shared_array<MEM,ComplexType,6>(mpi,
                       {ndet,nspin,npol,nkpts,nocc_max,nu});
-  if constexpr (MEM == HOST_MEMORY)
+  if constexpr (MEM == HOST_MEMORY) {
     if(mpi->node_comm.root()) Ydsau() = ComplexType(0.0);
-  else
+  } else {
     Ydsau() = ComplexType(0.0);
+  }
   std::optional<decltype(Ydsau)> Ydsau_rot = std::nullopt;
   mpi->comm.barrier();
   
@@ -388,7 +389,8 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
               if constexpr (MEM==HOST_MEMORY) 
                 Tuv() = Zu() * Tuv();
               else
-                nda::tensor::elementwise(Zu, "uv", Tuv, "uv", nda::tensor::op::MUL);
+                nda::tensor::elementwise(ComplexType(1.0), Zu, "uv", 
+                                         ComplexType(1.0), Tuv, "uv", nda::tensor::op::MUL);
               nda::tensor::add(ComplexType(1.0),Tuv,"uv",ComplexType(1.0),Wuv,"uv"); 
             } 
             auto Xiu = Xsiu()(is,ik,range(ip*nbnd,(ip+1)*nbnd),all);
@@ -413,10 +415,11 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   // You can also write a kernel that dispatches all the gemms from device side using the new library
   long nel[] = {nel_up, (type == COLLINEAR ? nel_dn : 0l) }; 
   auto haj = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO});
-  if constexpr (MEM == HOST_MEMORY)
+  if constexpr (MEM == HOST_MEMORY) {
     if(mpi->node_comm.root()) haj() = ComplexType(0.0);
-  else
+  } else {
     haj() = ComplexType(0.0);
+  }
   mpi->node_comm.barrier();
   {
     for(long id=0, itot=0; id<ndet; ++id) {

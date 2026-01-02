@@ -29,27 +29,19 @@ namespace sfqmc
 namespace afqmc
 {
 
+template<MEMORY_SPACE MEM>
 class Propagator 
 {
 public:
   Propagator() { utils::check(false," Error: Reached default constructor of Propagator. "); }
 
-  explicit Propagator(AFQMCBasePropagator<HOST_MEMORY>&& other) : var(std::move(other)) {}
-  explicit Propagator(AFQMCBasePropagator<HOST_MEMORY> const& other) = delete;
+  explicit Propagator(AFQMCBasePropagator<MEM>&& other) : var(std::move(other)) {}
+  explicit Propagator(AFQMCBasePropagator<MEM> const& other) : var(other) {} 
 
-#if defined(ENABLE_DEVICE)
-  explicit Propagator(AFQMCBasePropagator<DEVICE_MEMORY>&& other) : var(std::move(other)) {}
-  explicit Propagator(AFQMCBasePropagator<DEVICE_MEMORY> const& other) = delete;
-#endif
-/*
-  explicit Propagator(AFQMCModelPropagator<true>&& other) : variant(std::move(other)) {}
-  explicit Propagator(AFQMCModelPropagator<true> const& other) = delete;
-*/
-
-  Propagator(Propagator const& other) = delete;
+  Propagator(Propagator const& other) = default;
   Propagator(Propagator&& other)      = default;
 
-  Propagator& operator=(Propagator const& other) = delete;
+  Propagator& operator=(Propagator const& other) = default;
   Propagator& operator=(Propagator&& other) = default;
 
   template<class... Args>
@@ -106,11 +98,7 @@ public:
 
   private:
 
-#if defined(ENABLE_DEVICE)
-  std::variant<AFQMCBasePropagator<HOST_MEMORY>, AFQMCBasePropagator<DEVICE_MEMORY>> var;
-#else
-  std::variant<AFQMCBasePropagator<HOST_MEMORY>> var;
-#endif
+  std::variant<AFQMCBasePropagator<MEM>> var;
 
 };
 

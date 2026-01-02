@@ -283,10 +283,11 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   // Y = PsiT*conj(X): (since PsiT is already conjugated/transposed) 
   auto Ydsau = memory::make_shared_array<MEM,ComplexType,5>(mpi,
                       {ndet,nspin,npol,nup,nu});
-  if constexpr (MEM == HOST_MEMORY)
+  if constexpr (MEM == HOST_MEMORY) {
     if(mpi->node_comm.root()) Ydsau() = ComplexType(0.0);
-  else
+  } else {
     Ydsau() = ComplexType(0.0);
+  }
   std::optional<decltype(Ydsau)> Ydsau_rot = std::nullopt;
   mpi->comm.barrier();
   

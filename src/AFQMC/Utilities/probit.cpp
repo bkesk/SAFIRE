@@ -26,6 +26,9 @@
 #include <math.h>
 #include <stdexcept>
 
+namespace sfqmc::afqmc
+{
+
 /* 
    Implementation of the approximation to the probit funciton  
    by Peter John Acklam.
@@ -118,3 +121,5 @@ double probit(double p)
             (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
     }
 }
+
+} // sfqmc::afqmc

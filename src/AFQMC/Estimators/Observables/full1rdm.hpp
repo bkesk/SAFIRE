@@ -156,13 +156,13 @@ public:
 
        utils::check(walker_type != NONCOLLINEAR,"Error: Not yet implemented: acc_with_rotation && noncollinear.");
 
-      int nw = G.extent(0);  
+      int nw = G_host.extent(0);  
       int nX   = XRot().extent(0);
       // Grot = Xc * G * H(Xc)
       memory::buffered_array<HOST_MEMORY,ComplexType,4> T1(nwalk,nspin,nX,npol*NMO); 
-      memory::buffered_array<HOST_MEMORY,ComplexType,4> Grot(G.shape()); 
+      memory::buffered_array<HOST_MEMORY,ComplexType,4> Grot(G_host.shape()); 
 
-      nda::tensor::contract(nda::conj(XRot()),"sai",G,"wsij",T1,"wsaj");
+      nda::tensor::contract(nda::conj(XRot()),"sai",G_host,"wsij",T1,"wsaj");
       nda::tensor::contract(T1,"wsaj,",XRot(),"sbj",Grot,"wsab");
 
       if (print_from_list)

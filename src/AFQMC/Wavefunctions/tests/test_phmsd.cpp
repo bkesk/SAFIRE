@@ -88,7 +88,7 @@ void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communica
   nda::array<PsiT_Matrix<HOST_MEMORY>, 1> PsiT_MO;
   read_ph_wavefunction_hdf(ngrp, coeffs, occs, ndets_to_read, type, NMO, nup, ndown, PsiT_MO, wfn_type); 
 
-  ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, NMO, nup, ndown);
+  auto abij = build_ph_struct<MEM>(coeffs, occs, ndets_to_read, NMO, nup, ndown);
   using std::get;
   auto cit = abij.configurations_begin();
   nda::array<int,1> configa(nup), configb(ndown);
@@ -165,7 +165,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   int nwalk         = 1; 
   int ndets         = 100; 
   double dt         = 0.01;
-  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
 
   std::map<std::string, AFQMCInfo> InfoMap;
   InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
@@ -187,9 +187,9 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   wfn_pt.put("ndets_to_read",ndets);
   wfn_pt.put("algorithm",0);
 
-  WavefunctionFactory WfnFac(InfoMap);
+  WavefunctionFactory<MEM> WfnFac(InfoMap);
   WfnFac.push("wfn0", wfn_pt);
-  Wavefunction& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
+  auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
@@ -282,7 +282,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   nomsd_pt.put("filename",nomsd_file);
 
   WfnFac.push("nomsd", nomsd_pt);
-  Wavefunction& nomsd = WfnFac.getWavefunction(mpi, "nomsd", type, &ham, nwalk);
+  auto& nomsd = WfnFac.getWavefunction(mpi, "nomsd", type, &ham, nwalk);
 
   // 1. Overlap 
   ComplexType ovlp_sum = ComplexType(0.0);
@@ -380,7 +380,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     wfn1_pt.put("algorithm",1);
 
     WfnFac.push("wfn1", wfn1_pt);
-    Wavefunction& wfn1 = WfnFac.getWavefunction(mpi, "wfn1", type, &ham, nwalk);
+    auto& wfn1 = WfnFac.getWavefunction(mpi, "wfn1", type, &ham, nwalk);
 
     memory::array<MEM,ComplexType,2> eloc(nwalk,3);
     memory::array<MEM,ComplexType,1> ov(nwalk);

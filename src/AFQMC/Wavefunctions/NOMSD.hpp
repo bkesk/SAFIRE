@@ -98,7 +98,6 @@ public:
       "name",
       "ndets_to_read",
       "filename",
-      "compute",
       "dense_trial"
     };
     io::compare_known_keys("Non-orthogonal multi-Slater det. (NOMSD) Wavefunction",pt1, pt0,pass_through_keys);

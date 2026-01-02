@@ -26,6 +26,7 @@
 
 #include "IO/app_loggers.h"
 #include "cuda_runtime.h" 
+#include "curand.h"
 
 #include "arch/CUDA/cuda_init.h"
 #include "mpi3/environment.hpp"
@@ -47,6 +48,16 @@ void cuda_check(cudaError_t sucess, std::string message)
    app_error(" cudaGetErrorName: {}",std::string(cudaGetErrorName(sucess)));
    app_error(" cudaGetErrorString: {}",std::string(cudaGetErrorString(sucess)));
    APP_ABORT(" Cuda runtime error"); 
+  }
+}
+
+void curand_check(curandStatus_t sucess, std::string message)
+{
+  if (sucess != CURAND_STATUS_SUCCESS) {
+   app_error(" Curand runtime error: {}",std::to_string(sucess));
+   if(message != "")
+     app_error(" message: {}",message);
+   APP_ABORT(" Curand runtime error");
   }
 }
 

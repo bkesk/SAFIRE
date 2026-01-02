@@ -53,90 +53,96 @@ void ph_excited_2body_energy_dense_cholesky(nda::MemoryVector auto const& iexcit
   utils::check(KE.shape() == std::array<long,3>{ndet,nwalk,nchol}, "Size mismatch");
   utils::check(Twina.extent(0)==nwalk and Twina.extent(3)==nact, "Size mismatch");
 
-  nda::vector<int> occps(nelec);
-  ComplexType zero(0.0), one(1.0), two(2.0), half(0.5);  
-  memory::buffered_array<MEM,ComplexType,2> Fbuff(2,std::max(nact, nchol));
-  nda::array_view<nda::get_value_t<decltype(iexcit)> const,3> iex(std::array<long,3>{ndet,2,nex}, iexcit.data());
+  if constexpr (MEM==HOST_MEMORY) {
+    nda::vector<int> occps(nelec);
+    ComplexType zero(0.0), one(1.0), two(2.0), half(0.5);  
+    memory::buffered_array<MEM,ComplexType,2> Fbuff(2,std::max(nact, nchol));
+    nda::array_view<nda::get_value_t<decltype(iexcit)> const,3> iex(std::array<long,3>{ndet,2,nex}, iexcit.data());
 
-  for(int iw=0; iw<nwalk; iw++) {
-    for(int idet=0; idet<ndet; idet++) {
+    for(int iw=0; iw<nwalk; iw++) {
+      for(int idet=0; idet<ndet; idet++) {
 
-      auto Fa = Fbuff(0,range(nact));
-      auto Fn = Fbuff(0,range(nchol));
-      auto Fn1 = Fbuff(1,range(nchol));
-      auto Kn = KE(idet,iw,all);
-      auto Rxa = R(iw,idet,all,all); 
-      Kn() = zero; 
+        auto Fa = Fbuff(0,range(nact));
+        auto Fn = Fbuff(0,range(nchol));
+        auto Fn1 = Fbuff(1,range(nchol));
+        auto Kn = KE(idet,iw,all);
+        auto Rxa = R(iw,idet,all,all); 
+        Kn() = zero; 
 
-      ComplexType eX(0.0);
-      for(int i=0; i<nelec; i++) {
-        occps(i) = refc(i);
-        for(int ie1=0; ie1<nex; ie1++) {
-          int ip = iex(idet,0,ie1);
-          if(ip == i) {
-            occps(i) = iex(idet,1,ie1); 
-            break;
+        ComplexType eX(0.0);
+        for(int i=0; i<nelec; i++) {
+          occps(i) = refc(i);
+          for(int ie1=0; ie1<nex; ie1++) {
+            int ip = iex(idet,0,ie1);
+            if(ip == i) {
+              occps(i) = iex(idet,1,ie1); 
+              break;
+            }
           }
         }
+        // spin-diagonal part of the kinetic energy of the reference configuration,
+        // since the routine produces EJ-EJref (including only the spin-diagonal part) 
+        // Fn = sum_i Twina(iw,i,n,refc(i))
+        Fn = zero;
+        for(int i=0; i<nelec; i++) 
+          Fn += Twina(iw,i,range(nchol),refc(i));
+
+        ComplexType eJ0 = nda::sum( Fn*Fn );
+
+        for(int ie1=0; ie1<nex; ie1++) {
+          int ip = iex(idet,0,ie1);
+
+          // ie1==ie2 term
+          nda::tensor::contract(one,Twina(iw,ip,all,all),"na",Rxa(ie1,all),"a",zero,Fn,"n");
+          eX += nda::sum( Fn*Fn );
+          Kn() += Fn;
+
+          // R[p]*R[q] terms
+          for(int ie2=ie1+1; ie2<nex; ie2++) {
+            int iq = iex(idet,0,ie2);
+            // Twq[n][a] * Rwp[a] = Fn
+            nda::tensor::contract(one,Twina(iw,iq,all,all),"na",Rxa(ie1,all),"a",zero,Fn,"n");
+            // Twp[n][b] * Rwq[b] = Fn
+            nda::tensor::contract(one,Twina(iw,ip,all,all),"na",Rxa(ie2,all),"a",zero,Fn1,"n");
+            eX += two * nda::sum( Fn*Fn1 ); 
+          }
+
+          // R[p]*R[diagonal] term
+          for(int j=0; j<nelec; j++) {
+            int Oj = occps(j); 
+            nda::tensor::contract(one,Twina(iw,j,all,all),"na",Twina(iw,ip,all,Oj),"n",zero,Fa,"a");
+            eX += two * nda::sum( Fa*Rxa(ie1,all) ); 
+          }
+
+        }  
+
+        // Rdiag-Rdiag terms
+        for(int i=0; i<nelec; i++) {
+          int Oi = occps(i);
+          int ri = refc(i);
+          if( Oi!=ri )
+            eX += nda::sum( Twina(iw,i,all,Oi)*Twina(iw,i,all,Oi) ) - nda::sum( Twina(iw,i,all,ri)*Twina(iw,i,all,ri) ); 
+
+          for(int j=i+1; j<nelec; j++) {
+            int Oj = occps(j);
+            int rj = refc(j);
+            // Rdiag-Rdiag terms
+            if( Oi!=ri or Oj!=rj )
+              eX += two * ( nda::sum( Twina(iw,i,all,Oj)*Twina(iw,j,all,Oi) ) - nda::sum( Twina(iw,i,all,rj)*Twina(iw,j,all,ri) )); 
+          }
+        }
+        // R[diagonal]*R[diagonal] J-term
+        for(int i=0; i<nelec; i++) 
+          Kn() += Twina(iw,i,all,occps(i));
+
+        EX(iw) -= half * wgt(idet,iw) * eX;
+        EJ(iw) += half * wgt(idet,iw) * ( nda::sum( Kn*Kn ) - eJ0 );
       }
-      // spin-diagonal part of the kinetic energy of the reference configuration,
-      // since the routine produces EJ-EJref (including only the spin-diagonal part) 
-      // Fn = sum_i Twina(iw,i,n,refc(i))
-      Fn = zero;
-      for(int i=0; i<nelec; i++) 
-        Fn += Twina(iw,i,range(nchol),refc(i));
-
-      ComplexType eJ0 = nda::sum( Fn*Fn );
-
-      for(int ie1=0; ie1<nex; ie1++) {
-        int ip = iex(idet,0,ie1);
-
-        // ie1==ie2 term
-        nda::tensor::contract(one,Twina(iw,ip,all,all),"na",Rxa(ie1,all),"a",zero,Fn,"n");
-        eX += nda::sum( Fn*Fn );
-        Kn() += Fn;
-
-        // R[p]*R[q] terms
-        for(int ie2=ie1+1; ie2<nex; ie2++) {
-          int iq = iex(idet,0,ie2);
-          // Twq[n][a] * Rwp[a] = Fn
-          nda::tensor::contract(one,Twina(iw,iq,all,all),"na",Rxa(ie1,all),"a",zero,Fn,"n");
-          // Twp[n][b] * Rwq[b] = Fn
-          nda::tensor::contract(one,Twina(iw,ip,all,all),"na",Rxa(ie2,all),"a",zero,Fn1,"n");
-          eX += two * nda::sum( Fn*Fn1 ); 
-        }
-
-        // R[p]*R[diagonal] term
-        for(int j=0; j<nelec; j++) {
-          int Oj = occps(j); 
-          nda::tensor::contract(one,Twina(iw,j,all,all),"na",Twina(iw,ip,all,Oj),"n",zero,Fa,"a");
-          eX += two * nda::sum( Fa*Rxa(ie1,all) ); 
-        }
-
-      }  
-
-      // Rdiag-Rdiag terms
-      for(int i=0; i<nelec; i++) {
-        int Oi = occps(i);
-        int ri = refc(i);
-        if( Oi!=ri )
-          eX += nda::sum( Twina(iw,i,all,Oi)*Twina(iw,i,all,Oi) ) - nda::sum( Twina(iw,i,all,ri)*Twina(iw,i,all,ri) ); 
-
-        for(int j=i+1; j<nelec; j++) {
-          int Oj = occps(j);
-          int rj = refc(j);
-          // Rdiag-Rdiag terms
-          if( Oi!=ri or Oj!=rj )
-            eX += two * ( nda::sum( Twina(iw,i,all,Oj)*Twina(iw,j,all,Oi) ) - nda::sum( Twina(iw,i,all,rj)*Twina(iw,j,all,ri) )); 
-        }
-      }
-      // R[diagonal]*R[diagonal] J-term
-      for(int i=0; i<nelec; i++) 
-        Kn() += Twina(iw,i,all,occps(i));
-
-      EX(iw) -= half * wgt(idet,iw) * eX;
-      EJ(iw) += half * wgt(idet,iw) * ( nda::sum( Kn*Kn ) - eJ0 );
     }
+  } else {
+    // custom kernel???
+    utils::check(false,"finish");
+//  kernels::ph_excited_1body_energy(iexcit,refc,S,R,wgt,E);
   }
 }
 

@@ -52,8 +52,8 @@ public:
   AFQMCBasePropagator(AFQMCInfo& info,
                       ptree pt_in,
                       std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi_,
-                      Wavefunction& wfn_,
-                      std::shared_ptr<utils::DeviceRandomGenerator_t> r)
+                      Wavefunction<MEM>& wfn_,
+                      std::shared_ptr<utils::RandomGenerator_t<MEM>> r)
       : AFQMCInfo(info),
         mpi(mpi_),
         wfn(std::addressof(wfn_)),
@@ -65,6 +65,9 @@ public:
         vMF(memory::make_shared_array<MEM,ComplexType,1>(mpi,std::array<long,1>{wfn->number_of_cholesky_vectors()})),
         rng(r),
         FieldTypes(wfn->getFieldTypes()),
+#if defined(ENABLE_DEVICE)
+        FieldTypes_dev(FieldTypes()),
+#endif
         rng_block_size(wfn->number_of_cholesky_vectors()),
         excitedOrbMat(memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{1,1,1}))
   {
@@ -262,8 +265,7 @@ public:
     std::unordered_set<std::string> pass_through_keys = {
       "system",
       "name",
-      "debug",
-      "compute"
+      "debug"
     };
     io::compare_known_keys("Propagator",pt1, pt0,pass_through_keys);
     return pt1;
@@ -305,7 +307,7 @@ protected:
   // mpi_context
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
-  Wavefunction* wfn = nullptr;
+  Wavefunction<MEM>* wfn = nullptr;
 
   memory::shared_array<HOST_MEMORY,ComplexType,3> H1ext;
 
@@ -325,9 +327,15 @@ protected:
 
   memory::shared_array<MEM, ComplexType, 1> vMF;
 
-  std::shared_ptr<utils::DeviceRandomGenerator_t> rng;
+  std::shared_ptr<utils::RandomGenerator_t<MEM>> rng;
+
+// erase
+//utils::RandomGenerator_t<> rng_h = utils::RandomGenerator_t<>(777);
 
   nda::array<int,1> FieldTypes;
+#if defined(ENABLE_DEVICE)
+  memory::array<MEM,int,1> FieldTypes_dev;
+#endif
 
   // number of random numbers to generate for each walker at each step.
   // In general, rng_block_size will be set to the number of cholesky vectors.

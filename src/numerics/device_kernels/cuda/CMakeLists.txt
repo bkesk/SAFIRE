@@ -8,6 +8,8 @@ if(ENABLE_CUDA)
     copy_select.cu
     copy_cast.cu
     complex_tools.cu
+    construct_fields.cu
+    determinants.cu
 #    symmetry_tools.cu
 #    potentials.cu
 #    kpoint_tools.cu

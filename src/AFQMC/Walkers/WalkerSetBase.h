@@ -87,7 +87,7 @@ public:
   WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
                 ptree pt,
                 AFQMCInfo& info,
-                std::shared_ptr<utils::RandomGenerator_t> r
+                std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r
                )
       : AFQMCInfo(info),
         mpi(_mpi_),
@@ -707,12 +707,12 @@ public:
     mpi->comm.barrier();
   }
 
-  std::shared_ptr<utils::RandomGenerator_t> getRNG() { return rng; }
+  std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> getRNG() { return rng; }
 
 protected:
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
-  std::shared_ptr<utils::RandomGenerator_t> rng;
+  std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> rng;
 
   int LoadBalance_timer;
   int Branching_timer;

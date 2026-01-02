@@ -63,7 +63,7 @@ void orthogonalize(A_t && A, B_t && log_detR)
 
   // scale A by scl, to make sign of determinant consistent
   if constexpr (nda::mem::have_device_compatible_addr_space<A_t>) {
-    nda::tensor::elementwise(scl, "wn", A, "win", nda::tensor::op::MUL);
+    nda::tensor::elementwise(ComplexType(1.0), scl, "wn", ComplexType(1.0), A, "win", nda::tensor::op::MUL);
   } else {
     for (int i = 0; i < M; ++i)
       A(nda::range::all,i,nda::range::all) *= scl();

@@ -240,11 +240,22 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   // calculate v0(i,l) = -0.5 sum_j sum_n L[i][j][n] L[j][l][n] = -0.5 sum_j sum_n L[i][j][n] L[l][j][n]
   if(n1>n0)
   {
-    for(int is=0, isp=0; is<nspin_in_file; ++is)
-      for(int ip=0; ip<npol_in_file; ++ip, ++isp)
-        nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
-                                            Likn()(isp,all,all,all),"ljn",
-                              RealType(0.0),v0()(isp,range(n0,n1),all),"il");
+    if constexpr (MEM==HOST_MEMORY) {
+      for(int is=0, isp=0; is<nspin_in_file; ++is)
+        for(int ip=0; ip<npol_in_file; ++ip, ++isp)
+          nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
+                                              Likn()(isp,all,all,all),"ljn",
+                                RealType(0.0),v0()(isp,range(n0,n1),all),"il");
+    } else {
+      memory::array<MEM,RealType,2> vt(n1-n0, NMO);
+      for(int is=0, isp=0; is<nspin_in_file; ++is)
+        for(int ip=0; ip<npol_in_file; ++ip, ++isp) {
+          nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
+                                              Likn()(isp,all,all,all),"ljn",
+                                RealType(0.0),vt,"il");
+          v0()(isp,range(n0,n1),all) = vt();
+        }
+    }
   }
   mpi->comm.barrier();
   if constexpr (MEM==HOST_MEMORY) {

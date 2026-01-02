@@ -58,16 +58,43 @@ namespace afqmc
  * @param type std::string describing the type of Driver to be used. Valid choices are "afqmc", "legacy_afqmc", and "csafqmc".
   * @param pt boost::property_tree::ptree The property tree containing input file parameters
  */
+template<MEMORY_SPACE MEM>
 class AFQMCFactory
 {
 public:
   ///constructor
   AFQMCFactory(std::string type, 
                std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, 
-	       const ptree pt, int n_groups = 1);
+	       const ptree pt, int n_groups = 1)
+     : m_series(pt.get<int>("project.series", 0)),
+       project_title(pt.get<std::string>("project.id", "afqmc")),
+       mpi(_mpi), 
+       InfoMap(),
+       HamFac(InfoMap),
+       WSetFac(InfoMap),
+       WfnFac(InfoMap),
+       PropFac(InfoMap),
+       DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac) 
+  {
+    utils::check(n_groups==1, "finish!!!");
+    app_log(1, " AFQMCFactory Project settings: ");
+    app_log(1, "    -- id             : {} ", project_title);
+    app_log(1, "    -- series         : {} ", m_series);
+    app_log(1, "    -- n_groups       : {} ", n_groups);
+    app_log(1, "    -- MPI tasks/node : {} ", mpi->node_comm.size());
+    app_log(1, "    -- MPI nodes      : {} ", mpi->internode_comm.size());
+    app_log(1, "    -- MPI tasks      : {} ", mpi->comm.size());
+    app_log(1, "    -- Compute Device : {} \n\n", (MEM==DEVICE_MEMORY?"gpu":"cpu")); 
+
+    // parse input
+    utils::check(parse(pt), " Error in AFQMCFactory: Problems parsing the input file. ");
+
+    // execute 
+    utils::check(execute(type,pt), "Error in AFQMCFactory: Problems executing the input file. ");
+  }
 
   ///destructor
-  ~AFQMCFactory(); 
+  ~AFQMCFactory() = default;
 
 private:
 
@@ -83,16 +110,16 @@ private:
   HamiltonianFactory HamFac;
 
   // WalkerHandler factory
-  WalkerSetFactory WSetFac;
+  WalkerSetFactory<MEM> WSetFac;
 
   // Wavefunction factoru
-  WavefunctionFactory WfnFac;
+  WavefunctionFactory<MEM> WfnFac;
 
   // Propagator factory
-  PropagatorFactory PropFac;
+  PropagatorFactory<MEM> PropFac;
 
   // driver factory
-  DriverFactory DriverFac;
+  DriverFactory<MEM> DriverFac;
 
   //
   //  Traverse input tree and creates all non-executable objects.

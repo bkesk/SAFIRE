@@ -167,8 +167,8 @@ public:
         size1_(other.size()),
         capacity_(other.capacity()),
         data_(other.values()),
-        row_begin_(other.row_begin()),
-        row_end_(other.row_end())
+        row_begin_(other.sequences_begin()),
+        row_end_(other.sequences_end())
   {}
 
   template<typename integer_type = long, typename Val_t> 
@@ -182,6 +182,8 @@ public:
     ++row_end_[index];
   }
 
+  auto sequences_begin() const { return row_begin_(); }
+  auto sequences_end() const { return row_end_(); }
   auto sequence_begin(long i = 0) const { return row_begin_(i); }
   auto sequence_end(long i = 0) const { return row_end_(i); }
   auto size() const { return size1_; }

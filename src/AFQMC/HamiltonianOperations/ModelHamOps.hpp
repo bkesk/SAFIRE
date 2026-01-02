@@ -302,8 +302,10 @@ public:
     APP_ABORT(" Error: ph_excited_energy not implemented yet. ");
   }
 
-  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  auto vHS(nda::MemoryMatrix auto&& X, double dt)
   {
+    constexpr MEMORY_SPACE MEM_X = memory::get_memory_space<decltype(X)>();
+    static_assert(MEM == MEM_X, "Memory space mismatch");
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int NMO   = PsiC.extent(2) / npol;
@@ -312,7 +314,7 @@ public:
     // sanity checks!
     utils::check(X.extent(1) == nCV, "Size mismatch");
 
-    memory::buffered_array<MEM,ComplexType,2> vIJ(nwalk, nIJ);
+    memory::buffered_array<MEM_X,ComplexType,2> vIJ(nwalk, nIJ);
     vIJ() = ComplexType(0.0);
     for(int i=0; i<Hams.size(); i++)
       Hams[i].vHS(X(nda::range::all,field_ranges[i]), vIJ, dt);

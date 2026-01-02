@@ -210,7 +210,8 @@ void read_ph_wavefunction_hdf(h5::group& grp,
   std::copy_n(buff.data(),ndets*NEL,occs.data());
 }
 
-ph_excitations<int, ComplexType> build_ph_struct(nda::array<ComplexType,1> ci_coeff,
+template<MEMORY_SPACE MEM>
+ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> const& ci_coeff,
                                                  nda::array<int, 2>& occs,
                                                  int ndets,
                                                  int NMO,
@@ -281,7 +282,7 @@ ph_excitations<int, ComplexType> build_ph_struct(nda::array<ComplexType,1> ci_co
   }
   // using int for now, but should move to short later when everything works well
   // ph_struct stores the reference configuration on the index [0]
-  ph_excitations<int, ComplexType> ph_struct(ndets, nup, ndown, counts_alpha, counts_beta);
+  ph_excitations<int, ComplexType, MEM> ph_struct(ndets, nup, ndown, counts_alpha, counts_beta);
 
   {
     std::map<int, int> refa2loc;
@@ -364,6 +365,15 @@ void getCommonInput(h5::group& grp,
   utils::h5_read(grp,"ci_coeffs",ci_t);
   ci() = ci_t(nda::range(ndets_to_read)); 
 }
+
+// instantiate
+ template ph_excitations<int, ComplexType, HOST_MEMORY> 
+build_ph_struct<HOST_MEMORY>(nda::array<ComplexType,1> const&,nda::array<int, 2>&,int,int,int,int);
+
+#if defined(ENABLE_DEVICE)
+ template ph_excitations<int, ComplexType, DEVICE_MEMORY> 
+build_ph_struct<DEVICE_MEMORY>(nda::array<ComplexType,1> const&,nda::array<int, 2>&,int,int,int,int);
+#endif
 
 
 } // namespace afqmc

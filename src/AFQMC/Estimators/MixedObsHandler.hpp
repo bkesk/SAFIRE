@@ -42,6 +42,7 @@ namespace afqmc
  * they are treated separately if the number of references is > 1.
  * A customized implementation for PHMSD will be ubilt in the future if needed. 
  */
+template<MEMORY_SPACE MEM>
 class MixedObsHandler : public AFQMCInfo
 {
 public:
@@ -50,21 +51,14 @@ public:
                  std::string name_,
                  ptree pt,
                  WALKER_TYPES wlk,
-                 Wavefunction& wfn_)
+                 Wavefunction<MEM>& wfn_)
       : AFQMCInfo(info),
         mpi(_mpi),
-        MEM(wfn_.get_memory_space()),
         walker_type(wlk),
         wfn(std::addressof(wfn_)),
         name(name_),
         denominator(1)
   {
-    utils::check(MEM == HOST_MEMORY 
-#if defined(ENABLE_DEVICE)
-                 or MEM==DEVICE_MEMORY
-#endif
-                , "Error in MixedObsHandler: Invalid memory space:{}",int(MEM));
-
     for(const ptree::value_type &it : pt)
     {
       std::string cname = it.first;
@@ -145,18 +139,6 @@ public:
 
   template<class WlkSet>
   void accumulate(WlkSet& wset)
-  { 
-    if (MEM == HOST_MEMORY)
-      accumulate_impl<HOST_MEMORY>(wset);
-#if defined(ENABLE_DEVICE)
-    else 
-      accumulate_impl<DEVICE_MEMORY>(wset);
-#endif
-  }
-
-private:
-  template<MEMORY_SPACE M, class WlkSet>
-  void accumulate_impl(WlkSet& wset)
   {
     int nwalk = wset.size();
     int nspin = ( walker_type == COLLINEAR ? 2 : 1 );
@@ -168,8 +150,8 @@ private:
     ncalls++;
     denominator(0) += std::accumulate(wgt.begin(), wgt.end(), ComplexType(0.0));
 
-    memory::buffered_array<M,ComplexType,1> Ov(nwalk);
-    memory::buffered_array<M,ComplexType,4> G(nwalk,nspin,npol*NMO,npol*NMO); 
+    memory::buffered_array<MEM,ComplexType,1> Ov(nwalk);
+    memory::buffered_array<MEM,ComplexType,4> G(nwalk,nspin,npol*NMO,npol*NMO); 
     auto G2D = nda::reshape(G,std::array<long,2>{nwalk,nspin*npol*NMO*npol*NMO});
 
     if( nrefs==1 || properties.size()==0 )  {
@@ -178,7 +160,7 @@ private:
       wfn->MixedDensityMatrix(wset,G2D,Ov,false);
 
       //2. accumulate 
-      if constexpr (M == HOST_MEMORY) {
+      if constexpr (MEM == HOST_MEMORY) {
         for (auto& v : properties_1body)
           v.accumulate(0, G, G, wgt, true);
         for (auto& v : properties)
@@ -243,7 +225,7 @@ private:
         }
 
         //3. accumulate references
-        if constexpr (M == HOST_MEMORY) {
+        if constexpr (MEM == HOST_MEMORY) {
           for (auto& v : properties)
             v.accumulate_reference(0, iref, Gtmp, Gtmp, wgt, Xw, Ov, impsamp);
         } else {
@@ -253,7 +235,7 @@ private:
         }
       }
       //4. accumulate block (normalize and accumulate sum over references)
-      if constexpr (M == HOST_MEMORY) {
+      if constexpr (MEM == HOST_MEMORY) {
         for (auto& v : properties)
           v.accumulate_reference(0, iref, G, G, wgt, Xw, Ov, impsamp);
       } else {
@@ -271,11 +253,9 @@ private:
 private:
   std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
-  MEMORY_SPACE MEM;
-
   WALKER_TYPES walker_type;
 
-  Wavefunction* wfn;
+  Wavefunction<MEM>* wfn;
 
   int ncalls = 0;
 

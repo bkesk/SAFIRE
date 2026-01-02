@@ -44,13 +44,14 @@ inline ComplexType mod2pi(ComplexType x){
                      );
 }
 
+template<MEMORY_SPACE MEM>
 class EnergyEstimator : public EstimatorBase
 {
 public:
   EnergyEstimator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                   AFQMCInfo info,
                   ptree pt_in,
-                  Wavefunction& wfn,
+                  Wavefunction<MEM>& wfn,
                   bool impsamp_ = true)
       : EstimatorBase(info), 
         mpi(_mpi), 
@@ -114,7 +115,6 @@ public:
     auto all = nda::range::all;
     AFQMCTimer.start(energy_timer);
     long nwalk = wset.size();
-    MEMORY_SPACE MEM = wset.get_memory_space();
 
     ComplexType dum, et;
     // MAM: if nblocks_skip > 0, this will produce data filled with zeros.
@@ -124,11 +124,11 @@ public:
     } else {
       nda::array<ComplexType,2> eloc(nwalk,3);
       nda::array<ComplexType,1> ovlp(nwalk);
-      if (MEM == HOST_MEMORY) {  
+      if constexpr (MEM == HOST_MEMORY) {  
         wfn0->Energy(wset, eloc, ovlp);
       } else {
-        memory::buffered_array<DEVICE_MEMORY,ComplexType,2> eloc_d(nwalk,3);
-        memory::buffered_array<DEVICE_MEMORY,ComplexType,1> ovlp_d(nwalk);
+        memory::buffered_array<MEM,ComplexType,2> eloc_d(nwalk,3);
+        memory::buffered_array<MEM,ComplexType,1> ovlp_d(nwalk);
         wfn0->Energy(wset, eloc_d, ovlp_d);
         eloc() = eloc_d(); 
         ovlp() = ovlp_d(); 
@@ -272,7 +272,7 @@ private:
 
   std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
-  Wavefunction* wfn0 = nullptr;
+  Wavefunction<MEM>* wfn0 = nullptr;
 
   int nblocks_skip = 0;
   int nblocks_equil = 0;
