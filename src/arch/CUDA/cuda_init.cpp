@@ -73,6 +73,23 @@ void init()
   cuda_check(cudaGetDeviceProperties(&dev, 0), "cudaGetDeviceProperties");
   app_log(1, " CUDA compute capability: {}.{} \n ", dev.major, dev.minor);
   app_log(1, " Device Name: {} ", dev.name);
+
+  cuda_check(cudaSetDevice(node.rank()%num_devices), "cudaSetDevice()");
+  int devn = 0;
+  cuda_check(cudaGetDevice(&devn), "cudaGetDevice()");
+  app_debug(3,"MPI world rank: {}, node rank{}, cuda device number: {}",
+	    world.rank(),node.rank(),devn);
+}
+
+void check_device_configuration()
+{
+  auto world = boost::mpi3::environment::get_world_instance();
+  auto node = world.split_shared(world.rank());
+
+  int num_devices = 0;
+  cudaGetDeviceCount(&num_devices);
+  cudaDeviceProp dev;
+  cuda_check(cudaGetDeviceProperties(&dev, 0), "cudaGetDeviceProperties");
   if (dev.major <= 6 and world.root())
   {
     app_warning(" Warning CUDA major compute capability < 6.0");
@@ -83,12 +100,7 @@ void init()
     app_warning("         # tasks: {} ", node.size());
     app_warning("         # number of devices: {} ", num_devices);
   }
-
-  cuda_check(cudaSetDevice(node.rank()%num_devices), "cudaSetDevice()");
-  int devn = 0;
-  cuda_check(cudaGetDevice(&devn), "cudaGetDevice()");
-  app_debug(3,"MPI world rank: {}, node rank{}, cuda device number: {}",
-	    world.rank(),node.rank(),devn);
+  utils::check(num_devices >= node.size(), "Error: # GPU < # tasks in node. \n # GPU: {} \n # MPI tasks: {}",num_devices,node.size());
 }
 
 curandGenerator_t make_device_rng(unsigned long long int iseed)

@@ -192,6 +192,8 @@ std::tuple<std::string,std::string,std::string,std::string,std::string>
 template<MEMORY_SPACE MEM>
 bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptree pt_in)
 {
+  // reset timers
+  AFQMCTimer.reset_all();
   // convert user input to verbose input
   ptree pt = interpret_inputs_afqmc(pt_in);
   app_log(2,"\nDrvFac::executeAFQMCDriver input:\n{}\n",io::to_string(pt));

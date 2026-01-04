@@ -46,9 +46,9 @@ TimerManager AFQMCTimer;
 //void setup_AFQMC_timer() 
 //{
 int block_timer = AFQMCTimer.add("Block");
-int pseudo_energy_timer = AFQMCTimer.add( "PseudoEnergy");
-int energy_timer = AFQMCTimer.add( "Energy");
-int vHS_timer = AFQMCTimer.add( "vHS");
+int pseudo_energy_timer = AFQMCTimer.add("PseudoEnergy");
+int energy_timer = AFQMCTimer.add("Energy");
+int vHS_timer = AFQMCTimer.add("vHS");
 int assemble_X_timer = AFQMCTimer.add("X");
 int vbias_timer = AFQMCTimer.add("vbias");
 int G_for_vbias_timer = AFQMCTimer.add("G_for_vbias");

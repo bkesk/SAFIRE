@@ -83,6 +83,7 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
 
   bool head_shared = ( MEM==HOST_MEMORY ? mpi->node_comm.root() : true ); 
   if(head_shared) vMF() = ComplexType(0.0);
+  mpi->comm.barrier();
 
   // calculate vMF for the current time step
   if (substractMF)
@@ -108,7 +109,7 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
         // continuous propagator, charge decomposition. vt should be real
         nda::zero_imag(vt);
       }
-      vMF() = vt(); 
+      if(head_shared) vMF() = vt(); 
     }
     if constexpr (MEM==HOST_MEMORY) { 
       if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(vMF.data(),vMF.size(),0);
@@ -116,6 +117,7 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
       mpi->broadcast(vMF());
     }
   }
+  mpi->comm.barrier();
 
   if(mpi->comm.root()) {
     auto v_h = nda::to_host(vMF());

@@ -192,7 +192,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
 
   auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
   auto vHS = HOps.vHS(X,dt);
-  REQUIRE( vHS.shape() == std::array<long,4>{nwalk,vHS_nspin,vHS_npol*NMO,NMO} );
+  REQUIRE( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
   auto vHS_h = nda::to_host(vHS);
   ComplexType Vsum = 0;
   for (int i = 0; i < vHS.extent(2); i++)

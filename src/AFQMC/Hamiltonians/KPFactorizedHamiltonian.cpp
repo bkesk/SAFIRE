@@ -176,7 +176,10 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                        l.lengths[2] == nkpts and
                        l.lengths[3] == nbnd and
                        l.lengths[4] == nbnd, "Size mismatch");
-          nchol(Q) = l.lengths[0];
+          if(Q <= minusq(Q))
+            nchol(Q) = l.lengths[0];
+          else
+            nchol(Q) = nchol(minusq(Q)); 
         }
       }
     } else if(format.substr(0,4) == "std") {
@@ -361,6 +364,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                                                      range(ip*NMO+ik*nbnd,ip*NMO+(ik+1)*nbnd));
               auto Lijn = LQ(Q)()(is_,ip_,ik,all,all,all);
               auto L_ = Lank(Q)()(id,is,ik,range(nk),all,range(ip*nbnd,(ip+1)*nbnd));
+              utils::check(Lijn.extent(2)==L_.extent(1), "Size mismatch.");
               nda::tensor::contract(one,Aai,"ai",Lijn,"ijn",zero,L_,"anj");
             } else {
               // L[Q,k,k2=k-Q]
@@ -369,6 +373,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                                                      range(ip*NMO+ik*nbnd,ip*NMO+(ik+1)*nbnd));
               auto Lljn = LQ(Qm)()(is_,ip_,k2,all,all,all);
               auto L_ = Lank(Q)()(id,is,ik,range(nk),all,range(ip*nbnd,(ip+1)*nbnd));
+              utils::check(Lljn.extent(2)==L_.extent(1), "Size mismatch.");
               nda::tensor::contract(one,Abj,"bj",nda::conj(Lljn),"ljn",zero,L_,"bnl");
             }
             if(Q==Qm) {
@@ -380,6 +385,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                                                      range(ip*NMO+k2*nbnd,ip*NMO+(k2+1)*nbnd));
               auto Lljn = LQ(Q)()(is_,ip_,ik,all,all,all);
               auto L_ = Lbnk(Qmap(Q))()(id,is,k2,range(nb),all,range(ip*nbnd,(ip+1)*nbnd));
+              utils::check(Lljn.extent(2)==L_.extent(1), "Size mismatch.");
               nda::tensor::contract(one,Abj,"bj",nda::conj(Lljn),"ljn",zero,L_,"bnl");
             }
           } // ip
@@ -487,7 +493,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   return HamiltonianOperations<MEM>(
       KP3IndexFactorization<MEM>(mpi,type,nbnd,Q0_index,std::move(nocc),std::move(minusq),
         std::move(qk_to_k2),std::move(Qmap),std::move(H1),std::move(haj),std::move(LQ),
-        std::move(Lank),std::move(Lbnk),std::move(v0),E0));
+        std::move(Lank),std::move(Lbnk),std::move(v0),E0,buffer_size));
 }
 
 template HamiltonianOperations<HOST_MEMORY>

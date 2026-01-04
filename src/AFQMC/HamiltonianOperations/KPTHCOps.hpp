@@ -432,8 +432,8 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM_X,ComplexType,4> v(nwalk,nstot,nptot*NMO,NMO);
-    auto v7d = nda::reshape(v,std::array<long,7>{nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd});
+    memory::buffered_array<MEM_X,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
+    auto v7d = nda::reshape(v,std::array<long,7>{nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd});
     v() = ComplexType(0.0);
 
     // scale by sqrt(dt)
@@ -502,7 +502,7 @@ public:
 
               // v(nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd)
               nda::blas::gemm(ComplexType(1.0),Q2d,nda::transpose(Xju),ComplexType(0.0),v2d);
-              v7d(all,is,ip,ik,all,k2,all) += v_;
+              v7d(is,all,ip,ik,all,k2,all) += v_;
 
             }  // ip
           } // is
@@ -533,7 +533,7 @@ public:
                   Qwiu(w,i,all) = Twu(w,all) * Xiu(i,all);
 
               nda::blas::gemm(ComplexType(1.0),Q2d,nda::dagger(Xju),ComplexType(0.0),v2d);
-              v7d(all,is,ip,k2,all,ik,all) += v_; 
+              v7d(is,all,ip,k2,all,ik,all) += v_; 
 
             }  // ip
           } // is
@@ -586,7 +586,7 @@ public:
             for(int ik=0; ik<nkpts; ++ik) { 
               int k2 = qk_to_k2(iq,ik);
               nda::tensor::add(ComplexType(1.0),v_(ik,all,all,all),"wij",
-                               ComplexType(1.0),v7d(all,is,ip,ik,all,k2,all),"wij");
+                               ComplexType(1.0),v7d(is,all,ip,ik,all,k2,all),"wij");
             }
 
           } // iq
@@ -626,7 +626,7 @@ public:
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(iq,ik);
               nda::tensor::add(ComplexType(1.0),v_(ik,all,all,all),"wij",
-                               ComplexType(1.0),v7d(all,is,ip,k2,all,ik,all),"wij");
+                               ComplexType(1.0),v7d(is,all,ip,k2,all,ik,all),"wij");
             }
 
           } // iq

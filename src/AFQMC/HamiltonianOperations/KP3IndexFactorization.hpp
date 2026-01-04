@@ -132,11 +132,13 @@ public:
       bool writer = (MEM==HOST_MEMORY?mpi->node_comm.root():true);
       Lakn = std::make_optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>>(nkpts);
       for(int iq=0; iq<nkpts; ++iq) {
-        int nc = LQ(iq).extent(5); 
+        int nc = Lank(iq).extent(4); 
         (*Lakn)(iq) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
+        mpi->node_comm.barrier();
         if(writer) 
           nda::tensor::add(ComplexType(1.0),Lank(iq)()(0,nda::ellipsis{}),"skanj",
-                           ComplexType(0.0),(*Lakn)(iq)()(),"skajn");
+                           ComplexType(0.0),(*Lakn)(iq)(),"skajn");
+        mpi->node_comm.barrier();
       }
       int nsymQ = Lbnk.extent(0); 
       Lbkn = std::make_optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>>(nsymQ);
@@ -145,7 +147,7 @@ public:
         (*Lbkn)(i) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
         if(writer) 
           nda::tensor::add(ComplexType(1.0),Lbnk(i)()(0,nda::ellipsis{}),"skanj",
-                           ComplexType(0.0),(*Lbkn)(i)()(),"skajn");
+                           ComplexType(0.0),(*Lbkn)(i)(),"skajn");
       }
     }
   }
@@ -274,17 +276,6 @@ public:
     if (not(addEJ || addEXX))
       return;
 
-    // Does the CPU benefit from batch_size>1???
-    int batch_size = nkpts*nkpts;
-    if (addEXX)
-    {
-      long Bytes = long(default_buffer_size_in_MB) * 1024L * 1024L;
-      Bytes /= size_t(nwalk * nocc_max * nocc_max * nchol_max * sizeof(ComplexType));
-      int bz0 = std::max(1, int(Bytes));
-      // batch_size includes the factor of 2 from Q/Qm pair
-      batch_size = std::min(bz0, (nkpts * nkpts));
-    }
-
     memory::buffered_array<MEM,ComplexType,2> Kleft((addEJ?nwalk:0),ncvecs);
     memory::buffered_array<MEM,ComplexType,2> Kright((addEJ?nwalk:0),ncvecs);
     if(addEJ) Kright() = zero;
@@ -296,14 +287,24 @@ public:
     // G in new layout
     memory::buffered_array<MEM,ComplexType,4> GKK(nkpts,nkpts,nwalk*nocc_max,npol*nbnd);
 
-    // work array 
-    memory::buffered_array<MEM,ComplexType,1> T1buff(batch_size*nwalk*nocc_max*nocc_max*nchol_max);
-    memory::buffered_array<MEM,ComplexType,1> T2buff(batch_size*nwalk*nocc_max*nocc_max*nchol_max);
-    T1buff() = zero;
-    T2buff() = zero;
-
     if (addEXX)
     {
+      // MAM: For cpu threading, let batch_size >> 1
+      int batch_size = 1;
+      if constexpr (MEM==DEVICE_MEMORY) {
+        batch_size = nkpts*nkpts;
+        long Bytes = long(default_buffer_size_in_MB) * 1024L * 1024L;
+        Bytes /= size_t(nwalk * nocc_max * nocc_max * nchol_max * sizeof(ComplexType));
+        int bz0 = std::max(1, int(Bytes));
+        // batch_size includes the factor of 2 from Q/Qm pair
+        batch_size = std::min(bz0, (nkpts * nkpts));
+      }
+      // work array 
+      memory::buffered_array<MEM,ComplexType,1> T1buff(batch_size*nwalk*nocc_max*nocc_max*nchol_max);
+      memory::buffered_array<MEM,ComplexType,1> T2buff(batch_size*nwalk*nocc_max*nocc_max*nchol_max);
+      T1buff() = zero;
+      T2buff() = zero;
+
       int batch_cnt(0);
       // Lank(Q)(idet,ispin,nkpts, nocc_max, nchol, npol*nbnd)
 
@@ -368,7 +369,7 @@ public:
 
               if (batch_cnt >= batch_size)
               {
-                nda::blas::gemm_batch<false>(ComplexType(1.0),Bv,Av,ComplexType(0.0),Cv);
+                nda::blas::gemm_batch<false>(one,Bv,Av,zero,Cv);
                 
                 // add factor of 0.5 and accumulate on Kleft/Kright if needed
                 if constexpr (MEM==HOST_MEMORY) { 
@@ -385,7 +386,23 @@ public:
                   }
                 } else {
                   // custom kernel will be faster 
-                  utils::check(false,"finish"); // add kernel
+                  arch::set_device_synchronization(false);
+                  for(auto i: kdiag) {
+                    if(addEJ) {
+                      // T5d(batch_size,nwalk,nocc_max,nocc_max,nchol)
+                      for(int a=0; a<nocc_max; ++a) {
+                        kernels::device::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                        kernels::device::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                      }
+                    }
+                  }                     
+                  arch::set_device_synchronization(true);
+                  arch::set_device_synchronization(false);
+                  // only scale if Q!=Qm, otherwise full tensor is scaled below 
+                  if(Q!=Qm) 
+                    for(auto i: kdiag) 
+                      kernels::device::scale(ComplexType(0.5),Tl3d(i,all,all));
+                  arch::set_device_synchronization(true);
                 } 
                 if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
 
@@ -404,7 +421,7 @@ public:
 
           if (batch_cnt > 0)
           {
-            nda::blas::gemm_batch<false>(ComplexType(1.0),Bv,Av,ComplexType(0.0),Cv);
+            nda::blas::gemm_batch<false>(one,Bv,Av,zero,Cv);
 
             // add factor of 0.5 and accumulate on Kleft/Kright if needed
             if constexpr (MEM==HOST_MEMORY) {
@@ -421,7 +438,23 @@ public:
               }
             } else {
               // custom kernel will be faster 
-              utils::check(false,"finish"); // add kernel
+              arch::set_device_synchronization(false);
+              for(auto i: kdiag) {
+                if(addEJ) {
+                  // T5d(batch_size,nwalk,nocc_max,nocc_max,nchol)
+                  for(int a=0; a<nocc_max; ++a) {
+                    kernels::device::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                    kernels::device::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                  }
+                }
+              }
+              arch::set_device_synchronization(true);
+              arch::set_device_synchronization(false);
+              // only scale if Q!=Qm, otherwise full tensor is scaled below 
+              if(Q!=Qm) 
+                for(auto i: kdiag) 
+                  kernels::device::scale(ComplexType(0.5),Tl3d(i,all,all));
+              arch::set_device_synchronization(true);
             }
             if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
 
@@ -487,17 +520,6 @@ public:
     if (not(addEJ || addEXX))
       return;
 
-    // Does the CPU benefit from batch_size>1???
-    int batch_size = nkpts*nkpts;
-    if (addEXX)
-    {
-      long Bytes = long(default_buffer_size_in_MB) * 1024L * 1024L;
-      Bytes /= size_t(nwalk * nocc_max * nocc_max * nchol_max * sizeof(ComplexType));
-      int bz0 = std::max(1, int(Bytes));
-      // batch_size includes the factor of 2 from Q/Qm pair
-      batch_size = std::min(bz0, (nkpts * nkpts));
-    }
-
     if(addEJ) { 
       utils::check(EJn.extent(0)==nwalk and EJn.extent(1)==2*ncvecs, "Size mismatch");
       EJn() = zero;
@@ -514,14 +536,24 @@ public:
     // G in new layout
     memory::buffered_array<MEM,ComplexType,4> GKK(nkpts,nkpts,nwalk*nocc_max,npol*nbnd);
 
-    // work array 
-    memory::buffered_array<MEM,ComplexType,1> T1buff(batch_size*nwalk*nocc_max*nocc_max*nchol_max);
-    memory::buffered_array<MEM,ComplexType,1> T2buff(batch_size*nwalk*nocc_max*nocc_max*nchol_max);
-    T1buff() = zero;
-    T2buff() = zero;
-
     if (addEXX)
     {
+      // MAM: For cpu threading, let batch_size >> 1
+      int batch_size = 1;
+      if constexpr (MEM==DEVICE_MEMORY) {
+        batch_size = nkpts*nkpts;
+        long Bytes = long(default_buffer_size_in_MB) * 1024L * 1024L;
+        Bytes /= size_t(nwalk * nocc_max * nocc_max * nchol_max * sizeof(ComplexType));
+        int bz0 = std::max(1, int(Bytes));
+        // batch_size includes the factor of 2 from Q/Qm pair
+        batch_size = std::min(bz0, (nkpts * nkpts));
+      }
+      // work array 
+      memory::buffered_array<MEM,ComplexType,1> T1buff(batch_size*nwalk*nocc_max*nocc_max*nchol_max);
+      memory::buffered_array<MEM,ComplexType,1> T2buff(batch_size*nwalk*nocc_max*nocc_max*nchol_max);
+      T1buff() = zero;
+      T2buff() = zero;
+
       int batch_cnt(0);
       // Lank(Q)(idet,ispin,nkpts, nocc_max, nchol, npol*nbnd)
 
@@ -601,10 +633,25 @@ public:
                 }
               } else {
                 // custom kernel will be faster 
-                utils::check(false,"finish"); // add kernel
-              } 
+                arch::set_device_synchronization(false);
+                for(auto i: kdiag) {
+                  if(addEJ) {
+                    // T5d(batch_size,nwalk,nocc_max,nocc_max,nchol)
+                    for(int a=0; a<nocc_max; ++a) {
+                      kernels::device::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                      kernels::device::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                    }
+                  }
+                }
+                arch::set_device_synchronization(true);
+                arch::set_device_synchronization(false);
+                // only scale if Q!=Qm, otherwise full tensor is scaled below 
+                if(Q!=Qm)
+                  for(auto i: kdiag)
+                    kernels::device::scale(ComplexType(0.5),Tl3d(i,all,all));
+                arch::set_device_synchronization(true);
+              }
               if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
-
               nda::tensor::contract(-scl,Tl5d(range(batch_cnt),nda::ellipsis{}),"lwabn",
                          Tr5d(range(batch_cnt),nda::ellipsis{}),"lwban",one,E(all,1),"w");
 
@@ -637,7 +684,23 @@ public:
             }
           } else {
             // custom kernel will be faster 
-            utils::check(false,"finish"); // add kernel
+            arch::set_device_synchronization(false);
+            for(auto i: kdiag) {
+              if(addEJ) {
+                // T5d(batch_size,nwalk,nocc_max,nocc_max,nchol)
+                for(int a=0; a<nocc_max; ++a) {
+                  kernels::device::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                  kernels::device::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                }
+              }
+            }
+            arch::set_device_synchronization(true);
+            arch::set_device_synchronization(false);
+            // only scale if Q!=Qm, otherwise full tensor is scaled below 
+            if(Q!=Qm)
+              for(auto i: kdiag)
+                kernels::device::scale(ComplexType(0.5),Tl3d(i,all,all));
+            arch::set_device_synchronization(true);
           }
           if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
 
@@ -707,8 +770,8 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM_X,ComplexType,4> v(nwalk,nstot,nptot*NMO,NMO);
-    auto v7d = nda::reshape(v,std::array<long,7>{nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd});
+    memory::buffered_array<MEM_X,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
+    auto v7d = nda::reshape(v,std::array<long,7>{nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd});
     v() = ComplexType(0.0);
 
     auto X3d = nda::reshape(X,std::array<long,3>{nwalk,2,ncvecs});
@@ -721,14 +784,21 @@ public:
       nda::tensor::add(ComplexType(0.0,-a),X3d(all,1,all),"wn",ComplexType(a),T,"wn");
       nda::tensor::add(ComplexType(a),X3d(all,0,all),"wn",ComplexType(0.0,a),X3d(all,1,all),"wn");
       X3d(all,0,all) = T();
+      arch::set_device_synchronization(false);
       //  then combine Q/(-Q) pieces if Q != -Q
       //  X(Q)np = (X(Q)np + X(-Q)nm)
       for(int iq=0; iq<nkpts; iq++)  {
         int nchol = Lank(iq).extent(4);
-        if( iq != minusq(iq) ) {
-          nda::tensor::add(ComplexType(1.0),X3d(all,1,range(ncv0(iq),ncv0(iq)+nchol)),"wn",ComplexType(1.0),X3d(all,0,range(ncv0(iq),ncv0(iq)+nchol)),"wn");
-        }
+        if constexpr (MEM==HOST_MEMORY) {
+          if( iq != minusq(iq) ) 
+            X3d(all,0,range(ncv0(iq),ncv0(iq)+nchol)) += X3d(all,1,range(ncv0(iq),ncv0(iq)+nchol));
+        } else {
+          if( iq != minusq(iq) ) 
+            kernels::device::accumulate(one,X3d(all,1,range(ncv0(iq),ncv0(iq)+nchol)),
+                                            X3d(all,0,range(ncv0(iq),ncv0(iq)+nchol)));
+        } 
       }
+      arch::set_device_synchronization(true);
     }
 
     if constexpr (MEM==HOST_MEMORY) {
@@ -738,13 +808,12 @@ public:
         for (int Q = 0; Q < nkpts; ++Q) {
           int nchol = Lank(Q).extent(4);
           for (int ip = 0; ip < npol; ++ip) {
-            auto Lq_ = nda::reshape(LQ(Q)()(is,ip,nda::ellipsis{}),std::array<long,3>{nkpts,nbnd*nbnd,nchol});
-            auto Lqm_ = nda::reshape(LQ(minusq(Q))()(is,ip,nda::ellipsis{}),std::array<long,3>{nkpts,nbnd*nbnd,nchol});
             for (int ik = 0; ik < nkpts; ++ik) 
             { 
               // v[nw][i(in K)][k(in Q(K))] += sum_n LQK[i][k][n] X[Q][0][n][nw]
               if (Q <= minusq(Q))
               {
+                auto Lq_ = nda::reshape(LQ(Q)()(is,ip,nda::ellipsis{}),std::array<long,3>{nkpts,nbnd*nbnd,nchol});
                 // ci^dagger cj term
                 // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
                 nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
@@ -753,8 +822,9 @@ public:
                 // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
                 // write kernel if this is too slow, or fix streams in cutensor!!!
                 int k2 = qk_to_k2(Q,ik);
-                nda::tensor::add(one,vKK,"wij",one,v7d(all,is,ip,ik,all,k2,all),"wij");
+                nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,ik,all,k2,all),"wij");
               } else {
+                auto Lqm_ = nda::reshape(LQ(minusq(Q))()(is,ip,nda::ellipsis{}),std::array<long,3>{nkpts,nbnd*nbnd,nchol});
                 // cj^dagger ci term
                 // the kpoint index of LQ(Qm) refers to k2 
                 int k2 = qk_to_k2(Q,ik);
@@ -763,10 +833,11 @@ public:
 
                 // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
                 // write kernel if this is too slow, or fix streams in cutensor!!!
-                nda::tensor::add(one,vKK,"wij",one,v7d(all,is,ip,ik,all,k2,all),"wij");
+                nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,ik,all,k2,all),"wij");
               }
               // v[nw][k(in Q(K))][i(in K)] += sum_n conj(LQK[i][k][n]) X[Q][n-][nw]
               if(Q == minusq(Q)) {
+                auto Lq_ = nda::reshape(LQ(Q)()(is,ip,nda::ellipsis{}),std::array<long,3>{nkpts,nbnd*nbnd,nchol});
                 // cj^dagger ci term for Q==minusq(Q)
                 // the kpoint index refers to k2 
                 nda::blas::gemm(one,X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),
@@ -775,7 +846,7 @@ public:
                 // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
                 // write kernel if this is too slow, or fix streams in cutensor!!!
                 int k2 = qk_to_k2(Q,ik);
-                nda::tensor::add(one,vKK,"wij",one,v7d(all,is,ip,k2,all,ik,all),"wji");
+                nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,k2,all,ik,all),"wji");
               }
             } // ik
           } // ip 
@@ -783,6 +854,7 @@ public:
       } // is
     } else {
       memory::buffered_array<MEM,ComplexType,5> vKK(nwalk,npol,nkpts,nbnd,nbnd);
+      auto v2d = nda::reshape(vKK,std::array<long,2>{nwalk,npol*nkpts*nbnd*nbnd});
       for(int is=0; is<nstot; ++is) {
         for (int Q = 0; Q < nkpts; ++Q)
         { 
@@ -792,47 +864,58 @@ public:
           {
             // ci^dagger cj term
             // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
-            nda::tensor::contract(one,LQ(Q)()(is,nda::ellipsis{}),"pkijn",
-                 X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
+            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{npol*nkpts*nbnd*nbnd,nchol});
+            nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
+                  nda::transpose(Lq_),zero,v2d);
 
             // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
             // write kernel if this is too slow, or fix streams in cutensor!!!
+            arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-              nda::tensor::add(one,vKK(all,all,ik,all,all),"wpij",
-                               one,v7d(all,is,all,ik,all,k2,all),"wpij");
+              for(int ip=0; ip<npol; ++ip)
+                kernels::device::accumulate(one,vKK(all,ip,ik,all,all),v7d(is,all,ip,ik,all,k2,all));
             }
+            arch::set_device_synchronization(true);
           } else {
             // cj^dagger ci term
             // the kpoint index of LQ(Qm) refers to k2 
-            nda::tensor::contract(one,nda::conj(LQ(minusq(Q))()(is,nda::ellipsis{})),"pkijn",
-                 X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
+            auto Lq_ = nda::reshape(LQ(minusq(Q))()(is,nda::ellipsis{}),std::array<long,2>{npol*nkpts*nbnd*nbnd,nchol});
+            nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
+                  nda::dagger(Lq_),zero,v2d);
 
             // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
             // write kernel if this is too slow, or fix streams in cutensor!!!
+            arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-              nda::tensor::add(one,vKK(all,all,k2,all,all),"wpji",
-                               one,v7d(all,is,all,ik,all,k2,all),"wpij");
+              for(int ip=0; ip<npol; ++ip) {
+                auto v_wji = nda::permuted_indices_view<nda::encode(std::array<int, 3>{0, 2, 1})>(v7d(is,all,ip,ik,all,k2,all));
+                kernels::device::accumulate(one,vKK(all,ip,k2,all,all),v_wji);
+              }
             }
+            arch::set_device_synchronization(true);
           }
           // v[nw][k(in Q(K))][i(in K)] += sum_n conj(LQK[i][k][n]) X[Q][n-][nw]
           if(Q == minusq(Q)) {
             // cj^dagger ci term for Q==minusq(Q)
             // the kpoint index refers to k2 
-            nda::tensor::contract(one,nda::conj(LQ(Q)()(is,nda::ellipsis{})),"pkijn",
-                 X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),"wn",zero,vKK,"wpkij");
+            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{npol*nkpts*nbnd*nbnd,nchol});
+            nda::blas::gemm(one,X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),
+                  nda::dagger(Lq_),zero,v2d);
 
             // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
             // write kernel if this is too slow, or fix streams in cutensor!!!
+            arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-// this needs checking !!!
-              nda::tensor::add(one,vKK(all,all,ik,all,all),"wpij",
-                               one,v7d(all,is,all,k2,all,ik,all),"wpji");
+              for(int ip=0; ip<npol; ++ip) {
+                auto v_wji = nda::permuted_indices_view<nda::encode(std::array<int, 3>{0, 2, 1})>(v7d(is,all,ip,k2,all,ik,all));
+                kernels::device::accumulate(one,vKK(all,ip,ik,all,all),v_wji);
+              }
             }
+            arch::set_device_synchronization(true);
           }
-
         } // Q
       } // is
     }
@@ -912,7 +995,6 @@ public:
     {
       utils::check(false," Error: KP3Index not yet implemented for multiple references.");
     }
-
   }
 
   template<class... Args> void generalizedFockMatrix([[maybe_unused]] Args&&... args)
@@ -1012,6 +1094,7 @@ protected:
       }
     } else {
       // figure out how to run cutensor calls concurrently, streams don't seem to do it
+      nda::tensor::cutensor::set_synchronization(false);
       for(int ik1=0; ik1<nkpts; ++ik1) 
       {
         int nk1 = nocc(is,ik1);
@@ -1019,6 +1102,7 @@ protected:
                          ComplexType(0.0),G6d(ik1,all,all,range(nk1),all,all),"kwapj");
         n0 += nk1;
       }
+      nda::tensor::cutensor::set_synchronization(true);
     }
   }
 
@@ -1051,15 +1135,17 @@ protected:
       }
     } else {
       // figure out how to run cutensor calls concurrently, streams don't seem to do it
+      arch::set_device_synchronization(false);
       int nk0 = n0;
       for(int ik=0; ik<nkpts; ++ik)
       {
         int k2 = qk_to_k2(iq,ik);
         int nk = nocc(is,ik);
-        nda::tensor::add(ComplexType(1.0),G(all,range(nk0,nk0+nk),all,k2,all),"wapj",
-                         ComplexType(0.0),G5d(all,ik,range(nk),all,all),"wapj");
+        for(int ip=0; ip<npol; ++ip) 
+          kernels::device::accumulate(ComplexType(1.0),G(all,range(nk0,nk0+nk),ip,k2,all),G5d(all,ik,range(nk),ip,all));
         nk0 += nk;
       }
+      arch::set_device_synchronization(true);
     }
   }
 

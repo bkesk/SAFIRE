@@ -299,7 +299,7 @@ void Propagate_pol(long npol, S_t && SM, P_t const& P1, V_t const& V, int order 
 
 // Propagate a WalkerSet
 // P1(nspin)(npol*NMO,npol*NMO): The matrix can be csr_matrix or nda::MemoryMatrix
-// V: vHS[nw][nspin][npol*NMO][npol*NMO]
+// V: vHS[nspin][nw][npol*NMO][npol*NMO]
 template<MEMORY_SPACE MEM, typename WlkSet, typename P_t, typename V_t>
 requires( std::decay_t<V_t>::is_stride_order_C() and 
           (nda::MemoryArrayOfRank<P_t,3> or nda::MemoryArrayOfRank<P_t,1>) and
@@ -311,20 +311,20 @@ void PropagateWlkSet(WlkSet& wset, P_t const& P1, V_t const& V, int order = 6, c
   auto walker_type = wset.getWalkerType();
   bool npol      = (walker_type == NONCOLLINEAR ? 2 : 1);
   bool nspin     = (walker_type == COLLINEAR ? 2 : 1);
-  utils::check(V.extent(0) == nwalk, "Size mismatch");
+  utils::check(V.extent(1) == nwalk, "Size mismatch");
   long nspin_P1 = P1.extent(0);
   
 // MAM: wrong is npol_in_file == 1 in NONCOLLINEAR, fix fix fix!!!
   if constexpr ( nda::MemoryArrayOfRank<V_t,4> ) {
-    long nspin_V = V.extent(1);
+    long nspin_V = V.extent(0);
     if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
-      Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0,nda::ellipsis{}),V(all,0,all,all),order,TA);
+      Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0,nda::ellipsis{}),V(0,all,all,all),order,TA);
       if(walker_type==COLLINEAR)
-        Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(all,1%nspin_V,all,all),order,TA);
+        Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V,all,all,all),order,TA);
     } else {
-      Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0),V(all,0,all,all),order,TA);
+      Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0),V(0,all,all,all),order,TA);
       if(walker_type==COLLINEAR)
-        Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1),V(all,1%nspin_V,all,all),order,TA);
+        Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1),V(1%nspin_V,all,all,all),order,TA);
     }
   } else {
     long nspin_V = V.extent(0);

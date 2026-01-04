@@ -496,7 +496,7 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM_X,ComplexType,4> v(nwalk,nstot,nptot*NMO,NMO);
+    memory::buffered_array<MEM_X,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
     v() = ComplexType(0.0);
 
     // scale by sqrt(dt)
@@ -544,7 +544,7 @@ public:
               nda::tensor::elementwise_trinary(1.0,Twu_r,"wuc",1.0,Xiu,"iu",0.0,Qwiu_r,"wiuc",nda::tensor::op::MUL,nda::tensor::op::SUM);
             }
             
-            auto vij = v(range(iw,iw+nw),is,range(ip*NMO,(ip+1)*NMO),all);
+            auto vij = v(is,range(iw,iw+nw),range(ip*NMO,(ip+1)*NMO),all);
             auto vij_r = memory::to_real_view(vij);
             nda::tensor::contract(a,Qwiu_r,"wiuc",Xiu,"ju",
                                   RealType(0.0),vij_r,"wijc");
@@ -560,7 +560,7 @@ public:
               nda::tensor::elementwise_trinary(ComplexType(1.0),Twu,"wu",ComplexType(1.0),nda::conj(Xiu),"iu",ComplexType(0.0),Qwiu,"wiu",nda::tensor::op::MUL,nda::tensor::op::SUM); 
             }
 
-            auto vij = v(range(iw,iw+nw),is,range(ip*NMO,(ip+1)*NMO),all);
+            auto vij = v(is,range(iw,iw+nw),range(ip*NMO,(ip+1)*NMO),all);
             nda::tensor::contract(ComplexType(a),Qwiu,"wiu",Xiu,"ju",
                                   ComplexType(0.0),vij,"wij");
 

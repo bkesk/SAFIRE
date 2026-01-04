@@ -114,6 +114,7 @@ public:
   {
     auto all = nda::range::all;
     AFQMCTimer.start(energy_timer);
+    Timer.start("energy");
     long nwalk = wset.size();
 
     ComplexType dum, et;
@@ -200,6 +201,7 @@ public:
     // increase counter
     iblock ++;
     AFQMCTimer.stop(energy_timer);
+    Timer.stop("energy");
   }
 
   void tags(std::ofstream& out)
@@ -249,7 +251,7 @@ public:
     {
       int n = wset.get_global_target_population();
       out << data(0).real() / n << " " << data(0).imag() / n << " " << data(1).real() / n << " " << data(1).imag() / n
-          << " " << AFQMCTimer.elapsed(energy_timer) << " ";
+          << " " << Timer.elapsed("energy") << " ";
       if(print_sign) 
       {
         out <<data(5).real() / n <<" " <<data(5).imag() / n <<" " 
@@ -263,7 +265,7 @@ public:
       {
         out << data(2).real() / n << " " << data(3).real() / n << " " << data(4).real() / n << " ";
       }
-      AFQMCTimer.reset(energy_timer);
+      Timer.reset("energy");
     }
   }
 
@@ -285,6 +287,8 @@ private:
   bool energy_components = false;
   bool print_sign = false;
   bool truncate = false;
+
+  TimerManager Timer;
 
 };
 } // namespace afqmc

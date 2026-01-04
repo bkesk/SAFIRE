@@ -153,9 +153,10 @@ int main(int argc, char** argv)
     if (cname == "afqmc") {
       ptree sim = it.second;
 #if defined(ENABLE_DEVICE)
-      if(compute=="gpu" or compute=="default") 
+      if(compute=="gpu" or compute=="default") { 
+        sfqmc::arch::check_device_configuration();
         auto afqmc_fac = afqmc::AFQMCFactory<DEVICE_MEMORY>("afqmc", mpi, sim);
-      else 
+      } else 
 #endif
         auto afqmc_fac = afqmc::AFQMCFactory<HOST_MEMORY>("afqmc", mpi, sim);
     } else if(cname == "cs_afqmc" || cname == "csafqmc") {
@@ -163,9 +164,10 @@ int main(int argc, char** argv)
       int n_groups = sim.get<int>("project.n_groups", 1);
 // need new strategy for n_group>1, need to add a new "global" communicator to the context.
 #if defined(ENABLE_DEVICE)
-      if(compute=="gpu" or compute=="default") 
+      if(compute=="gpu" or compute=="default") { 
+        sfqmc::arch::check_device_configuration();
         auto afqmc_fac = afqmc::AFQMCFactory<DEVICE_MEMORY>("csafqmc",mpi,sim,n_groups);
-      else 
+      } else 
 #endif
         auto afqmc_fac = afqmc::AFQMCFactory<HOST_MEMORY>("csafqmc",mpi,sim,n_groups);
     } else {

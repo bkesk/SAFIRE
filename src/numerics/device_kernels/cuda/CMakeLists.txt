@@ -10,6 +10,7 @@ if(ENABLE_CUDA)
     complex_tools.cu
     construct_fields.cu
     determinants.cu
+    accumulate.cu
 #    symmetry_tools.cu
 #    potentials.cu
 #    kpoint_tools.cu

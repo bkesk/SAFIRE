@@ -340,7 +340,7 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM_X,ComplexType,4> v(nwalk,nstot,nptot*NMO,NMO);
+    memory::buffered_array<MEM_X,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
     v() = ComplexType(0.0);
 
     // scale by sqrt(dt)
@@ -351,7 +351,7 @@ public:
     for (int is = 0, isp=0; is < nstot; is++) {
       for (int ip = 0; ip < nptot; ip++, ++isp) {
         auto Ln = Likn()(isp,all,all,all);
-        auto v_ = vr(all,is,range(ip*NMO,(ip+1)*NMO),all,all);
+        auto v_ = vr(is,all,range(ip*NMO,(ip+1)*NMO),all,all);
         nda::tensor::contract(a, Ln, "ijn", Xr, "wnc", RealType(1.0), v_, "wijc");
       }
     }

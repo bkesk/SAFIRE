@@ -53,6 +53,7 @@ public:
     // initialize using verbose input
     fileName  = pt.get<std::string>("filename");
     name      = pt.get<std::string>("name");
+    buffer_size = pt.get<int>("buffer_size");
   }
 
   ~KPFactorizedHamiltonian() {}
@@ -75,12 +76,15 @@ public:
   {
     // read inputs with default options
     std::string name, filename;
+    int bsize;
     filename  = pt0.get<std::string>("filename");
     name      = pt0.get<std::string>("name", "ham0");
+    bsize = pt0.get<int>("buffer_size", 4096);
     // create verbose internal inputs
     ptree pt1;
     pt1.put("name", name);
     pt1.put("filename", filename);
+    pt1.put("buffer_size",bsize);
     std::unordered_set<std::string> pass_through_keys = {
       "system"
     };
@@ -96,6 +100,8 @@ protected:
   ComplexType FrozenCoreEnergy;
 
   std::string fileName;
+
+  int buffer_size = 4096; 
 
 };
 

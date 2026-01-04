@@ -319,11 +319,16 @@ public:
     for(int i=0; i<Hams.size(); i++)
       Hams[i].vHS(X(nda::range::all,field_ranges[i]), vIJ, dt);
 
-    memory::buffered_array<MEM,ComplexType,4> v(nwalk,nspin,npol*NMO,NMO);
-    auto v2d = nda::reshape(v,std::array<long,2>{nwalk,nspin*npol*NMO*NMO});
+    memory::buffered_array<MEM,ComplexType,4> v(nspin,nwalk,npol*NMO,NMO);
     v() = ComplexType(0.0);
+
+    memory::buffered_array<MEM,ComplexType,4> v_(nwalk,nspin,npol*NMO,NMO);
+    auto v2d = nda::reshape(v_,std::array<long,2>{nwalk,nspin*npol*NMO*NMO});
+    v_() = ComplexType(0.0);
     // B[:][I[n]] += A[:][n] 
     nda::copy_select(true, 1, n2IJ_vHS_dev, ComplexType(1.0), vIJ, ComplexType(0.0), v2d);
+    nda::tensor::add(ComplexType(1.0),v_,"wsij",ComplexType(0.0),v,"swij");
+
     return v;
   }
 
