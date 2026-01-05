@@ -25,6 +25,7 @@
 #include "utilities/check.hpp"
 #include "utilities/h5_utils.hpp"
 #include "numerics/nda_functions.hpp"
+#include "numerics/operations/tensor.hpp"
 #include "AFQMC/config.h"
 
 #include "nda/h5.hpp"
@@ -306,12 +307,12 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
         for(long ip=0; ip<npol; ++ip) 
         {
           long ip_ = ip%npol_in_file;
-          nda::copy_cast(Xsiu()(is_,range(ip_*NMO,(ip_+1)*NMO),all),Xiu);
+          math::copy(Xsiu()(is_,range(ip_*NMO,(ip_+1)*NMO),all),Xiu);
           // for simplicity, make calculations with copies at full precision 
           nda::tensor::contract(Aai(all,range(ip*NMO,(ip+1)*NMO)),"ai",
                           nda::conj(Xiu),"iu",Yau,"au");
           // now copy result
-          nda::copy_cast(Yau,Ydsau()(id,is,ip,range(nel),all));
+          math::copy(Yau,Ydsau()(id,is,ip,range(nel),all));
         }
       } else {
         for(long ip=0; ip<npol; ++ip) 

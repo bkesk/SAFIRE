@@ -27,6 +27,7 @@
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 #include "numerics/nda_functions.hpp"
 #include "numerics/operations/exp.hpp"
+#include "numerics/operations/tensor.hpp"
 
 namespace sfqmc
 {
@@ -107,7 +108,7 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
         }
       } else {
         // continuous propagator, charge decomposition. vt should be real
-        nda::zero_imag(vt);
+        math::zero_imag(vt);
       }
       if(head_shared) vMF() = vt(); 
     }

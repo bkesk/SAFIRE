@@ -17,6 +17,7 @@
 #pragma once
 
 #include "configuration.hpp"
+#include "arch/arch.h"
 #include "nda/nda.hpp"
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp"
@@ -25,6 +26,7 @@
 #include "utilities/check_strides.hpp"
 #include "numerics/shared_array/shared_array.hpp"
 #include "numerics/nda_functions.hpp"
+#include "numerics/operations/tensor.hpp"
 
 namespace sfqmc
 {
@@ -391,8 +393,8 @@ public:
                     if(addEJ) {
                       // T5d(batch_size,nwalk,nocc_max,nocc_max,nchol)
                       for(int a=0; a<nocc_max; ++a) {
-                        kernels::device::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
-                        kernels::device::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                        math::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                        math::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
                       }
                     }
                   }                     
@@ -401,7 +403,7 @@ public:
                   // only scale if Q!=Qm, otherwise full tensor is scaled below 
                   if(Q!=Qm) 
                     for(auto i: kdiag) 
-                      kernels::device::scale(ComplexType(0.5),Tl3d(i,all,all));
+                      math::scale(ComplexType(0.5),Tl3d(i,all,all));
                   arch::set_device_synchronization(true);
                 } 
                 if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
@@ -443,8 +445,8 @@ public:
                 if(addEJ) {
                   // T5d(batch_size,nwalk,nocc_max,nocc_max,nchol)
                   for(int a=0; a<nocc_max; ++a) {
-                    kernels::device::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
-                    kernels::device::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                    math::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                    math::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
                   }
                 }
               }
@@ -453,7 +455,7 @@ public:
               // only scale if Q!=Qm, otherwise full tensor is scaled below 
               if(Q!=Qm) 
                 for(auto i: kdiag) 
-                  kernels::device::scale(ComplexType(0.5),Tl3d(i,all,all));
+                  math::scale(ComplexType(0.5),Tl3d(i,all,all));
               arch::set_device_synchronization(true);
             }
             if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
@@ -638,8 +640,8 @@ public:
                   if(addEJ) {
                     // T5d(batch_size,nwalk,nocc_max,nocc_max,nchol)
                     for(int a=0; a<nocc_max; ++a) {
-                      kernels::device::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
-                      kernels::device::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                      math::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                      math::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
                     }
                   }
                 }
@@ -648,7 +650,7 @@ public:
                 // only scale if Q!=Qm, otherwise full tensor is scaled below 
                 if(Q!=Qm)
                   for(auto i: kdiag)
-                    kernels::device::scale(ComplexType(0.5),Tl3d(i,all,all));
+                    math::scale(ComplexType(0.5),Tl3d(i,all,all));
                 arch::set_device_synchronization(true);
               }
               if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
@@ -689,8 +691,8 @@ public:
               if(addEJ) {
                 // T5d(batch_size,nwalk,nocc_max,nocc_max,nchol)
                 for(int a=0; a<nocc_max; ++a) {
-                  kernels::device::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
-                  kernels::device::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                  math::accumulate(one,Tl5d(i,all,a,a,all),Kleft(all,range(ncv0(Q),ncv0(Q)+nchol)));
+                  math::accumulate(one,Tr5d(i,all,a,a,all),Kright(all,range(ncv0(Q),ncv0(Q)+nchol)));
                 }
               }
             }
@@ -699,7 +701,7 @@ public:
             // only scale if Q!=Qm, otherwise full tensor is scaled below 
             if(Q!=Qm)
               for(auto i: kdiag)
-                kernels::device::scale(ComplexType(0.5),Tl3d(i,all,all));
+                math::scale(ComplexType(0.5),Tl3d(i,all,all));
             arch::set_device_synchronization(true);
           }
           if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
@@ -794,7 +796,7 @@ public:
             X3d(all,0,range(ncv0(iq),ncv0(iq)+nchol)) += X3d(all,1,range(ncv0(iq),ncv0(iq)+nchol));
         } else {
           if( iq != minusq(iq) ) 
-            kernels::device::accumulate(one,X3d(all,1,range(ncv0(iq),ncv0(iq)+nchol)),
+            math::accumulate(one,X3d(all,1,range(ncv0(iq),ncv0(iq)+nchol)),
                                             X3d(all,0,range(ncv0(iq),ncv0(iq)+nchol)));
         } 
       }
@@ -820,7 +822,6 @@ public:
                       nda::transpose(Lq_(ik,all,all)),zero,v2d);
 
                 // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-                // write kernel if this is too slow, or fix streams in cutensor!!!
                 int k2 = qk_to_k2(Q,ik);
                 nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,ik,all,k2,all),"wij");
               } else {
@@ -832,7 +833,6 @@ public:
                       nda::dagger(Lqm_(k2,all,all)),zero,v2d);
 
                 // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-                // write kernel if this is too slow, or fix streams in cutensor!!!
                 nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,ik,all,k2,all),"wij");
               }
               // v[nw][k(in Q(K))][i(in K)] += sum_n conj(LQK[i][k][n]) X[Q][n-][nw]
@@ -844,7 +844,6 @@ public:
                       nda::dagger(Lq_(ik,all,all)),zero,v2d);
 
                 // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-                // write kernel if this is too slow, or fix streams in cutensor!!!
                 int k2 = qk_to_k2(Q,ik);
                 nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,k2,all,ik,all),"wji");
               }
@@ -869,12 +868,11 @@ public:
                   nda::transpose(Lq_),zero,v2d);
 
             // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-            // write kernel if this is too slow, or fix streams in cutensor!!!
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
               for(int ip=0; ip<npol; ++ip)
-                kernels::device::accumulate(one,vKK(all,ip,ik,all,all),v7d(is,all,ip,ik,all,k2,all));
+                math::accumulate(one,vKK(all,ip,ik,all,all),v7d(is,all,ip,ik,all,k2,all));
             }
             arch::set_device_synchronization(true);
           } else {
@@ -885,13 +883,12 @@ public:
                   nda::dagger(Lq_),zero,v2d);
 
             // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-            // write kernel if this is too slow, or fix streams in cutensor!!!
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
               for(int ip=0; ip<npol; ++ip) {
                 auto v_wji = nda::permuted_indices_view<nda::encode(std::array<int, 3>{0, 2, 1})>(v7d(is,all,ip,ik,all,k2,all));
-                kernels::device::accumulate(one,vKK(all,ip,k2,all,all),v_wji);
+                math::accumulate(one,vKK(all,ip,k2,all,all),v_wji);
               }
             }
             arch::set_device_synchronization(true);
@@ -905,13 +902,12 @@ public:
                   nda::dagger(Lq_),zero,v2d);
 
             // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
-            // write kernel if this is too slow, or fix streams in cutensor!!!
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
               for(int ip=0; ip<npol; ++ip) {
                 auto v_wji = nda::permuted_indices_view<nda::encode(std::array<int, 3>{0, 2, 1})>(v7d(is,all,ip,k2,all,ik,all));
-                kernels::device::accumulate(one,vKK(all,ip,ik,all,all),v_wji);
+                math::accumulate(one,vKK(all,ip,ik,all,all),v_wji);
               }
             }
             arch::set_device_synchronization(true);
@@ -1093,8 +1089,6 @@ protected:
         n0 += nk1;
       }
     } else {
-      // figure out how to run cutensor calls concurrently, streams don't seem to do it
-      nda::tensor::cutensor::set_synchronization(false);
       for(int ik1=0; ik1<nkpts; ++ik1) 
       {
         int nk1 = nocc(is,ik1);
@@ -1102,7 +1096,6 @@ protected:
                          ComplexType(0.0),G6d(ik1,all,all,range(nk1),all,all),"kwapj");
         n0 += nk1;
       }
-      nda::tensor::cutensor::set_synchronization(true);
     }
   }
 
@@ -1134,7 +1127,6 @@ protected:
         nk0 += nk;
       }
     } else {
-      // figure out how to run cutensor calls concurrently, streams don't seem to do it
       arch::set_device_synchronization(false);
       int nk0 = n0;
       for(int ik=0; ik<nkpts; ++ik)
@@ -1142,7 +1134,7 @@ protected:
         int k2 = qk_to_k2(iq,ik);
         int nk = nocc(is,ik);
         for(int ip=0; ip<npol; ++ip) 
-          kernels::device::accumulate(ComplexType(1.0),G(all,range(nk0,nk0+nk),ip,k2,all),G5d(all,ik,range(nk),ip,all));
+          math::accumulate(ComplexType(1.0),G(all,range(nk0,nk0+nk),ip,k2,all),G5d(all,ik,range(nk),ip,all));
         nk0 += nk;
       }
       arch::set_device_synchronization(true);

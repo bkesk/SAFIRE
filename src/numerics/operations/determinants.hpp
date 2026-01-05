@@ -37,9 +37,12 @@ void log_determinant_from_getrf(A const& a, IPIV const& ipiv, V && log_det) {
   sfqmc::utils::check(a.extent(0) == log_det.extent(0), "Size mismatch");
   sfqmc::utils::check(a.extent(1) == ipiv.extent(1), "Size mismatch");
   sfqmc::utils::check(a.extent(1) == a.extent(2), "Size mismatch");
+#if defined(ENABLE_DEVICE)
   if constexpr (nda::mem::have_device_compatible_addr_space<A,IPIV,V>) {
     kernels::device::log_determinant_from_getrf(a,ipiv,log_det);
-  } else {
+  } else 
+#endif
+  {
     auto F = detail::log_determinant_from_getrf_impl<A,IPIV,V>{a,ipiv,log_det};
     std::ranges::for_each(nda::range(a.extent(0)),F); 
   }
@@ -58,9 +61,12 @@ void log_determinant_from_getrf(A const& aM, IPIV const& ipiv_v, nda::get_value_
   auto a = nda::reshape(aM,std::array<long,3>{1,aM.extent(0),aM.extent(1)});
   memory::array_view<MEM,const nda::get_value_t<IPIV>,2> ipiv(std::array<long,2>{1,ipiv_v.size()},ipiv_v.data());
   memory::array_view<MEM,T,1> log_det(std::array<long,1>{1},&val);
+#if defined(ENABLE_DEVICE)
   if constexpr (nda::mem::have_device_compatible_addr_space<A,IPIV>) {
     kernels::device::log_determinant_from_getrf(a,ipiv,log_det);
-  } else {
+  } else 
+#endif
+  {
     auto F = detail::log_determinant_from_getrf_impl<decltype(a),decltype(ipiv),decltype(log_det)>{a,ipiv,log_det};
     std::ranges::for_each(nda::range(1),F); 
   }
@@ -75,9 +81,12 @@ void log_determinant_from_geqrf(A const& a, S && scl, V && log_det) {
   sfqmc::utils::check(a.extent(0) == log_det.extent(0), "Size mismatch");
   sfqmc::utils::check(a.extent(0) == scl.extent(0), "Size mismatch");
   sfqmc::utils::check(scl.extent(1) >= std::min(a.extent(1),a.extent(2)), "Size mismatch");
+#if defined(ENABLE_DEVICE)
   if constexpr (nda::mem::have_device_compatible_addr_space<A,S,V>) {
     kernels::device::log_determinant_from_geqrf(a,scl,log_det);
-  } else {
+  } else 
+#endif
+  {
     auto F = detail::log_determinant_from_geqrf_impl<A,S,V>{a,scl,log_det};
     std::ranges::for_each(nda::range(a.extent(0)),F); 
   }

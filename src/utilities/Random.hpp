@@ -61,12 +61,13 @@ using RandomGenerator_t = std::mt19937;
 template<MEMORY_SPACE MEM>
 auto make_rng(RandomGenerator_t<>::result_type iseed)
 {
-  if constexpr (MEM==HOST_MEMORY) {
-    return RandomGenerator_t<>(iseed);
-  } else {
+#if defined(ENABLE_DEVICE)
+  if constexpr (MEM==DEVICE_MEMORY) {
     unsigned long long int v(iseed);
     return ::sfqmc::cuda::make_device_rng(v);
-  }
+  } else
+#endif
+    return RandomGenerator_t<>(iseed);
 }
 
 // Return Nth primer number

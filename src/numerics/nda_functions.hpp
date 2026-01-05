@@ -286,69 +286,6 @@ void copy_select(bool expand, int indx, V1 const& m, V2 const& s, T alpha, V3 co
   }
 }
 
-// B(...) = T(A(...)), where T = get_value_t<decltype(B)>
-template<MemoryArray A_t, MemoryArray B_t>
-requires( get_rank<A_t> == get_rank<B_t> and 
-       ((std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C()) or
-        (std::decay_t<A_t>::is_stride_order_Fortran() and std::decay_t<B_t>::is_stride_order_Fortran())))
-void copy_cast(A_t const& A, B_t && B) {
-  sfqmc::utils::check(A.shape() == B.shape(), "Shape mismatch");
-  if constexpr (std::is_same_v<get_value_t<A_t>,get_value_t<B_t>>) {
-    B() = A();
-  } else {
-    if constexpr (nda::mem::have_device_compatible_addr_space<A_t,B_t>) {
-#if defined(ENABLE_DEVICE)
-      kernels::device::copy_cast(A,B);
-#else
-      sfqmc::utils::check(false,"Error: Missing device function copy_cast.");
-#endif
-    } else {
-      B() = A();
-    }
-  } 
-
-}
-
-// B(...) += T(alpha*A(...)), where T = get_value_t<decltype(B)>
-template<MemoryArray A_t, MemoryArray B_t>
-requires( get_rank<A_t> == get_rank<B_t> and
-       ((std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C()) or
-        (std::decay_t<A_t>::is_stride_order_Fortran() and std::decay_t<B_t>::is_stride_order_Fortran())))
-void accumulate(nda::get_value_t<A_t> alpha, A_t const& A, B_t && B) {
-  sfqmc::utils::check(A.shape() == B.shape(), "Shape mismatch");
-  if constexpr (std::is_same_v<get_value_t<A_t>,get_value_t<B_t>>) {
-    nda::tensor::add(alpha,A,get_value_t<B_t>{1.0},B);
-  } else {
-    if constexpr (nda::mem::have_device_compatible_addr_space<A_t,B_t>) {
-#if defined(ENABLE_DEVICE)
-      kernels::device::accumulate_cast(alpha,A,B);
-#else
-      sfqmc::utils::check(false,"Error: Missing device function accumulate_cast.");
-#endif
-    } else {
-      B() += alpha*A();
-    }
-  }
-
-}
-
-template<MemoryArray Arr>
-void zero_imag(Arr && A) 
-{
-  using value_type = get_value_t<Arr>;
-  if constexpr (is_complex_v<value_type>) { 
-    if constexpr(nda::mem::on_host<Arr>) {
-      for( auto& v : A ) v = value_type(v.real(),0.0);
-    } else {
-#if defined(ENABLE_DEVICE)
-      kernels::device::zero_imag(A);
-#else
-      sfqmc::utils::check(false,"Error: Found device array without ENABLE_DEVICE."); 
-#endif
-    }
-  }
-}
-
 namespace blas
 {
 
