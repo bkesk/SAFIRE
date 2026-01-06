@@ -147,14 +147,14 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         utils::check( l.lengths[0] == nspin_in_file*npol_in_file*NMO*NMO  and
                       l.lengths[1] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}). Incompatible with nspin_in_file:{}, npol_in_file:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],nspin_in_file,npol_in_file,NMO);
         auto L_ = nda::reshape(Likn(),std::array<long,2>{nspin_in_file*npol_in_file*NMO*NMO,ncv});
-        nda::h5_read(vgrp,"L",L_);
+        utils::h5_read(vgrp,"L",L_);
       } else if(l.rank()==3) {
         //[nspin_in_file][npol_in_file*NMO*npol_in_file*NMO]][ncv]
         utils::check( l.lengths[0] == nspin_in_file*npol_in_file  and
                       l.lengths[1] == NMO*NMO  and
                       l.lengths[2] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}, {}). Incompatible with nspin_in_file:{}, npol_in_file:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],l.lengths[2],nspin_in_file,npol_in_file,NMO);
         auto L_ = nda::reshape(Likn(),std::array<long,3>{nspin_in_file*npol_in_file,NMO*NMO,ncv});
-        nda::h5_read(vgrp,"L",L_);
+        utils::h5_read(vgrp,"L",L_);
       } else if(l.rank()==4) {
         //[nspin_in_file][npol_in_file*NMO][npol_in_file*NMO]][ncv]
         utils::check( l.lengths[0] == nspin_in_file*npol_in_file  and
@@ -162,7 +162,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                       l.lengths[2] == NMO  and
                       l.lengths[3] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}, {}, {}). Incompatible with nspin_in_file:{}, npol_in_file:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],l.lengths[2],l.lengths[3],nspin_in_file,npol_in_file,NMO);
         auto L_ = nda::reshape(Likn(),std::array<long,4>{nspin_in_file*npol_in_file,NMO,NMO,ncv});
-        nda::h5_read(vgrp,"L",L_);
+        utils::h5_read(vgrp,"L",L_);
       } else {
         utils::check(false, "Invalid Cholesky vector rank:{} ",l.rank());
       }

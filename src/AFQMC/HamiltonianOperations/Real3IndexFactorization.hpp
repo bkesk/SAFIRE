@@ -346,14 +346,45 @@ public:
     // scale by sqrt(dt)
     RealType a(std::sqrt(dt));
 
-    auto Xr = memory::to_real_view(X);
-    auto vr = memory::to_real_view(v);
-    for (int is = 0, isp=0; is < nstot; is++) {
-      for (int ip = 0; ip < nptot; ip++, ++isp) {
-        auto Ln = Likn()(isp,all,all,all);
-        auto v_ = vr(is,all,range(ip*NMO,(ip+1)*NMO),all,all);
-        nda::tensor::contract(a, Ln, "ijn", Xr, "wnc", RealType(1.0), v_, "wijc");
+    if constexpr (MEM==HOST_MEMORY) {
+      auto v4d = nda::reshape(v,std::array<long,4>{nstot,nwalk,nptot,NMO*NMO});;
+      memory::buffered_array<MEM,ComplexType,2> Xt(nCV,nwalk);
+      memory::buffered_array<MEM,ComplexType,2> vt(NMO*NMO,nwalk);
+      nda::array_view<RealType,2> Xr(std::array<long,2>{nCV,2*nwalk},reinterpret_cast<RealType*>(Xt.data()));
+      nda::array_view<RealType,2> vr(std::array<long,2>{NMO*NMO,2*nwalk},reinterpret_cast<RealType*>(vt.data()));
+      for (int is = 0, isp=0; is < nstot; is++) {
+        for (int ip = 0; ip < nptot; ip++, ++isp) {
+          Xt() = nda::transpose(X());
+          auto Ln = nda::reshape(Likn()(isp,nda::ellipsis{}),std::array<long,2>{NMO*NMO,nCV});;
+          nda::blas::gemm(a,Ln,Xr,RealType(0.0),vr);
+          v4d(is,all,ip,all) = nda::transpose(vt()); 
+        }
       }
+    } else {
+      auto v4d = nda::reshape(v,std::array<long,4>{nstot,nwalk,nptot,NMO*NMO});;
+      memory::buffered_array<MEM,ComplexType,2> Xt(nCV,nwalk);
+      memory::buffered_array<MEM,ComplexType,2> vt(NMO*NMO,nwalk);
+      memory::array_view<MEM,RealType,2> Xr(std::array<long,2>{nCV,2*nwalk},reinterpret_cast<RealType*>(Xt.data()));
+      memory::array_view<MEM,RealType,2> vr(std::array<long,2>{NMO*NMO,2*nwalk},reinterpret_cast<RealType*>(vt.data()));
+      for (int is = 0, isp=0; is < nstot; is++) {
+        for (int ip = 0; ip < nptot; ip++, ++isp) {
+          nda::tensor::assign(ComplexType(1.0),X,"wn",Xt,"nw");
+          auto Ln = nda::reshape(Likn()(isp,nda::ellipsis{}),std::array<long,2>{NMO*NMO,nCV});;
+          nda::blas::gemm(a,Ln,Xr,RealType(0.0),vr);
+          nda::tensor::assign(ComplexType(1.0),vt,"nw",v4d(is,all,ip,all),"wn");
+        }
+      }
+/*
+      auto Xr = memory::to_real_view(X);
+      auto vr = memory::to_real_view(v);
+      for (int is = 0, isp=0; is < nstot; is++) {
+        for (int ip = 0; ip < nptot; ip++, ++isp) {
+          auto Ln = Likn()(isp,all,all,all);
+          auto v_ = vr(is,all,range(ip*NMO,(ip+1)*NMO),all,all);
+          nda::tensor::contract(a, Ln, "ijn", Xr, "wnc", RealType(1.0), v_, "wijc");
+        }
+      }
+*/
     }
     return v;
   }

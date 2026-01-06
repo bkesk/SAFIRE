@@ -23,6 +23,7 @@
 #include "arch/arch.h"
 #include "nda/nda.hpp"
 #include "numerics/nda_functions.hpp"
+#include "numerics/operations/tensor.hpp"
 
 #if defined(ENABLE_DEVICE)
 #include "curand.h"
@@ -150,7 +151,7 @@ void sampleUniformFields(Vec && V, RandomGenerator_t<DEVICE_MEMORY>& rng)
   } else if constexpr (std::is_same_v<T,std::complex<double>>) {
     cuda::curand_check(curandGenerateUniformDouble(rng, reinterpret_cast<double*>(V.data()), 2 * V.size()),
                          "curandGenerateUniformDouble");
-    nda::zero_imag(V);
+    math::zero_imag(V);
   } 
   arch::synchronize_if_set();
 }
