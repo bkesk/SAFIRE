@@ -93,7 +93,7 @@ void ph_excited_2body_energy_dense_cholesky(nda::MemoryVector auto const& iexcit
           int ip = iex(idet,0,ie1);
 
           // ie1==ie2 term
-          nda::tensor::contract(one,Twina(iw,ip,all,all),"na",Rxa(ie1,all),"a",zero,Fn,"n");
+          nda::blas::gemv(one,Twina(iw,ip,all,all),Rxa(ie1,all),zero,Fn);
           eX += nda::sum( Fn*Fn );
           Kn() += Fn;
 
@@ -101,16 +101,16 @@ void ph_excited_2body_energy_dense_cholesky(nda::MemoryVector auto const& iexcit
           for(int ie2=ie1+1; ie2<nex; ie2++) {
             int iq = iex(idet,0,ie2);
             // Twq[n][a] * Rwp[a] = Fn
-            nda::tensor::contract(one,Twina(iw,iq,all,all),"na",Rxa(ie1,all),"a",zero,Fn,"n");
+            nda::blas::gemv(one,Twina(iw,iq,all,all),Rxa(ie1,all),zero,Fn);
             // Twp[n][b] * Rwq[b] = Fn
-            nda::tensor::contract(one,Twina(iw,ip,all,all),"na",Rxa(ie2,all),"a",zero,Fn1,"n");
+            nda::blas::gemv(one,Twina(iw,ip,all,all),Rxa(ie2,all),zero,Fn1);
             eX += two * nda::sum( Fn*Fn1 ); 
           }
 
           // R[p]*R[diagonal] term
           for(int j=0; j<nelec; j++) {
             int Oj = occps(j); 
-            nda::tensor::contract(one,Twina(iw,j,all,all),"na",Twina(iw,ip,all,Oj),"n",zero,Fa,"a");
+            nda::blas::gemv(one,Twina(iw,j,all,all),Twina(iw,ip,all,Oj),zero,Fa);
             eX += two * nda::sum( Fa*Rxa(ie1,all) ); 
           }
 

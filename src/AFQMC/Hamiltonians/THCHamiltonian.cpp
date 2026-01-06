@@ -148,6 +148,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       h5::h5_read_attribute(igrp,"number_of_qpoints",n);
       utils::check(1==n,base_error + " Incompatible nqpts:{} in h5::/Interaction.",n);
       // now read dimensions
+// MAM: right now only correct for Real==false, dimensions are assumed different for real case
       auto lX = h5::array_interface::get_dataset_info(igrp,"collocation_matrix");
       nu = lX.lengths[3];
       utils::check((lX.lengths[0]==nspin_in_file) and (lX.lengths[1]==1) and 
@@ -242,6 +243,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   {
     read_helper(1,*hgrp,"H0",H1());
     {  // Interaction 
+// MAM: right now only correct for Real==false, dimensions are assumed different for real case
       h5::group igrp = grp->open_group("Interaction");
       read_helper(1,igrp,"collocation_matrix",Xsiu());
       read_helper(2,igrp,"factorized_coulomb_matrix",Luv());
@@ -445,15 +447,15 @@ THCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       utils::check(igrp.has_dataset("factorized_coulomb_matrix"),"Missing dataset factorized_coulomb_matrix."); 
       auto l = h5::array_interface::get_dataset_info(igrp,"factorized_coulomb_matrix");
       if(l.has_complex_attribute) Real = false;
-      utils::check((l.rank() == 2) or (l.rank() == 3), "Rank mismatch");
-      if(l.has_complex_attribute or (l.rank() == 3)) Real = false;
+      utils::check((l.rank() == 2) or (l.rank() == 4), "Rank mismatch");
+      if(l.has_complex_attribute or (l.rank() == 2)) Real = false;
     }
     { // check collocation_matrix 
       utils::check(igrp.has_dataset("collocation_matrix"),"Missing dataset collocation_matrix."); 
       auto l = h5::array_interface::get_dataset_info(igrp,"collocation_matrix");
-      utils::check((l.rank() == 3) or (l.rank() == 4), "Rank mismatch");
-      utils::check((Real and not (l.has_complex_attribute or (l.rank() == 4))) or 
-                   (not Real and (l.has_complex_attribute or (l.rank() == 4))), "Incompatible datatypes in Interaction.");
+      utils::check((l.rank() == 3) or (l.rank() == 5), "Rank mismatch");
+      utils::check((Real and not (l.has_complex_attribute or (l.rank() == 5))) or 
+                   (not Real and (l.has_complex_attribute or (l.rank() == 5))), "Incompatible datatypes in Interaction.");
     }
     // should I check the other ones???
   }

@@ -647,8 +647,14 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
         if (compact)
         { 
           auto G3d = nda::reshape(G,std::array<long,3>{nwalk,nact,NMO}); 
-          nda::tensor::contract(ComplexType(1.0), Ra, "wia", GA, "wik", 
-              ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA),all), "wak");
+          if constexpr (MEM==HOST_MEMORY) {
+            for(int i=0; i<nw; ++i)
+              nda::blas::gemm(nda::transpose(Ra(i,all,all)),GA(i,all,all),
+                              G3d(iw+i,range(nactA),all));
+          } else {
+            nda::tensor::contract(ComplexType(1.0), Ra, "wia", GA, "wik", 
+                ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA),all), "wak");
+          }
         }
         else
         {
@@ -676,8 +682,14 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
         if (compact)
         {
           auto G3d = nda::reshape(G,std::array<long,3>{nwalk,nact,NMO});
-          nda::tensor::contract(ComplexType(1.0), Rb, "wia", GB, "wik",
-              ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA,nact),all), "wak");
+          if constexpr (MEM==HOST_MEMORY) {
+            for(int i=0; i<nw; ++i)
+              nda::blas::gemm(nda::transpose(Rb(i,all,all)),GB(i,all,all),
+                              G3d(iw+i,range(nactA,nact),all));
+          } else {
+            nda::tensor::contract(ComplexType(1.0), Rb, "wia", GB, "wik",
+                ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA,nact),all), "wak");
+          }
         }
         else
         {
