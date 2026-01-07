@@ -140,7 +140,7 @@ void PHMSD<MEM>::energy_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov)
 
     for (int spin = 0; spin < nspin; ++spin)
     {
-      auto SM=wset.template SlaterMatrices<MEM>( (spin == 0 ? Alpha : Beta) );
+      auto SM=wset.SlaterMatrices( (spin == 0 ? Alpha : Beta) );
       nda::array<int,1> confg(nel[spin]);
       memory::array<MEM,int,1> confg_dev(nel[spin]);
 
@@ -322,8 +322,8 @@ void PHMSD<MEM>::energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
 
     // generalize later
     int nbatch__ = nwalk;
-    auto SMup=wset.template SlaterMatrices<MEM>(Alpha);
-    auto SMdn=wset.template SlaterMatrices<MEM>(Beta);
+    auto SMup=wset.SlaterMatrices(Alpha);
+    auto SMdn=wset.SlaterMatrices(Beta);
 
     for (int iw = 0; iw < nwalk; iw+=nbatch__)
     {
@@ -600,8 +600,8 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
                       long(abij.number_of_unique_excitations()[1])};
     const int nbatch__  = nwalk; 
 
-    auto SMup=wset.template SlaterMatrices<MEM>(Alpha);
-    auto SMdn=wset.template SlaterMatrices<MEM>(Beta);
+    auto SMup=wset.SlaterMatrices(Alpha);
+    auto SMdn=wset.SlaterMatrices(Beta);
 
     for (int iw = 0; iw < nwalk; iw+=nbatch__)
     {
@@ -779,8 +779,8 @@ void PHMSD<MEM>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
     long maxn_unique_confg(std::max(nexcit[0],nexcit[1]));
     int nwbatch = nwalk; // tune later
 
-    auto SMup=wset.template SlaterMatrices<MEM>(Alpha);
-    auto SMdn=wset.template SlaterMatrices<MEM>(Beta);
+    auto SMup=wset.SlaterMatrices(Alpha);
+    auto SMdn=wset.SlaterMatrices(Beta);
 
     for (int iw = 0; iw < nwalk; iw+=nwbatch)
     {

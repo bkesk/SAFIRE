@@ -28,9 +28,12 @@ namespace sfqmc
 namespace afqmc
 {
 
-// MAM: Make variant with memory types
-//using WalkerSet = WalkerSetBase<HOST_MEMORY>;
+// MAM: use this as long as there is only 1 choice
+template<MEMORY_SPACE MEM>
+using WalkerSet = WalkerSetBase<MEM>;
 
+// MAM: re-enable if another WalkerSet option is needed, e.g. PW, Finite-T, ...
+/* 
 template<MEMORY_SPACE MEM>
 class WalkerSet
 {
@@ -117,72 +120,28 @@ class WalkerSet
       return std::visit( [&](auto&& v) { return v[i]; }, var ); 
     } 
 
-    template<MEMORY_SPACE M>
-    auto SlaterMatrices( SpinTypes s ) { 
-      return std::visit( [&](auto&& v) { return  v.template SlaterMatrices<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto SlaterMatrices( SpinTypes s ) const { 
-      return std::visit( [&](auto&& v) { return  v.template SlaterMatrices<M>(s); }, var ); 
-    }
-    template<MEMORY_SPACE M>
-    auto UMatrices( SpinTypes s ) { 
-      return std::visit( [&](auto&& v) { return  v.template UMatrices<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto UMatrices( SpinTypes s ) const { 
-      return std::visit( [&](auto&& v) { return  v.template UMatrices<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto DMatrices( SpinTypes s ) { 
-      return std::visit( [&](auto&& v) { return  v.template DMatrices<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto DMatrices( SpinTypes s ) const { 
-      return std::visit( [&](auto&& v) { return  v.template DMatrices<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto VMatrices( SpinTypes s ) { 
-      return std::visit( [&](auto&& v) { return  v.template VMatrices<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto VMatrices( SpinTypes s ) const { 
-      return std::visit( [&](auto&& v) { return  v.template VMatrices<M>(s); }, var ); 
-    }  
-    template<MEMORY_SPACE M>
-    auto SlaterMatricesN( SpinTypes s ) { 
-      return std::visit( [&](auto&& v) { return  v.template SlaterMatricesN<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto SlaterMatricesN( SpinTypes s ) const { 
-      return std::visit( [&](auto&& v) { return  v.template SlaterMatricesN<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto SlaterMatricesAux( SpinTypes s ) { 
-      return std::visit( [&](auto&& v) { return  v.template SlaterMatricesAux<M>(s); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto SlaterMatricesAux( SpinTypes s ) const { 
-      return std::visit( [&](auto&& v) { return  v.template SlaterMatricesAux<M>(s); }, var ); 
-    } 
-
-    template<MEMORY_SPACE M>
-    auto getFields() { 
-      return std::visit( [&](auto&& v) { return  v.template getFields<M>(); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto getFields(int ip) { 
-      return std::visit( [&](auto&& v) { return  v.template getFields<M>(ip); }, var ); 
-    } 
-
-    VISITOR_ARGS(getWeightHistory,var,)
-    VISITOR_ARGS(getWeightFactors,var,)
+    VISITOR_ARGS(SlaterMatrices,var,)
+    VISITOR_ARGS(SlaterMatrices,var,const)
+    VISITOR_ARGS(UMatrices,var,)
+    VISITOR_ARGS(UMatrices,var,const)
+    VISITOR_ARGS(DMatrices,var,)
+    VISITOR_ARGS(DMatrices,var,const)
+    VISITOR_ARGS(VMatrices,var,)
+    VISITOR_ARGS(VMatrices,var,const)
+    VISITOR_ARGS(SlaterMatricesN,var,)
+    VISITOR_ARGS(SlaterMatricesN,var,const)
+    VISITOR_ARGS(SlaterMatricesAux,var,)
+    VISITOR_ARGS(SlaterMatricesAux,var,const)
+    VISITOR_ARGS(getFields,var,)
+    VISITOR(getWeightHistory,var,)
+    VISITOR(getWeightFactors,var,)
     
   private:
 
     std::variant<WalkerSetBase<MEM>> var;
 
 };
+*/
 
 // MAM: move to factory or utils file, this will remain a template even if we instantiate above
 template<MEMORY_SPACE _M_>
@@ -192,7 +151,8 @@ inline decltype(auto) make_WalkerSet(
                 AFQMCInfo& info,
                 std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r)
 {
-  return WalkerSet<_M_>( WalkerSetBase<_M_>(_mpi_,pt,info,r) );
+//  return WalkerSet<_M_>( WalkerSetBase<_M_>(_mpi_,pt,info,r) );
+  return WalkerSetBase<_M_>(_mpi_,pt,info,r);
 }
 
 } // namespace afqmc
