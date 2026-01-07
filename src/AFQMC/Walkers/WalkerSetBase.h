@@ -290,155 +290,135 @@ public:
 
   private:
 
-  template<MEMORY_SPACE _M_, walker_data D>
+  template<walker_data D>
   auto extract_SM( SpinTypes s ) {
     static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
-    utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
     std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+    return memory::array_view<MEM,ComplexType,3>(idxm, walker_buffer.data() + i0);     
   } 
 
-  template<MEMORY_SPACE _M_, walker_data D>
+  template<walker_data D>
   auto extract_SM( SpinTypes s ) const {
     static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
-    utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
     std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+    return memory::array_view<MEM,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
   }
 
   /*
    * extract finite temperature walker matrices
   */
-  template<MEMORY_SPACE _M_, walker_data D>
+  template<walker_data D>
   auto extract_UM( SpinTypes s ) {
     utils::check(D == UR or D == VR, "Invalid enum");
-    utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
     std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+    return memory::array_view<MEM,ComplexType,3>(idxm, walker_buffer.data() + i0);     
   } 
 
-  template<MEMORY_SPACE _M_, walker_data D>
+  template<walker_data D>
   auto extract_UM( SpinTypes s ) const {
     static_assert(D == UR or DR == VR, "Invalid enum");
-    utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
     std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+    return memory::array_view<MEM,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
   }
 
-  template<MEMORY_SPACE _M_>
   auto extract_DM( SpinTypes s ) {
-    utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[DR]:data_displ[DR]+wlk_desc[0]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
     std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+    return memory::array_view<MEM,ComplexType,3>(idxm, walker_buffer.data() + i0);     
   } 
 
-  template<MEMORY_SPACE _M_>
   auto extract_DM( SpinTypes s ) const {
-    utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[DR]:data_displ[DR]+wlk_desc[0]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
     std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+    return memory::array_view<MEM,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
   }
 
   public:
 
-  template<MEMORY_SPACE _M_>
   auto SlaterMatrices( SpinTypes s )  
   {
-    return extract_SM<_M_,SM>(s);
+    return extract_SM<SM>(s);
   } 
 
-  template<MEMORY_SPACE _M_>
   auto SlaterMatrices( SpinTypes s ) const
   {
-    return extract_SM<_M_,SM>(s);
+    return extract_SM<SM>(s);
   }
 
-  template<MEMORY_SPACE _M_>
   auto UMatrices( SpinTypes s )  
   {
-    return extract_UM<_M_,UR>(s);
+    return extract_UM<UR>(s);
   } 
 
-  template<MEMORY_SPACE _M_>
   auto DMatrices( SpinTypes s )  
   {
-    return extract_DM<_M_>(s);
+    return extract_DM(s);
   } 
 
-  template<MEMORY_SPACE _M_>
   auto VMatrices( SpinTypes s )  
   {
-    return extract_UM<_M_,VR>(s);
+    return extract_UM<VR>(s);
   } 
 
-  template<MEMORY_SPACE _M_>
   auto UMatrices( SpinTypes s ) const
   {
-    return extract_UM<_M_,UR>(s);
+    return extract_UM<UR>(s);
   } 
 
-  template<MEMORY_SPACE _M_>
   auto DMatrices( SpinTypes s ) const  
   {
-    return extract_DM<_M_>(s);
+    return extract_DM(s);
   } 
 
-  template<MEMORY_SPACE _M_>
   auto VMatrices( SpinTypes s ) const  
   {
-    return extract_UM<_M_,VR>(s);
+    return extract_UM<VR>(s);
   } 
 
-  template<MEMORY_SPACE _M_>
   auto SlaterMatricesN( SpinTypes s )
   {
     utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<_M_,SMN>(s);
+    return extract_SM<SMN>(s);
   }
 
-  template<MEMORY_SPACE _M_>
   auto SlaterMatricesN( SpinTypes s ) const
   {
     utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<_M_,SMN>(s);
+    return extract_SM<SMN>(s);
   }
 
-  template<MEMORY_SPACE _M_>
   auto SlaterMatricesAux( SpinTypes s )
   {
     utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<_M_,SM_AUX>(s);
+    return extract_SM<SM_AUX>(s);
   }
 
-  template<MEMORY_SPACE _M_>
   auto SlaterMatricesAux( SpinTypes s ) const
   {
     utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<_M_,SM_AUX>(s);
+    return extract_SM<SM_AUX>(s);
   }
 
   void processWalkerData(std::vector<ComplexType>& curData);
@@ -568,29 +548,23 @@ public:
     mpi->comm.barrier();
   }
 
-  template<MEMORY_SPACE _M_>
   auto getFields(int ip)
   {
     using nda::range;
-    utils::check(_M_ == MEM, "Incompatible memory space");
     utils::check(ip>=0 and ip<wlk_desc[3], " Error: index out of bounds in getFields. ");
     long i0 = (data_displ[FIELDS] + ip * wlk_desc[4]);
-    long nw = bp_buffer.extent(0);
-    std::array<long,2> shape = {nw,wlk_desc[4]};
-    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,bp_buffer.strides());
-    return memory::array_view<_M_,ComplexType,2>(idxm, bp_buffer.data() + i0);
+    return bp_buffer(range::all,range(i0,i0+wlk_desc[4]));
   }
 
-  template<MEMORY_SPACE _M_>
   auto getFields()
   {
-    utils::check(_M_ == MEM, "Incompatible memory space");
+    using nda::range;
     long i0 = data_displ[FIELDS];
     long nw = bp_buffer.extent(0);
     std::array<long,3> shape = {nw,wlk_desc[3],wlk_desc[4]};
     std::array<long,3> strides = {bp_buffer.strides()[0],wlk_desc[4],1};
     nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,ComplexType,3>(idxm, bp_buffer.data() + i0);
+    return memory::array_view<MEM,ComplexType,3>(idxm, bp_buffer.data() + i0);
   }
 
   void storeFields(int ip, nda::MemoryArrayOfRank<2> auto&& V)
@@ -599,32 +573,22 @@ public:
     long nw = bp_buffer.extent(0);
     utils::check(V.shape() == std::array<long,2>{nw,wlk_desc[4]}, 
                  "Shape mismatch");
-    auto F = getFields<MEM>(ip);
+    auto F = getFields(ip);
     F() = V();
   }
 
-  template<MEMORY_SPACE _M_>
   auto getWeightFactors()
   {
     using nda::range;
-    utils::check(_M_ == MEM, "Incompatible memory space");
     long i0 = data_displ[WEIGHT_FAC];
-    long nw = bp_buffer.extent(0);
-    std::array<long,2> shape = {nw,wlk_desc[6]};
-    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,bp_buffer.strides());
-    return memory::array_view<_M_,ComplexType,2>(idxm, bp_buffer.data() + i0);
+    return bp_buffer(range::all,range(i0,i0+wlk_desc[6]));
   }
 
-  template<MEMORY_SPACE _M_>
   auto getWeightHistory()
   {
     using nda::range;
-    utils::check(_M_ == MEM, "Incompatible memory space");
     long i0 = data_displ[WEIGHT_HISTORY];
-    long nw = bp_buffer.extent(0);
-    std::array<long,2> shape = {nw,wlk_desc[6]};
-    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,bp_buffer.strides());
-    return memory::array_view<_M_,ComplexType,2>(idxm, bp_buffer.data() + i0);
+    return bp_buffer(range::all,range(i0,i0+wlk_desc[6]));
   }
 
   double getLogOverlapFactor() const { return LogOverlapFactor; }

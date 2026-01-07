@@ -83,14 +83,14 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
   utils::check(ldet.size() >= nwalk, "Size mismatch");
   ldet() = ComplexType(0.0);
   if(importance_sampling) {
-    orthogonalize( wset.template SlaterMatrices<MEM>(Alpha), ldet);
+    orthogonalize( wset.SlaterMatrices(Alpha), ldet);
     if(walker_type == COLLINEAR)
-      orthogonalize( wset.template SlaterMatrices<MEM>(Beta), ldet);
+      orthogonalize( wset.SlaterMatrices(Beta), ldet);
   } else {
     double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
-    orthogonalize( wset.template SlaterMatrices<MEM>(Alpha), ldet);
+    orthogonalize( wset.SlaterMatrices(Alpha), ldet);
     if(walker_type == COLLINEAR)
-      orthogonalize( wset.template SlaterMatrices<MEM>(Beta), ldet);
+      orthogonalize( wset.SlaterMatrices(Beta), ldet);
     memory::buffered_array<MEM,ComplexType,1> wgt(nwalk);
     wset.getProperty(WEIGHT, wgt);
     auto wgt_h = nda::to_host(wgt);

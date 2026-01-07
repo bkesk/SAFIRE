@@ -51,7 +51,7 @@ namespace afqmc
 template<MEMORY_SPACE MEM>
 class EstimatorHandler : public AFQMCInfo
 {
-  using EstimPtr     = std::shared_ptr<EstimatorBase>;
+  using EstimPtr     = std::shared_ptr<EstimatorBase<MEM>>;
   using communicator = boost::mpi3::communicator;
 
 public:
@@ -59,7 +59,7 @@ public:
                    AFQMCInfo info,
                    std::string title,
                    ptree exec_pt,
-                   WalkerSet& wset, 
+                   WalkerSet<MEM>& wset, 
                    WavefunctionFactory<MEM>& WfnFac,
                    Wavefunction<MEM>& wfn0,
                    Propagator<MEM>& prop0,
@@ -116,7 +116,7 @@ public:
     est_pt.put("_population_control_interval", population_control_interval); // to compute measure_interval
 
     estimators.emplace_back(
-        static_cast<EstimPtr>(std::make_shared<BasicEstimator>(mpi, info, title, basic_pt, impsamp)));
+        static_cast<EstimPtr>(std::make_shared<BasicEstimator<MEM>>(mpi, info, title, basic_pt, impsamp)));
     measure_schedule[est_index] = estimators.back()->get_measurement_interval();
     est_index++;
 
@@ -255,7 +255,7 @@ public:
       out.open(filename.c_str());
       utils::check(not out.fail(), "Problems opening estimator output file: " + filename + ""); 
       out << "# block  time  ";
-      for (std::vector<EstimPtr>::iterator it = estimators.begin(); it != estimators.end(); it++)
+      for (auto it = estimators.begin(); it != estimators.end(); it++)
         (*it)->tags(out);
       out << "Eshift freeMemory ";
       estimators[0]->tags_timers(out);
@@ -274,7 +274,7 @@ public:
 
   double getEloc_step() { return estimators[0]->getEloc_step(); }
 
-  void print(int block, double time, double Es, WalkerSet& wlks)
+  void print(int block, double time, double Es, WalkerSet<MEM>& wlks)
   {
     hdf_file = project_title + ".stat.h5";
     h5::file file;
@@ -285,7 +285,7 @@ public:
     // print must follow the measure_schedule as well (otherwise the data may not be updated)
     long step = std::lround(time / dt);
     int estimator_index = 0;
-    for (std::vector<EstimPtr>::iterator it = estimators.begin(); it != estimators.end(); it++, estimator_index++)
+    for (auto it = estimators.begin(); it != estimators.end(); it++, estimator_index++)
     {
       if (step % measure_schedule[estimator_index] == 0)
       { 
@@ -311,19 +311,19 @@ public:
   }
 
   // 1) acumulates estimators over steps, and 2) reduces and accumulates substep estimators
-  void accumulate_step(double time, WalkerSet& wlks, std::vector<ComplexType>& curData)
+  void accumulate_step(double time, WalkerSet<MEM>& wlks, std::vector<ComplexType>& curData)
   {
-    for (std::vector<EstimPtr>::iterator it = estimators.begin(); it != estimators.end(); it++)
+    for (auto it = estimators.begin(); it != estimators.end(); it++)
       (*it)->accumulate_step(time, wlks, curData);
   }
 
   // 1) acumulates estimators over steps, and 2) reduces and accumulates substep estimators
   /* Requests that each estimator measure. Will check the current time against the measurement schedule.*/
-  void accumulate_block(double time, WalkerSet& wlks)
+  void accumulate_block(double time, WalkerSet<MEM>& wlks)
   {
     long step = std::lround(time / dt); // tmp for debug
     int estimator_index = 0;
-    for (std::vector<EstimPtr>::iterator it = estimators.begin(); it != estimators.end(); it++, estimator_index++)
+    for (auto it = estimators.begin(); it != estimators.end(); it++, estimator_index++)
     {
       if (step % measure_schedule[estimator_index] == 0)
         (*it)->accumulate_block(time, wlks);
@@ -434,7 +434,7 @@ private:
       if (it.first < estimators.size())
       {
         auto estimator = estimators[it.first];
-        if (std::dynamic_pointer_cast<BasicEstimator>(estimator) || 
+        if (std::dynamic_pointer_cast<BasicEstimator<MEM>>(estimator) || 
             std::dynamic_pointer_cast<EnergyEstimator<MEM>>(estimator)) 
         {
           if (synchronized_interval == -1)

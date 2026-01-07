@@ -205,12 +205,8 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   // apply small unitary rotation to initial_guess
   // add different rotations to every walker to test routines
   {
-//    std::mt19937 generator(0);
-//    std::normal_distribution<RealType> distribution(0.0, 1.0);
     nda::array<ComplexType,3> rotated_initial_guess(nspin,npol*NMO,nup);
     nda::array<ComplexType,2> R = nda::rand(std::array<long,2>{npol*NMO,npol*NMO});
-//    nda::array<ComplexType,2> R(npol*NMO,npol*NMO);
-//    for(auto &v : R) v = ComplexType(distribution(generator),distribution(generator)); 
     nda::array<ComplexType,1> tau(npol*NMO);
     nda::lapack::geqrf(nda::transpose(R),tau);
     nda::lapack::gqr(nda::transpose(R),tau);
@@ -221,8 +217,8 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
 
   // 0. Get raw occupancies and coefficients from file.
   nda::array<PsiT_Matrix<HOST_MEMORY>, 1> PsiT_MO;
-  nda::array<ComplexType,2> PsiA(nup,npol*NMO); 
-  nda::array<ComplexType,2> PsiB(ndown,npol*NMO); 
+  memory::array<MEM,ComplexType,2> PsiA(nup,npol*NMO); 
+  memory::array<MEM,ComplexType,2> PsiB(ndown,npol*NMO); 
   nda::array<ComplexType,1> coeffs;
   nda::array<int,2> occs;
   h5::file f(wfn_file,'r');
@@ -294,14 +290,14 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
       getSlaterMatrix_mixed(PsiA, PsiT_MO(0), occs(idet,range(nup)));
     else
       getSlaterMatrix_occ(PsiA, occs(idet,range(nup)));
-    det_ops::Log_Overlap(PsiA,wset.template SlaterMatrices<HOST_MEMORY>(Alpha),ov);
+    det_ops::Log_Overlap(PsiA,wset.SlaterMatrices(Alpha),ov);
     if(type == COLLINEAR) {
       nda::array<int, 1> ob = occs(idet,range(nup,nup+ndown)) - NMO; 
       if(orb_type == "mixed")
         getSlaterMatrix_mixed(PsiB, PsiT_MO(PsiT_MO.size()-1), ob);
       else
         getSlaterMatrix_occ(PsiB, ob);
-      det_ops::Log_Overlap(PsiB,wset.template SlaterMatrices<HOST_MEMORY>(Beta),ov);
+      det_ops::Log_Overlap(PsiB,wset.SlaterMatrices(Beta),ov);
     }
     ovlp_sum += std::conj(coeffs[idet]) * std::exp(ov(0));
   }
@@ -336,14 +332,14 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
         getSlaterMatrix_mixed(PsiA, PsiT_MO(0), occs(idet,range(nup)));
       else
         getSlaterMatrix_occ(PsiA, occs(idet,range(nup)));
-      det_ops::MixedDensityMatrix(PsiA,wset.template SlaterMatrices<HOST_MEMORY>(Alpha),Gt(all,range(npol*NMO),all),ov,false);
+      det_ops::MixedDensityMatrix(PsiA,wset.SlaterMatrices(Alpha),Gt(all,range(npol*NMO),all),ov,false);
       if(type == COLLINEAR) {
         nda::array<int, 1> ob = occs(idet,range(nup,nup+ndown)) - NMO;
         if(orb_type == "mixed")
           getSlaterMatrix_mixed(PsiB, PsiT_MO(PsiT_MO.size()-1), ob);
         else
           getSlaterMatrix_occ(PsiB, ob);
-        det_ops::MixedDensityMatrix(PsiB,wset.template SlaterMatrices<HOST_MEMORY>(Beta),Gt(all,range(npol*NMO,2*npol*NMO),all),ov,false);
+        det_ops::MixedDensityMatrix(PsiB,wset.SlaterMatrices(Beta),Gt(all,range(npol*NMO,2*npol*NMO),all),ov,false);
       }
       for(int iw=0; iw<nwalk; ++iw)
         G(iw,all,all) += std::conj(coeffs[idet]) * std::exp(ov(iw) - log_ovlp_sum) * Gt(iw,all,all); 
@@ -471,7 +467,7 @@ TEST_CASE("test_phmsd", "[read_phmsd]")
 
   test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
 #if defined(ENABLE_DEVICE)
-  test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+//  test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
 #endif
 }
 

@@ -98,11 +98,11 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     //std::cout<<" vHS: " <<nda::sum(nda::to_host(vHS)) <<std::endl;
 
     // 4. Propagate walkers
-    //std::cout<<" Psi(0): " <<nda::sum(nda::to_host(wset.template SlaterMatrices<MEM>(Alpha))) <<std::endl;
+    //std::cout<<" Psi(0): " <<nda::sum(nda::to_host(wset.SlaterMatrices(Alpha))) <<std::endl;
     AFQMCTimer.start(propagate_timer);
     apply_propagators(wset,'N',vHS); 
     AFQMCTimer.stop(propagate_timer);
-    //std::cout<<" Psi(1): " <<nda::sum(nda::to_host(wset.template SlaterMatrices<MEM>(Alpha))) <<std::endl;
+    //std::cout<<" Psi(1): " <<nda::sum(nda::to_host(wset.SlaterMatrices(Alpha))) <<std::endl;
   } else {
     // 3. Calculate vHS(M*M,nsteps,nwalk)/vHS(nsteps,nwalk,M*M)
     AFQMCTimer.start(vHS_timer);
@@ -183,7 +183,7 @@ void AFQMCBasePropagator<MEM>::BackPropagate(int nbpsteps, int nStabalize, WlkSe
                    buffer_manager.get_generator().template get_allocator<SPComplexType>());
   C4Tensor_ref vHS4D(make_device_ptr(vHS.origin()), vhs4d_ext);
 
-  auto Fields = wset.template getFields<MEM>();
+  auto Fields = wset.template getFields();
   utils::check(Fields.size(0) >= nbpsteps, "");
   utils::check(Fields.size(1) == globalnCV, "");
   utils::check(Fields.size(2) == nwalk, "");
@@ -322,7 +322,7 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset, Mat1
     vhs4d_ext = iextensions<4u>{nspins_in_vHS, nwalk, NMO, NMO};
   }
 
-  auto Fields = wset.template getFields<MEM>();
+  auto Fields = wset.template getFields();
   utils::check(Fields.size(0) >= nsteps, "");
   utils::check(Fields.size(1) == globalnCV, "");
   utils::check(Fields.size(2) == nwalk, "");

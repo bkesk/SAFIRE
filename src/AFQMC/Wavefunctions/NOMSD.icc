@@ -125,22 +125,22 @@ void NOMSD<MEM,devPsiT>::DensityMatrix(const WlkSet& wset, RVec&& Ref, MatG&& G,
 
     utils::check(G.shape() == std::array<long,2>{nw,nel*npol*NMO}, "Size mismatch");
     auto G3d = nda::reshape(G,std::array<long,3>{nw,nel,npol*NMO});
-    det_ops::MixedDensityMatrix(Ref(0)(), wset.template SlaterMatrices<MEM>(Alpha), G3d(all,nda::range(nup),all), Ov, compact); 
+    det_ops::MixedDensityMatrix(Ref(0)(), wset.SlaterMatrices(Alpha), G3d(all,nda::range(nup),all), Ov, compact); 
     if(walker_type == CLOSED) {
       nda::tensor::scale(ComplexType(2.0),Ov);
     } else if (walker_type == COLLINEAR)  {
-      det_ops::MixedDensityMatrix(Ref(1)(), wset.template SlaterMatrices<MEM>(Beta), G3d(all,nda::range(nup,nel),all), Ov, compact); 
+      det_ops::MixedDensityMatrix(Ref(1)(), wset.SlaterMatrices(Beta), G3d(all,nda::range(nup,nel),all), Ov, compact); 
     }
 
   } else {
 
     utils::check(G.shape() == std::array<long,2>{nw,nspin*npol*NMO*npol*NMO}, "Size mismatch");
     auto G3d = nda::reshape(G,std::array<long,3>{nw,nspin*npol*NMO,npol*NMO});
-    det_ops::MixedDensityMatrix(Ref(0)(), wset.template SlaterMatrices<MEM>(Alpha), G3d(all,nda::range(npol*NMO),all), Ov, compact);
+    det_ops::MixedDensityMatrix(Ref(0)(), wset.SlaterMatrices(Alpha), G3d(all,nda::range(npol*NMO),all), Ov, compact);
     if(walker_type == CLOSED) {
       nda::tensor::scale(ComplexType(2.0),Ov);
     } else if (walker_type == COLLINEAR)  {
-      det_ops::MixedDensityMatrix(Ref(1)(), wset.template SlaterMatrices<MEM>(Beta), G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all), Ov, compact);
+      det_ops::MixedDensityMatrix(Ref(1)(), wset.SlaterMatrices(Beta), G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all), Ov, compact);
     }
 
   }
@@ -221,22 +221,22 @@ void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
   Ov() = ComplexType(0.0);
 
   if(ndet == 1) {
-    det_ops::Log_Overlap(OrbMats(0,0)(),wset.template SlaterMatrices<MEM>(Alpha),Ov);
+    det_ops::Log_Overlap(OrbMats(0,0)(),wset.SlaterMatrices(Alpha),Ov);
     if(walker_type == CLOSED) {
       nda::tensor::scale(ComplexType(2.0),Ov);
     } else if (walker_type == COLLINEAR)  {
-      det_ops::Log_Overlap(OrbMats(0,1)(),wset.template SlaterMatrices<MEM>(Beta),Ov);
+      det_ops::Log_Overlap(OrbMats(0,1)(),wset.SlaterMatrices(Beta),Ov);
     }
   } else {
     // compute separate, assemble afterwards
     memory::buffered_array<MEM,ComplexType,2> log_ovlps(ndet,nw);
     log_ovlps() = ComplexType(0.0);
     for(int d=0; d<ndet; ++d) {
-      det_ops::Log_Overlap(OrbMats(d,0)(),wset.template SlaterMatrices<MEM>(Alpha),log_ovlps(d,all));
+      det_ops::Log_Overlap(OrbMats(d,0)(),wset.SlaterMatrices(Alpha),log_ovlps(d,all));
       if(walker_type == CLOSED) {
         nda::tensor::scale(ComplexType(2.0),log_ovlps(d,all));
       } else if (walker_type == COLLINEAR)  {
-        det_ops::Log_Overlap(OrbMats(d,1)(),wset.template SlaterMatrices<MEM>(Beta),log_ovlps(d,all));
+        det_ops::Log_Overlap(OrbMats(d,1)(),wset.SlaterMatrices(Beta),log_ovlps(d,all));
       }
       ComplexType val( std::log( (std::abs(ci(d)) < 1e-12 ? ComplexType(1e-12) : std::conj(ci(d)) ) ) );
       memory::buffered_array<MEM,ComplexType,1> buff(nw,val);
