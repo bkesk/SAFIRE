@@ -493,7 +493,16 @@ private:
 
     auto psi = PsiC()(idet,ispin,all,range(nel[ispin]));
     int n0 = (ispin == 0 ? 0 : nel[0]);
-    nda::tensor::contract(psi,"ia",Gc,"waj",Gfull_3d(all,all,all),"ijw");
+    if constexpr (MEM==HOST_MEMORY) {
+      memory::buffered_array<MEM,ComplexType,2> G_(npol * NMO, npol * NMO);
+      auto Gfull_2d = nda::reshape(Gfull, std::array<long,2>{npol * NMO * npol * NMO, nwalk});
+      for(int iw=0; iw<nwalk; ++iw) { 
+        nda::blas::gemm(psi,Gc(iw,all,all),G_);
+        Gfull_2d(all,iw) = nda::flatten(G_); 
+      }
+    } else {
+      nda::tensor::contract(psi,"ia",Gc,"waj",Gfull_3d(all,all,all),"ijw");
+    }
     return Gfull;
   }
 
@@ -509,13 +518,26 @@ private:
     memory::buffered_array<MEM,ComplexType,2> Gfull(nwalk, nspin * npol * NMO * npol * NMO);
     auto Gfull_4d = nda::reshape(Gfull, std::array<long,4>{nwalk, nspin, npol * NMO, npol * NMO});
 
-    auto psi = PsiC()(idet,0,all,range(nel[0]));
-    int n0 = 0;
-    nda::tensor::contract(psi,"ia",Gc(all,range(n0,n0+nel[0]),all),"waj",Gfull_4d(all,0,all,all),"wij");
-    if( walker_type == COLLINEAR ) {
-      auto psi_dn = PsiC()(idet,1,all,range(nel[1]));
-      n0 = nel[0];
-      nda::tensor::contract(psi_dn,"ia",Gc(all,range(n0,n0+nel[1]),all),"waj",Gfull_4d(all,1,all,all),"wij");
+    if constexpr (MEM==HOST_MEMORY) {
+      auto psi = PsiC()(idet,0,all,range(nel[0]));
+      int n0 = 0;
+      for(int iw=0; iw<nwalk; ++iw) 
+        nda::blas::gemm(psi,Gc(iw,range(n0,n0+nel[0]),all),Gfull_4d(iw,0,all,all));
+      if( walker_type == COLLINEAR ) {
+        auto psi_dn = PsiC()(idet,1,all,range(nel[1]));
+        n0 = nel[0];
+        for(int iw=0; iw<nwalk; ++iw) 
+          nda::blas::gemm(psi_dn,Gc(iw,range(n0,n0+nel[1]),all),Gfull_4d(iw,1,all,all));
+      }
+    } else {
+      auto psi = PsiC()(idet,0,all,range(nel[0]));
+      int n0 = 0;
+      nda::tensor::contract(psi,"ia",Gc(all,range(n0,n0+nel[0]),all),"waj",Gfull_4d(all,0,all,all),"wij");
+      if( walker_type == COLLINEAR ) {
+        auto psi_dn = PsiC()(idet,1,all,range(nel[1]));
+        n0 = nel[0];
+        nda::tensor::contract(psi_dn,"ia",Gc(all,range(n0,n0+nel[1]),all),"waj",Gfull_4d(all,1,all,all),"wij");
+      }
     }
     return Gfull;
   }
@@ -541,7 +563,7 @@ private:
       for(int n=0; n<nIJ; ++n) {
         int In = int(ET_n2IJ(n)/M);
         int Jn = int(ET_n2IJ(n)%M);
-        nda::tensor::contract(psi(In,all),"a",Gc(all,all,Jn),"wa",GIJ(n,all),"w");
+        nda::tensor::contract(psi(In,all),"a",Gc(all,all,Jn),"wa",GIJ(n,all),"w"); 
       }
     } else {
       // batched gemm (gemv), with transposed Gc 
