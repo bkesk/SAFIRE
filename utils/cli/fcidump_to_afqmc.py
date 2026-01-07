@@ -138,7 +138,7 @@ def main():
         wfn[0,:,nalpha:] = I[:,occs[nalpha:]]
       write_wfn(options.output_file, (numpy.array([1.0+0j]),wfn), 
                 ('rhf' if not rohf else 'rohf'),
-                nelec, norb, verbose=options.verbose, init=(wfn[0],wfn[0]))
+                nelec, norb, verbose=options.verbose, init=(wfn[0,:,:nalpha],wfn[0:,nalpha:]))
 
 if __name__ == '__main__':
     main()

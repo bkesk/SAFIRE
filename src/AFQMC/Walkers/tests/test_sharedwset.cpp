@@ -96,7 +96,7 @@ void test_basic_walker_features(std::string wtype)
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("walker_type",wtype);
-  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, info, rng);
   
   if(wtype != "collinear-ft" and wtype != "noncollinear-ft"){

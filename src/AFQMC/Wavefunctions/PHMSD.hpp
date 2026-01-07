@@ -64,7 +64,7 @@ public:
         WALKER_TYPES wlk,
         std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
         HamiltonianOperations<MEM>&& hop_,
-        ph_excitations<int, ComplexType>&& abij_,
+        ph_excitations<int, ComplexType, MEM>&& abij_,
         nda::array<csrM,1>&& op_spin_det_coupling_,
         nda::array<csrM,1>&& orbs_,
         ComplexType nce,
@@ -152,8 +152,7 @@ public:
       "ndets_to_read",
       "restart_file",
       "filename",
-      "rediag",
-      "compute"
+      "rediag"
     };
     io::compare_known_keys("particle-hole multi-Slater det. (PHMSD) Wavefunction", pt1, pt0,pass_through_keys);
     return pt1;
@@ -455,7 +454,7 @@ protected:
   // 2: calculate Fapbq and call ph_energy_Fapbq
   int energy_algorithm = 0;
 
-  ph_excitations<int, ComplexType> abij; 
+  ph_excitations<int, ComplexType, MEM> abij; 
 
   // sparse matrix with opposite spin determinant couplings
   nda::array<PsiT_Matrix<MEM>,1> OpSpinDetCouplings;

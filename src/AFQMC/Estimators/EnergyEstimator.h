@@ -44,13 +44,14 @@ inline ComplexType mod2pi(ComplexType x){
                      );
 }
 
+template<MEMORY_SPACE MEM>
 class EnergyEstimator : public EstimatorBase
 {
 public:
   EnergyEstimator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                   AFQMCInfo info,
                   ptree pt_in,
-                  Wavefunction& wfn,
+                  Wavefunction<MEM>& wfn,
                   bool impsamp_ = true)
       : EstimatorBase(info), 
         mpi(_mpi), 
@@ -113,8 +114,8 @@ public:
   {
     auto all = nda::range::all;
     AFQMCTimer.start(energy_timer);
+    Timer.start("energy");
     long nwalk = wset.size();
-    MEMORY_SPACE MEM = wset.get_memory_space();
 
     ComplexType dum, et;
     // MAM: if nblocks_skip > 0, this will produce data filled with zeros.
@@ -124,11 +125,11 @@ public:
     } else {
       nda::array<ComplexType,2> eloc(nwalk,3);
       nda::array<ComplexType,1> ovlp(nwalk);
-      if (MEM == HOST_MEMORY) {  
+      if constexpr (MEM == HOST_MEMORY) {  
         wfn0->Energy(wset, eloc, ovlp);
       } else {
-        memory::buffered_array<DEVICE_MEMORY,ComplexType,2> eloc_d(nwalk,3);
-        memory::buffered_array<DEVICE_MEMORY,ComplexType,1> ovlp_d(nwalk);
+        memory::buffered_array<MEM,ComplexType,2> eloc_d(nwalk,3);
+        memory::buffered_array<MEM,ComplexType,1> ovlp_d(nwalk);
         wfn0->Energy(wset, eloc_d, ovlp_d);
         eloc() = eloc_d(); 
         ovlp() = ovlp_d(); 
@@ -200,6 +201,7 @@ public:
     // increase counter
     iblock ++;
     AFQMCTimer.stop(energy_timer);
+    Timer.stop("energy");
   }
 
   void tags(std::ofstream& out)
@@ -249,7 +251,7 @@ public:
     {
       int n = wset.get_global_target_population();
       out << data(0).real() / n << " " << data(0).imag() / n << " " << data(1).real() / n << " " << data(1).imag() / n
-          << " " << AFQMCTimer.elapsed(energy_timer) << " ";
+          << " " << Timer.elapsed("energy") << " ";
       if(print_sign) 
       {
         out <<data(5).real() / n <<" " <<data(5).imag() / n <<" " 
@@ -263,7 +265,7 @@ public:
       {
         out << data(2).real() / n << " " << data(3).real() / n << " " << data(4).real() / n << " ";
       }
-      AFQMCTimer.reset(energy_timer);
+      Timer.reset("energy");
     }
   }
 
@@ -272,7 +274,7 @@ private:
 
   std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
-  Wavefunction* wfn0 = nullptr;
+  Wavefunction<MEM>* wfn0 = nullptr;
 
   int nblocks_skip = 0;
   int nblocks_equil = 0;
@@ -285,6 +287,8 @@ private:
   bool energy_components = false;
   bool print_sign = false;
   bool truncate = false;
+
+  TimerManager Timer;
 
 };
 } // namespace afqmc

@@ -28,6 +28,10 @@
 #include "AFQMC/Propagators/WalkerSetUpdate.hpp"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 
+#if defined(ENABLE_DEVICE)
+#include "numerics/device_kernels/kernels.h"
+#endif
+
 #include "AFQMC/SlaterDeterminantOperations/orthogonalize.hpp"
 
 namespace sfqmc
@@ -71,11 +75,13 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   {
     wfn->vbias(wset, X, dt);
   }
+  //std::cout<<" vbias: " <<nda::sum(nda::to_host(X)) <<std::endl;
 
   // 2. Assemble X(nCV,nsteps,nwalk)
   AFQMCTimer.start(assemble_X_timer);
   assemble_X(sqrtdt, X, MFfactor, hybrid_weight);
   AFQMCTimer.stop(assemble_X_timer);
+  //std::cout<<" X: " <<nda::sum(nda::to_host(X)) <<std::endl;
 
   // Store sqrtdt*X in wset if back propagating
   int bp_step = wset.getBPPos(), bp_max = wset.NumBackProp();
@@ -86,14 +92,17 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     // 3. Calculate vHS(M*M,nsteps,nwalk)/vHS(nsteps,nwalk,M*M)
     AFQMCTimer.start(vHS_timer);
     auto vHS = wfn->vHS(X, dt);
-    utils::check(vHS.shape() == std::array<long,4>{nwalk,nspins_in_vHS,npol_in_vHS*NMO,NMO}, 
+    utils::check(vHS.shape() == std::array<long,4>{nspins_in_vHS,nwalk,npol_in_vHS*NMO,NMO}, 
                  "Size mismatch");
     AFQMCTimer.stop(vHS_timer);
+    //std::cout<<" vHS: " <<nda::sum(nda::to_host(vHS)) <<std::endl;
 
     // 4. Propagate walkers
+    //std::cout<<" Psi(0): " <<nda::sum(nda::to_host(wset.template SlaterMatrices<MEM>(Alpha))) <<std::endl;
     AFQMCTimer.start(propagate_timer);
     apply_propagators(wset,'N',vHS); 
     AFQMCTimer.stop(propagate_timer);
+    //std::cout<<" Psi(1): " <<nda::sum(nda::to_host(wset.template SlaterMatrices<MEM>(Alpha))) <<std::endl;
   } else {
     // 3. Calculate vHS(M*M,nsteps,nwalk)/vHS(nsteps,nwalk,M*M)
     AFQMCTimer.start(vHS_timer);
@@ -569,8 +578,14 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
   {
     // always generate rng_block_size per walker, to keep generators synchronized in 
     // correlated sampling calculations
-    utils::sampleUniformFields_n(RNGbuff.data(), RNGbuff.size(), *rng);
+    utils::sampleUniformFields(nda::flatten(RNGbuff), *rng);
   }
+//{
+//nda::array<RealType,2> tmp(RNGbuff.shape());
+//utils::sampleUniformFields(nda::flatten(tmp), rng_h);
+//RNGbuff() = tmp();
+//}
+//std::cout<<" RNG: " <<nda::sum(nda::to_host(RNGbuff)) <<std::endl;
 
   // construct X
   HWs() = ComplexType(0);
@@ -578,63 +593,65 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
 
 // Doing this on host for now!!!
 #if defined(ENABLE_DEVICE)
-  utils::check(false,"finish");
-//  kernels::construct_X(free_projection, sqrtdt, vbias_bound, vMF, HWs, MF, X);
-#else
-  for (int m = 0; m < nCV; ++m)
-  {
-    auto Xm = X(all,m);
-    auto vmf_0 = vMF()(m);
-    auto vmf_t = apply_bound_vbias(vmf_0, sqrtdt);
-    PropagatorTypes Fp = PropagatorTypes(FieldTypes(m));
-    // X[iw,m] = rand[iw,m] + im * ( vbias[iw,m] - vMF[m]  )
-    // HW[iw] = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
-    //                     ( rand[iw,m] + halfim * ( vbias[iw,m] - vMF[m] ) ) ]
-    //           = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
-    //                     ( X[iw,m] - halfim * ( vbias[iw,m] - vMF[m] ) ) ]
-    // MF[iw] = sum_m ( im * X[iw,m] * vMF[m] )
-    for (int iw = 0; iw < nwalk; iw++)
-    {
-      auto vb_t = apply_bound_vbias(Xm(iw), sqrtdt);
-
-      if (use_cp_constraint or use_real_vbias) {
-        if (Fp == ContinuousSpinPropagator) {
-          vb_t = ComplexType(0.0,std::imag(vb_t));
-        } else if (Fp == ContinuousChargePropagator) {
-          vb_t = ComplexType(std::real(vb_t),0.0);
-        }
-      }
-    
-      if( Fp == ContinuousChargePropagator or
-         Fp == ContinuousSpinPropagator) {
-        ComplexType vdiff =
-            free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
-        Xm(iw) = probit(RNGbuff(iw,m)) + vdiff;
-        HWs(iw) -= vdiff * Xm(iw) - 0.5 * vdiff;
-        MF(iw) += im * Xm(iw) * vmf_0;
-      } else if( Fp == DiscreteSpinPropagator or
-             Fp == DiscreteChargePropagator ) {
-        utils::check(not free_projection, "Finish FP DiscretePropagator");
-        ComplexType vdiff =
-            free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
-        auto wp = std::abs(std::exp(vdiff));
-        auto wm = std::abs(std::exp(-vdiff));
-        auto P = wm/(wp+wm);
-        if( RNGbuff(iw,m) < P ) {
-          Xm(iw) = ComplexType(-1.0);
-          HWs(iw) += std::log(1.0/P);
-        } else {
-          Xm(iw) = ComplexType(1.0);
-          HWs(iw) += std::log(1.0/(1.0-P));
-        }
-        // W_MSsub = exp(-MF), careful with sign convention
-        MF(iw) += im * ComplexType(Xm(iw)) * vmf_0;
-      } else {
-        utils::check(false," Error: Unknown field type: {}", FieldTypes(m));
-      }
-    } // iw
-  } // m
+  if constexpr (MEM==DEVICE_MEMORY) {
+    kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X);
+  } else
 #endif
+  { 
+    for (int m = 0; m < nCV; ++m)
+    {
+      auto Xm = X(all,m);
+      auto vmf_0 = vMF()(m);
+      auto vmf_t = apply_bound_vbias(vmf_0, sqrtdt);
+      PropagatorTypes Fp = PropagatorTypes(FieldTypes(m));
+      // X[iw,m] = rand[iw,m] + im * ( vbias[iw,m] - vMF[m]  )
+      // HW[iw] = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
+      //                     ( rand[iw,m] + halfim * ( vbias[iw,m] - vMF[m] ) ) ]
+      //           = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
+      //                     ( X[iw,m] - halfim * ( vbias[iw,m] - vMF[m] ) ) ]
+      // MF[iw] = sum_m ( im * X[iw,m] * vMF[m] )
+      for (int iw = 0; iw < nwalk; iw++)
+      { 
+        auto vb_t = apply_bound_vbias(Xm(iw), sqrtdt);
+
+        if (use_cp_constraint or use_real_vbias) {
+          if (Fp == ContinuousSpinPropagator) {
+            vb_t = ComplexType(0.0,std::imag(vb_t));
+          } else if (Fp == ContinuousChargePropagator) {
+            vb_t = ComplexType(std::real(vb_t),0.0);
+          }
+        }
+    
+        if( Fp == ContinuousChargePropagator or
+           Fp == ContinuousSpinPropagator) {
+          ComplexType vdiff =
+              free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
+          Xm(iw) = probit(RNGbuff(iw,m)) + vdiff;
+          HWs(iw) -= vdiff * Xm(iw) - 0.5 * vdiff;
+          MF(iw) += im * Xm(iw) * vmf_0;
+        } else if( Fp == DiscreteSpinPropagator or
+               Fp == DiscreteChargePropagator ) {
+          utils::check(not free_projection, "Finish FP DiscretePropagator");
+          ComplexType vdiff =
+              free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
+          auto wp = std::abs(std::exp(vdiff));
+          auto wm = std::abs(std::exp(-vdiff));
+          auto P = wm/(wp+wm);
+          if( RNGbuff(iw,m) < P ) {
+            Xm(iw) = ComplexType(-1.0);
+            HWs(iw) += std::log(1.0/P);
+          } else {
+            Xm(iw) = ComplexType(1.0);
+            HWs(iw) += std::log(1.0/(1.0-P));
+          }
+          // W_MSsub = exp(-MF), careful with sign convention
+          MF(iw) += im * ComplexType(Xm(iw)) * vmf_0;
+        } else {
+          utils::check(false," Error: Unknown field type: {}", FieldTypes(m));
+        }
+      } // iw
+    } // m
+  }
 }
 
 template<MEMORY_SPACE MEM>

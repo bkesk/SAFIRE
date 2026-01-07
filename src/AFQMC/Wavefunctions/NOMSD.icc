@@ -573,7 +573,7 @@ auto NOMSD<MEM,devPsiT>::G_MF()
   int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
   int ndet  = ci.size();
 
-  auto gMF = memory::make_shared_array<MEM,ComplexType,3>(mpi,
+  auto gMF = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
                       {nspin,npol*NMO,npol*NMO});
 
   bool found = false;
@@ -581,22 +581,29 @@ auto NOMSD<MEM,devPsiT>::G_MF()
   {
     if(mpi->comm.root()) {
       memory::buffered_array<MEM,ComplexType,1> Ov(1); 
-      auto G3d = nda::reshape(gMF(),std::array<long,3>{1,nspin*npol*NMO,npol*NMO});
       gMF() = ComplexType(0.0);
 
       memory::buffered_array<MEM,ComplexType,3> PsiT(1,npol*NMO,nup);
       PsiT(0,all,all) = math::sparse::to_array<'H'>(OrbMats(0,0)());
-      det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,G3d(all,nda::range(npol*NMO),all),Ov,false);
-      if( walker_type == COLLINEAR ) { 
-        PsiT(0,all,range(ndown)) = math::sparse::to_array<'H'>(OrbMats(0,1)());
-        det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all),Ov,false);
+      if constexpr (MEM==HOST_MEMORY) {
+        auto G3d = nda::reshape(gMF(),std::array<long,3>{1,nspin*npol*NMO,npol*NMO});
+        det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,G3d(all,nda::range(npol*NMO),all),Ov,false);
+        if( walker_type == COLLINEAR ) { 
+          PsiT(0,all,range(ndown)) = math::sparse::to_array<'H'>(OrbMats(0,1)());
+          det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all),Ov,false);
+        }
+      } else {
+        memory::array<MEM,ComplexType,3> gt(1,npol*NMO,npol*NMO);
+        det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,gt,Ov,false);
+        gMF()(0,all,all) = gt(0,all,all);
+        if( walker_type == COLLINEAR ) {
+          PsiT(0,all,range(ndown)) = math::sparse::to_array<'H'>(OrbMats(0,1)());
+          det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),gt,Ov,false);
+          gMF()(1,all,all) = gt(0,all,all);
+        }
       }
     }
-    if constexpr (MEM == HOST_MEMORY) {
-      if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(gMF.data(),gMF.size(),0);
-    } else {
-      mpi->broadcast(gMF);
-    } 
+    if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(gMF.data(),gMF.size(),0);
     mpi->comm.barrier();
 
   } else {
@@ -652,13 +659,8 @@ auto NOMSD<MEM,devPsiT>::G_MF()
     mpi->comm.all_reduce_in_place_n(&Osum,1,std::plus<>{});
     nda::tensor::scale(ComplexType(1.0/Osum),Gsum); 
     auto Gv = nda::reshape(Gsum,std::array<long,3>{nspin,npol*NMO,npol*NMO});
-    if constexpr (MEM == HOST_MEMORY) {
-      if(mpi->node_comm.root()) gMF() = Gv(); 
-    } else {
-      gMF() = Gv(); 
-    }
+    if(mpi->node_comm.root()) gMF() = Gv(); 
     mpi->comm.barrier();
-
   }
 
   return gMF;

@@ -16,21 +16,25 @@
 #include <ctime>
 #include <vector>
 #include <random>
+#include "configuration.hpp"
 #include "mpi3/communicator.hpp"
 #include "utilities/check.hpp"
 #include "AFQMC/Utilities/type_conversion.hpp"
 #include "arch/arch.h"
+#include "nda/nda.hpp"
+#include "numerics/nda_functions.hpp"
+#include "numerics/operations/tensor.hpp"
 
-#if defined(ENABLE_CUDA)
-
+#if defined(ENABLE_DEVICE)
+#include "curand.h"
 #endif
 
 namespace sfqmc {
 namespace utils
 {
 
+/*
 using RandomGenerator_t = std::mt19937;
-
 #if defined(ENABLE_CUDA)
 using DeviceRandomGenerator_t = curandGenerator_t;
 inline DeviceRandomGenerator_t make_device_rng(RandomGenerator_t::result_type iseed)
@@ -45,6 +49,27 @@ inline DeviceRandomGenerator_t make_device_rng(RandomGenerator_t::result_type is
   return DeviceRandomGenerator_t{iseed};
 }
 #endif
+*/
+
+#if defined(ENABLE_DEVICE)
+template<MEMORY_SPACE MEM = HOST_MEMORY>
+using RandomGenerator_t = std::conditional_t<MEM==DEVICE_MEMORY,curandGenerator_t,std::mt19937>; 
+#else
+template<MEMORY_SPACE MEM = HOST_MEMORY>
+using RandomGenerator_t = std::mt19937; 
+#endif
+
+template<MEMORY_SPACE MEM>
+auto make_rng(RandomGenerator_t<>::result_type iseed)
+{
+#if defined(ENABLE_DEVICE)
+  if constexpr (MEM==DEVICE_MEMORY) {
+    unsigned long long int v(iseed);
+    return ::sfqmc::cuda::make_device_rng(v);
+  } else
+#endif
+    return RandomGenerator_t<>(iseed);
+}
 
 // Return Nth primer number
 template<typename UInt>
@@ -79,9 +104,9 @@ UInt get_prime(UInt N)
   return largest;
 }
 
-inline typename RandomGenerator_t::result_type make_seed(boost::mpi3::communicator& comm)
+inline typename RandomGenerator_t<HOST_MEMORY>::result_type make_seed(boost::mpi3::communicator& comm)
 {
-  using result_type = typename RandomGenerator_t::result_type;
+  using result_type = typename RandomGenerator_t<HOST_MEMORY>::result_type;
   result_type baseoffset;
   if (comm.root())
     baseoffset = static_cast<int>(static_cast<result_type>(std::time(0)) % 1024);
@@ -90,69 +115,65 @@ inline typename RandomGenerator_t::result_type make_seed(boost::mpi3::communicat
   return get_prime<result_type>(baseoffset); 
 }
 
-inline typename RandomGenerator_t::result_type split_seed(int seed, boost::mpi3::communicator& comm)
+inline typename RandomGenerator_t<HOST_MEMORY>::result_type split_seed(int seed, boost::mpi3::communicator& comm)
 {
   /*
   Splits the given seed accross the given comm to guarantee that each MPI rank has a unique, but  
     reproducible seed
   */
-  using result_type = typename RandomGenerator_t::result_type;
+  using result_type = typename RandomGenerator_t<HOST_MEMORY>::result_type;
   result_type baseoffset = seed;
   baseoffset += result_type(comm.rank());
   return get_prime<result_type>(baseoffset);
 } 
 
-template<class Vec,
-         typename = typename std::enable_if_t<std::decay<Vec>::type::dimensionality == 1>>
-void sampleGaussianFields(Vec&& V, RandomGenerator_t& rng)
+template<nda::MemoryVector Vec>
+requires( nda::mem::on_host<Vec> )
+void sampleUniformFields(Vec && V, RandomGenerator_t<HOST_MEMORY>& rng)
 {
-  std::normal_distribution<double> distribution(0.0,1.0);
-  for(auto& v: V) v = distribution(rng);
-}
-
-template<class Mat,
-         typename = typename std::enable_if_t<(std::decay<Mat>::type::dimensionality > 1)>,
-         typename = void>
-void sampleGaussianFields(Mat&& M, RandomGenerator_t& rng)
-{
-  for (int i = 0, iend = M.size(0); i < iend; ++i)
-    sampleGaussianFields(M[i], rng);
-}
-
-template<class T>
-void sampleGaussianFields_n(T* V, int n, RandomGenerator_t& rng)
-{
-  using real_t = typename sfqmc::afqmc::remove_complex<T>::type;
-  std::normal_distribution<real_t> distribution(0.0, 1.0);  
-  for(int i=0; i<n; i++)
-    V[i] = T(distribution(rng));
-}
-
-template<class T>
-void sampleUniformFields_n(T* V, int n, RandomGenerator_t& rng)
-{
+  using T = nda::get_value_t<decltype(V)>;
   std::uniform_real_distribution<double> distribution(0.0,1.0);
-  for(int i=0; i<n; i++)
-    V[i] = T(distribution(rng));
+  for(long i=0; i<V.extent(0); i++)
+    V(i) = T(distribution(rng));
 }
 
-inline std::vector<RandomGenerator_t::result_type> save(RandomGenerator_t& rng) 
+#if defined(ENABLE_DEVICE)
+template<nda::MemoryVector Vec>
+requires( nda::mem::on_device<Vec> )
+void sampleUniformFields(Vec && V, RandomGenerator_t<DEVICE_MEMORY>& rng)
 {
-  std::vector<RandomGenerator_t::result_type> state;
+  using T = nda::get_value_t<Vec>;
+  static_assert(std::is_same_v<T,double> or std::is_same_v<T,std::complex<double>>,
+                "sampleUniformFields: Type not implemented.");
+  if constexpr (std::is_same_v<T,double>) {
+    cuda::curand_check(curandGenerateUniformDouble(rng, reinterpret_cast<double*>(V.data()), V.size()),
+                         "curandGenerateUniformDouble");
+  } else if constexpr (std::is_same_v<T,std::complex<double>>) {
+    cuda::curand_check(curandGenerateUniformDouble(rng, reinterpret_cast<double*>(V.data()), 2 * V.size()),
+                         "curandGenerateUniformDouble");
+    math::zero_imag(V);
+  } 
+  arch::synchronize_if_set();
+}
+#endif
+
+inline std::vector<RandomGenerator_t<HOST_MEMORY>::result_type> save(RandomGenerator_t<HOST_MEMORY>& rng) 
+{
+  std::vector<RandomGenerator_t<HOST_MEMORY>::result_type> state;
   std::stringstream str;
   str << rng;
-  std::copy(std::istream_iterator<RandomGenerator_t::result_type>(str), 
-	    std::istream_iterator<RandomGenerator_t::result_type>(), 
+  std::copy(std::istream_iterator<RandomGenerator_t<HOST_MEMORY>::result_type>(str), 
+	    std::istream_iterator<RandomGenerator_t<HOST_MEMORY>::result_type>(), 
 	    std::back_inserter(state));  
   return state;
 }
 
-inline void load(RandomGenerator_t& rng, 
-		 std::vector<RandomGenerator_t::result_type>& state) 
+inline void load(RandomGenerator_t<HOST_MEMORY>& rng, 
+		 std::vector<RandomGenerator_t<HOST_MEMORY>::result_type>& state) 
 {
   std::stringstream str;
   std::copy(state.begin(), state.end(),
-	    std::ostream_iterator<RandomGenerator_t::result_type>(str, " "));
+	    std::ostream_iterator<RandomGenerator_t<HOST_MEMORY>::result_type>(str, " "));
   str >> rng;
 }
 

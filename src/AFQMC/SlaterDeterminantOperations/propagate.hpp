@@ -62,12 +62,25 @@ void apply_expM(V_t const& V, S_t && S, int order = 6, char TA = 'N')
   for (int n = 1; n <= order; n++)
   {
     Type fact = im * static_cast<Type>(1.0 / static_cast<double>(n));
-    if (TA == 'H' || TA == 'h')
-      nda::tensor::contract(fact,nda::conj(V),"nji",*pT1,"njk",zero,*pT2,"nik");
-    else if (TA == 'T' || TA == 't')
-      nda::tensor::contract(fact,V,"nji",*pT1,"njk",zero,*pT2,"nik");
-    else
-      nda::tensor::contract(fact,V,"nij",*pT1,"njk",zero,*pT2,"nik");
+   
+    if constexpr (MEM==HOST_MEMORY) {
+      if (TA == 'H' || TA == 'h')
+        for(int i=0; i<V.extent(0); ++i)
+          nda::blas::gemm(fact,nda::dagger(V(i,nda::ellipsis{})),(*pT1)(i,nda::ellipsis{}),zero,(*pT2)(i,nda::ellipsis{}));
+      else if (TA == 'T' || TA == 't')
+        for(int i=0; i<V.extent(0); ++i)
+          nda::blas::gemm(fact,nda::transpose(V(i,nda::ellipsis{})),(*pT1)(i,nda::ellipsis{}),zero,(*pT2)(i,nda::ellipsis{}));
+      else
+        for(int i=0; i<V.extent(0); ++i)
+          nda::blas::gemm(fact,V(i,nda::ellipsis{}),(*pT1)(i,nda::ellipsis{}),zero,(*pT2)(i,nda::ellipsis{}));
+    } else {
+      if (TA == 'H' || TA == 'h')
+        nda::tensor::contract(fact,nda::conj(V),"nji",*pT1,"njk",zero,*pT2,"nik");
+      else if (TA == 'T' || TA == 't')
+        nda::tensor::contract(fact,V,"nji",*pT1,"njk",zero,*pT2,"nik");
+      else
+        nda::tensor::contract(fact,V,"nij",*pT1,"njk",zero,*pT2,"nik");
+    }
     nda::tensor::add(one,*pT2,one,S);
     std::swap(pT1, pT2);
   }
@@ -102,7 +115,7 @@ void apply_expM(V_t const& V, S_t && S, int order = 6, char TA = 'N')
   std::array<long,2> shape = {Nw*M,Nel};
   std::array<long,2> strides = {str[1],str[2]};
   nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,strides);
-  memory::array_view<MEM,const Type,2> S_(idxm,S.data());
+  memory::array_view<MEM,Type,2> S_(idxm,S.data());
 
   auto pT1=std::addressof(T1);
   auto pT2=std::addressof(T2);
@@ -117,7 +130,7 @@ void apply_expM(V_t const& V, S_t && S, int order = 6, char TA = 'N')
       math::sparse::csrmm<'T'>(fact,V,*pT1,zero,*pT2);
     else
       math::sparse::csrmm<'N'>(fact,V,*pT1,zero,*pT2);
-    nda::tensor::add(one,*pT2,one,S_);
+    nda::tensor::add(one,*pT2,"ab",one,S_,"ab");
     std::swap(pT1, pT2);
   }
 }
@@ -152,12 +165,27 @@ void apply_expM(V_t const& V, S_t && S, int order = 6, char TA = 'N')
   for (int n = 1; n <= order; n++)
   {
     Type fact = im * static_cast<Type>(1.0 / static_cast<double>(n));
-    if (TA == 'H' || TA == 'h')
-      nda::tensor::contract(fact,nda::conj(V),"npji",*pT1,"npjk",zero,*pT2,"npik");
-    else if (TA == 'T' || TA == 't')
-      nda::tensor::contract(fact,V,"npji",*pT1,"npjk",zero,*pT2,"npik");
-    else
-      nda::tensor::contract(fact,V,"npij",*pT1,"npjk",zero,*pT2,"npik");
+    if constexpr (MEM==HOST_MEMORY) {
+      if (TA == 'H' || TA == 'h')
+        for(int i=0; i<V.extent(0); ++i)
+          for(int p=0; p<V.extent(1); ++p)
+            nda::blas::gemm(fact,nda::dagger(V(i,p,nda::ellipsis{})),(*pT1)(i,p,nda::ellipsis{}),zero,(*pT2)(i,p,nda::ellipsis{}));
+      else if (TA == 'T' || TA == 't')
+        for(int i=0; i<V.extent(0); ++i)
+          for(int p=0; p<V.extent(1); ++p)
+            nda::blas::gemm(fact,nda::transpose(V(i,p,nda::ellipsis{})),(*pT1)(i,p,nda::ellipsis{}),zero,(*pT2)(i,p,nda::ellipsis{}));
+      else
+        for(int i=0; i<V.extent(0); ++i)
+          for(int p=0; p<V.extent(1); ++p)
+            nda::blas::gemm(fact,V(i,p,nda::ellipsis{}),(*pT1)(i,p,nda::ellipsis{}),zero,(*pT2)(i,p,nda::ellipsis{}));
+    } else {
+      if (TA == 'H' || TA == 'h')
+        nda::tensor::contract(fact,nda::conj(V),"npji",*pT1,"npjk",zero,*pT2,"npik");
+      else if (TA == 'T' || TA == 't')
+        nda::tensor::contract(fact,V,"npji",*pT1,"npjk",zero,*pT2,"npik");
+      else
+        nda::tensor::contract(fact,V,"npij",*pT1,"npjk",zero,*pT2,"npik");
+    }
     nda::tensor::add(one,*pT2,one,S);
     std::swap(pT1, pT2);
   }
@@ -174,12 +202,25 @@ void apply_P1(P_t const& P1, A_t const& A, B_t && B, char TA = 'N')
   // Apply P1
   if constexpr (nda::MemoryArrayOfRank<P_t,2>) {
     static_assert(std::decay_t<P_t>::is_stride_order_C(), "Stride mismatch");
-    if( TA == 'H' )
-      nda::tensor::contract(nda::conj(P1),"ji",A,"njk",B,"nik");
-    else if( TA == 'T' )
-      nda::tensor::contract(P1,"ji",A,"njk",B,"nik");
-    else
-      nda::tensor::contract(P1,"ij",A,"njk",B,"nik");
+    constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
+    if constexpr (MEM==HOST_MEMORY) {
+      if (TA == 'H' || TA == 'h')
+        for(int i=0; i<A.extent(0); ++i)
+          nda::blas::gemm(nda::dagger(P1),A(i,nda::ellipsis{}),B(i,nda::ellipsis{}));
+      else if (TA == 'T' || TA == 't')
+        for(int i=0; i<A.extent(0); ++i)
+          nda::blas::gemm(nda::transpose(P1),A(i,nda::ellipsis{}),B(i,nda::ellipsis{}));
+      else
+        for(int i=0; i<A.extent(0); ++i)
+          nda::blas::gemm(P1,A(i,nda::ellipsis{}),B(i,nda::ellipsis{}));
+    } else {
+      if( TA == 'H' )
+        nda::tensor::contract(nda::conj(P1),"ji",A,"njk",B,"nik");
+      else if( TA == 'T' )
+        nda::tensor::contract(P1,"ji",A,"njk",B,"nik");
+      else 
+        nda::tensor::contract(P1,"ij",A,"njk",B,"nik");
+    }
   } else {
     if( TA == 'H' )
       math::sparse::csrmm<'H'>(P1,A,B);
@@ -211,7 +252,7 @@ void Propagate(S_t && SM, P_t const& P1, V_t const& V, int order = 6, char TA = 
   utils::check( P1.shape() == std::array<long,2>{M,M}, "Shape mismatch");
 
   memory::buffered_array<MEM,Type,3> TMN(Nw,M,Nel);
-  // Apply P1
+  // Apply P1     
   detail::apply_P1(P1,SM,TMN,TA);
   // Apply exp(i*V)  
   detail::apply_expM(V, TMN, order, TA);
@@ -258,7 +299,7 @@ void Propagate_pol(long npol, S_t && SM, P_t const& P1, V_t const& V, int order 
 
 // Propagate a WalkerSet
 // P1(nspin)(npol*NMO,npol*NMO): The matrix can be csr_matrix or nda::MemoryMatrix
-// V: vHS[nw][nspin][npol*NMO][npol*NMO]
+// V: vHS[nspin][nw][npol*NMO][npol*NMO]
 template<MEMORY_SPACE MEM, typename WlkSet, typename P_t, typename V_t>
 requires( std::decay_t<V_t>::is_stride_order_C() and 
           (nda::MemoryArrayOfRank<P_t,3> or nda::MemoryArrayOfRank<P_t,1>) and
@@ -270,20 +311,20 @@ void PropagateWlkSet(WlkSet& wset, P_t const& P1, V_t const& V, int order = 6, c
   auto walker_type = wset.getWalkerType();
   bool npol      = (walker_type == NONCOLLINEAR ? 2 : 1);
   bool nspin     = (walker_type == COLLINEAR ? 2 : 1);
-  utils::check(V.extent(0) == nwalk, "Size mismatch");
+  utils::check(V.extent(1) == nwalk, "Size mismatch");
   long nspin_P1 = P1.extent(0);
   
 // MAM: wrong is npol_in_file == 1 in NONCOLLINEAR, fix fix fix!!!
   if constexpr ( nda::MemoryArrayOfRank<V_t,4> ) {
-    long nspin_V = V.extent(1);
+    long nspin_V = V.extent(0);
     if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
-      Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0,nda::ellipsis{}),V(all,0,all,all),order,TA);
+      Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0,nda::ellipsis{}),V(0,all,all,all),order,TA);
       if(walker_type==COLLINEAR)
-        Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(all,1%nspin_V,all,all),order,TA);
+        Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V,all,all,all),order,TA);
     } else {
-      Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0),V(all,0,all,all),order,TA);
+      Propagate(wset.template SlaterMatrices<MEM>(Alpha),P1(0),V(0,all,all,all),order,TA);
       if(walker_type==COLLINEAR)
-        Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1),V(all,1%nspin_V,all,all),order,TA);
+        Propagate(wset.template SlaterMatrices<MEM>(Beta),P1(1%nspin_P1),V(1%nspin_V,all,all,all),order,TA);
     }
   } else {
     long nspin_V = V.extent(0);

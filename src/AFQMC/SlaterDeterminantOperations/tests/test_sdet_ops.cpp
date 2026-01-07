@@ -103,16 +103,20 @@ void SDetOps()
   auto A_ = A(range(0,2),range(0,3));
   auto B_ = B(all,range(0,3),range(0,2));
 
+
   /**** Overlaps ****/
   //SECTION("Overlaps")
   {
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(A, B, ovlp);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(Aref, B, ovlp);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(A, Bref, ovlp);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(Aref, Bref, ovlp);
     ARRAY_EQUAL(ovlp,ov);
   }
@@ -122,8 +126,10 @@ void SDetOps()
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(A_, B_, ovlp);
     ARRAY_EQUAL(ovlp,ov2);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(A(range(0,2),range(0,3)), B_, ovlp);
     ARRAY_EQUAL(ovlp,ov2);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(A_, B(all,range(0,3),range(0,2)), ovlp);
     ARRAY_EQUAL(ovlp,ov2);
   }
@@ -132,6 +138,7 @@ void SDetOps()
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(Acsr, B, ovlp);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::Log_Overlap(Acsr, Bref, ovlp);
     ARRAY_EQUAL(ovlp,ov);
   } 
@@ -177,6 +184,7 @@ void SDetOps()
     det_ops::MixedDensityMatrix(A, B, G, ovlp, false);
     ARRAY_EQUAL(G,g_ref);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A(), B(), G(), ovlp(), false);
     ARRAY_EQUAL(G,g_ref);
     ARRAY_EQUAL(ovlp,ov);
@@ -184,9 +192,11 @@ void SDetOps()
     det_ops::MixedDensityMatrix(A_, B_, G_, ovlp, false);
     ARRAY_EQUAL(G_,g_ref_2);
 
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A, B, Gc, ovlp, true);
     ARRAY_EQUAL(Gc,gc_ref);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A(), B(), Gc(), ovlp(), true);
     ARRAY_EQUAL(Gc,gc_ref);
     ARRAY_EQUAL(ovlp,ov);
@@ -205,13 +215,16 @@ void SDetOps()
     det_ops::MixedDensityMatrix(Acsr, B, G, ovlp, false);
     ARRAY_EQUAL(G,g_ref);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B(), G(), ovlp(), false);
     ARRAY_EQUAL(G,g_ref);
     ARRAY_EQUAL(ovlp,ov);
 
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B, Gc, ovlp, true);
     ARRAY_EQUAL(Gc,gc_ref);
     ARRAY_EQUAL(ovlp,ov);
+    ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B(), Gc(), ovlp(), true);
     ARRAY_EQUAL(Gc,gc_ref);
     ARRAY_EQUAL(ovlp,ov);
@@ -290,12 +303,16 @@ void SDetOps()
     det_ops::Log_Overlap(Q, Q, ovlp);
     ARRAY_EQUAL(oref,ovlp);
   }
+
 }
 
 
 TEST_CASE("SDetOps", "[sdet_ops]")
 {
   SDetOps<HOST_MEMORY>();
+#if defined(ENABLE_DEVICE)
+  SDetOps<DEVICE_MEMORY>();
+#endif
 }
 
 } // namespace afqmc

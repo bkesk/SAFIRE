@@ -36,6 +36,7 @@ namespace afqmc
  * Top class for mixed estimators. 
  * An instance of this class will manage a set of observables evaluated at the mixed distribution.
  */
+template<MEMORY_SPACE MEM>
 class MixedEstimator : public EstimatorBase
 {
 
@@ -45,7 +46,7 @@ public:
                           std::string name,
                           ptree pt,
                           WALKER_TYPES wlk,
-                          Wavefunction& wfn)
+                          Wavefunction<MEM>& wfn)
       : EstimatorBase(info),
         observ0(mpi, info, name, pt, wlk, wfn)
   {
@@ -116,7 +117,7 @@ private:
   bool writer = false;
   bool accumulated_in_last_block = false;
 
-  MixedObsHandler observ0;
+  MixedObsHandler<MEM> observ0;
 
   // Blocking info 
   int block_size   = 1;

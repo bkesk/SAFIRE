@@ -27,30 +27,20 @@ namespace sfqmc
 namespace afqmc
 {
 
+template<MEMORY_SPACE MEM>
 class Wavefunction 
 {
 public:
   Wavefunction() { APP_ABORT(" Error: Reached default constructor of Wavefunction. "); }
 
-  explicit Wavefunction(NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>> const& other) = delete;
+  explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>> const& other) : var(other) {} 
 
-  explicit Wavefunction(NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>> const& other) = delete; 
+  explicit Wavefunction(NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>> const& other) : var(other) {}  
 
-  explicit Wavefunction(PHMSD<HOST_MEMORY>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(PHMSD<HOST_MEMORY> const& other) = delete;
-
-#if defined(ENABLE_DEVICE)
-  explicit Wavefunction(NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>> const& other) = delete;
-
-  explicit Wavefunction(NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>> const& other) = delete;
-
-  explicit Wavefunction(PHMSD<DEVICE_MEMORY>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(PHMSD<DEVICE_MEMORY> const& other) = delete;
-#endif
+  explicit Wavefunction(PHMSD<MEM>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(PHMSD<MEM> const& other) : var(other) {} 
 
   Wavefunction(Wavefunction const& other) = delete;
   Wavefunction(Wavefunction&& other)      = default;
@@ -193,20 +183,10 @@ public:
   
   private:
 
-#if defined(ENABLE_DEVICE)
-  std::variant<NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
-               NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
-               NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>,
-               NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>,
-               PHMSD<HOST_MEMORY>,
-               PHMSD<DEVICE_MEMORY>
+  std::variant<NOMSD<MEM,PsiT_Matrix<MEM>>,
+               NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>,
+               PHMSD<MEM>
               > var;
-#else
-  std::variant<NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
-               NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
-               PHMSD<HOST_MEMORY>
-              > var;
-#endif
 
 };
 

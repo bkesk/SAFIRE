@@ -45,7 +45,8 @@ void read_ph_wavefunction_hdf(h5::group& grp,
                               nda::array<PsiT_Matrix<HOST_MEMORY>, 1>& PsiT_MO,
                               std::string& type);
 
-ph_excitations<int, ComplexType> build_ph_struct(nda::array<ComplexType,1> ci_coeff,
+template<MEMORY_SPACE MEM>
+ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> const& ci_coeff,
                                                  nda::array<int, 2>& occs,
                                                  int ndets,
                                                  int NMO,

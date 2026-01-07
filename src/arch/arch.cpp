@@ -40,6 +40,7 @@ namespace arch
   void set_device_synchronization(bool s) { cuda::set_device_synchronization(s); };
   void synchronize_if_set() { cuda::synchronize_if_set(); };
   void synchronize() { cuda::synchronize(); };
+  void check_device_configuration() { cuda::check_device_configuration(); }
 }
 }
 
@@ -52,6 +53,7 @@ namespace arch
   void set_device_synchronization(bool) {};
   void synchronize_if_set() {};
   void synchronize() {};
+  void check_device_configuration() {};
 }
 }
 

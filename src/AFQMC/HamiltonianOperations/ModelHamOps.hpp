@@ -302,8 +302,10 @@ public:
     APP_ABORT(" Error: ph_excited_energy not implemented yet. ");
   }
 
-  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  auto vHS(nda::MemoryMatrix auto&& X, double dt)
   {
+    constexpr MEMORY_SPACE MEM_X = memory::get_memory_space<decltype(X)>();
+    static_assert(MEM == MEM_X, "Memory space mismatch");
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int NMO   = PsiC.extent(2) / npol;
@@ -312,16 +314,21 @@ public:
     // sanity checks!
     utils::check(X.extent(1) == nCV, "Size mismatch");
 
-    memory::buffered_array<MEM,ComplexType,2> vIJ(nwalk, nIJ);
+    memory::buffered_array<MEM_X,ComplexType,2> vIJ(nwalk, nIJ);
     vIJ() = ComplexType(0.0);
     for(int i=0; i<Hams.size(); i++)
       Hams[i].vHS(X(nda::range::all,field_ranges[i]), vIJ, dt);
 
-    memory::buffered_array<MEM,ComplexType,4> v(nwalk,nspin,npol*NMO,NMO);
-    auto v2d = nda::reshape(v,std::array<long,2>{nwalk,nspin*npol*NMO*NMO});
+    memory::buffered_array<MEM,ComplexType,4> v(nspin,nwalk,npol*NMO,NMO);
     v() = ComplexType(0.0);
+
+    memory::buffered_array<MEM,ComplexType,4> v_(nwalk,nspin,npol*NMO,NMO);
+    auto v2d = nda::reshape(v_,std::array<long,2>{nwalk,nspin*npol*NMO*NMO});
+    v_() = ComplexType(0.0);
     // B[:][I[n]] += A[:][n] 
     nda::copy_select(true, 1, n2IJ_vHS_dev, ComplexType(1.0), vIJ, ComplexType(0.0), v2d);
+    nda::tensor::add(ComplexType(1.0),v_,"wsij",ComplexType(0.0),v,"swij");
+
     return v;
   }
 
@@ -486,7 +493,16 @@ private:
 
     auto psi = PsiC()(idet,ispin,all,range(nel[ispin]));
     int n0 = (ispin == 0 ? 0 : nel[0]);
-    nda::tensor::contract(psi,"ia",Gc,"waj",Gfull_3d(all,all,all),"ijw");
+    if constexpr (MEM==HOST_MEMORY) {
+      memory::buffered_array<MEM,ComplexType,2> G_(npol * NMO, npol * NMO);
+      auto Gfull_2d = nda::reshape(Gfull, std::array<long,2>{npol * NMO * npol * NMO, nwalk});
+      for(int iw=0; iw<nwalk; ++iw) { 
+        nda::blas::gemm(psi,Gc(iw,all,all),G_);
+        Gfull_2d(all,iw) = nda::flatten(G_); 
+      }
+    } else {
+      nda::tensor::contract(psi,"ia",Gc,"waj",Gfull_3d(all,all,all),"ijw");
+    }
     return Gfull;
   }
 
@@ -502,13 +518,26 @@ private:
     memory::buffered_array<MEM,ComplexType,2> Gfull(nwalk, nspin * npol * NMO * npol * NMO);
     auto Gfull_4d = nda::reshape(Gfull, std::array<long,4>{nwalk, nspin, npol * NMO, npol * NMO});
 
-    auto psi = PsiC()(idet,0,all,range(nel[0]));
-    int n0 = 0;
-    nda::tensor::contract(psi,"ia",Gc(all,range(n0,n0+nel[0]),all),"waj",Gfull_4d(all,0,all,all),"wij");
-    if( walker_type == COLLINEAR ) {
-      auto psi_dn = PsiC()(idet,1,all,range(nel[1]));
-      n0 = nel[0];
-      nda::tensor::contract(psi_dn,"ia",Gc(all,range(n0,n0+nel[1]),all),"waj",Gfull_4d(all,1,all,all),"wij");
+    if constexpr (MEM==HOST_MEMORY) {
+      auto psi = PsiC()(idet,0,all,range(nel[0]));
+      int n0 = 0;
+      for(int iw=0; iw<nwalk; ++iw) 
+        nda::blas::gemm(psi,Gc(iw,range(n0,n0+nel[0]),all),Gfull_4d(iw,0,all,all));
+      if( walker_type == COLLINEAR ) {
+        auto psi_dn = PsiC()(idet,1,all,range(nel[1]));
+        n0 = nel[0];
+        for(int iw=0; iw<nwalk; ++iw) 
+          nda::blas::gemm(psi_dn,Gc(iw,range(n0,n0+nel[1]),all),Gfull_4d(iw,1,all,all));
+      }
+    } else {
+      auto psi = PsiC()(idet,0,all,range(nel[0]));
+      int n0 = 0;
+      nda::tensor::contract(psi,"ia",Gc(all,range(n0,n0+nel[0]),all),"waj",Gfull_4d(all,0,all,all),"wij");
+      if( walker_type == COLLINEAR ) {
+        auto psi_dn = PsiC()(idet,1,all,range(nel[1]));
+        n0 = nel[0];
+        nda::tensor::contract(psi_dn,"ia",Gc(all,range(n0,n0+nel[1]),all),"waj",Gfull_4d(all,1,all,all),"wij");
+      }
     }
     return Gfull;
   }
@@ -534,7 +563,7 @@ private:
       for(int n=0; n<nIJ; ++n) {
         int In = int(ET_n2IJ(n)/M);
         int Jn = int(ET_n2IJ(n)%M);
-        nda::tensor::contract(psi(In,all),"a",Gc(all,all,Jn),"wa",GIJ(n,all),"w");
+        nda::tensor::contract(psi(In,all),"a",Gc(all,all,Jn),"wa",GIJ(n,all),"w"); 
       }
     } else {
       // batched gemm (gemv), with transposed Gc 

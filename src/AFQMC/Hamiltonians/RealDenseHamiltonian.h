@@ -49,7 +49,7 @@ public:
   {
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
-    app_log(2,"\nReal Cholexky GPU input:");
+    app_log(2,"\nReal Cholesky input:");
     app_log(2, "{}", io::to_string(pt));
     // initialize using verbose input
     fileName  = pt.get<std::string>("filename");

@@ -267,11 +267,12 @@ void PHMSD<MEM>::energy_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov)
     for(int iw=0; iw<nwalk; iw++) 
       E(iw,all) /= Ov(iw);
   } else {
-    nda::tensor::add(ComplexType(1.0),Emsd,"snwc",ComplexType(0.0),E,"wc");
+    utils::check(false,"finish");
+    // need reduce
+//    nda::tensor::add(ComplexType(1.0),Emsd,"snwc",ComplexType(0.0),E,"wc");
     if(walker_type == COLLINEAR) 
       nda::tensor::add(ComplexType(1.0),opSpinEJ,"w",ComplexType(1.0),E(all,2),"w");
     // how to divide???
-    utils::check(false,"finish");
   }
   // Ov -> log( Ov(n)/Ov(0) ) 
   nda::tensor::scale(ComplexType(1.0),Ov,nda::tensor::op::LOG);
@@ -646,8 +647,14 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
         if (compact)
         { 
           auto G3d = nda::reshape(G,std::array<long,3>{nwalk,nact,NMO}); 
-          nda::tensor::contract(ComplexType(1.0), Ra, "wia", GA, "wik", 
-              ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA),all), "wak");
+          if constexpr (MEM==HOST_MEMORY) {
+            for(int i=0; i<nw; ++i)
+              nda::blas::gemm(nda::transpose(Ra(i,all,all)),GA(i,all,all),
+                              G3d(iw+i,range(nactA),all));
+          } else {
+            nda::tensor::contract(ComplexType(1.0), Ra, "wia", GA, "wik", 
+                ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA),all), "wak");
+          }
         }
         else
         {
@@ -675,8 +682,14 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
         if (compact)
         {
           auto G3d = nda::reshape(G,std::array<long,3>{nwalk,nact,NMO});
-          nda::tensor::contract(ComplexType(1.0), Rb, "wia", GB, "wik",
-              ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA,nact),all), "wak");
+          if constexpr (MEM==HOST_MEMORY) {
+            for(int i=0; i<nw; ++i)
+              nda::blas::gemm(nda::transpose(Rb(i,all,all)),GB(i,all,all),
+                              G3d(iw+i,range(nactA,nact),all));
+          } else {
+            nda::tensor::contract(ComplexType(1.0), Rb, "wia", GB, "wik",
+                ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA,nact),all), "wak");
+          }
         }
         else
         {
@@ -1039,9 +1052,10 @@ auto PHMSD<MEM>::G_MF()
   long nact[2] = {OrbMats(0).extent(0),
                  ( walker_type==COLLINEAR ? OrbMats(nspin_in_orbmat-1).extent(0) : 0)};
 
-  auto gMF = memory::make_shared_array<MEM,ComplexType,3>(mpi,
+  auto gMF = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
                       {nspin,npol*NMO,npol*NMO});
-  gMF() = ComplexType(0.0);
+  if(mpi->node_comm.root()) gMF() = ComplexType(0.0);
+  mpi->node_comm.barrier();
 
   std::vector<int> exct(2 * nup);
   std::vector<int> Iwork(2 * nup);
@@ -1223,9 +1237,13 @@ auto PHMSD<MEM>::G_MF()
     }
   } else {
     memory::array<MEM,ComplexType,2> Gdev(Gfull);
-    math::sparse::csrmm<'T'>(OrbMats(0),Gdev(range(nact[0]),all),gMF()(0,all,all));
-    if(walker_type==COLLINEAR)
-      math::sparse::csrmm<'T'>(OrbMats(nspin_in_orbmat-1),Gdev(range(nact[0],nact[0]+nact[1]),all),gMF()(1,all,all));
+    memory::array<MEM,ComplexType,2> gt(npol*NMO,npol*NMO);
+    math::sparse::csrmm<'T'>(OrbMats(0),Gdev(range(nact[0]),all),gt);
+    gMF()(0,all,all) = gt();
+    if(walker_type==COLLINEAR) {
+      math::sparse::csrmm<'T'>(OrbMats(nspin_in_orbmat-1),Gdev(range(nact[0],nact[0]+nact[1]),all),gt);
+       gMF()(1,all,all) = gt();
+    }
   }
   mpi->comm.barrier();
   return gMF;

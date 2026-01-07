@@ -208,7 +208,7 @@ inline decltype(auto) make_WalkerSet(
                 std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
                 ptree pt,
                 AFQMCInfo& info,
-                std::shared_ptr<utils::RandomGenerator_t> r)
+                std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r)
 {
 #if defined(ENABLE_DEVICE)   
   static_assert(_M_ == DEVICE_MEMORY or _M_ == HOST_MEMORY, "Memory space mismatch.");

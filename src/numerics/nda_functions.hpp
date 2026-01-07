@@ -27,6 +27,7 @@
  * Move well defined routines to the original libraries eventually
  */ 
 
+#include "configuration.hpp"
 #include <algorithm>
 #include "IO/AppAbort.hpp"
 #include "utilities/check.hpp"
@@ -286,69 +287,6 @@ void copy_select(bool expand, int indx, V1 const& m, V2 const& s, T alpha, V3 co
   }
 }
 
-// B(...) = T(A(...)), where T = get_value_t<decltype(B)>
-template<MemoryArray A_t, MemoryArray B_t>
-requires( get_rank<A_t> == get_rank<B_t> and 
-       ((std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C()) or
-        (std::decay_t<A_t>::is_stride_order_Fortran() and std::decay_t<B_t>::is_stride_order_Fortran())))
-void copy_cast(A_t const& A, B_t && B) {
-  sfqmc::utils::check(A.shape() == B.shape(), "Shape mismatch");
-  if constexpr (std::is_same_v<get_value_t<A_t>,get_value_t<B_t>>) {
-    B() = A();
-  } else {
-    if constexpr (nda::mem::have_device_compatible_addr_space<A_t,B_t>) {
-#if defined(ENABLE_DEVICE)
-      kernels::device::copy_cast(A,B);
-#else
-      sfqmc::utils::check(false,"Error: Missing device function copy_cast.");
-#endif
-    } else {
-      B() = A();
-    }
-  } 
-
-}
-
-// B(...) += T(alpha*A(...)), where T = get_value_t<decltype(B)>
-template<MemoryArray A_t, MemoryArray B_t>
-requires( get_rank<A_t> == get_rank<B_t> and
-       ((std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C()) or
-        (std::decay_t<A_t>::is_stride_order_Fortran() and std::decay_t<B_t>::is_stride_order_Fortran())))
-void accumulate(nda::get_value_t<A_t> alpha, A_t const& A, B_t && B) {
-  sfqmc::utils::check(A.shape() == B.shape(), "Shape mismatch");
-  if constexpr (std::is_same_v<get_value_t<A_t>,get_value_t<B_t>>) {
-    nda::tensor::add(alpha,A,get_value_t<B_t>{1.0},B);
-  } else {
-    if constexpr (nda::mem::have_device_compatible_addr_space<A_t,B_t>) {
-#if defined(ENABLE_DEVICE)
-      kernels::device::accumulate_cast(alpha,A,B);
-#else
-      sfqmc::utils::check(false,"Error: Missing device function accumulate_cast.");
-#endif
-    } else {
-      B() += alpha*A();
-    }
-  }
-
-}
-
-template<MemoryArray Arr>
-void zero_imag(Arr && A) 
-{
-  using value_type = get_value_t<Arr>;
-  if constexpr (is_complex_v<value_type>) { 
-    if constexpr(nda::mem::on_host<Arr>) {
-      for( auto& v : A ) v = value_type(v.real(),0.0);
-    } else {
-#if defined(ENABLE_DEVICE)
-      kernels::device::zero_imag(A);
-#else
-      sfqmc::utils::check(false,"Error: Found device array without ENABLE_DEVICE."); 
-#endif
-    }
-  }
-}
-
 namespace blas
 {
 
@@ -381,6 +319,43 @@ void gemm(A const &a, B const &b, C &&c)
     using T = typename A::value_type;
     gemm(T(1.0),a,b,T(0.0),c);
   }
+}
+
+template <typename A, MemoryMatrix B, MemoryMatrix C>
+    requires((MemoryMatrix<A> or is_conj_array_expr<A>) and
+             std::is_same_v<std::complex<get_value_t<A>>,get_value_t<B>> and
+             have_same_value_type_v<B, C> and is_blas_lapack_v<get_value_t<A>> and
+             B::is_stride_order_C() and std::decay_t<C>::is_stride_order_C() and
+             mem::have_compatible_addr_space<A,B,C>)
+void gemm(get_value_t<A> alpha, A const &a, B const &b, get_value_t<A> beta, C &&c)
+{
+  constexpr auto addSp = B::storage_t::address_space;
+  using T = get_value_t<A>;
+  using B_t = basic_array_view<T const, 2, C_layout, 'A', default_accessor, borrowed<addSp>>;
+  using C_t = basic_array_view<T, 2, C_layout, 'A', default_accessor, borrowed<addSp>>;
+  sfqmc::utils::check(b.indexmap().min_stride() == 1, "Min_stride mismatch");
+  sfqmc::utils::check(c.indexmap().min_stride() == 1, "Min_stride mismatch");
+  std::array<long,2> Bstr = {b.strides()[0]*2l,1l};
+  std::array<long,2> Cstr = {c.strides()[0]*2l,1l};
+  std::array<long,2> Bshape = {b.extent(0),2l*b.extent(1)};
+  std::array<long,2> Cshape = {c.extent(0),2l*c.extent(1)};
+  idx_map<2, 0, C_stride_order<2>, layout_prop_e::none> Bidxm(Bshape,Bstr);
+  idx_map<2, 0, C_stride_order<2>, layout_prop_e::none> Cidxm(Cshape,Cstr);
+  B_t b2(Bidxm,reinterpret_cast<T const*>(b.data()));
+  C_t c2(Cidxm,reinterpret_cast<T *>(c.data()));
+  gemm(alpha,a,b2,beta,c2);
+}
+
+template <typename A, MemoryMatrix B, MemoryMatrix C>
+    requires((MemoryMatrix<A> or is_conj_array_expr<A>) and
+             std::is_same_v<std::complex<get_value_t<A>>,get_value_t<B>> and
+             have_same_value_type_v<B, C> and is_blas_lapack_v<get_value_t<A>> and
+             B::is_stride_order_C() and std::decay_t<C>::is_stride_order_C() and
+             mem::have_compatible_addr_space<A,B,C>)
+void gemm(A const &a, B const &b, C &&c)
+{
+  using T = get_value_t<A>;
+  gemm(T(1.0),a,b,T(0.0),std::forward<C>(c));
 }
 
 }

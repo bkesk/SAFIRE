@@ -68,11 +68,11 @@ auto to_csr(::nda::ArrayOfRank<2> auto const& A_, double vcut = 1e-8)
 template<typename value_type, typename IndxType = int, typename IntType = long>
 auto combine_csr(csr_matrix<value_type,HOST_MEMORY,IndxType,IntType> const& A, 
                  csr_matrix<value_type,HOST_MEMORY,IndxType,IntType> const& B,
-                 long B_col_shoft = 0)
+                 long B_col_shift = 0)
 {
   long nr = A.extent(0) + B.extent(0);
   long nrA = A.extent(0);
-  long nc = std::max(A.extent(1),B.extent(1)+B_col_shoft);
+  long nc = std::max(A.extent(1),B.extent(1)+B_col_shift);
   auto nnzpr = ::nda::array<IntType, 1>::zeros({nr});
 
   if(A.extent(0) == 0) {
@@ -97,7 +97,7 @@ auto combine_csr(csr_matrix<value_type,HOST_MEMORY,IndxType,IntType> const& A,
 
       for(long r=0; r<A.extent(0); r++)
         for(long i=row_begin(r); i<row_end(r); ++i)
-          csr.emplace_back({r, cols(i-i0)}, vals(i-i0));
+          csr.emplace_back({IndxType(r), cols(i-i0)}, vals(i-i0));
     }
     {
       auto vals = B.values();
@@ -108,7 +108,7 @@ auto combine_csr(csr_matrix<value_type,HOST_MEMORY,IndxType,IntType> const& A,
 
       for(long r=0; r<B.extent(0); r++)
         for(long i=row_begin(r); i<row_end(r); ++i)
-          csr.emplace_back({r+nrA, B_col_shoft+cols(i-i0)}, vals(i-i0));
+          csr.emplace_back({IndxType(r+nrA), IndxType(B_col_shift+cols(i-i0))}, vals(i-i0));
     }    
 
     return csr;
@@ -297,7 +297,7 @@ auto HDF2CSR(h5::group grp)
   for (long r = 0; r < nrows; r++)
   {
     for(long i=ptrb[r]; i<ptre[r]; ++i) 
-      SpM.emplace_back({r, jdata(i)}, data(i));
+      SpM.emplace_back({IndxType(r), IndxType(jdata(i))}, data(i));
   }
 
   if constexpr (MEM == HOST_MEMORY)
@@ -422,8 +422,8 @@ auto closed_to_collinear(csr_matrix<ValType,MEM,IndxType,IntType> const& A)
 
   for(IndxType r=0; r<N; r++) {
     for(long i=A.row_begin(r); i<A.row_end(r); ++i) {
-      B.emplace_back({r, cols(i)}, vals(i));
-      B.emplace_back({r+N, cols(i)}, vals(i));
+      B.emplace_back({IndxType(r), IndxType(cols(i))}, vals(i));
+      B.emplace_back({IndxType(r+N), IndxType(cols(i))}, vals(i));
     }
   }
 
@@ -457,8 +457,8 @@ auto closed_to_noncollinear(csr_matrix<ValType,MEM,IndxType,IntType> const& A)
 
   for(IndxType r=0; r<N; r++) {
     for(long i=A.row_begin(r); i<A.row_end(r); ++i) { 
-      B.emplace_back({r, cols(i)}, vals(i));
-      B.emplace_back({r+N, cols(i)+N}, vals(i));
+      B.emplace_back({IndxType(r), IndxType(cols(i))}, vals(i));
+      B.emplace_back({IndxType(r+N), IndxType(cols(i)+N)}, vals(i));
     }
   }
 
@@ -492,10 +492,10 @@ auto collinear_to_noncollinear(csr_matrix<ValType,MEM,IndxType,IntType> const& A
 
   for(IndxType r=0; r<N; r++) 
     for(long i=A.row_begin(r); i<A.row_end(r); ++i) 
-      B.emplace_back({r, cols(i)}, vals(i));
+      B.emplace_back({IndxType(r), IndxType(cols(i))}, vals(i));
   for(IndxType r=N; r<2*N; r++) 
     for(long i=A.row_begin(r); i<A.row_end(r); ++i) 
-      B.emplace_back({r, cols(i)+N}, vals(i));
+      B.emplace_back({IndxType(r), IndxType(cols(i)+N)}, vals(i));
 
   if constexpr (MEM == HOST_MEMORY) {
     return B;
@@ -536,7 +536,7 @@ auto linearize_matrix(CSRMatrix auto const& A)
   for(index_type r=0; r<index_type(nr); r++) {
     for(long n=A.row_begin(r); n<A.row_end(r); ++n) {
       index_type c_( r*index_type(nc) + A.columns(n) );
-      B.emplace_back( {0,  c_}, A.values(n) );
+      B.emplace_back( {index_type(0),  index_type(c_)}, A.values(n) );
     }
   }
 

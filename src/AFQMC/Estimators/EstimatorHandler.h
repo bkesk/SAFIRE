@@ -38,28 +38,6 @@ namespace sfqmc
 namespace afqmc
 {
 
-namespace detail
-{
-// helper routine to simplify code below
-template<template <MEMORY_SPACE> class Estim, typename... Args>
-auto make_estimator_ptr(MEMORY_SPACE MEM, Args&&... args)
-{
-  utils::check(MEM==HOST_MEMORY 
-#if defined(ENABLE_DEVICE)
-                or MEM==DEVICE_MEMORY
-#endif
-                ,"Memory space mismatch.");
-  using EstimPtr     = std::shared_ptr<EstimatorBase>;
-  if (MEM==HOST_MEMORY)
-    return static_cast<EstimPtr>(std::make_shared<Estim<HOST_MEMORY>>(std::forward<Args>(args)...));
-#if defined(ENABLE_DEVICE)
-  else
-    return static_cast<EstimPtr>(std::make_shared<Estim<DEVICE_MEMORY>>(std::forward<Args>(args)...));
-#endif
-};
-
-}
-
 /* 
  * Manager class for all estimators/observables.
  * This class contains and manages a list of estimator objects.
@@ -70,6 +48,7 @@ auto make_estimator_ptr(MEMORY_SPACE MEM, Args&&... args)
  *   3) any number of 1),2), 
  *   4) each with independent wavefunctions.
  */
+template<MEMORY_SPACE MEM>
 class EstimatorHandler : public AFQMCInfo
 {
   using EstimPtr     = std::shared_ptr<EstimatorBase>;
@@ -80,10 +59,10 @@ public:
                    AFQMCInfo info,
                    std::string title,
                    ptree exec_pt,
-                   WalkerSet& wset,
-                   WavefunctionFactory& WfnFac,
-                   Wavefunction& wfn0,
-                   Propagator& prop0,
+                   WalkerSet& wset, 
+                   WavefunctionFactory<MEM>& WfnFac,
+                   Wavefunction<MEM>& wfn0,
+                   Propagator<MEM>& prop0,
                    WALKER_TYPES walker_type,
                    HamiltonianFactory& HamFac,
                    std::string ham0,
@@ -94,7 +73,6 @@ public:
   {
     estimators.reserve(10);
     // handling this at runtimeto avoid templating everything
-    MEMORY_SPACE MEM = wset.get_memory_space();
     utils::check(MEM == wfn0.get_memory_space(), "Memory space mismatch");
 
     app_log(1,"\n****************************************************");
@@ -148,7 +126,7 @@ public:
         )
       {
         estimators.emplace_back(
-          std::make_shared<EnergyEstimator>(mpi, info, est_pt, wfn0, impsamp));
+          std::make_shared<EnergyEstimator<MEM>>(mpi, info, est_pt, wfn0, impsamp));
         measure_schedule[est_index] = estimators.back()->get_measurement_interval();
         est_index++;
       }
@@ -183,7 +161,7 @@ public:
         else
         {
           // now do those that do
-          Wavefunction* wfn = &wfn0;
+          Wavefunction<MEM>* wfn = &wfn0;
           if (wfn_name != "")
           { // wfn_name must produce a viable wfn object
             ptree wfn_pt = WfnFac.get_input(wfn_name);
@@ -235,7 +213,7 @@ public:
           {
             est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
             estimators.emplace_back(static_cast<EstimPtr>(
-                std::make_shared<MixedEstimator>(mpi, info, title, est_pt, walker_type, 
+                std::make_shared<MixedEstimator<MEM>>(mpi, info, title, est_pt, walker_type, 
                                                  *wfn)));
             measure_schedule[est_index] = estimators.back()->get_measurement_interval();
             est_index++;
@@ -250,7 +228,7 @@ public:
             bool remove = est_pt.get<bool>("remove", false);
             if(not remove) {
               estimators.emplace_back(
-                  std::make_shared<EnergyEstimator>(mpi, info, est_pt, *wfn, impsamp));
+                  std::make_shared<EnergyEstimator<MEM>>(mpi, info, est_pt, *wfn, impsamp));
               measure_schedule[est_index] = estimators.back()->get_measurement_interval();
               est_index++;
             }
@@ -457,7 +435,7 @@ private:
       {
         auto estimator = estimators[it.first];
         if (std::dynamic_pointer_cast<BasicEstimator>(estimator) || 
-            std::dynamic_pointer_cast<EnergyEstimator>(estimator)) 
+            std::dynamic_pointer_cast<EnergyEstimator<MEM>>(estimator)) 
         {
           if (synchronized_interval == -1)
             synchronized_interval = it.second;
@@ -469,6 +447,7 @@ private:
   }
 
 };
+
 } // namespace afqmc
 } // namespace sfqmc
 

@@ -27,6 +27,7 @@
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 #include "numerics/nda_functions.hpp"
 #include "numerics/operations/exp.hpp"
+#include "numerics/operations/tensor.hpp"
 
 namespace sfqmc
 {
@@ -83,11 +84,12 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
 
   bool head_shared = ( MEM==HOST_MEMORY ? mpi->node_comm.root() : true ); 
   if(head_shared) vMF() = ComplexType(0.0);
+  mpi->comm.barrier();
 
   // calculate vMF for the current time step
   if (substractMF)
   { 
-    if(mpi->comm.root()) {
+    {
      auto hamtype(wfn->getHamType());
       memory::buffered_array<MEM,ComplexType,1> vt(vMF.shape());
       // collective call
@@ -106,15 +108,17 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
         }
       } else {
         // continuous propagator, charge decomposition. vt should be real
-        nda::zero_imag(vt);
+        math::zero_imag(vt);
       }
-      vMF() = vt(); 
+      if(head_shared) vMF() = vt(); 
     }
-    if constexpr (MEM==HOST_MEMORY) 
+    if constexpr (MEM==HOST_MEMORY) { 
       if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(vMF.data(),vMF.size(),0);
-    else
+    } else {
       mpi->broadcast(vMF());
+    }
   }
+  mpi->comm.barrier();
 
   if(mpi->comm.root()) {
     auto v_h = nda::to_host(vMF());
@@ -149,7 +153,8 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
 
   // H1 is in host
   if(head_shared) {
-    auto H1 = wfn->getOneBodyPropagatorMatrix(dt, vMF());
+    auto vMF_h = nda::to_host(vMF());
+    auto H1 = wfn->getOneBodyPropagatorMatrix(dt, vMF_h);
     utils::check(H1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO}, "Shape mismatch.");
     if(external_H1) nda::tensor::add(ComplexType(1.0),H1ext(),"sij",ComplexType(1.0),H1(),"sij");
 

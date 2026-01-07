@@ -131,9 +131,10 @@ __energy__(HOST_MEMORY)
 __energy__(DEVICE_MEMORY) 
 #endif
 
+/*
   // vHS_impl
-  template<MEMORY_SPACE M>
-  memory::buffered_array<M,ComplexType,4> HamiltonianOperations<M>::vHS_impl(nda::MemoryArrayOfRank<2> auto & X, double dt)
+  template<MEMORY_SPACE M> 
+  auto HamiltonianOperations<M>::vHS_impl(nda::MemoryMatrix auto& X, double dt)
   {
     return std::visit([&](auto&& s) { return s.vHS(X,dt); }, var);
   }
@@ -144,6 +145,7 @@ __vHS__(HOST_MEMORY)
 #if defined(ENABLE_DEVICE)
 __vHS__(DEVICE_MEMORY)
 #endif
+*/
 
   // vbias_impl
   template<MEMORY_SPACE M>

@@ -29,7 +29,6 @@
 
 #include "AFQMC/AFQMCFactory.h"
 
-
 /*
  * *** execution blocks are processed sequentially, so order is important.
  *     Communication between blocks occurs though appropriate hdf5 I/O. *** 
@@ -43,6 +42,7 @@ int main(int argc, char** argv)
   mpi3::environment env(argc, argv);
   auto world = mpi3::environment::get_world_instance();
   bool root(world.root());
+  std::string compute="default";
 
   // parse command line inputs
   std::vector<std::string> inputs;
@@ -58,6 +58,7 @@ int main(int argc, char** argv)
       ("v,version", "print version message")
       ("verbosity", "0, 1, 2, ...: higher means more", cxxopts::value<int>()->default_value("2"))
       ("debug", "0, 1, 2, ...: higher means more", cxxopts::value<int>()->default_value("0"))
+      ("compute", "where to execute: cpu,gpu,default", cxxopts::value<std::string>()->default_value("default"))
       ("filenames", "input filenames", cxxopts::value<std::vector<std::string>>())
     ;
     options.parse_positional({"filenames"});
@@ -94,6 +95,13 @@ int main(int argc, char** argv)
       }
       mpi3::environment::finalize();
       exit(0);
+    }
+    compute = args["compute"].as<std::string>();
+    if (compute != "cpu" and compute != "gpu" and compute != "default")
+    {
+      std::cerr << "Invalid compute:: " << compute << std::endl;
+      mpi3::environment::finalize();
+      exit(1);
     }
 
     // input files are positional arguments
@@ -144,12 +152,24 @@ int main(int argc, char** argv)
     std::string cname = it.first;
     if (cname == "afqmc") {
       ptree sim = it.second;
-      afqmc::AFQMCFactory afqmc_fac("afqmc", mpi, sim);
+#if defined(ENABLE_DEVICE)
+      if(compute=="gpu" or compute=="default") { 
+        sfqmc::arch::check_device_configuration();
+        auto afqmc_fac = afqmc::AFQMCFactory<DEVICE_MEMORY>("afqmc", mpi, sim);
+      } else 
+#endif
+        auto afqmc_fac = afqmc::AFQMCFactory<HOST_MEMORY>("afqmc", mpi, sim);
     } else if(cname == "cs_afqmc" || cname == "csafqmc") {
       ptree sim = it.second;
       int n_groups = sim.get<int>("project.n_groups", 1);
 // need new strategy for n_group>1, need to add a new "global" communicator to the context.
-      afqmc::AFQMCFactory afqmc_fac("csafqmc",mpi,sim,n_groups); 
+#if defined(ENABLE_DEVICE)
+      if(compute=="gpu" or compute=="default") { 
+        sfqmc::arch::check_device_configuration();
+        auto afqmc_fac = afqmc::AFQMCFactory<DEVICE_MEMORY>("csafqmc",mpi,sim,n_groups);
+      } else 
+#endif
+        auto afqmc_fac = afqmc::AFQMCFactory<HOST_MEMORY>("csafqmc",mpi,sim,n_groups);
     } else {
       app_error("unknown calculation type: {} \n",cname.c_str());
       mpi3::environment::finalize();

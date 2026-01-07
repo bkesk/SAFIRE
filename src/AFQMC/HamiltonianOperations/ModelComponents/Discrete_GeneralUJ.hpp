@@ -364,7 +364,9 @@ private:
     using std::sqrt;
     using std::get;
     using boost::math::tools::bisect;
-    using boost::math::tools::eps_tolerance;
+    auto tol = [](double min, double max) {
+        return std::abs(max - min) < 1e-12; 
+    };
     utils::check(abs(U_) > 1e-8, "Error in Discrete_GeneralUJ::get_parameters: U==0.");
     utils::check(abs(std::imag(U_)) < 1e-8, "Error in Discrete_GeneralUJ::get_parameters: imag(U) > 0 not yet allowed.");
     utils::check(abs(std::imag(nMF_)) < 1e-8, "Error in Discrete_GeneralUJ::get_parameters: imag(nMF) > 0. Should not happen.");
@@ -419,7 +421,7 @@ private:
           if( f(a0)*f(a1) > 0.0 )
             utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
           std::uintmax_t miter(300);
-          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),eps_tolerance<double>(std::numeric_limits<double>::digits - 1),miter);
+          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
           if(miter == 300)
             utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
           alpha = ComplexType(0.0,RealType(root.first));	     
@@ -438,7 +440,7 @@ private:
 	  if( f(a0)*f(a1) > 0.0 ) 
 	    utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
 	  std::uintmax_t miter(300);
-	  auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),eps_tolerance<double>(std::numeric_limits<double>::digits - 1),miter);
+	  auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
 	  if(miter == 300)
 	    utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
           alpha = ComplexType(RealType(root.first));
@@ -479,7 +481,7 @@ private:
           if( f(a0)*f(a1) > 0.0 )
             utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
           std::uintmax_t miter(300);
-          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),eps_tolerance<double>(std::numeric_limits<double>::digits - 1),miter);
+          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
           if(miter == 300)
             utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
           alpha = ComplexType(0.0,RealType(root.first));	     
@@ -498,7 +500,7 @@ private:
 	  if( f(a0)*f(a1) > 0.0 ) 
 	    utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
 	  std::uintmax_t miter(300);
-	  auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),eps_tolerance<double>(std::numeric_limits<double>::digits - 1),miter);
+	  auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
 	  if(miter == 300)
 	    utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
           alpha = ComplexType(RealType(root.first));

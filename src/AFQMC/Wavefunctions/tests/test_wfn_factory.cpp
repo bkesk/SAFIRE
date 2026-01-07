@@ -97,7 +97,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
   int nwalk = 11; // choose prime number to force non-trivial splits in shared routines
-  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
 
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
@@ -112,9 +112,9 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("dense_trial",dense_trial);
 
-  WavefunctionFactory WfnFac(InfoMap);
+  WavefunctionFactory<MEM> WfnFac(InfoMap);
   WfnFac.push("wfn0", wfn_pt);
-  Wavefunction& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
+  auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 
   //nwalk=nw;
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);

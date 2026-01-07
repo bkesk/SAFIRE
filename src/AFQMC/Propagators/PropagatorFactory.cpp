@@ -32,28 +32,22 @@ namespace sfqmc
 namespace afqmc
 {
 template<MEMORY_SPACE MEM>
-Propagator PropagatorFactory::buildAFQMCPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, Wavefunction& wfn, std::shared_ptr<utils::DeviceRandomGenerator_t> rng)
+Propagator<MEM> PropagatorFactory<MEM>::buildAFQMCPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, Wavefunction<MEM>& wfn, std::shared_ptr<utils::RandomGenerator_t<MEM>> rng)
 {
   std::string info = pt.get<std::string>("system", "");
 
   utils::check(InfoMap.find(info) != InfoMap.end(),"ERROR: Undefined system in PropagatorFactory. ");
   AFQMCInfo& AFinfo = InfoMap[info];
 
-//  if( wfn.getHamType() == ModelHamiltonian ) {
-//    return Propagator(AFQMCModelPropagator<MEM>(AFinfo, pt, mpi, wfn, rng)); 
-//    return Propagator{};
-//  } else {  
-    return Propagator(AFQMCBasePropagator<MEM>(AFinfo, pt, mpi, wfn, rng));
-//  }
-  return Propagator{};
+  return Propagator<MEM>(AFQMCBasePropagator<MEM>(AFinfo, pt, mpi, wfn, rng));
 }
 
-template Propagator 
-PropagatorFactory::buildAFQMCPropagator<HOST_MEMORY>(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,Wavefunction&,std::shared_ptr<utils::DeviceRandomGenerator_t>);
+template Propagator<HOST_MEMORY> 
+PropagatorFactory<HOST_MEMORY>::buildAFQMCPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,Wavefunction<HOST_MEMORY>&,std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>>);
 
 #if defined(ENABLE_DEVICE)
-template Propagator 
-PropagatorFactory::buildAFQMCPropagator<DEVICE_MEMORY>(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,Wavefunction&,std::shared_ptr<utils::DeviceRandomGenerator_t>);
+template Propagator<DEVICE_MEMORY> 
+PropagatorFactory<DEVICE_MEMORY>::buildAFQMCPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,Wavefunction<DEVICE_MEMORY>&,std::shared_ptr<utils::RandomGenerator_t<DEVICE_MEMORY>>);
 #endif
 
 

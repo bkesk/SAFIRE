@@ -17,5 +17,5 @@
 
   add_subdirectory(AFQMC)
 
-#  add_subdirectory(main)
+  add_subdirectory(main)
 
