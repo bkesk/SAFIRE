@@ -178,7 +178,10 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   long nel[] = {nact_up, (type == COLLINEAR ? nact_dn : 0l) };
   auto haj = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO});
 // use nspin_in_PsiT and propagate into HamOps
-  auto Lnak = memory::make_shared_array<MEM,ComplexType,6>(mpi,{ndet,nspin,npol,ncv,nact_up,NMO});
+  nda::array<memory::shared_array<MEM,ComplexType,5>,1> Lnak(nspin);
+  for (int is = 0; is < nspin; is++)
+    Lnak(is) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,
+             {ndet,npol,ncv,(is==0?nact_up:nact_dn),NMO}));
 
   // for simplicity
   for (int id = 0, itot=0; id<ndet; id++) {
@@ -213,7 +216,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       // Lnak
       {
         auto Aai_r = memory::to_real_view(Aai);
-        auto L_r = memory::to_real_view(Lnak()(id,is,nda::ellipsis{}));
+        auto L_r = memory::to_real_view(Lnak(is)()(id,nda::ellipsis{}));
         for(int p=0; p<npol; ++p) {
           int ip_f = p%npol_in_file;
           nda::range rng(ip_f*NMO,(ip_f+1)*NMO);
@@ -226,11 +229,15 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   }
   mpi->comm.barrier();
   if constexpr (MEM==HOST_MEMORY) {
-    if(mpi->node_comm.root()) mpi->internode_comm.all_reduce_in_place_n(haj.data(),haj.size(),std::plus<>{}); 
-    if(mpi->node_comm.root()) mpi->internode_comm.all_reduce_in_place_n(Lnak.data(),Lnak.size(),std::plus<>{}); 
+    if(mpi->node_comm.root()) {
+      mpi->internode_comm.all_reduce_in_place_n(haj.data(),haj.size(),std::plus<>{}); 
+      for(int is=0; is<nspin; ++is)
+        mpi->internode_comm.all_reduce_in_place_n(Lnak(is).data(),Lnak(is).size(),std::plus<>{}); 
+    }
   } else {
     mpi->all_reduce(haj(),std::plus<>{});
-    mpi->all_reduce(Lnak(),std::plus<>{});
+    for(int is=0; is<nspin; ++is)
+      mpi->all_reduce(Lnak(is)(),std::plus<>{});
   }
   mpi->comm.barrier();
 
