@@ -75,7 +75,6 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
-std::cout<<" NMO: " <<NMO <<" " <<file_data.NMO <<std::endl;
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   std::map<std::string, AFQMCInfo> InfoMap;
@@ -132,7 +131,7 @@ std::cout<<" NMO: " <<NMO <<" " <<file_data.NMO <<std::endl;
   if (wtype == COLLINEAR)
     det_ops::MixedDensityMatrix(psi(0,1),OrbMat(all,all,range(nup,nel)),G(all,range(nup,nel),all),ovlp);
 //  ARRAY_EQUAL(ovlp,nda::array<ComplexType,1>(nwalk,ComplexType(0.0)));
-  // 2d views and transposed copies just in case
+  // 2d views just in case
   auto G2d = nda::reshape(G,std::array<long,2>{nwalk,nel*npol * NMO});
 
   // optimize HOps evaluation

@@ -122,7 +122,7 @@ public:
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.extent(0));
       vMF_2d(0,nda::range::all) = vMF();
       v = std::move(vHS(vMF_2d, dt));
-      utils::check(v.shape() == std::array<long,4>{1,nspin,npol*NMO,NMO}, "Size mismatch");
+      utils::check(v.shape() == std::array<long,4>{nstot,1,npol*NMO,NMO}, "Size mismatch");
     }
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
@@ -140,7 +140,7 @@ public:
             for (int j = 0 ; j < NMO; j++)
             {
               if(p1==p2) {
-                H1(is,p1*NMO+i,p2*NMO+j) = v(0,is_,p1_*NMO+i,j) +
+                H1(is,p1*NMO+i,p2*NMO+j) = v(is_,0,p1_*NMO+i,j) +
                                            dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,i,j));
               } else {
                 // only spin-orbit terms here coming from hij

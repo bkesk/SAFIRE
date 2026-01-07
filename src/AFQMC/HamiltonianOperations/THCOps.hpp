@@ -136,7 +136,7 @@ public:
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
       v = std::move(vHS(vMF_2d, dt));
-      utils::check(v.shape() == std::array<long,4>{1,nspin,npol*NMO,NMO}, "Size mismatch");
+      utils::check(v.shape() == std::array<long,4>{nstot,1,npol*NMO,NMO}, "Size mismatch");
     }
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
@@ -154,7 +154,7 @@ public:
             for (int j = 0 ; j < NMO; j++)
             {
               if(p1==p2) {
-                H1(is,p1*NMO+i,p2*NMO+j) = v(0,is_,p1_*NMO+i,j) + 
+                H1(is,p1*NMO+i,p2*NMO+j) = v(is_,0,p1_*NMO+i,j) + 
                                            dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,i,j));
               } else {
                 // only spin-orbit terms here coming from hij
@@ -293,8 +293,9 @@ public:
             if constexpr (MEM==HOST_MEMORY) 
               for(int iw=0; iw<nw; iw++) 
                 nda::blas::gemm(Guv(iw,all,all),nda::transpose(Yau),Tva(iw,all,all));
-            else
+            else {
               nda::tensor::contract(Yau,"av",Guv,"wuv",Tva,"wua"); 
+            }
 
             //T[w][b][k] = sum_u R[w][u][b] * Piu[k][u]
             auto Xiu = Xsiu(is_,range(ip1_*NMO,(ip1_+1)*NMO),all);
@@ -726,7 +727,7 @@ protected:
             nda::tensor::contract(Gwai,"wai",Xiu,"iu",Twau,"wau");
           }
           // Gwu[w][u] = a * sum_a T1[w][a][u] * cXau[a][u]
-          nda::tensor::contract(ComplexType(a),Twau,"wau",Yau,"au",ComplexType(1.0),Guu,"wu");
+          nda::tensor::contract(ComplexType(a),Twau,"wau",Yau,"au",ComplexType(1.0),Guu,"uw");
         }
  
       } // npol 
@@ -853,7 +854,8 @@ protected:
           Guu(all,i) += nda::diagonal(Guv(i,all,all));
       } else {
         std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
-        nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(Guu.shape(),str);
+        std::array<long,2> shape = {Guv.extent(0),Guv.extent(1)};
+        nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,str);
         memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
         nda::tensor::add(ComplexType(1.0),Guv_diag,"wu",ComplexType(1.0),Guu,"uw");   
       }
