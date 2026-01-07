@@ -45,7 +45,7 @@ inline ComplexType mod2pi(ComplexType x){
 }
 
 template<MEMORY_SPACE MEM>
-class EnergyEstimator : public EstimatorBase
+class EnergyEstimator : public EstimatorBase<MEM>
 {
 public:
   EnergyEstimator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
@@ -53,7 +53,7 @@ public:
                   ptree pt_in,
                   Wavefunction<MEM>& wfn,
                   bool impsamp_ = true)
-      : EstimatorBase(info), 
+      : EstimatorBase<MEM>(info), 
         mpi(_mpi), 
         wfn0(std::addressof(wfn)), 
         importanceSampling(impsamp_), 
@@ -107,10 +107,10 @@ public:
 
   ~EnergyEstimator() {}
 
-  void accumulate_step([[maybe_unused]] double total_time, [[maybe_unused]] WalkerSet& wlks,
+  void accumulate_step([[maybe_unused]] double total_time, [[maybe_unused]] WalkerSet<MEM>& wlks,
                        [[maybe_unused]] std::vector<ComplexType>& curData) {}
 
-  void accumulate_block([[maybe_unused]] double total_time, WalkerSet& wset)
+  void accumulate_block([[maybe_unused]] double total_time, WalkerSet<MEM>& wset)
   {
     auto all = nda::range::all;
     AFQMCTimer.start(energy_timer);
@@ -245,7 +245,7 @@ public:
     return measure_interval;
   }
 
-  void print(std::ofstream& out, [[maybe_unused]] h5::file& file, WalkerSet& wset)
+  void print(std::ofstream& out, [[maybe_unused]] h5::file& file, WalkerSet<MEM>& wset)
   {
     if (mpi->comm.root())
     {

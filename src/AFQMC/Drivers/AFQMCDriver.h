@@ -134,9 +134,9 @@ public:
 
   ~AFQMCDriver() {}
 
-  bool run(WalkerSet&);
+  bool run(WalkerSet<MEM>&);
 
-  bool checkpoint(WalkerSet&, int, int);
+  bool checkpoint(WalkerSet<MEM>&, int, int);
 
   bool clear() { return true; };
 
@@ -167,7 +167,7 @@ protected:
 
   EstimatorHandler<MEM>& estim0;
 
-  bool writeSamples(WalkerSet&);
+  bool writeSamples(WalkerSet<MEM>&);
 
   int samplePeriod;
 

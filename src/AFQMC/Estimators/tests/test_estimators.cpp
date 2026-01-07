@@ -129,7 +129,7 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
   REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
   wset.resize(nwalk, initial_guess);
 
-  using EstimPtr = std::shared_ptr<EstimatorBase>;
+  using EstimPtr = std::shared_ptr<EstimatorBase<MEM>>;
   std::vector<EstimPtr> estimators;
 /*
     ptree est_pt;

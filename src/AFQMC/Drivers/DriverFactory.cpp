@@ -49,7 +49,8 @@ namespace afqmc
 
 // assumes wfn.Energy(Wset) has been called
 // Then prints the energy breakdown
-void print_initial_energy(WalkerSet& wset){
+template<typename WlkSet>
+void print_initial_energy(WlkSet& wset){
   app_log(1," Local Energy of starting determinant ");
   //app_log(1," <psi_T|H|w_0>/<psi_T|w_0>: ");
   app_log(1,"  - Total energy    : {:f}", wset[0].energy());
@@ -280,7 +281,7 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
    */
 
   // walker set and type
-  WalkerSet& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
+  auto& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
   WALKER_TYPES walker_type = wset.getWalkerType();
 
   if (not WfnFac.is_constructed(wfn_name))
@@ -519,7 +520,7 @@ bool DriverFactory<MEM>::executeCSAFQMCDriver(std::string title, int m_series, p
     AFinfo_ref.emplace_back(std::ref(AFinfo));
 
     // walker set and type
-    WalkerSet& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
+    auto& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
     WALKER_TYPES walker_type = wset.getWalkerType();
     wset_ref.emplace_back(std::ref(wset));
 

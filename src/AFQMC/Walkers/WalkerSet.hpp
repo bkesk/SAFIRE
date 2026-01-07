@@ -31,6 +31,7 @@ namespace afqmc
 // MAM: Make variant with memory types
 //using WalkerSet = WalkerSetBase<HOST_MEMORY>;
 
+template<MEMORY_SPACE MEM>
 class WalkerSet
 {
 
@@ -38,21 +39,11 @@ class WalkerSet
 
     WalkerSet() = default;
 
-    explicit WalkerSet(WalkerSetBase<HOST_MEMORY> const& arg) : var(arg) {}
-    explicit WalkerSet(WalkerSetBase<HOST_MEMORY> && arg) : var(std::move(arg)) {}
+    explicit WalkerSet(WalkerSetBase<MEM> const& arg) : var(arg) {}
+    explicit WalkerSet(WalkerSetBase<MEM> && arg) : var(std::move(arg)) {}
 
-    WalkerSet& operator=(WalkerSetBase<HOST_MEMORY> const& arg) { var = arg; return *this; }
-    WalkerSet& operator=(WalkerSetBase<HOST_MEMORY> && arg) { var = std::move(arg); return *this; }
-
-#if defined(ENABLE_DEVICE)   
-
-    explicit WalkerSet(WalkerSetBase<DEVICE_MEMORY> const& arg) : var(arg) {}
-    explicit WalkerSet(WalkerSetBase<DEVICE_MEMORY> && arg) : var(std::move(arg)) {}
-
-    WalkerSet& operator=(WalkerSetBase<DEVICE_MEMORY> const& arg) { var = arg; return *this; }
-    WalkerSet& operator=(WalkerSetBase<DEVICE_MEMORY> && arg) { var = std::move(arg); return *this; }
-
-#endif
+    WalkerSet& operator=(WalkerSetBase<MEM> const& arg) { var = arg; return *this; }
+    WalkerSet& operator=(WalkerSetBase<MEM> && arg) { var = std::move(arg); return *this; }
 
     ~WalkerSet() = default;
     WalkerSet(WalkerSet const&) = default;
@@ -183,22 +174,13 @@ class WalkerSet
     auto getFields(int ip) { 
       return std::visit( [&](auto&& v) { return  v.template getFields<M>(ip); }, var ); 
     } 
-    template<MEMORY_SPACE M>
-    auto getWeightFactors() { 
-      return std::visit( [&](auto&& v) { return  v.template getWeightFactors<M>(); }, var ); 
-    } 
-    template<MEMORY_SPACE M>
-    auto getWeightHistory() { 
-      return std::visit( [&](auto&& v) { return  v.template getWeightHistory<M>(); }, var ); 
-    } 
+
+    VISITOR_ARGS(getWeightHistory,var,)
+    VISITOR_ARGS(getWeightFactors,var,)
     
   private:
 
-#if defined(ENABLE_DEVICE)   
-    std::variant<WalkerSetBase<HOST_MEMORY>,WalkerSetBase<DEVICE_MEMORY>> var;
-#else
-    std::variant<WalkerSetBase<HOST_MEMORY>> var;
-#endif
+    std::variant<WalkerSetBase<MEM>> var;
 
 };
 
@@ -210,12 +192,7 @@ inline decltype(auto) make_WalkerSet(
                 AFQMCInfo& info,
                 std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r)
 {
-#if defined(ENABLE_DEVICE)   
-  static_assert(_M_ == DEVICE_MEMORY or _M_ == HOST_MEMORY, "Memory space mismatch.");
-#else
-  static_assert(_M_ == HOST_MEMORY, "Memory space mismatch.");
-#endif
-  return WalkerSet( WalkerSetBase<_M_>(_mpi_,pt,info,r) );
+  return WalkerSet<_M_>( WalkerSetBase<_M_>(_mpi_,pt,info,r) );
 }
 
 } // namespace afqmc

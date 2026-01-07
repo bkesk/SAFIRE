@@ -603,28 +603,18 @@ public:
     F() = V();
   }
 
-  template<MEMORY_SPACE _M_>
   auto getWeightFactors()
   {
     using nda::range;
-    utils::check(_M_ == MEM, "Incompatible memory space");
     long i0 = data_displ[WEIGHT_FAC];
-    long nw = bp_buffer.extent(0);
-    std::array<long,2> shape = {nw,wlk_desc[6]};
-    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,bp_buffer.strides());
-    return memory::array_view<_M_,ComplexType,2>(idxm, bp_buffer.data() + i0);
+    return bp_buffer(range::all,range(i0,i0+wlk_desc[6]));
   }
 
-  template<MEMORY_SPACE _M_>
   auto getWeightHistory()
   {
     using nda::range;
-    utils::check(_M_ == MEM, "Incompatible memory space");
     long i0 = data_displ[WEIGHT_HISTORY];
-    long nw = bp_buffer.extent(0);
-    std::array<long,2> shape = {nw,wlk_desc[6]};
-    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,bp_buffer.strides());
-    return memory::array_view<_M_,ComplexType,2>(idxm, bp_buffer.data() + i0);
+    return bp_buffer(range::all,range(i0,i0+wlk_desc[6]));
   }
 
   double getLogOverlapFactor() const { return LogOverlapFactor; }

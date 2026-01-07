@@ -302,8 +302,8 @@ void test_basic_walker_features(std::string wtype)
       memory::array<MEM,ComplexType,2> Fi(F0.shape());
       Fi() = Fs(nda::range::all,0,nda::range::all); 
       wset.storeFields(1,Fi);
-      auto WF = wset.template getWeightFactors<MEM>();
-      auto WH = wset.template getWeightHistory<MEM>();
+      auto WF = wset.template getWeightFactors();
+      auto WH = wset.template getWeightHistory();
       WF() = ComplexType(0.0);
       WH() = ComplexType(0.0);
     }

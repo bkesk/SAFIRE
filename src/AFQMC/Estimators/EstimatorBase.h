@@ -30,6 +30,7 @@ namespace sfqmc
 {
 namespace afqmc
 {
+template<MEMORY_SPACE MEM>
 class EstimatorBase : public AFQMCInfo
 {
 public:
@@ -37,11 +38,11 @@ public:
 
   virtual ~EstimatorBase() {}
 
-  virtual void accumulate_block(double time, WalkerSet& wlks) = 0;
+  virtual void accumulate_block(double time, WalkerSet<MEM>& wlks) = 0;
 
-  virtual void accumulate_step(double time, WalkerSet& wlks, std::vector<ComplexType>& curData) = 0;
+  virtual void accumulate_step(double time, WalkerSet<MEM>& wlks, std::vector<ComplexType>& curData) = 0;
 
-  virtual void print(std::ofstream& out, h5::file&, WalkerSet& wlks) = 0;
+  virtual void print(std::ofstream& out, h5::file&, WalkerSet<MEM>& wlks) = 0;
 
   virtual void print_timers([[maybe_unused]] std::ofstream& out) {}
 

@@ -34,7 +34,7 @@ namespace sfqmc
 namespace afqmc
 {
 template<MEMORY_SPACE MEM>
-bool AFQMCDriver<MEM>::run(WalkerSet& wset)
+bool AFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
 {
 
   app_log(1,"****************************************************");
@@ -137,7 +137,7 @@ bool AFQMCDriver<MEM>::run(WalkerSet& wset)
 
 // writes checkpoint file
 template<MEMORY_SPACE MEM>
-bool AFQMCDriver<MEM>::checkpoint(WalkerSet& wset, int block, int step)
+bool AFQMCDriver<MEM>::checkpoint(WalkerSet<MEM>& wset, int block, int step)
 {
 return true;
   if (mpi->comm.rank() == 0)
@@ -174,7 +174,7 @@ return true;
 
 // writes samples
 template<MEMORY_SPACE MEM>
-bool AFQMCDriver<MEM>::writeSamples(WalkerSet& wset)
+bool AFQMCDriver<MEM>::writeSamples(WalkerSet<MEM>& wset)
 {
 return true;
   int nwtowrite = -1;
@@ -192,9 +192,9 @@ return true;
 
 // Instantiate
 #define __inst__(M)                                            \
-template bool AFQMCDriver<M>::run(WalkerSet& wset);            \
-template bool AFQMCDriver<M>::checkpoint(WalkerSet&,int,int);  \
-template bool AFQMCDriver<M>::writeSamples(WalkerSet&);        
+template bool AFQMCDriver<M>::run(WalkerSet<M>& wset);            \
+template bool AFQMCDriver<M>::checkpoint(WalkerSet<M>&,int,int);  \
+template bool AFQMCDriver<M>::writeSamples(WalkerSet<M>&);        
 
 __inst__(HOST_MEMORY)
 #if defined(ENABLE_DEVICE)

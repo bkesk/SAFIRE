@@ -117,19 +117,19 @@ TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_ty
     if(grp.has_key("Wavefunction")) {
       h5::group wgrp = grp.open_group("Wavefunction");
       if(wgrp.has_key("NOMSD")) {
-        h5::group ngrp = grp.open_group("NOMSD");
+        h5::group ngrp = wgrp.open_group("NOMSD");
         std::vector<int> Idata(5);
         h5::h5_read(ngrp,"dims",Idata);
-        nmo = dims[0];
-        nup = dims[1];
-        ndn = dims[2];
+        nmo = Idata[0];
+        nup = Idata[1];
+        ndn = Idata[2];
       } else if(wgrp.has_key("PHMSD")) {
-        h5::group ngrp = grp.open_group("PHMSD");
+        h5::group ngrp = wgrp.open_group("PHMSD");
         std::vector<int> Idata(5);
         h5::h5_read(ngrp,"dims",Idata);
-        nmo = dims[0];
-        nup = dims[1];
-        ndn = dims[2];
+        nmo = Idata[0];
+        nup = Idata[1];
+        ndn = Idata[2];
       } 
     }   
   } else {
