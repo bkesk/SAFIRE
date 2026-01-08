@@ -21,6 +21,7 @@
 
 #include "AFQMC/Wavefunctions/NOMSD.hpp"
 #include "AFQMC/Wavefunctions/PHMSD.hpp"
+#include "AFQMC/Wavefunctions/NOMSD_FT.hpp"
 
 namespace sfqmc
 {
@@ -41,6 +42,33 @@ public:
 
   explicit Wavefunction(PHMSD<MEM>&& other) : var(std::move(other)) {}
   explicit Wavefunction(PHMSD<MEM> const& other) : var(other) {} 
+
+  // Add finite-T NOMSD wavefunctions?
+  explicit Wavefunction(NOMSD_FT<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD_FT<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>> const& other) = delete;
+
+  explicit Wavefunction(NOMSD_FT<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD_FT<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>> const& other) = delete; 
+
+  explicit Wavefunction(PHMSD<HOST_MEMORY>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(PHMSD<HOST_MEMORY> const& other) = delete;
+
+#if defined(ENABLE_DEVICE)
+  explicit Wavefunction(NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>> const& other) = delete;
+
+  explicit Wavefunction(NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>> const& other) = delete;
+
+  explicit Wavefunction(NOMSD_FT<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD_FT<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>> const& other) = delete;
+
+  explicit Wavefunction(NOMSD_FT<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD_FT<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>> const& other) = delete;
+
+  explicit Wavefunction(PHMSD<DEVICE_MEMORY>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(PHMSD<DEVICE_MEMORY> const& other) = delete;
+#endif
 
   Wavefunction(Wavefunction const& other) = delete;
   Wavefunction(Wavefunction&& other)      = default;
@@ -106,6 +134,7 @@ public:
     return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
   }
 
+
   template<class... Args>
   void Energy(Args&&... args)
   {
@@ -118,6 +147,7 @@ public:
     std::visit([&](auto&& a) { a.DensityMatrix(std::forward<Args>(args)...); }, var);
   }
 
+  
   template<class... Args>
   void MixedDensityMatrix(Args&&... args)
   {
@@ -129,6 +159,7 @@ public:
   {
     std::visit([&](auto&& a) { a.Log_Overlap(std::forward<Args>(args)...); }, var);
   }
+  
 
   auto total_number_of_references() const
   {
@@ -146,6 +177,7 @@ public:
   {
     std::visit([&](auto&& a) { a.getReferences(std::forward<Args>(args)...); }, var);
   }
+
 /*
   template<class... Args>
   void accumulate_estimators(Args&&... args)
@@ -181,13 +213,49 @@ public:
   {
     return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); }, var);
   }
+
+  template<class... Args>
+  void updateLogScale(Args&&... args)
+  {
+    std::visit([&](auto&& a) { a.updateLogScale(std::forward<Args>(args)...); }, var);
+  }
   
+  template<class... Args>
+  auto getLogScale(Args&&... args)
+  {
+    std::visit([&](auto&& a) { a.getLogScale(std::forward<Args>(args)...); }, var);
+  }
+
   private:
+
 
   std::variant<NOMSD<MEM,PsiT_Matrix<MEM>>,
                NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>,
                PHMSD<MEM>
               > var;
+
+  /*
+#if defined(ENABLE_DEVICE)
+  std::variant<NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
+               NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
+               NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>,
+               NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>,
+               NOMSD_FT<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
+               NOMSD_FT<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
+               NOMSD_FT<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>,
+               NOMSD_FT<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>,
+               PHMSD<HOST_MEMORY>,
+               PHMSD<DEVICE_MEMORY>
+              > var;
+#else
+  std::variant<NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
+               NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
+               NOMSD_FT<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
+               NOMSD_FT<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
+               PHMSD<HOST_MEMORY>
+              > var;
+#endif
+  */
 
 };
 

@@ -231,6 +231,7 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
   // if running on GPU
   if constexpr (nda::mem::have_device_compatible_addr_space<UL_t>)
   {
+<<<<<<< HEAD
     { // scopes to limit memory usage
       memory::buffered_array<MEM,Type,2> M0(NMO,NMO);
       memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
@@ -869,6 +870,8 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
                         G_t && G, O_t && ovlp, SL_t const& sclL, SR_t const& sclR, 
                         bool unitaryL = false, bool unitaryR = false)
 {
+
+  // FIX : unitaryL, unitaryR are not currently used
 
   utils::check_strides(UR,DR,VR,G,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();

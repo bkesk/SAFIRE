@@ -169,6 +169,30 @@ public:
     return mat->second();
   }
 
+    // returns the xmlNodePtr associated with ID
+  auto getInitialGuess_ft(const std::string& ID) 
+  {
+    auto mat = initial_guess_ft.find(ID);
+    if (mat == initial_guess_ft.end())
+    {
+      APP_ABORT(" Error: Missing initial guess in WavefunctionFactory. ");
+    }
+    // return view
+    return mat->second();
+  }
+
+  // returns the xmlNodePtr associated with ID
+  auto getInitialGuess_ft(const std::string& ID) const
+  {
+    auto mat = initial_guess_ft.find(ID);
+    if (mat == initial_guess_ft.end())
+    {
+      APP_ABORT(" Error: Missing initial guess in WavefunctionFactory. ");
+    }
+    // return view
+    return mat->second();
+  }
+
   // adds a xml block from which a Wavefunction can be built
   void push(const std::string& ID, ptree pt)
   {
@@ -230,6 +254,8 @@ protected:
   std::map<std::string, Wavefunction<MEM>> wavefunctions;
 
   std::map<std::string, memory::shared_array<HOST_MEMORY, ComplexType, 3>> initial_guess;
+
+  std::map<std::string, memory::shared_array<HOST_MEMORY, ComplexType, 4>> initial_guess_ft;
 };
 } // namespace afqmc
 } // namespace sfqmc
