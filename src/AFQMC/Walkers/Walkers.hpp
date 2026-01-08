@@ -95,7 +95,7 @@ public:
   auto DMatrix(SpinTypes s)
   {
     utils::check(_M_ == MEM, "Memory space mismatch.");
-    utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in UMatrix(SpinType).");
+    utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in DMatrix(SpinType).");
     return (s == Alpha) ? (SVType<_M_>({desc[0]}, getw_(DR)))
                         : (SVType<_M_>({desc[0]}, getw_(DR) + desc[0]));
   }
@@ -103,7 +103,7 @@ public:
   auto VMatrix(SpinTypes s)
   {
     utils::check(_M_ == MEM, "Memory space mismatch.");
-    utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in UMatrix(SpinType).");
+    utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in VMatrix(SpinType).");
     return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]}, getw_(VR)))
                         : (SMType<_M_>({desc[0], desc[2]}, getw_(VR) + desc[0] * desc[1]));
   }

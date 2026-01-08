@@ -255,6 +255,8 @@ public:
                      nda::MemoryArrayOfRank<2> auto const& D,
                      nda::MemoryArrayOfRank<3> auto const& V);
 
+  void resize(int n, nda::MemoryArrayOfRank<4> auto const& UDV);
+
   /*
    * Resizes back propagation buffers.
    * Must be called before any call to bp-related routines.
@@ -331,7 +333,7 @@ public:
 
   template<MEMORY_SPACE _M_, walker_data D>
   auto extract_UM( SpinTypes s ) const {
-    static_assert(D == UR or DR == VR, "Invalid enum");
+    static_assert(D == UR or D == VR, "Invalid enum");
     utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
@@ -345,22 +347,20 @@ public:
   auto extract_DM( SpinTypes s ) {
     utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[DR]:data_displ[DR]+wlk_desc[0]);
-    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
-    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
-    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
-    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,ComplexType,3>(idxm, walker_buffer.data() + i0);     
+    std::array<long,2> shape = {tot_num_walkers,wlk_desc[0]};
+    std::array<long,2> strides = {walker_buffer.strides()[0],1};
+    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<_M_,ComplexType,2>(idxm, walker_buffer.data() + i0);  
   } 
 
   template<MEMORY_SPACE _M_>
   auto extract_DM( SpinTypes s ) const {
     utils::check(_M_ == MEM, "Incompatible memory space");
     auto i0 = (s==Alpha?data_displ[DR]:data_displ[DR]+wlk_desc[0]);
-    auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
-    std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
-    std::array<long,3> strides = {walker_buffer.strides()[0],nc,1};
-    nda::idx_map<3, 0, nda::C_stride_order<3>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,const ComplexType,3>(idxm, walker_buffer.data() + i0); 
+    std::array<long,2> shape = {tot_num_walkers,wlk_desc[0]};
+    std::array<long,2> strides = {walker_buffer.strides()[0],1};
+    nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,strides);
+    return memory::array_view<_M_,const ComplexType,2>(idxm, walker_buffer.data() + i0); 
   }
 
   public:
