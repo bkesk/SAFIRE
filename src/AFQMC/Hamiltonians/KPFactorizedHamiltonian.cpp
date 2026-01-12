@@ -55,7 +55,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   std::string base_error(" Error in KPFactorizedHamiltonian::getHamiltonianOperations_shared: \n    ");
   auto all = range::all;
   std::string format;  // only meaningful at root
-  double GBx = 1.0/double(1024*1024*1024);
+  double GBx = sizeof(ComplexType)/double(1024*1024*1024);
   ComplexType zero(0.0),one(1.0);
   long nspin = (type == COLLINEAR?2:1);
   long npol = (type == NONCOLLINEAR?2:1);
