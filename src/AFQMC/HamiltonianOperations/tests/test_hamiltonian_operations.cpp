@@ -75,7 +75,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
-std::cout<<" NMO: " <<NMO <<" " <<file_data.NMO <<std::endl;
+  std::cout<<" NMO: " <<NMO <<" " <<file_data.NMO <<std::endl;
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   std::map<std::string, AFQMCInfo> InfoMap;
@@ -121,6 +121,7 @@ std::cout<<" NMO: " <<NMO <<" " <<file_data.NMO <<std::endl;
       for(int i=0; i<nwalk; ++i)
         OrbMat(i,all,range(nup,nel)) = T();
     }
+
   }
 
   auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);

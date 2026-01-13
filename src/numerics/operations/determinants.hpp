@@ -48,23 +48,6 @@ void log_determinant_from_getrf(A const& a, IPIV const& ipiv, V && log_det) {
   }
 }
 
-template<nda::MemoryArrayOfRank<3> A, nda::MemoryMatrix IPIV, nda::MemoryVector V>
-requires(std::decay_t<A>::is_stride_order_Fortran() and std::decay_t<IPIV>::is_stride_order_Fortran() and
-         nda::mem::have_compatible_addr_space<A,IPIV,V>)
-void log_determinant_from_getrf(A const& a, IPIV const& ipiv, V && log_det) {
-  using T = nda::get_value_t<V>;
-  static_assert(nda::is_complex_v<T>, "log_determinant_from_getrf expects complex numbers.");
-  sfqmc::utils::check(a.extent(2) == ipiv.extent(1), "Size mismatch");
-  sfqmc::utils::check(a.extent(2) == log_det.extent(0), "Size mismatch");
-  sfqmc::utils::check(a.extent(0) == ipiv.extent(0), "Size mismatch");
-  sfqmc::utils::check(a.extent(0) == a.extent(1), "Size mismatch");
-  if constexpr (nda::mem::have_device_compatible_addr_space<A,IPIV,V>) {
-//    device::detail::log_determinant_from_getrf_impl(a,ipiv,log_det);
-  } else {
-    detail::log_determinant_from_getrf_F_layout_impl<T>(a.extent(0),a.extent(2),a,ipiv,log_det);
-  }
-}
-
 template<nda::MemoryArrayOfRank<2> A, nda::MemoryVector IPIV>
 requires(std::decay_t<A>::is_stride_order_C() and std::decay_t<IPIV>::is_stride_order_C() and
          nda::mem::have_compatible_addr_space<A,IPIV>)

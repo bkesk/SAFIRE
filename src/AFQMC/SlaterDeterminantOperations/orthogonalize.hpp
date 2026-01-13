@@ -325,7 +325,8 @@ void orthogonalize_wSVD(U_t && U, D_t && D, V_t && V, B_t && scl)
   // V <-- V'*V
   nda::tensor::contract(V,"nij",nda::conj(M1),"nki",V,"nkj");
 
-  nda::copy_cast(S,DT);
+  //nda::copy_cast(S,DT);
+  math::copy(S,DT);
 
   nda::tensor::add(DT,"in",D,"ni");
 
@@ -339,26 +340,59 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
   utils::check(MEM == wset.get_memory_space(), "Memory space mismatch");
   memory::check_memory_space<MEM>(ldet);
   auto walker_type = wset.getWalkerType();
-  const int nspin = ( (walker_type == COLLINEAR) ? 2 : 1 );
+  const int nspin = ( (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1 );
   const int nwalk = wset.size();
   utils::check(ldet.size() >= nwalk, "Size mismatch");
   ldet() = ComplexType(0.0);
-  if(importance_sampling) {
-    orthogonalize( wset.SlaterMatrices(Alpha), ldet);
-    if(walker_type == COLLINEAR)
-      orthogonalize( wset.SlaterMatrices(Beta), ldet);
-  } else {
-    double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
-    orthogonalize( wset.SlaterMatrices(Alpha), ldet);
-    if(walker_type == COLLINEAR)
-      orthogonalize( wset.SlaterMatrices(Beta), ldet);
-    memory::buffered_array<MEM,ComplexType,1> wgt(nwalk);
-    wset.getProperty(WEIGHT, wgt);
-    auto wgt_h = nda::to_host(wgt);
-    auto ldet_h = nda::to_host(ldet);
-    wgt_h() *= nda::exp(scl*ldet_h());
-    wgt() = wgt_h();
-    wset.setProperty(WEIGHT, wgt);
+  if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT ){
+    if(importance_sampling) {
+      orthogonalize( wset.SlaterMatrices(Alpha), ldet);
+      if(walker_type == COLLINEAR)
+        orthogonalize( wset.SlaterMatrices(Beta), ldet);
+    } else {
+      double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
+      orthogonalize( wset.SlaterMatrices(Alpha), ldet);
+      if(walker_type == COLLINEAR)
+        orthogonalize( wset.SlaterMatrices(Beta), ldet);
+      memory::buffered_array<MEM,ComplexType,1> wgt(nwalk);
+      wset.getProperty(WEIGHT, wgt);
+      auto wgt_h = nda::to_host(wgt);
+      auto ldet_h = nda::to_host(ldet);
+      wgt_h() *= nda::exp(scl*ldet_h());
+      wgt() = wgt_h();
+      wset.setProperty(WEIGHT, wgt);
+    }
+  }
+  else {
+    memory::buffered_array<MEM,ComplexType,1> scl_up(nwalk);
+    wset.getProperty(LOGSCL_UP, scl_up);
+    if(importance_sampling) {
+      orthogonalize_wQR(wset.UMatrices(Alpha), wset.DMatrices(Alpha), wset.VMatrices(Alpha), scl_up);
+      wset.setProperty(LOGSCL_UP, scl_up);
+      if(walker_type == COLLINEAR){
+        memory::buffered_array<MEM,ComplexType,1> scl_dn(nwalk);
+        wset.getProperty(LOGSCL_DN, scl_dn);
+        orthogonalize_wQR(wset.UMatrices(Beta), wset.DMatrices(Beta), wset.VMatrices(Beta), scl_dn);
+        wset.setProperty(LOGSCL_DN, scl_dn);
+      }
+    } else {
+      double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
+      orthogonalize_wQR(wset.UMatrices(Alpha), wset.DMatrices(Alpha), wset.VMatrices(Alpha), scl_up);
+      wset.setProperty(LOGSCL_UP, scl_up);
+      if(walker_type == COLLINEAR){
+        memory::buffered_array<MEM,ComplexType,1> scl_dn(nwalk);
+        wset.getProperty(LOGSCL_DN, scl_dn);
+        orthogonalize_wQR(wset.UMatrices(Beta), wset.DMatrices(Beta), wset.VMatrices(Beta), scl_dn);
+        wset.setProperty(LOGSCL_DN, scl_dn);
+      }
+      memory::buffered_array<MEM,ComplexType,1> wgt(nwalk);
+      wset.getProperty(WEIGHT, wgt);
+      auto wgt_h = nda::to_host(wgt);
+      auto ldet_h = nda::to_host(ldet);
+      wgt_h() *= nda::exp(scl*ldet_h());
+      wgt() = wgt_h();
+      wset.setProperty(WEIGHT, wgt);
+    }
   }
 }
 

@@ -344,7 +344,7 @@ public:
     std::array<long,2> shape = {tot_num_walkers,wlk_desc[0]};
     std::array<long,2> strides = {walker_buffer.strides()[0],1};
     nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,ComplexType,2>(idxm, walker_buffer.data() + i0);  
+    return memory::array_view<MEM,ComplexType,2>(idxm, walker_buffer.data() + i0);     
   } 
 
   auto extract_DM( SpinTypes s ) const {
@@ -352,7 +352,7 @@ public:
     std::array<long,2> shape = {tot_num_walkers,wlk_desc[0]};
     std::array<long,2> strides = {walker_buffer.strides()[0],1};
     nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,strides);
-    return memory::array_view<_M_,const ComplexType,2>(idxm, walker_buffer.data() + i0); 
+    return memory::array_view<MEM,const ComplexType,2>(idxm, walker_buffer.data() + i0); 
   }
 
   public:

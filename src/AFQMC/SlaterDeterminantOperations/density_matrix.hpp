@@ -418,35 +418,29 @@ void LUsolve(A_t && A, B_t && B, O_t && ovlp)
 
   utils::check(B.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch"); 
 
-  memory::buffered_array<MEM,Type,3,nda::F_layout> AT(NMO,NMO,nbatch);
   memory::buffered_array<MEM,Type,3,nda::F_layout> T0(NMO,NMO,nbatch);
-  memory::buffered_array<MEM,int,2,nda::F_layout> ipiv(NMO,nbatch);
+  memory::buffered_array<MEM,int,2> ipiv(nbatch,NMO);
   
   memory::buffered_array<MEM,Type,1> work;
  
   ipiv() = 0;
-
-  //nda::tensor::add(A,"nij",AT,"ijn");
-  //permute indices
-  AT = nda::permuted_indices_view<nda::encode(nda::permutations::cycle<3>(1))>(std::forward<A_t>(A));
 
   //nda::tensor::add(B,"nij",T0,"ijn");
   //permute indices
   T0 = nda::permuted_indices_view<nda::encode(nda::permutations::cycle<3>(1))>(std::forward<B_t>(B));
 
   // LU 
-  nda::lapack::getrf(AT,ipiv,work);
+  nda::lapack::getrf(A,ipiv,work);
 
   // Log(Ovlp)
-  math::log_determinant_from_getrf(AT,ipiv,ovlp);
+  math::log_determinant_from_getrf(A,ipiv,ovlp);
 
   // solve Ax = b
-  nda::lapack::getrs(AT,T0,ipiv);
+  nda::lapack::getrs(A,T0,ipiv);
 
   //nda::tensor::add(T0,"ijn",B,"nij");
   //permute indices
   B = nda::permuted_indices_view<nda::encode(nda::permutations::cycle<3>(2))>(T0);
-
 }
 
 }
@@ -875,6 +869,28 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
   utils::check(VR.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
   utils::check(G.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
+
+  // FIX : temporary hack to deal with CSR wavefunctions
+  memory::buffered_array<MEM,Type,2> ULdense(NMO,NMO);
+  memory::buffered_array<MEM,Type,1> DLdense(NMO);
+  memory::buffered_array<MEM,Type,2> VLdense(NMO,NMO);
+
+  if constexpr (CSRMatrix<A_t>) 
+    ULdense = math::sparse::to_array<'N'>(UL); 
+  else
+    ULdense = UL;
+  if constexpr (CSRMatrix<B_t>) 
+    DLdense = nda::diagonal(math::sparse::to_array<'N'>(DL)); 
+  else
+    DLdense = DL;
+  if constexpr (CSRMatrix<C_t>) 
+    VLdense = math::sparse::to_array<'N'>(VL);
+  else
+    VLdense = VL;
+
+  utils::check(ULdense.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+  //utils::check(DLdense.shape() == std::array<long,1>{NMO}, "Size mismatch");
+  utils::check(VLdense.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
 
   memory::buffered_array<MEM,Type,3> UL_inv_3D(1,NMO,NMO); // 3D to be compatible with log_determinant_from_getrf
   memory::buffered_array<MEM,Type,2> UL_inv(NMO,NMO);

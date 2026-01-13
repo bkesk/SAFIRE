@@ -306,8 +306,6 @@ public:
   {
     constexpr MEMORY_SPACE MEM_X = memory::get_memory_space<decltype(X)>();
     static_assert(MEM == MEM_X, "Memory space mismatch");
-    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int NMO   = PsiC.extent(2) / npol;
     int nwalk = X.extent(0);
     int nIJ = n2IJ.size();
