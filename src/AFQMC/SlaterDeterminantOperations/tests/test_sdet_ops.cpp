@@ -432,10 +432,17 @@ void SDetOps()
       matrix DR(nwalk,NMO); copy_to_array(m_dr,DR);
       array VR(nwalk,NMO,NMO); copy_to_array(m_vr,VR);
 
+      // first check computation of only PT = det[G^-1]
+      det_ops::Log_Overlap(UL, DL, VL, UR, DR, VR, sclL(0), sclR, ovlp);
+
+      ARRAY_EQUAL(ovlp,pt_ref);
+
+      // next check computation of G
       det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL(0), sclR, false, false);
 
       ARRAY_EQUAL(G,g_ref);
       ARRAY_EQUAL(ovlp,pt_ref);
+
     }
 
     // orthogonalization test

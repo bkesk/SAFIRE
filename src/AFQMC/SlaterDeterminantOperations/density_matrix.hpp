@@ -34,87 +34,6 @@ namespace det_ops
 namespace detail
 {
 
-template<typename A_t, nda::MemoryArrayOfRank<3> B_t, nda::MemoryArrayOfRank<1> O_t,
-         nda::MemoryArrayOfRank<3> T_t>
-requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
-          nda::mem::have_compatible_addr_space<A_t,B_t,O_t,T_t> and
-          nda::have_same_value_type_v<A_t, B_t, O_t, T_t> and
-          std::decay_t<B_t>::is_stride_order_C() and std::decay_t<T_t>::is_stride_order_C()
-        )
-void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool herm = true, bool invert = false)
-{
-  constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
-  using Type = nda::get_value_t<B_t>;
-
-  auto [nbatch, NMO, NEL] = B.shape();
-  if(herm)
-    utils::check(A.shape() == std::array<long,2>{NEL,NMO}, "Size mismatch");
-  else
-    utils::check(A.shape() == std::array<long,2>{NMO,NEL}, "Size mismatch");
-  utils::check(ovlp.size() >= nbatch, "");
-  utils::check(TNN.shape() == std::array<long,3>{nbatch,NEL,NEL}, "Size mismatch"); 
-
-  memory::buffered_array<MEM,int,2> ipiv(nbatch,NEL);
-  memory::buffered_array<MEM,Type,1> work;
-  ipiv() = 0;
-
-  if constexpr (CSRMatrix<A_t>) {
-    if(herm)
-      math::sparse::csrmm<'N'>(A,B,TNN);
-    else
-      math::sparse::csrmm<'H'>(A,B,TNN);
-  } else {
-    if(herm)
-      nda::tensor::contract(A,"ij",B,"njk",TNN,"nik");
-    else
-      nda::tensor::contract(nda::conj(A),"ji",B,"njk",TNN,"nik");
-  }
-
-  // LU 
-  nda::lapack::getrf(TNN,ipiv,work);
-
-  // Log(Ovlp)
-  math::log_determinant_from_getrf(TNN,ipiv,ovlp);
-
-  // Invert
-  if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
-}
-
-template<nda::MemoryArrayOfRank<3> A_t, nda::MemoryArrayOfRank<3> B_t, 
-         nda::MemoryArrayOfRank<1> O_t, nda::MemoryArrayOfRank<3> T_t>
-requires( nda::mem::have_compatible_addr_space<A_t,B_t,O_t,T_t> and
-          nda::have_same_value_type_v<A_t, B_t, O_t, T_t> and
-          std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C() and
-          std::decay_t<T_t>::is_stride_order_C() 
-        )
-void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool invert = false)
-{
-  constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
-  using Type = nda::get_value_t<B_t>;
-
-  auto [nbatch, NMO, NEL] = B.shape();
-  utils::check(A.shape() == B.shape(), "Size mismatch");
-  utils::check(ovlp.size() >= nbatch, "");
-  utils::check(TNN.shape() == std::array<long,3>{nbatch,NEL,NEL}, "Size mismatch");
-
-  memory::buffered_array<MEM,int,2> ipiv(nbatch,NEL);
-  memory::buffered_array<MEM,Type,1> work;
-  ipiv() = 0;
-
-  nda::tensor::contract(nda::conj(A),"nji",B,"njk",TNN,"nik");
-
-  // LU 
-  nda::lapack::getrf(TNN,ipiv,work);
-
-  // Log(Ovlp)
-  math::log_determinant_from_getrf(TNN,ipiv,ovlp);
-
-  // Invert
-  if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
-}
-
 //inverse and log(det)
 template<typename A_t, typename O_t, typename T_t>
 requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
@@ -283,6 +202,206 @@ auto splitDmatrix(A_t const& A, B_t&& B, C_t&& C, T_t const& scl0)
 
 }
 
+template<typename A_t, nda::MemoryArrayOfRank<3> B_t, nda::MemoryArrayOfRank<1> O_t,
+         nda::MemoryArrayOfRank<3> T_t>
+requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
+          nda::mem::have_compatible_addr_space<A_t,B_t,O_t,T_t> and
+          nda::have_same_value_type_v<A_t, B_t, O_t, T_t> and
+          std::decay_t<B_t>::is_stride_order_C() and std::decay_t<T_t>::is_stride_order_C()
+        )
+void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool herm = true, bool invert = false)
+{
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
+  using Type = nda::get_value_t<B_t>;
+
+  auto [nbatch, NMO, NEL] = B.shape();
+  if(herm)
+    utils::check(A.shape() == std::array<long,2>{NEL,NMO}, "Size mismatch");
+  else
+    utils::check(A.shape() == std::array<long,2>{NMO,NEL}, "Size mismatch");
+  utils::check(ovlp.size() >= nbatch, "");
+  utils::check(TNN.shape() == std::array<long,3>{nbatch,NEL,NEL}, "Size mismatch"); 
+
+  memory::buffered_array<MEM,int,2> ipiv(nbatch,NEL);
+  memory::buffered_array<MEM,Type,1> work;
+  ipiv() = 0;
+
+  if constexpr (CSRMatrix<A_t>) {
+    if(herm)
+      math::sparse::csrmm<'N'>(A,B,TNN);
+    else
+      math::sparse::csrmm<'H'>(A,B,TNN);
+  } else {
+    if(herm)
+      nda::tensor::contract(A,"ij",B,"njk",TNN,"nik");
+    else
+      nda::tensor::contract(nda::conj(A),"ji",B,"njk",TNN,"nik");
+  }
+
+  // LU 
+  nda::lapack::getrf(TNN,ipiv,work);
+
+  // Log(Ovlp)
+  math::log_determinant_from_getrf(TNN,ipiv,ovlp);
+
+  // Invert
+  if(invert)
+    nda::lapack::getri(TNN,ipiv,work);
+}
+
+template<nda::MemoryArrayOfRank<3> A_t, nda::MemoryArrayOfRank<3> B_t, 
+         nda::MemoryArrayOfRank<1> O_t, nda::MemoryArrayOfRank<3> T_t>
+requires( nda::mem::have_compatible_addr_space<A_t,B_t,O_t,T_t> and
+          nda::have_same_value_type_v<A_t, B_t, O_t, T_t> and
+          std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C() and
+          std::decay_t<T_t>::is_stride_order_C() 
+        )
+void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool invert = false)
+{
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
+  using Type = nda::get_value_t<B_t>;
+
+  auto [nbatch, NMO, NEL] = B.shape();
+  utils::check(A.shape() == B.shape(), "Size mismatch");
+  utils::check(ovlp.size() >= nbatch, "");
+  utils::check(TNN.shape() == std::array<long,3>{nbatch,NEL,NEL}, "Size mismatch");
+
+  memory::buffered_array<MEM,int,2> ipiv(nbatch,NEL);
+  memory::buffered_array<MEM,Type,1> work;
+  ipiv() = 0;
+
+  nda::tensor::contract(nda::conj(A),"nji",B,"njk",TNN,"nik");
+
+  // LU 
+  nda::lapack::getrf(TNN,ipiv,work);
+
+  // Log(Ovlp)
+  math::log_determinant_from_getrf(TNN,ipiv,ovlp);
+
+  // Invert
+  if(invert)
+    nda::lapack::getri(TNN,ipiv,work);
+}
+
+//finite-T
+template<typename UL_t, typename DL_t, typename VL_t,
+             nda::MemoryArrayOfRank<3> UR_t, nda::MemoryArrayOfRank<2> DR_t,
+             nda::MemoryArrayOfRank<3> VR_t, nda::MemoryArrayOfRank<1> O_t,
+             nda::MemoryArrayOfRank<3> T_t, typename SL_t, nda::MemoryArrayOfRank<1> SR_t>
+requires( (CSRMatrix<UL_t> or nda::MemoryMatrix<UL_t>) and
+          (CSRMatrix<DL_t> or nda::MemoryVector<DL_t>) and
+          (CSRMatrix<VL_t> or nda::MemoryMatrix<VL_t>) and
+          nda::mem::have_compatible_addr_space<UL_t,DL_t,VL_t,UR_t,DR_t,VR_t,O_t,T_t,SR_t> and
+          nda::have_same_value_type_v<UL_t,DL_t,VL_t,UR_t,DR_t,VR_t,O_t,T_t,SR_t> and
+          std::decay_t<UR_t>::is_stride_order_C() and std::decay_t<DR_t>::is_stride_order_C()
+          and std::decay_t<VR_t>::is_stride_order_C() and std::decay_t<T_t>::is_stride_order_C()
+        )
+void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
+                      UR_t && UR, DR_t && DR, VR_t && VR, SL_t const& sclL, SR_t const& sclR,
+                      O_t && ovlp, T_t && TNN, bool invert = false)
+{
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<UL_t>();
+  using Type = nda::get_value_t<UR_t>;
+
+  auto [nbatch, NMO, NEL] = UR.shape();
+
+  utils::check(UL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+  utils::check(ovlp.size() >= nbatch, "");
+  utils::check(TNN.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch"); 
+  utils::check(DR.shape() == std::array<long,2>{nbatch,NMO}, "Size mismatch");
+  utils::check(VR.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
+
+  // FIX : temporary hack to deal with CSR wavefunctions
+  memory::buffered_array<MEM,Type,2> ULdense(NMO,NMO);
+  memory::buffered_array<MEM,Type,1> DLdense(NMO);
+  memory::buffered_array<MEM,Type,2> VLdense(NMO,NMO);
+
+  if constexpr (CSRMatrix<UL_t>) 
+    ULdense = math::sparse::to_array<'N'>(UL); 
+  else
+    ULdense = UL;
+  if constexpr (CSRMatrix<DL_t>) 
+    DLdense = nda::diagonal(math::sparse::to_array<'N'>(DL)); 
+  else
+    DLdense = DL;
+  if constexpr (CSRMatrix<VL_t>) 
+    VLdense = math::sparse::to_array<'N'>(VL);
+  else
+    VLdense = VL;
+
+  utils::check(ULdense.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+  utils::check(VLdense.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+
+  memory::buffered_array<MEM,Type,3> UL_inv_3D(1,NMO,NMO); // 3D to be compatible with log_determinant_from_getrf
+  memory::buffered_array<MEM,Type,2> UL_inv(NMO,NMO);
+  memory::buffered_array<MEM,Type,2> DL_UL(NMO,NMO);
+  memory::buffered_array<MEM,Type,3> UR_inv(nbatch,NMO,NMO);
+  memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
+  memory::buffered_array<MEM,Type,3> M2(nbatch,NMO,NMO);
+
+  Type logdetDL;
+  // matrices to store terms to compute log(P_T)
+  memory::buffered_array<MEM,Type,1> logdetDL_vec(nbatch,Type(0.0));
+  memory::buffered_array<MEM,Type,1> logdetUL(1,Type(0.0));
+  memory::buffered_array<MEM,Type,1> logdetUL_vec(nbatch,Type(0.0));
+  memory::buffered_array<MEM,Type,1> logdetDR(nbatch,Type(0.0));
+  memory::buffered_array<MEM,Type,1> logdetUR(nbatch,Type(0.0));
+  memory::buffered_array<MEM,Type,1> logdetM(nbatch,Type(0.0));
+
+  // matrices to store terms to Dmax^-1, Dmin
+  memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
+  memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
+  memory::buffered_array<MEM,Type,1> DLmin(NMO);
+  memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
+
+  logdetDL = detail::splitDmatrix(DL, DLmin, DLmax_inv, sclL);
+  logdetDL_vec() = logdetDL;
+  detail::splitDmatrix(DR, DRmin, DRmax_inv, logdetDR, sclR);
+
+  memory::buffered_array<MEM,int,2> ipiv(nbatch,NMO);
+  memory::buffered_array<MEM,Type,1> work;
+ 
+  ipiv() = 0;
+
+  // UL^-1
+  detail::inverse_logdet(ULdense,logdetUL,UL_inv_3D);
+  UL_inv() = UL_inv_3D(0,nda::ellipsis{});
+  logdetUL_vec() = logdetUL(0);
+  // UR^-1
+  detail::inverse_logdet(UR,logdetUR,UR_inv);
+
+  // UR^-1*UL^-1
+  nda::tensor::contract(UR_inv,"nik",UL_inv,"kj",M1,"nij");
+
+  // DRmax^-1*UR^-1*UL^-1
+  nda::tensor::contract(M1,"nij",DRmax_inv,"ni",TNN,"nij");
+
+  // DRmax^-1*UR^-1*UL^-1*DLmax^-1
+  nda::tensor::contract(TNN,"nij",DLmax_inv,"j",M1,"nij");
+
+  // VR * VL
+  nda::tensor::contract(VR,"nij",VLdense,"jk",TNN,"nik");
+
+  // DRmin*VR*VL
+  nda::tensor::contract(TNN,"nij",DRmin,"ni",M2,"nij");
+  
+  // DRmin*VR*VL*DLmin
+  nda::tensor::contract(M2,"nij",DLmin,"j",TNN,"nij");
+
+  //M2 <-- M1 + M2;
+  nda::tensor::add(ComplexType(1.0),M1,"nij",ComplexType(1.0),TNN,"nij");
+
+  // LU of [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]
+  nda::lapack::getrf(TNN,ipiv,work);
+
+  // Log(Ovlp)
+  math::log_determinant_from_getrf(TNN,ipiv,logdetM);
+
+  // log(PT) = log(detUR) + log(detDRmax) + log(detM3) + log(detDLmax) + log(detUL)
+  ovlp(nda::range(nbatch)) = logdetUR + logdetDR + logdetM + logdetDL_vec + logdetUL_vec; 
+
+}
+
 
 template<nda::MemoryArrayOfRank<3> A_t, nda::MemoryArrayOfRank<3> B_t, typename O_t>
 requires( nda::mem::have_compatible_addr_space<A_t,B_t,O_t> and
@@ -364,6 +483,27 @@ void Log_Overlap(A_t const& A, B_t const& B, O_t && ovlp)
   memory::buffered_array<MEM,Type,3> TNN(nbatch,NEL,NEL);
 
   detail::log_overlap_impl(A,B,ovlp,TNN);
+}
+
+// finite-T
+template<typename UL_t, typename DL_t, typename VL_t, nda::MemoryArrayOfRank<3> UR_t,
+         nda::MemoryArrayOfRank<2> DR_t, nda::MemoryArrayOfRank<3> VR_t, nda::MemoryArrayOfRank<1> O_t,
+         typename SL_t, nda::MemoryArrayOfRank<1> SR_t>
+requires( nda::mem::have_compatible_addr_space<UL_t,DL_t,VL_t,UR_t,DR_t,VR_t,O_t,SR_t> and
+          nda::have_same_value_type_v<UL_t,DL_t,VL_t,UR_t,DR_t,VR_t,O_t,SL_t,SR_t> and
+          std::decay_t<UR_t>::is_stride_order_C() and std::decay_t<DR_t>::is_stride_order_C()
+          and std::decay_t<VR_t>::is_stride_order_C()        
+        )
+void Log_Overlap(UL_t const& UL, DL_t const& DL, VL_t const& VL,
+                 UR_t && UR, DR_t && DR, VR_t && VR, SL_t const& sclL, SR_t const& sclR, O_t && ovlp)
+{
+  utils::check_strides(UL,DL,VL,UR,DR,VR,ovlp);
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<UL_t>();
+  using Type = nda::get_value_t<UR_t>;
+  auto [nbatch, NMO, NEL] = UR.shape();
+  memory::buffered_array<MEM,Type,3> TNN(nbatch,NMO,NMO);
+
+  detail::log_overlap_impl(UL,DL,VL,UR,DR,VR,sclL,sclR,ovlp,TNN);
 }
 
 template<typename A_t, nda::MemoryArrayOfRank<3> B_t, nda::MemoryArrayOfRank<1> O_t,
@@ -714,6 +854,8 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
                         G_t && G, O_t && ovlp, SL_t const& sclL, SR_t const& sclR, 
                         bool unitaryL = false, bool unitaryR = false)
 {
+
+  // FIX : unitaryL, unitaryR are not currently used
   utils::check_strides(UR,DR,VR,G,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
