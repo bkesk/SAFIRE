@@ -464,7 +464,7 @@ void Log_Overlap(UL_t const& UL, DL_t const& DL, VL_t const& VL,
                  UR_t && UR, DR_t && DR, VR_t && VR, SL_t const& sclL, SR_t const& sclR, O_t && ovlp, 
                  bool unitaryL = false, bool unitaryR = false)
 {
-  utils::check_strides(UL,DL,VL,UR,DR,VR,ovlp);
+  utils::check_strides(UR,DR,VR,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<UL_t>();
   using Type = nda::get_value_t<UR_t>;
   auto [nbatch, NMO, NEL] = UR.shape();

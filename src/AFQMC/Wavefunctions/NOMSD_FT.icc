@@ -258,6 +258,8 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
   memory::check_memory_space<MEM>(Ov);
   const int ndet = ci.size();
   const int nw   = wset.size();
+  const int nspin = walker_type == COLLINEAR_FT ? 2 : 1;
+  const int npol = walker_type == NONCOLLINEAR_FT ? 2 : 1;
   utils::check(Ov.size() == nw, "Size mismatch");
   // Log_Overlap accumulates!!!
   Ov() = ComplexType(0.0);
@@ -352,8 +354,6 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
     */ 
   }
 }
-
-
 
 /*
 template<MEMORY_SPACE MEM, class devPsiT>

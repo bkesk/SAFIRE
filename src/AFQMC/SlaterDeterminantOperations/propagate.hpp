@@ -316,24 +316,50 @@ void PropagateWlkSet(WlkSet& wset, P_t const& P1, V_t const& V, int order = 6, c
   if constexpr ( nda::MemoryArrayOfRank<V_t,4> ) {
     long nspin_V = V.extent(0);
     if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
-      Propagate(wset.SlaterMatrices(Alpha),P1(0,nda::ellipsis{}),V(0,all,all,all),order,TA);
-      if(walker_type==COLLINEAR)
-        Propagate(wset.SlaterMatrices(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V,all,all,all),order,TA);
+      if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
+        Propagate(wset.SlaterMatrices(Alpha),P1(0,nda::ellipsis{}),V(0,all,all,all),order,TA);
+        if(walker_type==COLLINEAR)
+          Propagate(wset.SlaterMatrices(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V,all,all,all),order,TA);
+      }
+      else {
+        Propagate(wset.UMatrices(Alpha),P1(0,nda::ellipsis{}),V(0,all,all,all),order,TA);
+        if(walker_type==COLLINEAR_FT)
+          Propagate(wset.UMatrices(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V,all,all,all),order,TA);
+      }
     } else {
-      Propagate(wset.SlaterMatrices(Alpha),P1(0),V(0,all,all,all),order,TA);
-      if(walker_type==COLLINEAR)
-        Propagate(wset.SlaterMatrices(Beta),P1(1%nspin_P1),V(1%nspin_V,all,all,all),order,TA);
+      if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
+        Propagate(wset.SlaterMatrices(Alpha),P1(0),V(0,all,all,all),order,TA);
+        if(walker_type==COLLINEAR)
+          Propagate(wset.SlaterMatrices(Beta),P1(1%nspin_P1),V(1%nspin_V,all,all,all),order,TA);
+      }
+      else {
+        Propagate(wset.UMatrices(Alpha),P1(0),V(0,all,all,all),order,TA);
+        if(walker_type==COLLINEAR_FT)
+          Propagate(wset.UMatrices(Beta),P1(1%nspin_P1),V(1%nspin_V,all,all,all),order,TA);
+      }
     }
   } else {
     long nspin_V = V.extent(0);
     if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
-      Propagate(wset.SlaterMatrices(Alpha),P1(0,nda::ellipsis{}),V(0),order,TA);
-      if(walker_type==COLLINEAR)
-        Propagate(wset.SlaterMatrices(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V),order,TA);
+      if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
+        Propagate(wset.SlaterMatrices(Alpha),P1(0,nda::ellipsis{}),V(0),order,TA);
+        if(walker_type==COLLINEAR)
+          Propagate(wset.SlaterMatrices(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V),order,TA);
+      } else {
+        Propagate(wset.UMatrices(Alpha),P1(0,nda::ellipsis{}),V(0),order,TA);
+        if(walker_type==COLLINEAR_FT)
+          Propagate(wset.UMatrices(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V),order,TA);
+      }
     } else {
-      Propagate(wset.SlaterMatrices(Alpha),P1(0),V(0),order,TA);
-      if(walker_type==COLLINEAR)
-        Propagate(wset.SlaterMatrices(Beta),P1(1%nspin_P1),V(1%nspin_V),order,TA);
+        if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
+          Propagate(wset.SlaterMatrices(Alpha),P1(0),V(0),order,TA);
+          if(walker_type==COLLINEAR)
+            Propagate(wset.SlaterMatrices(Beta),P1(1%nspin_P1),V(1%nspin_V),order,TA);
+        } else {
+          Propagate(wset.UMatrices(Alpha),P1(0),V(0),order,TA);
+          if(walker_type==COLLINEAR_FT)
+            Propagate(wset.UMatrices(Beta),P1(1%nspin_P1),V(1%nspin_V),order,TA);
+        }
     }
   }
 }

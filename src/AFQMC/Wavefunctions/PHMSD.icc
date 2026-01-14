@@ -722,7 +722,7 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
  */
 template<MEMORY_SPACE MEM>
 template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-void PHMSD<MEM>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
+void PHMSD<MEM>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
 {
   using nda::range;
   auto all = range::all;

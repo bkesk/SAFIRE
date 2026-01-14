@@ -75,11 +75,17 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
   auto[wfn_NMO,nup, ndown] = read_info_from_wfn(wfn_file,"any");
   utils::check(NMO == wfn_NMO, "Error: NMO != wfn_NMO.");
   WALKER_TYPES type         = getWalkerType(wfn_file);
-  int nspin                 = (type == COLLINEAR) ? 2 : 1;
-  int npol                  = (type == NONCOLLINEAR) ? 2 : 1;
+  int nspin                 = (type == COLLINEAR or type == COLLINEAR_FT) ? 2 : 1;
+  int npol                  = (type == NONCOLLINEAR or type == NONCOLLINEAR_FT) ? 2 : 1;
 
+  int ntau = 0;
+  if(type == COLLINEAR_FT or type == NONCOLLINEAR_FT){
+    ntau = nup;
+    nup = NMO;
+    ndown = NMO;
+  }
   std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
+  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown, ntau}));
 
   ptree ham_pt;
   ham_pt.put("name","ham0");
@@ -100,6 +106,8 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
   else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
   else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
   else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
+  else if(type == COLLINEAR_FT) wlk_pt.put("walker_type","collinear-ft");
+  else if(type == NONCOLLINEAR_FT) wlk_pt.put("walker_type","noncollinear-ft");
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
 
   ptree wfn_pt;
@@ -112,9 +120,18 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
   WfnFac.push("wfn0", wfn_pt);
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 
-  auto initial_guess = WfnFac.getInitialGuess("wfn0");
-  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
-  wset.resize(nwalk, initial_guess);
+  if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT)
+  {
+    auto initial_guess = WfnFac.getInitialGuess("wfn0"); 
+    REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+    wset.resize(nwalk, initial_guess);
+  }
+  else
+  {
+    auto initial_guess_ft = WfnFac.getInitialGuess_ft("wfn0"); 
+    REQUIRE(initial_guess_ft.shape() == std::array<long,4>{3,nspin,npol*NMO,NMO});
+    wset.resize(nwalk, initial_guess_ft);
+  }
 
   ptree prop_pt;
   prop_pt.put("name","prop0");
@@ -139,33 +156,51 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
   double tot_time = 0;
   RealType dt     = 0.01;
   RealType Eshift = std::abs(wset[0].get_property(OVLP));
-  for (int i = 0; i < 10; i++)
-  {
-    prop.Propagate(wset, Eshift, dt);
-    wfn.Energy(wset);
-    ComplexType eav = 0, ov = 0;
-    for (auto it = wset.begin(); it != wset.end(); ++it)
+  if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT){
+    for (int i = 0; i < 10; i++)
     {
-      eav += it->get_property(WEIGHT) * (it->energy());
-      ov += it->get_property(WEIGHT);
+      prop.Propagate(wset, Eshift, dt);
+      wfn.Energy(wset);
+      ComplexType eav = 0, ov = 0;
+      for (auto it = wset.begin(); it != wset.end(); ++it)
+      {
+        eav += it->get_property(WEIGHT) * (it->energy());
+        ov += it->get_property(WEIGHT);
+      }
+      tot_time += dt;
+      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
+      prop.Orthogonalize(wset);
     }
-    tot_time += dt;
-    app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-    prop.Orthogonalize(wset);
-  }
-  for (int i = 0; i < 10; i++)
-  {
-    prop.Propagate(wset, Eshift, 2 * dt);
-    wfn.Energy(wset);
-    ComplexType eav = 0, ov = 0;
-    for (auto it = wset.begin(); it != wset.end(); ++it)
+    for (int i = 0; i < 10; i++)
     {
-      eav += it->get_property(WEIGHT) * (it->energy());
-      ov += it->get_property(WEIGHT);
+      prop.Propagate(wset, Eshift, 2 * dt);
+      wfn.Energy(wset);
+      ComplexType eav = 0, ov = 0;
+      for (auto it = wset.begin(); it != wset.end(); ++it)
+      {
+        eav += it->get_property(WEIGHT) * (it->energy());
+        ov += it->get_property(WEIGHT);
+      }
+      tot_time += 2 * dt;
+      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
+      prop.Orthogonalize(wset);
     }
-    tot_time += 2 * dt;
-    app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-    prop.Orthogonalize(wset);
+  } 
+  else {
+    for(int i = 0; i < ntau; i++)
+    {
+      prop.Propagate(wset, Eshift, dt, i);
+      wfn.Energy(wset, i);
+      ComplexType eav = 0, ov = 0;
+      for (auto it = wset.begin(); it != wset.end(); ++it)
+      {
+        eav += it->get_property(WEIGHT) * (it->energy());
+        ov += it->get_property(WEIGHT);
+      }
+      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
+      prop.Orthogonalize(wset);
+      tot_time += dt;
+    }
   }
 std::cout<<" setup: " <<AFQMCTimer.elapsed(setup_timer) <<std::endl;
   if(mpi->comm.root()) AFQMCTimer.print_all();

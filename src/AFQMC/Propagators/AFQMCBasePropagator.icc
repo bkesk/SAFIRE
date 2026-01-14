@@ -44,13 +44,13 @@ namespace afqmc
  */
 template<MEMORY_SPACE MEM>
 template<class WlkSet>
-void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType dt)
+void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType dt, int nt)
 {
   AFQMCTimer.start(setup_timer);
   auto walker_type = wset.getWalkerType();
   int nwalk        = wset.size();
-  int npol  = ( walker_type == NONCOLLINEAR ? 2 : 1 );
-  int nspin = ( walker_type == COLLINEAR    ? 2 : 1 );
+  int npol  = ( walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT ? 2 : 1 );
+  int nspin = ( walker_type == COLLINEAR or walker_type == COLLINEAR_FT ? 2 : 1 );
   SPRealType sqrtdt  = std::sqrt(SPRealType(dt));
   int nCV     = wfn->number_of_cholesky_vectors();
 
@@ -73,7 +73,10 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   }
   else
   {
-    wfn->vbias(wset, X, dt);
+    if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT)
+      wfn->vbias(wset, X, dt);
+    else
+      wfn->vbias(wset, X, nt-1);
   }
   //std::cout<<" vbias: " <<nda::sum(nda::to_host(X)) <<std::endl;
 
@@ -123,7 +126,10 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   AFQMCTimer.start(pseudo_energy_timer);
   if (hybrid)
   {
-    wfn->Log_Overlap(wset, new_overlaps);
+    if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT)
+      wfn->Log_Overlap(wset, new_overlaps);
+    else
+      wfn->Log_Overlap(wset, new_overlaps, nt);
   }
   else
   {
@@ -139,6 +145,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   }
   else if (hybrid)
   {
+    // FIX : does anything need to be updated here for finite-T?
     hybrid_walker_update(wset, dt, apply_constrain, importance_sampling, Eshift, new_overlaps, MFfactor,
                          hybrid_weight, lower_cutoff_scale, upper_cutoff_scale, true, debug_verbosity);
   }
@@ -593,6 +600,7 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
 
 // Doing this on host for now!!!
 #if defined(ENABLE_DEVICE)
+  // FIX : include factor of (1/2) in HWs?
   if constexpr (MEM==DEVICE_MEMORY) {
     kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X);
   } else
@@ -634,6 +642,7 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
           utils::check(not free_projection, "Finish FP DiscretePropagator");
           ComplexType vdiff =
               free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
+          // FIX : include factor of (1/2) in HWs?
           auto wp = std::abs(std::exp(vdiff));
           auto wm = std::abs(std::exp(-vdiff));
           auto P = wm/(wp+wm);

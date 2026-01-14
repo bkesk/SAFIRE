@@ -181,8 +181,8 @@ public:
     {
       //    read_external_field(H1ext);
       auto walker_type = wfn->getWalkerType();
-      int npol  = ( walker_type == NONCOLLINEAR ? 2 : 1 );
-      int nspin = ( walker_type == COLLINEAR    ? 2 : 1 );
+      int npol  = ( walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT ? 2 : 1 );
+      int nspin = ( walker_type == COLLINEAR  or walker_type == COLLINEAR_FT  ? 2 : 1 );
       external_H1 = true;
       H1ext = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,std::array<long,3>{nspin,npol*NMO,npol*NMO}); 
       if (mpi->node_comm.root())
@@ -279,7 +279,7 @@ public:
   AFQMCBasePropagator& operator=(AFQMCBasePropagator&& other) = delete;
 
   template<class WlkSet>
-  void Propagate(WlkSet& wset, RealType E1, RealType dt);
+  void Propagate(WlkSet& wset, RealType E1, RealType dt, int nt = 0);
 /*
   template<class WlkSet, class CTens, class CMat>
   void BackPropagate(int steps, int nStabalize, WlkSet& wset, CTens&& Refs, CMat&& logdetR);
