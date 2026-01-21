@@ -22,6 +22,8 @@
 #include "nda/tensor.hpp" 
 #include "numerics/sparse/sparse.hpp"
 #include "numerics/operations/determinants.hpp"
+#include "numerics/operations/tensor.hpp"
+#include "numerics/nda_linalg_lapack_extensions.hpp"
   
 namespace sfqmc
 { 
@@ -101,8 +103,9 @@ namespace det_ops
     }
 
     /*
-      Routine to get Q, R matrices from QR decomposition, borrowed from nda library
+      Routine to get Q, R matrices from QR decomposition
     */
+   /*
     template <nda::MemoryArrayOfRank<3> A, nda::MemoryMatrix TAU>
       requires(nda::mem::have_host_compatible_addr_space<A, TAU> and nda::have_same_value_type_v<A, TAU> 
               and nda::is_blas_lapack_v<nda::get_value_t<A>>)
@@ -136,6 +139,7 @@ namespace det_ops
       return std::make_tuple(Q, R);
 
     }
+    */
 
   }
 
@@ -217,7 +221,8 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
   // pivoted QR : U*D = Q*R*P^T
   nda::lapack::geqp3(UT,jpvt,tau,work);
   // get Q, R
-  std::tie(UT,VT) = detail::get_qr_matrices(UT, tau, true);
+  //std::tie(UT,VT) = detail::get_qr_matrices(UT, tau, true);
+  std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
 
   // get permutation matrices as tensor
   P = nda::linalg::get_permutation_array<Type>(jpvt);
