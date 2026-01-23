@@ -29,3 +29,4 @@ if(ENABLE_CUDA)
 endif()
 install(TARGETS fft_lib
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+

@@ -49,7 +49,8 @@ namespace afqmc
 
 // assumes wfn.Energy(Wset) has been called
 // Then prints the energy breakdown
-void print_initial_energy(WalkerSet& wset){
+template<typename WlkSet>
+void print_initial_energy(WlkSet& wset){
   app_log(1," Local Energy of starting determinant ");
   //app_log(1," <psi_T|H|w_0>/<psi_T|w_0>: ");
   app_log(1,"  - Total energy    : {:f}", wset[0].energy());
@@ -58,7 +59,8 @@ void print_initial_energy(WalkerSet& wset){
   app_log(1,"  - Exchange energy : {:f}", wset[0].get_property(EXX_));
 }
 
-bool DriverFactory::executeDriver(std::string type, std::string title, 
+template<MEMORY_SPACE MEM>
+bool DriverFactory<MEM>::executeDriver(std::string type, std::string title, 
 				  int m_series, ptree pt)
 {
   if (type == "afqmc")
@@ -82,7 +84,8 @@ bool DriverFactory::executeDriver(std::string type, std::string title,
 // (possibly nameless) declaration. 
 // After the successful return of this routine (e.g. wfn_name), we can assume that
 // WfnFac.get_input(wfn_name) exists and it contains a non-empty filename.
-std::string DriverFactory::get_wavefunction_id(ptree pt)
+template<MEMORY_SPACE MEM>
+std::string DriverFactory<MEM>::get_wavefunction_id(ptree pt)
 {
   std::string name("");
   if( auto pt_ = pt.get_child_optional("wavefunction") ) {
@@ -102,7 +105,7 @@ std::string DriverFactory::get_wavefunction_id(ptree pt)
         // check that it exists in factory
         auto wfn_pt = WfnFac.get_input(*val);
         // check that it contains a non-empty filename
-        if(wfn_pt.get<std::string>("filename","") == "")
+        if(wfn_pt.template get<std::string>("filename","") == "")
           utils::check(false," Error: wavefunction must contain a filename. ");
         return *val;
       } else
@@ -114,68 +117,20 @@ std::string DriverFactory::get_wavefunction_id(ptree pt)
   return name;
 }
 
-// this routine gets the node with key "key" from the property tree ptree. Then:
-// 1. If the node has a non-empty string as a value, it will check that the Factory
-//    provided has an input block defined with this identifier, otherwise the code aborts.
-//    In this case, the value of the node is returned. 
-// 2. If the node contains child ptrees, the node will be pushed into the provided Factory.
-//    If such node contains a "name", it is returned. If it doesn't, a unique name is made and returned.
-// 3. If the node contains an empty string and no child ptrees or no node is found, 
-//    then the provided (default) ptree is pushed into the factory with a unique name.
-template<class Factory>
-std::string DriverFactory::get_or_push(std::string key, ptree pt, Factory& fac, ptree default_ptree, std::string system)
-{
-  std::string name("");
-  if( auto pt_ = pt.get_child_optional(key) ) {
-    if( pt_->size() > 0 ) {
-      // assume declaration
-      if( pt_->get<std::string>("system","") == "")
-        pt_->put("system",system);
-      auto val = pt_->get<std::string>("name","");
-      if( val != "" ) {
-        fac.push(val, *pt_);
-        return val;
-      } else {
-        // unname block, set name and push
-        name = key + std::string("_unique_id_") + std::to_string(++unique_id);
-        pt_->put("name",name);
-        fac.push(name, *pt_);
-        return name;
-      }
-    } else if( auto val = pt_->get_value_optional<std::string>() ) {
-      if(*val != "") {
-        // a name is provided, retrieve it to make sure it exists 
-        ptree dummy = fac.get_input(*val);
-        if( dummy.get<std::string>("system","") == "" )
-          fac.get_input(*val).put("system",system);
-        return *val;
-      }
-    // if val=="", then construct further below
-    } else
-      utils::check(false," Error reading input: " + key);
-  }
-  // make name and push default
-  if(name == "") {
-    name = key + std::string("_unique_id_") + std::to_string(++unique_id);
-    default_ptree.put("name",name);
-    fac.push(name, default_ptree);
-  }
-  return name;
-}
-
 // similar to get_or_push, but customized for AFQMCInfo
-std::string DriverFactory::get_system_id(ptree pt, std::string wfn_name)
+template<MEMORY_SPACE MEM>
+std::string DriverFactory<MEM>::get_system_id(ptree pt, std::string wfn_name)
 {
   std::string name("");
   auto wfn_pt = WfnFac.get_input(wfn_name);
-  std::string filename = wfn_pt.get<std::string>("filename","");
+  std::string filename = wfn_pt.template get<std::string>("filename","");
   const auto [nmo,nup,ndn] = read_info_from_wfn(filename,"any");
   if(ndn > nup)
     utils::check(false," Error  nup < ndown: Up spin must be the majority spin. nup: {}, ndown: {}",nup,ndn);
   if( auto pt_ = pt.get_child_optional("system") ) {
     if(pt_->size() > 0) {
       // input block provided, build ptree to reuse parse routine
-      name = pt_->get<std::string>("name","");
+      name = pt_->template get<std::string>("name","");
       if(name == "")
         name = std::string("sysid_") + std::to_string(++unique_id);
       if(InfoMap.find(name) == InfoMap.end()) {
@@ -204,13 +159,14 @@ std::string DriverFactory::get_system_id(ptree pt, std::string wfn_name)
   } 
 
   // add to WfnFac.get_input(wfn_name) if missing
-  if(wfn_pt.get<std::string>("system","") == "")
+  if(wfn_pt.template get<std::string>("system","") == "")
     WfnFac.get_input(wfn_name).put("system",name);
   return name;
 }
 
+template<MEMORY_SPACE MEM>
 std::tuple<std::string,std::string,std::string,std::string,std::string>
-    DriverFactory::get_component_ids(ptree pt)
+    DriverFactory<MEM>::get_component_ids(ptree pt)
 {
   // 1. get wavefunction id, push input block if necessary 
   std::string wfn_name = get_wavefunction_id(pt); //pt.get<std::string>("wavefunction");
@@ -227,15 +183,18 @@ std::tuple<std::string,std::string,std::string,std::string,std::string>
   // add filename from wavefunction fo default input for hamiltonian
   {
     auto wfn_pt = WfnFac.get_input(wfn_name);
-    pt_default.put("filename", wfn_pt.get<std::string>("filename"));
+    pt_default.put("filename", wfn_pt.template get<std::string>("filename"));
   }
   std::string ham_name = get_or_push("hamiltonian",pt,HamFac,pt_default,system);
 
   return std::make_tuple(system,ham_name,wfn_name,wset_name,prop_name);
 }
 
-bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt_in)
+template<MEMORY_SPACE MEM>
+bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptree pt_in)
 {
+  // reset timers
+  AFQMCTimer.reset_all();
   // convert user input to verbose input
   ptree pt = interpret_inputs_afqmc(pt_in);
   app_log(2,"\nDrvFac::executeAFQMCDriver input:\n{}\n",io::to_string(pt));
@@ -264,13 +223,13 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
   int block0     = 0;
   double Eshift =  pt.get<double>("initial_Eshift");
 
-  utils::RandomGenerator_t::result_type iseed = ( (pt.get<int>("seed") == 0) ? 
+  utils::RandomGenerator_t<>::result_type iseed = ( (pt.get<int>("seed") == 0) ? 
 					   utils::make_seed(mpi->comm) : 
 					   utils::split_seed(pt.get<int>("seed"),mpi->comm));
-  std::shared_ptr<utils::RandomGenerator_t> rng_wlk = std::make_shared<utils::RandomGenerator_t>(iseed);
+  std::shared_ptr<utils::RandomGenerator_t<>> rng_wlk = std::make_shared<utils::RandomGenerator_t<>>(iseed);
   iseed = ( (pt.get<int>("seed") == 0) ? utils::make_seed(mpi->comm) : 
 					 utils::split_seed(pt.get<int>("seed"),mpi->comm));
-  std::shared_ptr<utils::DeviceRandomGenerator_t> rng = std::make_shared<utils::DeviceRandomGenerator_t>(iseed);
+  std::shared_ptr<utils::RandomGenerator_t<MEM>> rng = std::make_shared<utils::RandomGenerator_t<MEM>>(utils::make_rng<MEM>(iseed));
 
   app_log(1,"\n****************************************************");
   app_log(1,"****************************************************");
@@ -322,7 +281,7 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
    */
 
   // walker set and type
-  WalkerSet& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
+  auto& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
   WALKER_TYPES walker_type = wset.getWalkerType();
 
   if (not WfnFac.is_constructed(wfn_name))
@@ -331,26 +290,30 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
     Hamiltonian& ham0 = HamFac.getHamiltonian(mpi, ham_name);
 
     // build wavefunction
-    [[maybe_unused]] Wavefunction& wfn0 = WfnFac.getWavefunction(mpi, wfn_name, walker_type, &ham0, nWalkers);
+    [[maybe_unused]] auto& wfn0 = WfnFac.getWavefunction(mpi, wfn_name, walker_type, &ham0, nWalkers);
   }
 
   // wfn builder should not use Hamiltonian pointer now
-  Wavefunction& wfn0 = WfnFac.getWavefunction(mpi, wfn_name, walker_type, nullptr, nWalkers);
+  auto& wfn0 = WfnFac.getWavefunction(mpi, wfn_name, walker_type, nullptr, nWalkers);
 
   // propagator
-  Propagator& prop0 = PropFac.getPropagator(mpi, prop_name, wfn0, rng);
+  auto& prop0 = PropFac.getPropagator(mpi, prop_name, wfn0, rng);
   bool hybrid       = prop0.hybrid_propagation();
   // resize walker set
   if (restarted)
   {
     h5::file file(hdf_read_restart,'r');
     restartFromHDF5(wset, nWalkers, file, set_nWalker_target);
+    // perform runtime optimization
+    wfn0.runtime_optimization(wset);   
     wfn0.Energy(wset);
   }
   else
   {
     auto initial_guess = WfnFac.getInitialGuess(wfn_name);
     wset.resize(nWalkers, initial_guess()); 
+    // perform runtime optimization
+    wfn0.runtime_optimization(wset);   
     wfn0.Energy(wset);
     print_initial_energy(wset);
     if (hybrid)
@@ -377,8 +340,8 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
   bool addEnergyEstim = hybrid;
 
   // estimator setup
-  EstimatorHandler estim0(mpi, AFinfo, title, pt_in, wset, WfnFac, wfn0, prop0, walker_type, HamFac, ham_name, dt,
-                          addEnergyEstim, !free_proj);
+  auto estim0 = EstimatorHandler<MEM>(mpi, AFinfo, title, pt_in, wset, WfnFac, wfn0, 
+         prop0, walker_type, HamFac, ham_name, dt, addEnergyEstim, !free_proj);
 
   app_log(1,"\n****************************************************");
   app_log(1,"****************************************************");
@@ -388,7 +351,7 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
   app_log(1,"****************************************************");
   app_log(1,"****************************************************\n");
 
-  AFQMCDriver driver(mpi, AFinfo, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0, estim0);
+  AFQMCDriver<MEM> driver(mpi, AFinfo, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0, estim0);
 
   if (!driver.run(wset))
   {
@@ -405,7 +368,8 @@ bool DriverFactory::executeAFQMCDriver(std::string title, int m_series, ptree pt
   return true;
 }
 
-bool DriverFactory::executeCSAFQMCDriver(std::string title, int m_series, ptree pt_in)
+template<MEMORY_SPACE MEM>
+bool DriverFactory<MEM>::executeCSAFQMCDriver(std::string title, int m_series, ptree pt_in)
 {
 /*
   // convert user input to verbose input
@@ -437,16 +401,16 @@ bool DriverFactory::executeCSAFQMCDriver(std::string title, int m_series, ptree 
   std::vector<double> E0(n_systems,0.0);
   std::vector<double> Eshift(nsys,0.0);
 
-  utils::RandomGenerator_t::result_type iseed = ( (pt.get<int>("seed") == 0) ? 
+  utils::RandomGenerator_t<>::result_type iseed = ( (pt.get<int>("seed") == 0) ? 
                                            utils::make_seed(gTG.Global()) : 
                                            pt.get<int>("seed"));
-  utils::RandomGenerator_t rng_wlk(iseed);
+  utils::RandomGenerator_t<> rng_wlk(iseed);
   // All systems share the same seed, which is a function of your
   // rank in Global (NOT WORLD!)
   // Each system needs a separate, synchronized RNG. 
   iseed = ( (pt.get<int>("seed") == 0) ? utils::make_seed(gTG.Global()) :
                                          pt.get<int>("seed"));
-  std::vector<utils::DeviceRandomGenerator_t> rngs;
+  std::vector<utils::RandomGenerator_t<MEM>> rngs;
   rngs.reserve(nsys);
   for(int i=0; i<nsys; i++)
     rngs.emplace_back(utils::make_device_rng(iseed));
@@ -556,7 +520,7 @@ bool DriverFactory::executeCSAFQMCDriver(std::string title, int m_series, ptree 
     AFinfo_ref.emplace_back(std::ref(AFinfo));
 
     // walker set and type
-    WalkerSet& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
+    auto& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
     WALKER_TYPES walker_type = wset.getWalkerType();
     wset_ref.emplace_back(std::ref(wset));
 
@@ -649,6 +613,21 @@ bool DriverFactory::executeCSAFQMCDriver(std::string title, int m_series, ptree 
 */
   return true;
 }
+
+// Instantiate
+#define __inst__(M)                                                                  \
+template bool DriverFactory<M>::executeDriver(std::string,std::string,int,ptree);    \
+template std::string DriverFactory<M>::get_wavefunction_id(ptree);                   \
+template std::string DriverFactory<M>::get_system_id(ptree,std::string);             \
+template std::tuple<std::string,std::string,std::string,std::string,std::string>     \
+  DriverFactory<M>::get_component_ids(ptree);                                        \
+template bool DriverFactory<M>::executeAFQMCDriver(std::string,int,ptree);           \
+template bool DriverFactory<M>::executeCSAFQMCDriver(std::string,int,ptree);
+
+__inst__(HOST_MEMORY)
+#if defined(ENABLE_DEVICE)
+__inst__(DEVICE_MEMORY)
+#endif
 
 } // namespace afqmc
 } // namespace sfqmc

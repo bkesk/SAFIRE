@@ -214,22 +214,11 @@ void hybrid_walker_update(Wlk& w,
   w.setProperty(THETA, work(10,all));
   if (BackProp)
   {
-    auto MEM = w.get_memory_space();
     auto pos = w.getHistoryPos();
-    // unfortunately, this needs to be done at runtime
-    if( MEM == HOST_MEMORY ) {
-      auto WFac = w.template getWeightFactors<HOST_MEMORY>();  
-      WFac(pos,all) = work(3,all);
-      auto WHis = w.template getWeightFactors<HOST_MEMORY>();  
-      WHis(pos,all) = work(0,all);
-    } else if(MEM == DEVICE_MEMORY) {
-      auto WFac = w.template getWeightFactors<DEVICE_MEMORY>();  
-      WFac(pos,all) = work(3,all);
-      auto WHis = w.template getWeightFactors<DEVICE_MEMORY>();  
-      WHis(pos,all) = work(0,all);
-    } else {
-      utils::check(false,"Invalid memory space.");
-    }
+    auto WFac = w.template getWeightFactors();  
+    WFac(pos,all) = work(3,all);
+    auto WHis = w.template getWeightFactors();  
+    WHis(pos,all) = work(0,all);
   }
 }
 
@@ -312,22 +301,11 @@ void local_energy_walker_update(Wlk& w,
   w.setProperty(THETA, work(13,all));
   if (BackProp)
   {
-    auto MEM = w.get_memory_space();
     auto pos = w.getHistoryPos();
-    // unfortunately, this needs to be done at runtime
-    if( MEM == HOST_MEMORY ) {
-      auto WFac = w.template getWeightFactors<HOST_MEMORY>();
-      WFac(pos,all) = work(6,all);
-      auto WHis = w.template getWeightFactors<HOST_MEMORY>();
-      WHis(pos,all) = work(0,all);
-    } else if(MEM == DEVICE_MEMORY) {
-      auto WFac = w.template getWeightFactors<DEVICE_MEMORY>();
-      WFac(pos,all) = work(6,all);
-      auto WHis = w.template getWeightFactors<DEVICE_MEMORY>();
-      WHis(pos,all) = work(0,all);
-    } else {
-      utils::check(false,"Invalid memory space.");
-    }
+    auto WFac = w.template getWeightFactors();
+    WFac(pos,all) = work(6,all);
+    auto WHis = w.template getWeightFactors();
+    WHis(pos,all) = work(0,all);
   }
 }
 

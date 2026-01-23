@@ -24,8 +24,11 @@
 #include <cstdlib>
 #include "config.h"
 
+#include "nda/nda.hpp"
 
 #if defined(ENABLE_CUDA)
+
+// MAM: Consider setting OMP_NUM_THREADS and TBLIS threading variables to 1 here!
 
 #include "CUDA/cuda_init.h"
 #include "CUDA/cuda_sync.h"
@@ -37,6 +40,7 @@ namespace arch
   void set_device_synchronization(bool s) { cuda::set_device_synchronization(s); };
   void synchronize_if_set() { cuda::synchronize_if_set(); };
   void synchronize() { cuda::synchronize(); };
+  void check_device_configuration() { cuda::check_device_configuration(); }
 }
 }
 
@@ -49,6 +53,7 @@ namespace arch
   void set_device_synchronization(bool) {};
   void synchronize_if_set() {};
   void synchronize() {};
+  void check_device_configuration() {};
 }
 }
 
@@ -71,6 +76,10 @@ void init(bool active_log, int output_level=2, int debug_level=2)
 
  // setup shared memory, memory buffers, etc, etc
 }
+
+// this is a problem if the cuda system is disabled before this is destroyed
+std::vector<nda::devStream_t> device_streams;
+
 }
 }
 

@@ -18,7 +18,7 @@
 
 namespace sfqmc::utils {
 
-void resize_nda_static_allocator(double x = 0.05)
+inline void resize_nda_static_allocator(double x = 0.05)
 {
   utils::check(x >= 0.0, "Error in resize_nda_static_allocator: x<0.0.");
   auto static_alloc_host = memory::detail::static_allocator_t<HOST_MEMORY>{};

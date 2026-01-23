@@ -49,8 +49,6 @@ public:
     // initialize using verbose input
     fileName  = pt.get<std::string>("filename");
     name      = pt.get<std::string>("name");
-    sparse_g_eval = pt.get<bool>("sparse_gf_eval");
-    sparse_1body = pt.get<bool>("sparse_1body");
     shift_1body = pt.get<bool>("shift_1body");
   }
 
@@ -76,15 +74,11 @@ public:
     std::string name, filename;
     name      = pt0.get<std::string>("name", "ham0");
     filename  = pt0.get<std::string>("filename");
-    bool sparse_gf = pt0.get<bool>("sparse_gf_eval", true);
-    bool sparse_1b = pt0.get<bool>("sparse_1body", true);
     bool shift_1b = pt0.get<bool>("shift_1body", false);
     // create verbose internal inputs
     ptree pt1;
     pt1.put("name", name);
     pt1.put("filename", filename);
-    pt1.put("sparse_gf_eval", sparse_gf);
-    pt1.put("sparse_1body", sparse_1b);
     pt1.put("shift_1body", shift_1b);
     std::unordered_set<std::string> pass_through_keys = {
       "system"
@@ -100,29 +94,28 @@ protected:
   ComplexType FrozenCoreEnergy = 0.0;
 
   std::string fileName = "";
-  bool sparse_g_eval = true;
-  bool sparse_1body = true;
   bool shift_1body = false;
 
-/*
-  template<class csrM>
-  csrM spin_to_walker_type(WALKER_TYPES type, std::string stype, csrM& hij); 
+  template<MEMORY_SPACE MEM, bool REAL, typename ValueType>
+  SparseEnergy<MEM,REAL> make_SparseEnergy(
+      std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+      WALKER_TYPES type, math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>& hij,
+      math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>& U,
+      math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>& J, ComplexType E0);
 
-  template<MEMORY_SPACE MEM, bool REAL, class csrM>
-  SparseEnergy<MEM,REAL> make_SparseEnergy(WALKER_TYPES type, 
-           std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
-           csrM& hij, csrM& combined_U, csrM& combined_J, ComplexType E0);
+  template<typename ValueType>
+  nda::array<long,1> find_occupied_pairs(WALKER_TYPES type, 
+      std::vector<math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>>& U, 
+      std::vector<math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>>& J);
 
-  template<class csrM>
-  Vector<size_t> find_occupied_pairs(WALKER_TYPES type, 
-                      std::vector<csrM>& U, std::vector<csrM>& J);
+  template<MEMORY_SPACE MEM, bool REAL, typename ValueType, class map_t>
+  void addComponent( WALKER_TYPES wtype, PropagatorTypes ptype,
+       std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+       math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>& U,
+       math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>& J,
+       std::vector<ModelComponent<MEM,REAL>>& Hams,
+       nda::array<long,1>& n2IJ, map_t& IJ2n);
 
-  template<MEMORY_SPACE MEM, bool REAL, class csrM, class IArr, class map_t>
-  void addComponent(WALKER_TYPES type, PropagatorTypes ptype, 
-           std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi
-           csrM& U, csrM& J, std::vector<ModelComponent<MEM,REAL>>& Hams, 
-           IArr& n2IJ, map_t& IJ2n);
-*/
   template<MEMORY_SPACE MEM, bool REAL>
   HamiltonianOperations<MEM> getHamiltonianOperations_impl(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,

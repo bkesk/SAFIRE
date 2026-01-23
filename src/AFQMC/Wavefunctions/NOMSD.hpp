@@ -98,7 +98,6 @@ public:
       "name",
       "ndets_to_read",
       "filename",
-      "compute",
       "dense_trial"
     };
     io::compare_known_keys("Non-orthogonal multi-Slater det. (NOMSD) Wavefunction",pt1, pt0,pass_through_keys);
@@ -122,6 +121,21 @@ public:
   constexpr auto get_memory_space() const { return MEM; }
 
   /*
+   *  Performs runtime optimizations.
+   */       
+  template<class WlkSet>
+  void runtime_optimization(WlkSet& wset)
+  {
+    const int nw   = wset.size();
+    const int nel = (walker_type==COLLINEAR ? nup+ndown : nup );
+    const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
+    const int npol = (walker_type==NONCOLLINEAR ? 2 : 1 );
+    memory::array<MEM,ComplexType,2> G(nw,nel*npol*NMO);
+    // don't use buffered_array!!!
+    HamOp.runtime_optimization(G);
+  }
+
+  /*
    * Expectation value of Hubbard-Stratonovich potential with respect to trial wave-function.
    */
   void vMF(nda::MemoryVector auto&& v, double dt);
@@ -131,22 +145,17 @@ public:
    */
   auto G_MF();
 
-/*
-  SlaterDetOperations* getSlaterDetOperations() { return std::addressof(SDetOp); }
   template<class... Args>
   void generalizedFockMatrix(Args&&... args)
   {
     HamOp.generalizedFockMatrix(std::forward<Args>(args)...); 
-    TG.TG_local().barrier();
   }
-*/
 
   HamiltonianTypes getHamType() const { return HamOp.getHamType(); }
 
-  template<class... Args>
-  void getFieldTypes(Args&&... args)
+  auto getFieldTypes()
   {
-    HamOp.getFieldTypes(std::forward<Args>(args)...);
+    return HamOp.getFieldTypes();
   }
 
   template<class... Args>
@@ -162,14 +171,12 @@ public:
   {
     return HamOp.getOneBodyPropagatorMatrix(std::forward<Args>(args)...);
   }
-/*
+
   template<class... Args>
   auto vHS_sparse(Args&&... args)
-  //std::tuple<dev_csr_Matrix<ComplexType> const*, dev_csr_Matrix<ComplexType> const*> vHS_sparse(Args&&... args)
   {
     return HamOp.vHS_sparse(std::forward<Args>(args)...);
   }
-*/
 
   /*
    * Calculates the bias potential.
@@ -266,17 +273,17 @@ public:
    * Calculates the overlaps of all walkers in the set. Returns values in arrays. 
    */
   template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-  void Overlap(const WlkSet& wset, TVec && Ov);
+  void Log_Overlap(const WlkSet& wset, TVec && Ov);
 
   /*
    * Calculates the overlaps of all walkers in the set. Updates values in wset. 
    */
   template<class WlkSet>
-  void Overlap(WlkSet& wset)
+  void Log_Overlap(WlkSet& wset)
   {
     int nw = wset.size();
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
-    Overlap(wset, ovlp);
+    Log_Overlap(wset, ovlp);
     wset.setProperty(OVLP, ovlp);
   }
 /*
@@ -321,6 +328,7 @@ protected:
   nda::array<devPsiT,2> OrbMats;
 
   // RefOrbMats[ndet][nspin][nel][NMO]
+  // this should be a shared_array!!!
   memory::array<MEM,ComplexType,4> RefOrbMats;
 
   ComplexType NuclearCoulombEnergy;

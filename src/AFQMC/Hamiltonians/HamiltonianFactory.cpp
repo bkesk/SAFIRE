@@ -29,16 +29,12 @@
 #include "HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
 
-//#include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
-//#include "AFQMC/Hamiltonians/RealDenseHamiltonian_v2.h"
+#include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
-//#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
-//#include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
+#include "AFQMC/Hamiltonians/KPFactorizedHamiltonian.h"
+#include "AFQMC/Hamiltonians/ModelHamOpsGenerator.h"
 
 #include "numerics/sparse/sparse.hpp"
-//#include "AFQMC/Utilities/Utils.hpp"
-
-// has_complex_attribute 
 
 namespace sfqmc
 {
@@ -107,8 +103,9 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   if (mpi->comm.root())
   {
     if(format == "std") {
-      std::vector<RealType> Rdata(2);
-      h5::h5_read(*hgrp,"Energies",Rdata);  
+      std::vector<RealType> Rdata(2,RealType(0.0));
+   
+//      h5::h5_read(*hgrp,"Energies",Rdata);  
       if (Rdata.size() > 0)
         NuclearCoulombEnergy = Rdata[0];
       if (Rdata.size() > 1)
@@ -121,7 +118,6 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
         h5::h5_read_attribute(*hgrp,"frozen_core_energy",FrozenCoreEnergy);
       if( H5Aexists(h5::hid_t(*hgrp),"madelung_constant") ) {
         h5::h5_read_attribute(*hgrp,"madelung_constant",ElecSelfIntEnergy);
-std::cout<<" madelung: " <<ElecSelfIntEnergy <<" " <<nup <<" " <<ndown <<std::endl;
         ElecSelfIntEnergy *= -1.0*(nup+ndown);
       }
     }
@@ -147,21 +143,22 @@ std::cout<<" madelung: " <<ElecSelfIntEnergy <<" " <<nup <<" " <<ndown <<std::en
   }
   else if (htype == KPFactorized)
   {
-    utils::check(false," Error: KPFactorized hamiltonian not yet working. ");
-//    return Hamiltonian(KPFactorizedHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
+    if(mpi->comm.root())
+      utils::check(format == "coqui", "Error: format: {} not yet implemented with this hamiltonian type.", format);
+    return Hamiltonian(KPFactorizedHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if (htype == RealDenseFactorized)
   {
+    // CoQui does not generate real cholesky yet, it is hardwired to be complex
     if(mpi->comm.root())
       utils::check(format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
-// rename after RealDenseHamiltonian_v2 becomes the only choice
-//    return Hamiltonian(RealDenseHamiltonian_v2(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
+    return Hamiltonian(RealDenseHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if ( htype == ModelHamiltonian ) 
   {
     if(mpi->comm.root())
       utils::check(format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
-//    return Hamiltonian(ModelHamOpsGenerator(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
+    return Hamiltonian(ModelHamOpsGenerator(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if ( htype == THC )
   {

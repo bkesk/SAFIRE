@@ -176,7 +176,7 @@ void orthogonalize(A_t && A, B_t && log_detR)
 
   // scale A by scl, to make sign of determinant consistent
   if constexpr (nda::mem::have_device_compatible_addr_space<A_t>) {
-    nda::tensor::elementwise(scl, "wn", A, "win", nda::tensor::op::MUL);
+    nda::tensor::elementwise(ComplexType(1.0), scl, "wn", ComplexType(1.0), A, "win", nda::tensor::op::MUL);
   } else {
     for (int i = 0; i < M; ++i)
       A(nda::range::all,i,nda::range::all) *= scl();
@@ -344,14 +344,14 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
   utils::check(ldet.size() >= nwalk, "Size mismatch");
   ldet() = ComplexType(0.0);
   if(importance_sampling) {
-    orthogonalize( wset.template SlaterMatrices<MEM>(Alpha), ldet);
+    orthogonalize( wset.SlaterMatrices(Alpha), ldet);
     if(walker_type == COLLINEAR)
-      orthogonalize( wset.template SlaterMatrices<MEM>(Beta), ldet);
+      orthogonalize( wset.SlaterMatrices(Beta), ldet);
   } else {
     double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
-    orthogonalize( wset.template SlaterMatrices<MEM>(Alpha), ldet);
+    orthogonalize( wset.SlaterMatrices(Alpha), ldet);
     if(walker_type == COLLINEAR)
-      orthogonalize( wset.template SlaterMatrices<MEM>(Beta), ldet);
+      orthogonalize( wset.SlaterMatrices(Beta), ldet);
     memory::buffered_array<MEM,ComplexType,1> wgt(nwalk);
     wset.getProperty(WEIGHT, wgt);
     auto wgt_h = nda::to_host(wgt);

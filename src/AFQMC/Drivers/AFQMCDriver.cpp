@@ -33,13 +33,13 @@ namespace sfqmc
 {
 namespace afqmc
 {
-bool AFQMCDriver::run(WalkerSet& wset)
+template<MEMORY_SPACE MEM>
+bool AFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
 {
 
   app_log(1,"****************************************************");
   app_log(1,"              Beginning AFQMC calculation           ");
   app_log(1,"****************************************************");
-  setup_AFQMC_timer();
 
   std::vector<ComplexType> curData;
 
@@ -121,7 +121,6 @@ bool AFQMCDriver::run(WalkerSet& wset)
 
     AFQMCTimer.stop(block_timer);
   }
-return true;  
 
   if (nCheckpoint > 0)
     checkpoint(wset, iBlock, step_tot);
@@ -137,7 +136,8 @@ return true;
 }
 
 // writes checkpoint file
-bool AFQMCDriver::checkpoint(WalkerSet& wset, int block, int step)
+template<MEMORY_SPACE MEM>
+bool AFQMCDriver<MEM>::checkpoint(WalkerSet<MEM>& wset, int block, int step)
 {
 return true;
   if (mpi->comm.rank() == 0)
@@ -173,7 +173,8 @@ return true;
 }
 
 // writes samples
-bool AFQMCDriver::writeSamples(WalkerSet& wset)
+template<MEMORY_SPACE MEM>
+bool AFQMCDriver<MEM>::writeSamples(WalkerSet<MEM>& wset)
 {
 return true;
   int nwtowrite = -1;
@@ -189,7 +190,16 @@ return true;
   }
 }
 
-bool AFQMCDriver::clear() { return true; }
+// Instantiate
+#define __inst__(M)                                            \
+template bool AFQMCDriver<M>::run(WalkerSet<M>& wset);            \
+template bool AFQMCDriver<M>::checkpoint(WalkerSet<M>&,int,int);  \
+template bool AFQMCDriver<M>::writeSamples(WalkerSet<M>&);        
+
+__inst__(HOST_MEMORY)
+#if defined(ENABLE_DEVICE)
+__inst__(DEVICE_MEMORY)
+#endif
 
 } // namespace afqmc
 

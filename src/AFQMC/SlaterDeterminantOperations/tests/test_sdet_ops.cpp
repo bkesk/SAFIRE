@@ -104,6 +104,7 @@ void SDetOps()
   auto A_ = A(range(0,2),range(0,3));
   auto B_ = B(all,range(0,3),range(0,2));
 
+
   /**** Overlaps ****/
   //SECTION("Overlaps")
   {
@@ -303,6 +304,7 @@ void SDetOps()
     det_ops::Log_Overlap(Q, Q, ovlp);
     ARRAY_EQUAL(oref,ovlp);
   }
+
 
   // Finite temperature functions
   {
@@ -548,6 +550,9 @@ void SDetOps()
 TEST_CASE("SDetOps", "[sdet_ops]")
 {
   SDetOps<HOST_MEMORY>();
+#if defined(ENABLE_DEVICE)
+  SDetOps<DEVICE_MEMORY>();
+#endif
 }
 
 } // namespace afqmc

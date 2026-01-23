@@ -26,6 +26,7 @@ namespace sfqmc
 {
 namespace afqmc
 {
+template<MEMORY_SPACE MEM>
 class AFQMCDriver : public AFQMCInfo
 {
 public:
@@ -37,9 +38,9 @@ public:
               int stp0,
               double eshft_,
               ptree pt_in,
-              Wavefunction& wfn_,
-              Propagator& prpg_,
-              EstimatorHandler& estim_)
+              Wavefunction<MEM>& wfn_,
+              Propagator<MEM>& prpg_,
+              EstimatorHandler<MEM>& estim_)
       : AFQMCInfo(info),
         mpi(_mpi),
         m_series(mser),
@@ -133,11 +134,11 @@ public:
 
   ~AFQMCDriver() {}
 
-  bool run(WalkerSet&);
+  bool run(WalkerSet<MEM>&);
 
-  bool checkpoint(WalkerSet&, int, int);
+  bool checkpoint(WalkerSet<MEM>&, int, int);
 
-  bool clear();
+  bool clear() { return true; };
 
 protected:
   std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
@@ -160,13 +161,13 @@ protected:
   RealType dt;
   int block0, step0;
 
-  Wavefunction& wfn0;
+  Wavefunction<MEM>& wfn0;
 
-  Propagator& prop0;
+  Propagator<MEM>& prop0;
 
-  EstimatorHandler& estim0;
+  EstimatorHandler<MEM>& estim0;
 
-  bool writeSamples(WalkerSet&);
+  bool writeSamples(WalkerSet<MEM>&);
 
   int samplePeriod;
 

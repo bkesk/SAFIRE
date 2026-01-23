@@ -75,10 +75,8 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   // Remove file extension.
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
-
-  int NMO              = file_data.NMO;
-  int nup              = file_data.nup;
-  int ndown            = file_data.ndown;
+  auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
+  utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "any");
   int nspin            = (type == COLLINEAR) ? 2 : 1;
@@ -99,7 +97,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
   int nwalk = 11; // choose prime number to force non-trivial splits in shared routines
-  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
 
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
@@ -114,9 +112,9 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("dense_trial",dense_trial);
 
-  WavefunctionFactory WfnFac(InfoMap);
+  WavefunctionFactory<MEM> WfnFac(InfoMap);
   WfnFac.push("wfn0", wfn_pt);
-  Wavefunction& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
+  auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 
   //nwalk=nw;
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
@@ -126,7 +124,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   wset.resize(nwalk, initial_guess);
 
   // Overlap
-  wfn.Overlap(wset);
+  wfn.Log_Overlap(wset);
 
   Watch Time;
   Time.reset();

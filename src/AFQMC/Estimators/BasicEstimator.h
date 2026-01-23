@@ -33,11 +33,12 @@ namespace sfqmc
 {
 namespace afqmc
 {
-class BasicEstimator : public EstimatorBase
+template<MEMORY_SPACE MEM>
+class BasicEstimator : public EstimatorBase<MEM>
 {
 public:
   BasicEstimator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, AFQMCInfo info, [[maybe_unused]] std::string title, ptree pt_in, bool impsamp_)
-      : EstimatorBase(info), mpi(_mpi), nwfacts(0), importanceSampling(impsamp_), timers(false)
+      : EstimatorBase<MEM>(info), mpi(_mpi), nwfacts(0), importanceSampling(impsamp_), timers(false)
   {
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
@@ -103,7 +104,7 @@ public:
 
   ~BasicEstimator() {}
 
-  void accumulate_block([[maybe_unused]] double time, [[maybe_unused]] WalkerSet& wset) {}
+  void accumulate_block([[maybe_unused]] double time, [[maybe_unused]] WalkerSet<MEM>& wset) {}
 
 
   //  curData:
@@ -114,7 +115,7 @@ public:
   //  4: 1/nW * sum_i abs(<psi_T|phi_i>)
   //  5: nW                          (total number of walkers)
   //  6: "healthy" nW                (total number of "healthy" walkers)
-  void accumulate_step([[maybe_unused]] double time, WalkerSet& wset, std::vector<ComplexType>& curData)
+  void accumulate_step([[maybe_unused]] double time, WalkerSet<MEM>& wset, std::vector<ComplexType>& curData)
   {
     ncalls++;
     if (nwfacts > 0)
@@ -171,7 +172,7 @@ public:
     return measure_interval;
   }
 
-  void print(std::ofstream& out, [[maybe_unused]] h5::file& file, [[maybe_unused]] WalkerSet& wset)
+  void print(std::ofstream& out, [[maybe_unused]] h5::file& file, [[maybe_unused]] WalkerSet<MEM>& wset)
   {
     if (ncalls ==0) 
       APP_ABORT("Estimator has no data but asked to print (ncalls=0), check settings");

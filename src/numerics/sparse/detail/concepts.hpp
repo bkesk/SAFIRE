@@ -52,6 +52,11 @@ concept CSRMatrix = requires(A const& a) {
   { a.columns() };
   { a.row_begin() };
   { a.row_end() };
+  { a.nnz(int()) };
+  { a.values(int()) };
+  { a.columns(int()) };
+  { a.row_begin(int()) };
+  { a.row_end(int()) };
   { a.shape() } -> ::nda::StdArrayOfLong;
   { std::decay_t<A>::sparse == true };
   { std::decay_t<A>::rank == 2 };

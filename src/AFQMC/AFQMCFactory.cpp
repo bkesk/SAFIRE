@@ -47,38 +47,8 @@ namespace sfqmc
 namespace afqmc
 {
 
-AFQMCFactory::AFQMCFactory(std::string type,
-                           std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
-			   const ptree pt, int n_groups) 
-      : m_series(pt.get<int>("project.series", 0)),
-        project_title(pt.get<std::string>("project.id", "afqmc")),
-        mpi(_mpi), 
-        InfoMap(),
-        HamFac(InfoMap),
-        WSetFac(InfoMap),
-        WfnFac(InfoMap),
-        PropFac(InfoMap),
-        DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac) 
-{
-  utils::check(n_groups==1, "finish!!!");
-  app_log(1, " AFQMCFactory Project settings: ");
-  app_log(1, "    -- id             : {} ", project_title);
-  app_log(1, "    -- series         : {} ", m_series);
-  app_log(1, "    -- n_groups       : {} ", n_groups);
-  app_log(1, "    -- MPI tasks/node : {} ", mpi->node_comm.size());
-  app_log(1, "    -- MPI nodes      : {} ", mpi->internode_comm.size());
-  app_log(1, "    -- MPI tasks      : {} \n\n", mpi->comm.size()); 
-
-  // parse input
-  utils::check(parse(pt), " Error in AFQMCFactory: Problems parsing the input file. ");
-
-  // execute 
-  utils::check(execute(type,pt), "Error in AFQMCFactory: Problems executing the input file. ");
-}
-
-AFQMCFactory::~AFQMCFactory() = default; 
-    
-bool AFQMCFactory::parse(const ptree pt_in)
+template<MEMORY_SPACE MEM>
+bool AFQMCFactory<MEM>::parse(const ptree pt_in)
 {
   InfoMap.clear();
 
@@ -139,7 +109,8 @@ bool AFQMCFactory::parse(const ptree pt_in)
   return true;
 }
 
-bool AFQMCFactory::execute(std::string type, const ptree pt_in)
+template<MEMORY_SPACE MEM>
+bool AFQMCFactory<MEM>::execute(std::string type, const ptree pt_in)
 {
   char fileroot[256];
 
@@ -165,6 +136,14 @@ bool AFQMCFactory::execute(std::string type, const ptree pt_in)
 
   return true;
 }
+
+template bool AFQMCFactory<HOST_MEMORY>::execute(std::string,const ptree);
+template bool AFQMCFactory<HOST_MEMORY>::parse(const ptree);
+
+#if defined(ENABLE_DEVICE)
+template bool AFQMCFactory<DEVICE_MEMORY>::execute(std::string,const ptree);
+template bool AFQMCFactory<DEVICE_MEMORY>::parse(const ptree);
+#endif
 
 } // namespace afqmc
 

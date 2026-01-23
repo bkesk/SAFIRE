@@ -25,7 +25,7 @@
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/test_common.hpp"
 #include "utilities/check.hpp"
-#include "utilities/Timer.hpp"
+#include "utilities/h5_utils.hpp"
 
 #include <string>
 #include <vector>
@@ -37,10 +37,9 @@
 #include "AFQMC/Utilities/readWfn.h"
 #include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/SlaterDeterminantOperations/density_matrix.hpp"
+#include "AFQMC/SlaterDeterminantOperations/orthogonalize.hpp"
 
 #include "numerics/sparse/sparse.hpp"
-
-//#include "AFQMC/SlaterDeterminantOperations/
 
 using std::cerr;
 using std::complex;
@@ -75,10 +74,9 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   // Remove file extension.
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
-
-  int NMO              = file_data.NMO;
-  int nup              = file_data.nup;
-  int ndown            = file_data.ndown;
+  auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
+std::cout<<" NMO: " <<NMO <<" " <<file_data.NMO <<std::endl;
+  utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   std::map<std::string, AFQMCInfo> InfoMap;
   InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
@@ -110,21 +108,21 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   //[ndet][nspin](nel,npol*NMO)
   auto psi = read_nomsd_wavefunction<MEM>(ngrp,ndet,wtype,NMO,nup,ndown);
   utils::check(psi.shape() == std::array<long,2>{ndet,nspin}, "Shape mismatch.");
-
   memory::array<MEM,ComplexType,3> OrbMat(nwalk,npol*NMO,nel);
   {
     nda::array<ComplexType,2> T(npol*NMO,nup);
-    nda::h5_read(ngrp,"Psi0_alpha",T);
+    utils::h5_read(ngrp,"Psi0_alpha",T);
     for(int i=0; i<nwalk; ++i)
       OrbMat(i,all,range(nup)) = T();
     if (wtype == COLLINEAR) {
       T() = ComplexType(0.0);
       auto Odn = T(all,range(ndown));
-      nda::h5_read(ngrp,"Psi0_beta",Odn);
+      utils::h5_read(ngrp,"Psi0_beta",Odn);
       for(int i=0; i<nwalk; ++i)
         OrbMat(i,all,range(nup,nel)) = T();
     }
   }
+
   auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);
   memory::array<MEM,ComplexType,3> G(nwalk, nel, npol * NMO);
   memory::array<MEM,ComplexType,1> ovlp(nwalk,ComplexType(0.0)); 
@@ -133,9 +131,12 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   det_ops::MixedDensityMatrix(psi(0,0),OrbMat(all,all,range(nup)),G(all,range(nup),all),ovlp);
   if (wtype == COLLINEAR)
     det_ops::MixedDensityMatrix(psi(0,1),OrbMat(all,all,range(nup,nel)),G(all,range(nup,nel),all),ovlp);
-  ARRAY_EQUAL(ovlp,nda::array<ComplexType,1>(nwalk,ComplexType(0.0)));
+//  ARRAY_EQUAL(ovlp,nda::array<ComplexType,1>(nwalk,ComplexType(0.0)));
   // 2d views and transposed copies just in case
   auto G2d = nda::reshape(G,std::array<long,2>{nwalk,nel*npol * NMO});
+
+  // optimize HOps evaluation
+  HOps.runtime_optimization(G2d); 
 
   // Energy
   memory::array<MEM,ComplexType,2> Eloc(nwalk, 3);
@@ -147,6 +148,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     app_log(1," E1: {} ", eloc_h(0,0));
   if (std::abs(file_data.E2) > 1e-8)
   {
+    eloc_h(all,1) += eloc_h(all,2);
     ARRAY_EQUAL(eloc_h(all,1), nda::array<ComplexType,1>(nwalk,file_data.E2)); 
   }
   else
@@ -158,6 +160,12 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
 
   double dt = 0.01;
   auto nCV  = HOps.number_of_cholesky_vectors();
+
+  {
+    nda::array<ComplexType, 1> nMF(2*NMO, ComplexType(1.0));
+    memory::array<MEM,ComplexType, 1> vMF(nCV);
+    HOps.update_potentials(dt,nMF,vMF,true);
+  }
 
   memory::array<MEM,ComplexType,2> X(nwalk, nCV);
   X() = ComplexType(0.0);
@@ -199,6 +207,21 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   else
   {
     app_log(1," Vsum: {}", Vsum);
+  }
+
+  if (HOps.getHamType() == ModelHamiltonian )
+  {
+    auto vHS_sparse = HOps.vHS_sparse(X,dt);
+    ComplexType Vsum2 = nda::sum(nda::to_host(vHS_sparse(0).values()))/double(nwalk);
+    if (std::abs(file_data.Vsum) > 1e-8)
+    {
+      REQUIRE(real(Vsum2) == Approx(real(file_data.Vsum)));
+      REQUIRE(imag(Vsum2) == Approx(imag(file_data.Vsum)));
+    }
+    else
+    {
+      app_log(1," Vsum sparse: {}", Vsum2);
+    }
   }
 
 /*

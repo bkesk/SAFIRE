@@ -26,34 +26,32 @@
 #include "AFQMC/config.h"
 
 #include "nda/h5.hpp"
+#include "utilities/h5_utils.hpp"
 #include "numerics/sparse/sparse.hpp"
-//#include "AFQMC/Wavefunctions/Excitations.hpp"
+#include "AFQMC/Wavefunctions/Excitations.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
-/*
-void read_ph_wavefunction_hdf(hdf_archive& dump,
-                              std::vector<ComplexType>& ci_coeff,
-                              std::vector<int>& occs,
+void read_ph_wavefunction_hdf(h5::group& grp,
+                              nda::array<ComplexType,1>& ci_coeff,
+                              nda::array<int,2>& occs,
                               int& ndets,
                               WALKER_TYPES walker_type,
-                              boost::mpi3::shared_communicator& comm,
                               int NMO,
-                              int NAEA,
-                              int NAEB,
-                              std::vector<PsiT_Matrix>& PsiT,
+                              int nup,
+                              int ndown,
+                              nda::array<PsiT_Matrix<HOST_MEMORY>, 1>& PsiT_MO,
                               std::string& type);
 
-ph_excitations<int, ComplexType> build_ph_struct(std::vector<ComplexType> ci_coeff,
-                                                 boost::multi::array_ref<int, 2>& occs,
+template<MEMORY_SPACE MEM>
+ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> const& ci_coeff,
+                                                 nda::array<int, 2>& occs,
                                                  int ndets,
-                                                 boost::mpi3::shared_communicator& comm,
                                                  int NMO,
-                                                 int NAEA,
-                                                 int NAEB);
-*/
+                                                 int nup,
+                                                 int ndown);
 
 void getCommonInput(h5::group& g,
                     int NMO,

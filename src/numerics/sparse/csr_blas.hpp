@@ -84,7 +84,7 @@ requires(::nda::have_same_value_type_v<X, Y> and
 void csrmv(A const& a, X const &x, Y &&y)
 {
   using T = typename A::value_type;
-  return csrmm<op_A>(T(1.0),a,x,T(0.0),std::forward<Y>(y));
+  csrmm<op_A>(T(1.0),a,x,T(0.0),std::forward<Y>(y));
 }
 
 template<char op_A, CSRMatrix A, ::nda::MemoryMatrix B, ::nda::MemoryMatrix C>
@@ -121,7 +121,7 @@ requires(::nda::have_same_value_type_v<B, C> and
 void csrmm(B const& b, A const &a, C &&c)
 {
   using T = typename A::value_type;
-  return csrmm<op_A>(T(1.0),b,a,T(0.0),std::forward<C>(c));
+  csrmm<op_A>(T(1.0),b,a,T(0.0),std::forward<C>(c));
 }
 
 // Note: cuSparse supports opB on csrmm, but MKL does not.
@@ -181,7 +181,7 @@ requires(::nda::have_same_value_type_v<B, C> and
 void csrmm(A const& a, B const &b, C &&c)
 {
   using T = typename A::value_type;
-  return csrmm<op_A>(T(1.0),a,b,T(0.0),std::forward<C>(c));
+  csrmm<op_A>(T(1.0),a,b,T(0.0),std::forward<C>(c));
 }
 
 template<char op_A, CSRMatrix A, nda::MemoryArrayOfRank<3> B, nda::MemoryArrayOfRank<3> C>
@@ -227,7 +227,7 @@ void csrmm(typename A::value_type alpha, A const& a, B const &b, typename A::val
     
   if constexpr (::nda::mem::have_device_compatible_addr_space<A,B,C>) {
 #if defined(ENABLE_DEVICE)
-    device::csrmm(op_A,alpha,a,b,beta,c);
+    device::csrmm(op_A,'N',alpha,a,b,beta,c);
 #else 
     check(false," csr_blas on device without gpu support! Compile for GPU. ");
 #endif
@@ -254,7 +254,7 @@ requires(::nda::have_same_value_type_v<B, C> and
 void csrmm(A const& a, B const &b, C &&c)
 {
   using T = typename A::value_type;
-  return csrmm<op_A>(T(1.0),a,b,T(0.0),std::forward<C>(c));
+  csrmm<op_A>(T(1.0),a,b,T(0.0),std::forward<C>(c));
 }
 
 }

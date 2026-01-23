@@ -16,15 +16,17 @@
 
 //#undef NDEBUG
 
-#include "catch_amalgamated.hpp"
+#include "catch2/catch.hpp"
 
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
+#include "IO/AppAbort.hpp"
 
-#include "hdf/hdf_archive.h"
-#include "io/ptree/ptree_utilities.hpp"
-#include "Utilities/Random.hpp"
-#include "Utilities/app_loggers.h"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/check.hpp"
+#include "utilities/h5_utils.hpp"
+#include "utilities/test_common.hpp"
+#include "IO/app_loggers.h"
 
 #include <string>
 #include <vector>
@@ -38,19 +40,10 @@
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
-#include "AFQMC/SlaterDeterminantOperations/SlaterDetOperations.hpp"
 #include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/Utilities/Utils.hpp"
-#include "AFQMC/Utilities/taskgroup.h"
 #include "AFQMC/Utilities/readWfn.h"
-#include "Memory/buffer_managers.h"
-
-
-using std::complex;
-using std::ifstream;
-using std::string;
-using std::real;
-using std::imag;
+#include "numerics/sparse/sparse.hpp"
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
 
@@ -58,251 +51,424 @@ namespace sfqmc
 {
 using namespace afqmc;
 
-template<class Allocator>
-void test_read_phmsd(boost::mpi3::communicator& world)
+template<MEMORY_SPACE MEM>
+void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+             std::string hamil_file, std::string wfn_file)
 {
+  using sfqmc::utils::ARRAY_EQUAL;
+  using nda::range;
+  auto all = range::all;
+  utils::check(utils::file_exists(hamil_file),
+               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
+  utils::check(utils::file_exists(wfn_file),
+               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
-  if (not file_exists(UTEST_WFN))
-  {
-    APP_ABORT(" Wavefunction file not found. Run unit test with --wfn /path/to/wfn.dat.");
-  }
-  else
-  {
-    // Global Task Group
-    GlobalTaskGroup gTG(world);
-    auto TG    = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
-    auto TGwfn = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
+  // First strip path of filename.
+  std::string base_name = wfn_file.substr(wfn_file.find_last_of("\\/") + 1);
+  // Remove file extension.
+  std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
+  auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
+  auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "PHMSD");
+  utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
-    int NMO;
-    int nup;
-    int ndown;
-    std::tie(NMO, nup, ndown) = read_info_from_wfn(UTEST_WFN, "PHMSD");
-    WALKER_TYPES walker_type = afqmc::getWalkerType(UTEST_WFN, "PHMSD");
-    hdf_archive dump;
-    if (!dump.open(UTEST_WFN, H5F_ACC_RDONLY))
-      APP_ABORT("Error reading wavefunction file.");
-    if (dump.push("Wavefunction", false)<0)
-      APP_ABORT(" Error in test_read_phmsd: Group Wavefunction not found. ");
-    if (dump.push("PHMSD", false)<0)
-      APP_ABORT(" Error in test_read_phmsd: Group PHMSD not found. ");
-    int ndets_to_read = -1;
-    std::string wfn_type;
-    std::vector<PsiT_Matrix> PsiT_MO; 
-    std::vector<int> occbuff;
-    std::vector<ComplexType> coeffs;
-    read_ph_wavefunction_hdf(dump, coeffs, occbuff, ndets_to_read, walker_type, TGwfn.Node(), NMO, nup, ndown, PsiT_MO,
-                             wfn_type);
-    boost::multi::array_ref<int, 2> occs(raw_pointer_cast(occbuff.data()), {ndets_to_read, nup + ndown});
-    ph_excitations<int, ComplexType> abij = build_ph_struct(coeffs, occs, ndets_to_read, TGwfn.Node(), NMO, nup, ndown);
-    using std::get;
-    auto cit = abij.configurations_begin();
-    std::vector<int> configa(nup), configb(ndown);
-    // Is it fortuitous that the order of determinants is the same?
-    for (int nd = 0; nd < ndets_to_read; nd++, ++cit)
+  WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "PHMSD");
+  int nspin            = (type == COLLINEAR) ? 2 : 1;
+  int npol             = (type == NONCOLLINEAR) ? 2 : 1;
+  int nel              = (type == COLLINEAR) ? nup+ndown : nup;
+
+  h5::file file(wfn_file,'r');
+  h5::group grp(file);
+  h5::group wgrp = grp.open_group("Wavefunction");
+  h5::group ngrp = wgrp.open_group("PHMSD");
+  int ndets_to_read = -1;
+  std::string wfn_type;
+
+  nda::array<int,2> occs;
+  nda::array<ComplexType,1> coeffs;
+  nda::array<PsiT_Matrix<HOST_MEMORY>, 1> PsiT_MO;
+  read_ph_wavefunction_hdf(ngrp, coeffs, occs, ndets_to_read, type, NMO, nup, ndown, PsiT_MO, wfn_type); 
+
+  auto abij = build_ph_struct<MEM>(coeffs, occs, ndets_to_read, NMO, nup, ndown);
+  using std::get;
+  auto cit = abij.configurations_begin();
+  nda::array<int,1> configa(nup), configb(ndown);
+  // Is it fortuitous that the order of determinants is the same?
+  for (int nd = 0; nd < ndets_to_read; nd++, ++cit)
+  {
+    int alpha_ix = get<0>(*cit);
+    int beta_ix  = get<1>(*cit);
+    auto ci      = get<2>(*cit);
+    abij.get_configuration(0, alpha_ix, configa);
+    abij.get_configuration(1, beta_ix, configb);
+    std::sort(configa.begin(), configa.end());
+    std::sort(configb.begin(), configb.end());
+    for (int i = 0; i < nup; i++)
     {
-      int alpha_ix = get<0>(*cit);
-      int beta_ix  = get<1>(*cit);
-      auto ci      = get<2>(*cit);
-      abij.get_configuration(0, alpha_ix, configa);
-      abij.get_configuration(1, beta_ix, configb);
-      std::sort(configa.begin(), configa.end());
-      std::sort(configb.begin(), configb.end());
-      for (int i = 0; i < nup; i++)
-      {
-        REQUIRE(configa[i] == occs[nd][i]);
-      }
-      for (int i = 0; i < ndown; i++)
-      {
-        REQUIRE(configb[i] == occs[nd][i + nup]);
-      }
-      REQUIRE(std::abs(coeffs[nd]) == std::abs(ci));
+      REQUIRE(configa[i] == occs(nd,i));
     }
-    // Check sign of permutation.
-    REQUIRE(abij.number_of_configurations() == ndets_to_read);
+    for (int i = 0; i < ndown; i++)
+    {
+      REQUIRE(configb[i] == occs(nd,i + nup));
+    }
+    REQUIRE(std::abs(coeffs[nd]) == std::abs(ci));
   }
+  // Check sign of permutation.
+  REQUIRE(abij.number_of_configurations() == ndets_to_read);
 }
 
-void getBasicWavefunction(std::vector<int>& occs, std::vector<ComplexType>& coeffs, int NEL)
-{
-  hdf_archive dump;
-  if (!dump.open(UTEST_WFN, H5F_ACC_RDONLY))
-    APP_ABORT("Error reading wavefunction file.");
-  if (dump.push("Wavefunction", false)<0)
-    APP_ABORT(" Error in getBasicWavefunction: Group Wavefunction not found.");
-  if (dump.push("PHMSD", false)<0)
-    APP_ABORT(" Error in getBasicWavefunction: Group PHMSD not found.");
-  std::vector<int> Idata(5);
-  if (!dump.readEntry(Idata, "dims"))
-    APP_ABORT("Errro reading dims array");
-  int ndets = Idata[4];
-  occs.resize(ndets * NEL);
-  if (!dump.readEntry(occs, "occs"))
-    APP_ABORT("Error reading occs array.");
-  std::vector<ComplexType> ci_coeffs(ndets);
-  if (!dump.readEntry(coeffs, "ci_coeffs"))
-    APP_ABORT("Error reading occs array.");
-}
-
-// Construct PsiT^{dagger}
 template<class Mat>
-void getSlaterMatrix(Mat&& SM, boost::multi::array_ref<int, 1>& occs, int NEL)
+void getSlaterMatrix_mixed(Mat&& SM, math::sparse::CSRMatrix auto&& Orbs, nda::MemoryVector auto&& occs)
 {
-  using T = typename std::decay_t<Mat>::element;
-  ma::fill(SM, T(0.0));
-  for (int i = 0; i < NEL; i++)
-    SM[i][occs[i]] = T(1.0);
+  SM() = ComplexType(0.0);
+  auto row_begin = Orbs.row_begin();
+  auto row_end = Orbs.row_end();
+  auto vals = Orbs.values();
+  auto cols = Orbs.columns();
+  for (int r = 0; r < occs.extent(0); r++)
+    for(int j=row_begin(occs(r)); j<row_end(occs(r)); ++j)
+      SM(r,cols(j)) = vals(j); 
 }
 
-template<bool MP, class Allocator>
-void test_phmsd(boost::mpi3::communicator& world)
+template<class Mat>
+void getSlaterMatrix_occ(Mat&& SM, nda::MemoryVector auto&& occs)
 {
+  SM() = ComplexType(0.0);
+  for (int r = 0; r < occs.extent(0); r++)
+    SM(r,occs(r)) = ComplexType(1.0);
+}
 
-  if (not file_exists(UTEST_WFN) || not file_exists(UTEST_HAMIL))
+template<MEMORY_SPACE MEM>
+void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+             std::string hamil_file, std::string wfn_file)
+{
+  using sfqmc::utils::VALUE_EQUAL;
+  using sfqmc::utils::ARRAY_EQUAL;
+  using nda::range;
+  auto all = range::all;
+  utils::check(utils::file_exists(hamil_file),
+               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
+  utils::check(utils::file_exists(wfn_file),
+               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
+
+  // First strip path of filename.
+  std::string base_name = wfn_file.substr(wfn_file.find_last_of("\\/") + 1);
+  // Remove file extension.
+  std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
+  auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
+  auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "PHMSD");
+  utils::check(NMO == file_data.NMO, "Incompatible NMO.");
+
+  WALKER_TYPES type = afqmc::getWalkerType(wfn_file, "PHMSD");
+  int nspin         = (type == COLLINEAR) ? 2 : 1;
+  int npol          = (type == NONCOLLINEAR) ? 2 : 1;
+  int nel           = (type == COLLINEAR) ? nup+ndown : nup;
+  int nwalk         = 1; 
+  int ndets         = 100; 
+  double dt         = 0.01;
+  std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
+
+  std::map<std::string, AFQMCInfo> InfoMap;
+  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
+
+  ptree ham_pt;
+  ham_pt.put("name","ham0");
+  ham_pt.put("system","info0");
+  ham_pt.put("filename",hamil_file);
+
+  HamiltonianFactory HamFac(InfoMap);
+  HamFac.push("ham0", ham_pt);
+  Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
+
+  ptree wfn_pt;
+  wfn_pt.put("name","wfn0");
+  wfn_pt.put("system","info0");
+  wfn_pt.put("filename",wfn_file);
+  wfn_pt.put("rediag","no");
+  wfn_pt.put("ndets_to_read",ndets);
+  wfn_pt.put("algorithm",0);
+
+  WavefunctionFactory<MEM> WfnFac(InfoMap);
+  WfnFac.push("wfn0", wfn_pt);
+  auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
+
+  ptree wlk_pt;
+  wlk_pt.put("name","wset0");
+  if(type == CLOSED) wlk_pt.put("walker_type","closed");
+  else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
+  else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
+  else if (type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
+
+  auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
+  auto initial_guess = WfnFac.getInitialGuess("wfn0");
+  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+
+  // apply small unitary rotation to initial_guess
+  // add different rotations to every walker to test routines
   {
-    APP_ABORT(" Wavefunction and/or Hamiltonian file not found. Run unit test with --wfn /path/to/wfn.h5 and --hamil /path/to/hamil.h5. ");
+    nda::array<ComplexType,3> rotated_initial_guess(nspin,npol*NMO,nup);
+    nda::array<ComplexType,2> R = nda::rand(std::array<long,2>{npol*NMO,npol*NMO});
+    nda::array<ComplexType,1> tau(npol*NMO);
+    nda::lapack::geqrf(nda::transpose(R),tau);
+    nda::lapack::gqr(nda::transpose(R),tau);
+    for(int is=0; is<nspin; ++is)
+      nda::blas::gemm(R,initial_guess(is,all,all),rotated_initial_guess(is,all,all));
+    wset.resize(nwalk, rotated_initial_guess);
+  }
+
+  // 0. Get raw occupancies and coefficients from file.
+  nda::array<PsiT_Matrix<HOST_MEMORY>, 1> PsiT_MO;
+  memory::array<MEM,ComplexType,2> PsiA(nup,npol*NMO); 
+  memory::array<MEM,ComplexType,2> PsiB(ndown,npol*NMO); 
+  nda::array<ComplexType,1> coeffs;
+  nda::array<int,2> occs;
+  h5::file f(wfn_file,'r');
+  h5::group g = h5::group(f).open_group("Wavefunction").open_group("PHMSD");
+  std::string orb_type;
+  read_ph_wavefunction_hdf(g, coeffs, occs, ndets, type, 
+                                NMO, nup, ndown, PsiT_MO, orb_type);
+
+  if(orb_type=="occ") {
+    PsiT_MO.resize(1);
+    PsiT_MO(0) = PsiT_Matrix<HOST_MEMORY>({npol*NMO,npol*NMO},1);
+    for(int i=0; i<npol*NMO; ++i)
+      PsiT_MO(0).emplace_back({i,i},ComplexType(1.0));
+  }
+
+  // Using NOMSD as reference. Making h5 from input phmsd wfn
+  std::string nomsd_file = "_nomsd_dummy_.h5";
+  if(mpi->comm.root()) {
+    // 
+    h5::file f_(nomsd_file,'w');
+    h5::group g_(f_);
+    h5::group wg = g_.create_group("Wavefunction");
+    h5::group ng = wg.create_group("NOMSD");
+ 
+    nda::vector<int> dims = {NMO,nup,ndown,int(type),coeffs.size()};
+    nda::h5_write(ng,"dims",dims);
+    nda::h5_write(ng,"ci_coeffs",coeffs);
+
+    {
+      auto Psi0 = initial_guess(0,all,all);
+      nda::h5_write(ng,"Psi0_alpha",Psi0);
+    }
+    if(type == COLLINEAR) {
+      auto Psi0 = initial_guess(1,all,range(ndown));
+      nda::h5_write(ng,"Psi0_beta",Psi0);
+    }
+
+    for(int idet=0, n=0; idet<ndets; ++idet) {
+      {
+        h5::group gi = ng.create_group(std::string("PsiT_")+std::to_string(n));
+        math::sparse::CSR2HDF(gi,PsiT_MO(0),occs(idet,range(nup)));
+        n++;
+      }
+      if(type == COLLINEAR) {
+        h5::group gi = ng.create_group(std::string("PsiT_")+std::to_string(n));
+        nda::vector<int> ob = occs(idet,range(nup,nup+ndown))-NMO;
+        math::sparse::CSR2HDF(gi,PsiT_MO( PsiT_MO.extent(0)-1 ),ob);
+        n++;
+      }
+    }
+  }
+  mpi->comm.barrier();
+
+  ptree nomsd_pt;
+  nomsd_pt.put("name","nomsd");
+  nomsd_pt.put("system","info0");
+  nomsd_pt.put("filename",nomsd_file);
+
+  WfnFac.push("nomsd", nomsd_pt);
+  auto& nomsd = WfnFac.getWavefunction(mpi, "nomsd", type, &ham, nwalk);
+
+  // 1. Overlap 
+  ComplexType ovlp_sum = ComplexType(0.0);
+  for (int idet = 0; idet < ndets; idet++)
+  {
+    // Construct slater matrix from given set of occupied orbitals.
+    nda::array<ComplexType,1> ov(nwalk,ComplexType(0.0));
+    if(orb_type == "mixed")
+      getSlaterMatrix_mixed(PsiA, PsiT_MO(0), occs(idet,range(nup)));
+    else
+      getSlaterMatrix_occ(PsiA, occs(idet,range(nup)));
+    det_ops::Log_Overlap(PsiA,wset.SlaterMatrices(Alpha),ov);
+    if(type == COLLINEAR) {
+      nda::array<int, 1> ob = occs(idet,range(nup,nup+ndown)) - NMO; 
+      if(orb_type == "mixed")
+        getSlaterMatrix_mixed(PsiB, PsiT_MO(PsiT_MO.size()-1), ob);
+      else
+        getSlaterMatrix_occ(PsiB, ob);
+      det_ops::Log_Overlap(PsiB,wset.SlaterMatrices(Beta),ov);
+    }
+    ovlp_sum += std::conj(coeffs[idet]) * std::exp(ov(0));
+  }
+  wfn.Log_Overlap(wset);
+  
+  // log(ovlp_sum)
+  ComplexType log_ovlp_sum = std::log(ovlp_sum);
+
+  // the phase can be off by 2*pi due to small round-off errors around 0, what to do???
+  for (auto it = wset.begin(); it != wset.end(); ++it)
+    VALUE_EQUAL(std::exp(it->get_property(OVLP)), ovlp_sum);
+
+  {
+    memory::array<MEM,ComplexType,1> log_ov(nwalk);
+    nomsd.Log_Overlap(wset,log_ov); 
+    auto ov_h = nda::to_host(log_ov);
+    ov_h() = nda::exp(ov_h());
+    for(int i=0; i<nwalk; ++i)
+      VALUE_EQUAL(std::exp(wset[i].get_property(OVLP)), ov_h(i)); 
+  }
+
+  // 2. Green function
+  {
+    nda::array<ComplexType,3> G(nwalk,nspin*npol*NMO,npol*NMO);
+    nda::array<ComplexType,3> Gt(nwalk,nspin*npol*NMO,npol*NMO);
+    G() = ComplexType(0.0);
+    for (int idet = 0; idet < ndets; idet++)
+    {
+      nda::array<ComplexType,1> ov(nwalk,ComplexType(0.0));
+      Gt() = ComplexType(0.0);
+      if(orb_type == "mixed")
+        getSlaterMatrix_mixed(PsiA, PsiT_MO(0), occs(idet,range(nup)));
+      else
+        getSlaterMatrix_occ(PsiA, occs(idet,range(nup)));
+      det_ops::MixedDensityMatrix(PsiA,wset.SlaterMatrices(Alpha),Gt(all,range(npol*NMO),all),ov,false);
+      if(type == COLLINEAR) {
+        nda::array<int, 1> ob = occs(idet,range(nup,nup+ndown)) - NMO;
+        if(orb_type == "mixed")
+          getSlaterMatrix_mixed(PsiB, PsiT_MO(PsiT_MO.size()-1), ob);
+        else
+          getSlaterMatrix_occ(PsiB, ob);
+        det_ops::MixedDensityMatrix(PsiB,wset.SlaterMatrices(Beta),Gt(all,range(npol*NMO,2*npol*NMO),all),ov,false);
+      }
+      for(int iw=0; iw<nwalk; ++iw)
+        G(iw,all,all) += std::conj(coeffs[idet]) * std::exp(ov(iw) - log_ovlp_sum) * Gt(iw,all,all); 
+    }
+    memory::array<MEM,ComplexType,3> Gd(nwalk,nspin*npol*NMO,npol*NMO);
+    auto Gt2d = nda::reshape(Gd,std::array<long,2>{nwalk,nspin*npol*NMO*npol*NMO});
+    Gt2d() = ComplexType(0.0);
+    wfn.MixedDensityMatrix(wset,Gt2d,false);
+    ARRAY_EQUAL(G,Gd);
+  }
+
+  memory::array<MEM,ComplexType,2> eloc_ph0(nwalk,3);
+  memory::array<MEM,ComplexType,1> ov_ph0(nwalk);
+  wfn.Energy(wset,eloc_ph0,ov_ph0);
+  nda::tensor::scale(ComplexType(1.0),ov_ph0,nda::tensor::op::EXP);
+
+  {
+    memory::array<MEM,ComplexType,2> eloc(nwalk,3);
+    memory::array<MEM,ComplexType,1> ov(nwalk);
+    nomsd.Energy(wset,eloc,ov);
+    nda::tensor::scale(ComplexType(1.0),ov,nda::tensor::op::EXP);
+    ARRAY_EQUAL(ov_ph0,ov);
+    ARRAY_EQUAL(eloc_ph0,eloc);
+  }
+
+  if(wfn.getHamType() == RealDenseFactorized)  // add THC
+  {
+    ptree wfn1_pt;
+    wfn1_pt.put("name","wfn1");
+    wfn1_pt.put("system","info0");
+    wfn1_pt.put("filename",wfn_file);
+    wfn1_pt.put("rediag","no");
+    wfn1_pt.put("ndets_to_read",ndets);
+    wfn1_pt.put("algorithm",1);
+
+    WfnFac.push("wfn1", wfn1_pt);
+    auto& wfn1 = WfnFac.getWavefunction(mpi, "wfn1", type, &ham, nwalk);
+
+    memory::array<MEM,ComplexType,2> eloc(nwalk,3);
+    memory::array<MEM,ComplexType,1> ov(nwalk);
+    wfn1.Energy(wset,eloc,ov);
+    nda::tensor::scale(ComplexType(1.0),ov,nda::tensor::op::EXP);
+
+    ARRAY_EQUAL(ov_ph0,ov);
+    ARRAY_EQUAL(eloc_ph0,eloc);
+  }
+
+  // vMF
+  {
+    memory::array<MEM,ComplexType,1> v(wfn.number_of_cholesky_vectors());
+    wfn.vMF(v,dt);
+  }
+
+  // G_MF
+  {
+    auto gMF = wfn.G_MF();
+  }
+
+  // vbias
+  memory::array<MEM,ComplexType,2> X(nwalk,wfn.number_of_cholesky_vectors());
+  wfn.vbias(wset, X, dt);
+  {
+    auto X_h = nda::to_host(X);
+    ComplexType Xsum = 0;
+    if (std::abs(file_data.Xsum) > 1e-8)
+    {
+      for (int n = 0; n < nwalk; n++)
+      {
+        Xsum = nda::sum(X_h(n,all));
+        REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
+        REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
+      }
+    }
+    else
+    {
+      Xsum = nda::sum(X_h(0,all));
+      ComplexType Xsum2 = 0;
+      for (auto& v: X_h(0,all) )
+        Xsum2 += ComplexType(0.5) * v * v;
+      app_log(1," Xsum: {}", Xsum);
+      app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
+    }
+
+    memory::array<MEM,ComplexType,2> X2(nwalk,nomsd.number_of_cholesky_vectors());
+    nomsd.vbias(wset, X2, dt);
+    ARRAY_EQUAL(X,X2);
+  }
+
+  // vHS
+  auto vHS_d = wfn.vHS(X, dt);
+  auto vHS = nda::to_host(vHS_d);
+
+  ComplexType Vsum = 0;
+  if (std::abs(file_data.Vsum) > 1e-8)
+  {
+    for (int n = 0; n < nwalk; n++)
+    {
+      Vsum = nda::sum(vHS(all,n,all,all));
+      REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
+      REQUIRE(imag(Vsum) == Approx(imag(file_data.Vsum)));
+    }
   }
   else
   {
-    // Global Task Group
-    GlobalTaskGroup gTG(world);
-    auto TG    = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
-    auto TGwfn = TaskGroup_(gTG, std::string("WfnTG"), 1, gTG.getTotalCores());
-    Allocator alloc_(make_localTG_allocator<ComplexType>(TG));
-
-    int nwalk                 = 1;
-    int NMO;
-    int nup;
-    int ndown;
-    std::tie(NMO, nup, ndown) = read_info_from_wfn(UTEST_WFN, "PHMSD");
-    // Test overlap.
-    //wfn.Overlap(wset);
-    WALKER_TYPES type = afqmc::getWalkerType(UTEST_WFN, "PHMSD");
-    std::map<std::string, AFQMCInfo> InfoMap;
-    InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
-
-    int npol = ((type == NONCOLLINEAR) ? 2 : 1);
-
-    ptree ham_pt;
-    ham_pt.put("name","ham0");
-    ham_pt.put("system","info0");
-    ham_pt.put("filename",UTEST_HAMIL);
-
-    HamiltonianFactory HamFac(InfoMap);
-    HamFac.push("ham0", ham_pt);
-    Hamiltonian& ham = HamFac.getHamiltonian(gTG, "ham0");
-
-    ptree wfn_pt;
-    wfn_pt.put("name","wfn0");
-    wfn_pt.put("system","info0");
-    wfn_pt.put("type","phmsd");
-    wfn_pt.put("filename",UTEST_WFN);
-    wfn_pt.put("rediag","no");
-
-    WavefunctionFactory WfnFac(InfoMap, MP);
-    WfnFac.push("wfn0", wfn_pt);
-    Wavefunction& wfn = WfnFac.getWavefunction(TGwfn, TGwfn, "wfn0", type, &ham, 1e-6, nwalk);
-
-    ptree wlk_pt;
-    wlk_pt.put("name","wset0");
-    if(type==COLLINEAR)
-      wlk_pt.put("walker_type","collinear");
-    else if(type==NONCOLLINEAR)
-      wlk_pt.put("walker_type","noncollinear");
-    else if(type==FULLYPOLARIZED)
-      wlk_pt.put("walker_type","fullypolarized");
-    else
-      APP_ABORT(" Error in test_phmsd: Incorrect walker type.");
-    utils::RandomGenerator_t rng;
-    WalkerSet wset(TG, wlk_pt, InfoMap["info0"], &rng);
-
-    auto initial_guess = WfnFac.getInitialGuess("wfn0");
-    REQUIRE(initial_guess.size(0) == 2);
-    REQUIRE(initial_guess.size(1) == npol*NMO);
-    REQUIRE(initial_guess.size(2) == nup);
-
-    wset.resize(nwalk, initial_guess[0], initial_guess[1](initial_guess.extension(1), {0, ndown}));
-    // 1. Test Overlap Explicitly
-    // 1.a Get raw occupancies and coefficients from file.
-    std::vector<ComplexType> coeffs;
-    std::vector<int> buff;
-    getBasicWavefunction(buff, coeffs, nup + ndown);
-    int ndets = coeffs.size();
-    boost::multi::array_ref<int, 2> occs(buff.data(), {ndets, nup + ndown});
-    // 1.b Compute overlap of trial wavefunction compotents.
-    boost::multi::array<ComplexType, 2> Orbs({npol*NMO, npol*NMO});
-    for (int i = 0; i < npol*NMO; i++)
-      Orbs[i][i] = ComplexType(1.0);
-    boost::multi::array<ComplexType, 2, Allocator> TrialA({nup, npol*NMO}, ComplexType(0.0), alloc_);
-    boost::multi::array<ComplexType, 2, Allocator> TrialB({ndown, npol*NMO}, ComplexType(0.0), alloc_);
-    auto sdet = wfn.getSlaterDetOperations();
-    ComplexType ovlp_sum = ComplexType(0.0);
-    ComplexType logovlp(0.0);
-    //boost::multi::array<ComplexType,2> GBuff;
-    for (int idet = 0; idet < coeffs.size(); idet++)
-    {
-      // Construct slater matrix from given set of occupied orbitals.
-      ComplexType ovlpa, ovlpb = ComplexType(1.0);
-      boost::multi::array_ref<int, 1> oa(occs[idet].origin(), {nup});
-      getSlaterMatrix(TrialA, oa, nup);
-      ovlpa = sdet->Overlap(TrialA, *wset[0].SlaterMatrix(Alpha), logovlp);
-      if(type == COLLINEAR) {
-        boost::multi::array_ref<int, 1> ob(occs[idet].origin() + nup, {ndown});
-        for (int i = 0; i < ndown; i++)
-          ob[i] -= NMO;
-        getSlaterMatrix(TrialB, ob, ndown);
-        ovlpb = sdet->Overlap(TrialB, *wset[0].SlaterMatrix(Beta), logovlp);
-      }
-      ovlp_sum += ma::conj(coeffs[idet]) * ovlpa * ovlpb;
-    }
-    wfn.Overlap(wset);
-
-    for (auto it = wset.begin(); it != wset.end(); ++it)
-    {
-      REQUIRE(std::abs(real(ComplexType(*it->overlap()))) == Approx(std::abs(real(ovlp_sum))));
-      REQUIRE(std::abs(imag(ComplexType(*it->overlap()))) == Approx(std::abs(imag(ovlp_sum))));
-    }
-
+    Vsum = nda::sum(vHS(all,0,all,all));
+    app_log(1," Vsum: {}", Vsum);
   }
+
+  mpi->comm.barrier();
+  if(mpi->comm.root()) remove(nomsd_file.c_str());
+  mpi->comm.barrier();
+
 }
 
 TEST_CASE("test_read_phmsd", "[test_read_phmsd]")
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node = world.split_shared(world.rank());
-  setup_loggers(world.root(),2,0);
+  auto& mpi = utils::make_unit_test_mpi_context();
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-  using Alloc = device::device_allocator<ComplexType>;
-#else
-  using Alloc = shared_allocator<ComplexType>;
-#endif
-  setup_memory_managers(node, 10uL * 1024uL * 1024uL);
-
-  test_read_phmsd<Alloc>(world);
-
-  release_memory_managers();
+  test_read_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
 }
 
 TEST_CASE("test_phmsd", "[read_phmsd]")
 {
-  auto world = boost::mpi3::environment::get_world_instance();
-  auto node = world.split_shared(world.rank());
-  setup_loggers(world.root(),2,0);
+  auto& mpi = utils::make_unit_test_mpi_context();
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  arch::INIT(node);
-  using Alloc = device::device_allocator<ComplexType>;
-#else
-  using Alloc = shared_allocator<ComplexType>;
+  test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+#if defined(ENABLE_DEVICE)
+//  test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
 #endif
-  setup_memory_managers(node, 10uL * 1024uL * 1024uL);
-
-  //test_phmsd<Alloc,SlaterDetOperations_serial<Alloc>>(world);
-  test_phmsd<false,Alloc>(world);
-  test_phmsd<true,Alloc>(world);
-
-  release_memory_managers();
 }
 
 } // namespace sfqmc

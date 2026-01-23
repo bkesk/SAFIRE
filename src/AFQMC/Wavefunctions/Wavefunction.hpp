@@ -20,45 +20,28 @@
 #include "AFQMC/config.h"
 
 #include "AFQMC/Wavefunctions/NOMSD.hpp"
-//#include "AFQMC/Wavefunctions/PHMSD.hpp"
+#include "AFQMC/Wavefunctions/PHMSD.hpp"
 
 namespace sfqmc
 {
 namespace afqmc
 {
 
-class Wavefunction //: public boost::variant<
-                   //                      NOMSD<true,local_csr_Matrix<ComplexType>>,
-                   //                      NOMSD<false,local_csr_Matrix<ComplexType>>,
-                   //                      NOMSD<true,ComplexMatrix<node_allocator<ComplexType>>>,
-                   //                      NOMSD<false,ComplexMatrix<node_allocator<ComplexType>>>,
-                   //                      PHMSD<true>,
-                   //                      PHMSD<false>>
+template<MEMORY_SPACE MEM>
+class Wavefunction 
 {
 public:
   Wavefunction() { APP_ABORT(" Error: Reached default constructor of Wavefunction. "); }
 
-  explicit Wavefunction(NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>> const& other) = delete;
+  explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>> const& other) : var(other) {} 
 
-  explicit Wavefunction(NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>> const& other) = delete; 
+  explicit Wavefunction(NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>> const& other) : var(other) {}  
 
-#if defined(ENABLE_DEVICE)
-  explicit Wavefunction(NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>> const& other) = delete;
+  explicit Wavefunction(PHMSD<MEM>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(PHMSD<MEM> const& other) : var(other) {} 
 
-  explicit Wavefunction(NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>> const& other) = delete;
-#endif
-
-/*
-  explicit Wavefunction(PHMSD<true>&& other) : variant(std::move(other)) {}
-  explicit Wavefunction(PHMSD<true> const& other) = delete;
-
-  explicit Wavefunction(PHMSD<false>&& other) : variant(std::move(other)) {}
-  explicit Wavefunction(PHMSD<false> const& other) = delete;
-*/
   Wavefunction(Wavefunction const& other) = delete;
   Wavefunction(Wavefunction&& other)      = default;
 
@@ -83,6 +66,12 @@ public:
     return std::visit([&](auto&& a) { return a.number_of_references_for_back_propagation(); }, var);
   }
 
+  template<class WlkSet>
+  void runtime_optimization(WlkSet& wset)
+  {
+    std::visit([&](auto&& a) { a.runtime_optimization(wset); }, var);
+  }
+
   WALKER_TYPES getWalkerType() const
   {
     return std::visit([&](auto&& a) { return a.getWalkerType(); }, var);
@@ -96,7 +85,7 @@ public:
 
   auto G_MF()
   {
-    return std::visit([&](auto&& a) { return a.G_MF(); }, var);
+    return std::visit([&](auto&& a) { return a.template G_MF(); }, var);
   }
 
   template<class... Args>
@@ -109,6 +98,12 @@ public:
   auto vHS(Args&&... args)
   {
     return std::visit([&](auto&& a) { return a.vHS(std::forward<Args>(args)...); }, var);
+  }
+
+  template<class... Args>
+  auto vHS_sparse(Args&&... args)
+  {
+    return std::visit([&](auto&& a) { return a.vHS_sparse(std::forward<Args>(args)...); }, var);
   }
 
   auto vHS_dims() const
@@ -135,9 +130,9 @@ public:
   }
 
   template<class... Args>
-  void Overlap(Args&&... args)
+  void Log_Overlap(Args&&... args)
   {
-    std::visit([&](auto&& a) { a.Overlap(std::forward<Args>(args)...); }, var);
+    std::visit([&](auto&& a) { a.Log_Overlap(std::forward<Args>(args)...); }, var);
   }
 
   template<class... Args>
@@ -169,10 +164,9 @@ public:
     return std::visit([&](auto&& a) { return a.getHamType(); }, var);
   }
 
-  template<class... Args>
-  void getFieldTypes(Args&&... args)
+  auto getFieldTypes()
   {
-    std::visit([&](auto&& a) { a.getFieldTypes(std::forward<Args>(args)...); }, var);
+    return std::visit([&](auto&& a) { return a.getFieldTypes(); }, var);
   }
 
   template<class... Args>
@@ -186,26 +180,13 @@ public:
   {
     return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); }, var);
   }
-/*
-  template<class... Args>
-  std::tuple<dev_csr_Matrix<ComplexType> const*, dev_csr_Matrix<ComplexType> const*> vHS_sparse(Args&&... args)
-  {
-    return std::visit([&](auto&& a) { return a.vHS_sparse(std::forward<Args>(args)...); }, var);
-  }
-*/
   
   private:
 
-#if defined(ENABLE_DEVICE)
-  std::variant<NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
-               NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>,
-               NOMSD<DEVICE_MEMORY,PsiT_Matrix<DEVICE_MEMORY>>,
-               NOMSD<DEVICE_MEMORY,memory::shared_array<DEVICE_MEMORY,ComplexType,2>>
+  std::variant<NOMSD<MEM,PsiT_Matrix<MEM>>,
+               NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>,
+               PHMSD<MEM>
               > var;
-#else
-  std::variant<NOMSD<HOST_MEMORY,PsiT_Matrix<HOST_MEMORY>>,
-               NOMSD<HOST_MEMORY,memory::shared_array<HOST_MEMORY,ComplexType,2>>> var;
-#endif
 
 };
 

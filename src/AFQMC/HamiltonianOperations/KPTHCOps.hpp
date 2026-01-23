@@ -36,7 +36,6 @@ namespace afqmc
  * v+(q,n) = 0.5 * ( L(q,n) + dagger(L(q,n)) )
  * v-(q,n) = i*0.5 * ( L(q,n) - dagger(L(q,n)) )
  * L(q,n) = sum_k sum_ab L^{k,q}_{ab,n} dagger( c^{k}_a ) c^{k-q}_b
- *
  */
 
 
@@ -44,6 +43,8 @@ template<MEMORY_SPACE _MEM>
 class KPTHCOps
 {
   static constexpr MEMORY_SPACE MEM = _MEM;
+  template<class T>
+  using csrMat = math::sparse::csr_matrix<T, MEM, int, int>;
 
 public:
   static constexpr HamiltonianTypes HamOpType = KPTHC;
@@ -62,7 +63,7 @@ public:
          nda::array<int,2>&& nocc_per_kp_,
          nda::array<int,1>&& minusq_,
          nda::array<int,2>&& qk_to_k2_,
-         memory::shared_array<MEM,ComplexType,4>&& hij_,
+         memory::shared_array<HOST_MEMORY,ComplexType,4>&& hij_,
          memory::shared_array<MEM,ComplexType,3>&& haj_,
          memory::shared_array<MEM,ComplexType,4>&& x_,
          memory::shared_array<MEM,ComplexType,6>&& y_,
@@ -71,7 +72,7 @@ public:
          std::optional<memory::shared_array<MEM,ComplexType,4>>&& x_rot_,
          std::optional<memory::shared_array<MEM,ComplexType,6>>&& y_rot_,
          std::optional<memory::shared_array<MEM,ComplexType,3>>&& z_rot_,
-         memory::shared_array<MEM,ComplexType,4>&& v0_,
+         memory::shared_array<HOST_MEMORY,ComplexType,4>&& v0_,
          ComplexType e0_)
       : mpi(ctxt), 
         walker_type(type),
@@ -160,11 +161,9 @@ public:
       for (int p1 = 0; p1 < npol; p1++) {
         int p1_ = p1%nptot;
         // vHS finite 'q' contributions (full NMO*NMO) 
-/*
         for (int I = 0; I < NMO; I++) 
           for (int J = 0 ; J < NMO; J++) 
-              H1(is,p1*NMO+I,p1*NMO+J) += v(is_,0,p1_*NMO+I,J); 
-*/
+              H1(is,p1*NMO+I,p1*NMO+J) += v(0,is_,p1_*NMO+I,J); 
 
         // hij and vexx only have q=0 contributions  
         for (int p2 = 0; p2 < npol; p2++) {
@@ -204,11 +203,17 @@ public:
     return H1;
   }
 
+  void runtime_optimization(nda::MemoryArrayOfRank<2> auto const& G)
+  {  /*nothing to do right now*/ }
+
   nda::array<int,1> getFieldTypes() const {
     int nvc = number_of_cholesky_vectors();
     nda::array<int,1> v(nvc, int(ContinuousChargePropagator));
     return v;
   }
+
+  // nothing to update 
+  template<class... Args> void update_potentials([[maybe_unused]] Args&&... args) {}
 
   void energy(nda::MemoryArrayOfRank<2> auto && E,
               nda::MemoryArrayOfRank<2> auto const& G,
@@ -303,7 +308,10 @@ public:
                   for(int i=0; i<nw; i++)
                     Guu(0,i,iq,all) += nda::diagonal(Guv(i,all,all));
                 } else {
-                  utils::check(false,"finish");
+                  std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
+                  nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm({nw,nu},str);
+                  memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
+                  nda::tensor::add(ComplexType(1.0),Guv_diag,ComplexType(1.0),Guu(0,all,iq,all));
                 }
                 // now right hand side, where need to find q such that qk_to_k2(q,k2) = k1
                 iq=-1;
@@ -317,7 +325,10 @@ public:
                   for(int i=0; i<nw; i++)
                     Guu(1,i,iq,all) += nda::diagonal(Guv(i,all,all));
                 } else {
-                  utils::check(false,"finish");
+                  std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
+                  nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm({nw,nu},str);
+                  memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
+                  nda::tensor::add(ComplexType(1.0),Guv_diag,ComplexType(1.0),Guu(1,all,iq,all));
                 }
               }
 
@@ -351,11 +362,7 @@ public:
                 auto Gwai = G5d(range(iw, iw + nw),range(ispin*nup+n0,ispin*nup+n0+nel_qk2),p1,qk1,all); 
                 memory::buffered_array<MEM,ComplexType,1> Ew(nw);
                 nda::tensor::contract(ComplexType(-0.5*scl/double(nkpts)),Twbi,"wai",Gwai,"wai",ComplexType(0.0),Ew,"w"); 
-
-                if constexpr (MEM==HOST_MEMORY) 
-                  E(range(iw, iw + nw), 1) += Ew();
-                else
-                  utils::check(false,"finish");
+                nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 1));
 
               } // iq
             } // k2
@@ -370,27 +377,22 @@ public:
         nda::tensor::contract(Guu(0,all,all,all),"wqu",Zuv,"quv",Twu,"wqv");
         nda::tensor::contract(ComplexType(RealType(0.5*scl*scl/nkpts)),Guu(1,all,all,all),"wqv",
                               Twu,"wqv", ComplexType(0.0),Ew,"w"); 
-// NEED ACCUMULATE WITH CASTING
-        if constexpr (MEM==HOST_MEMORY) 
-          E(range(iw, iw + nw), 2) += Ew();
-        else
-          utils::check(false,"finish");
+        nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 2));
       }
       iw += nw;
     }
   }
-/*
-  template<class Mat, class MatB, class MatC>
+
   void energy([[maybe_unused]] SpinTypes spin_component,
-              [[maybe_unused]] Mat&& E,
-              [[maybe_unused]] MatB const& Gc,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto && E,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto const& Gc,
               [[maybe_unused]] int nd,
-              [[maybe_unused]] MatC&& EJn,
+              [[maybe_unused]] nda::MemoryArrayOfRank<2> auto && EJn,
               [[maybe_unused]] bool addH1  = true,
               [[maybe_unused]] bool addEJ  = true,
               [[maybe_unused]] bool addEXX = true)
   {
-    APP_ABORT(" Error: spin-dependent energy not implemented ");
+    utils::check(false," Error: spin-dependent energy not implemented ");
   }
 
   template<class... Args>
@@ -404,13 +406,19 @@ public:
   {
     APP_ABORT(" Error: ph_excited_energy not implemented yet. ");
   }
-*/
+
+  auto vHS_sparse(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  {
+    utils::check(false, "vHS_sparse not implemented in THCOps.");
+    nda::array<csrMat<ComplexType>,1> spvHS;
+    return spvHS();
+  }
 
   // returns v[nwalk, nspin_in_basis*npol_in_basis, NMO, NMO]
-  // no spin-orbit vHS yet
-  auto vHS(nda::MemoryArrayOfRank<2> auto && X, double dt)
+  auto vHS(nda::MemoryMatrix auto&& X, double dt)
   {
-    memory::check_memory_space<MEM>(X);
+    constexpr MEMORY_SPACE MEM_X = memory::get_memory_space<decltype(X)>();
+    static_assert(MEM == MEM_X, "Memory space mismatch");
     using nda::range;
     auto all = range::all;
     int nchol = 2 * nkpts * _Luv_().extent(2);
@@ -424,7 +432,7 @@ public:
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
+    memory::buffered_array<MEM_X,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
     auto v7d = nda::reshape(v,std::array<long,7>{nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd});
     v() = ComplexType(0.0);
 
@@ -452,7 +460,7 @@ public:
       //  X(Q)np = (X(Q)np + X(-Q)nm)
       for(int iq=0; iq<nkpts; iq++)  {
         if( iq != minusq(iq) ) {
-          nda::tensor::add(ComplexType(1.0),X4d(all,1,minusq(iq),all),"wqn",ComplexType(1.0),X4d(all,0,iq,all),"wqn");
+          nda::tensor::add(ComplexType(1.0),X4d(all,1,minusq(iq),all),"wn",ComplexType(1.0),X4d(all,0,iq,all),"wn");
         }
       } 
     }
@@ -460,13 +468,24 @@ public:
     // work array
     memory::buffered_array<MEM,ComplexType,3> Twqu(nwalk,nkpts,nu);
     // T(w,q,u) = sum_v L(q,u,n) * X(w,0,q,n) 
-    nda::tensor::contract(ComplexType(1.0),X4d(all,0,all,all),"wqn",Luv,"qun",
-                          ComplexType(0.0),Twqu,"wqu");
+
+    if constexpr (MEM==HOST_MEMORY) {
+      for(int iw=0; iw<nwalk; ++iw)
+        for(int iq=0; iq<nkpts; ++iq)
+          nda::blas::gemv(ComplexType(1.0),Luv(iq,all,all),X4d(iw,0,iq,all),
+                          ComplexType(0.0),Twqu(iw,iq,all));
+    } else {
+      nda::tensor::contract(ComplexType(1.0),X4d(all,0,all,all),"wqn",Luv,"qun",
+                            ComplexType(0.0),Twqu,"wqu");
+    }  
 
     // v[w][is*npol+ip][i][j] = sum_u conj(X[is][ip*NMO+i][u]) * X[is][ip*NMO+j][u] * T[u][w] 
     if constexpr (MEM==HOST_MEMORY) {
 
+      memory::buffered_array<MEM,ComplexType,3> v_(nwalk,nbnd,nbnd);
+      auto v2d = nda::reshape(v_,std::array<long,2>{nwalk*nbnd,nbnd});
       memory::buffered_array<MEM,ComplexType,3> Qwiu(nwalk,nbnd,nu);
+      auto Q2d = nda::reshape(Qwiu,std::array<long,2>{nwalk*nbnd,nu});
       for(int ik=0; ik<nkpts; ++ik) {
         for(int iq=0; iq<nkpts; ++iq) { 
           int k2 = qk_to_k2(iq,ik);
@@ -482,9 +501,8 @@ public:
                   Qwiu(w,i,all) = Twqu(w,iq,all) * nda::conj(Xiu(i,all));
 
               // v(nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd)
-              auto vij = v7d(is,all,ip,ik,all,k2,all);
-              nda::tensor::contract(ComplexType(1.0),Qwiu,"wiu",Xju,"ju",
-                                    ComplexType(1.0),vij,"wij");
+              nda::blas::gemm(ComplexType(1.0),Q2d,nda::transpose(Xju),ComplexType(0.0),v2d);
+              v7d(is,all,ip,ik,all,k2,all) += v_;
 
             }  // ip
           } // is
@@ -514,9 +532,8 @@ public:
                 for(int i=0; i<nbnd; ++i)
                   Qwiu(w,i,all) = Twu(w,all) * Xiu(i,all);
 
-              auto vij = v7d(is,all,ip,k2,all,ik,all);
-              nda::tensor::contract(ComplexType(1.0),Qwiu,"wiu",nda::conj(Xju),"ju",
-                                    ComplexType(1.0),vij,"wij");
+              nda::blas::gemm(ComplexType(1.0),Q2d,nda::dagger(Xju),ComplexType(0.0),v2d);
+              v7d(is,all,ip,k2,all,ik,all) += v_; 
 
             }  // ip
           } // is
@@ -525,8 +542,97 @@ public:
 
       // now missing contributions from q==-q terms
     } else {
-      // use group batched gemm for this, since k-q matrix is not properly strided
-      utils::check(false,"finish");
+
+      memory::buffered_array<MEM,ComplexType,4> Qwiu(nkpts,nwalk,nbnd,nu);
+      memory::buffered_array<MEM,ComplexType,4> v_(nkpts,nwalk,nbnd,nbnd);
+      auto Qk = nda::reshape(Qwiu,std::array<long,3>{nkpts,nwalk*nbnd,nu});
+      auto vk = nda::reshape(v_,std::array<long,3>{nkpts,nwalk*nbnd,nbnd});
+      using A_t = decltype(Qk(0,all,all));
+      using B_t = decltype(nda::transpose(Xsiu(0,0,range(1),all)));
+      using B2_t = decltype(nda::dagger(Xsiu(0,0,range(1),all)));
+      using C_t = decltype(vk(0,all,all));
+      std::vector<A_t> Av; 
+      std::vector<B_t> Bv;
+      std::vector<B2_t> B2v;
+      std::vector<C_t> Cv;
+      Av.reserve(nkpts);
+      Bv.reserve(nkpts);
+      B2v.reserve(nkpts);
+      Cv.reserve(nkpts);
+      for(int ik=0; ik<nkpts; ++ik) Cv.emplace_back(vk(ik,all,all)); 
+
+      for( int is=0; is<nstot; ++is) {
+        for( int ip=0; ip<nptot; ++ip) {
+          for(int iq=0; iq<nkpts; ++iq) { 
+
+            // Qwiu[w][i][u] = T[w][u] * conj(Piu[i][u])
+            auto Xkiu = Xsiu(is,all,range(ip*nbnd,(ip+1)*nbnd),all); 
+            nda::tensor::elementwise_trinary(ComplexType(1.0),Twqu(all,iq,all),"wu",
+              ComplexType(1.0),nda::conj(Xkiu),"kiu",
+              ComplexType(0.0),Qwiu,"kwiu",
+              nda::tensor::op::MUL,nda::tensor::op::SUM);
+
+            // v(nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd)
+            Av.clear(); 
+            Bv.clear(); 
+            for(int ik=0; ik<nkpts; ++ik) {
+              int k2 = qk_to_k2(iq,ik);
+              Av.emplace_back(Qk(ik,all,all));
+              Bv.emplace_back(nda::transpose(Xsiu(is,k2,range(ip*nbnd,(ip+1)*nbnd),all)));
+            } 
+            nda::blas::gemm_batch<false>(ComplexType(1.0),Av,Bv,ComplexType(0.0),Cv);
+
+            // use non-blocking copy
+            for(int ik=0; ik<nkpts; ++ik) { 
+              int k2 = qk_to_k2(iq,ik);
+              nda::tensor::add(ComplexType(1.0),v_(ik,all,all,all),"wij",
+                               ComplexType(1.0),v7d(is,all,ip,ik,all,k2,all),"wij");
+            }
+
+          } // iq
+        }  // ip
+      } // is
+
+      memory::array_view<MEM,ComplexType,2> Twu(std::array<long,2>{nwalk,nu},Twqu.data());
+      for( int is=0; is<nstot; ++is) {
+        for( int ip=0; ip<nptot; ++ip) {
+          for(int iq=0; iq<nkpts; ++iq) {
+            if(iq != minusq(iq)) continue;
+
+            // T(w,q,u) = sum_v L(q,u,n) * X(w,0,q,n) 
+// evaluate all with batched gemm
+            nda::tensor::contract(ComplexType(1.0),X4d(all,1,iq,all),"wn",
+                                                   nda::conj(Luv(iq,all,all)),"un",
+                                  ComplexType(0.0),Twu,"wu");
+
+            auto Xkiu = Xsiu(is,all,range(ip*nbnd,(ip+1)*nbnd),all);
+            // Qwiu[w][i][u] = T[w][u] * Piu[i][u]
+            nda::tensor::elementwise_trinary(ComplexType(1.0),Twu,"wu",
+                      ComplexType(1.0),Xkiu,"kiu",
+                      ComplexType(0.0),Qwiu,"kwiu",
+                      nda::tensor::op::MUL,nda::tensor::op::SUM);
+
+            // v(nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd)
+            Av.clear();
+            B2v.clear();
+            for(int ik=0; ik<nkpts; ++ik) {
+              int k2 = qk_to_k2(iq,ik);
+              Av.emplace_back(Qk(k2,all,all));
+              B2v.emplace_back(nda::dagger(Xsiu(is,ik,range(ip*nbnd,(ip+1)*nbnd),all)));
+            }
+            nda::blas::gemm_batch<false>(ComplexType(1.0),Av,B2v,ComplexType(0.0),Cv);
+
+            // use non-blocking copy
+            for(int ik=0; ik<nkpts; ++ik) {
+              int k2 = qk_to_k2(iq,ik);
+              nda::tensor::add(ComplexType(1.0),v_(ik,all,all,all),"wij",
+                               ComplexType(1.0),v7d(is,all,ip,k2,all,ik,all),"wij");
+            }
+
+          } // iq
+        } // ip
+      } // is
+
     } // MEM
     return v;
   }
@@ -644,17 +750,14 @@ public:
 //      memory::array_view<MEM,const ComplexType,4> G3d(std::array<long,4>{nwalk,nspin,npol*NMO,npol*NMO},G.data());
     }
   }
-/*
-  template<class Mat, class MatB>
-  void generalizedFockMatrix([[maybe_unused]] Mat&& G, [[maybe_unused]] MatB&& Fp, [[maybe_unused]] MatB&& Fm)
+
+  template<class... Args> void generalizedFockMatrix([[maybe_unused]] Args&&... args)
   {
     APP_ABORT(" Error: generalizedFockMatrix not implemented for this hamiltonian.");
   }
-
-*/
   
   /// Returns the number of spins and polarizations in the VHS potential.
-  auto vHS_dims() const {
+  std::tuple<int,int> vHS_dims() const {
     return std::make_tuple(_Xsiu_().shape()[0],_Xsiu_().shape()[2]/nbnd);
   }
   int number_of_ke_vectors() const { 
@@ -664,7 +767,6 @@ public:
   }
   int number_of_cholesky_vectors() const { return 2 * nkpts * _Luv_().extent(2); }
 
-  bool fast_ph_energy() const { return false; }
   nda::array<ComplexType, 2> getHSPotentials() 
   { return nda::array<ComplexType, 2>{}; }
 
@@ -707,6 +809,7 @@ protected:
 
         auto Gwakj = G(all,range(is*nup+n0,is*nup+n0+nel_k),ip,k2_rng,all);
         //  T(w,k2,a,u) = G(w,k,a,p,k2,j) * X(s,k2,p,j,u)
+//pull this outside loop over ik 
         nda::tensor::contract(Gwakj,"wakj",Xju,"kju",Tw,"wkau");
         // Gwku(w,k2,u) = scl * sum_a Y(s,p,k,a,u) * T(w,k2,a,u) 
         nda::tensor::contract(ComplexType(a),Tw,"wkau",Yau,"au",ComplexType(1.0),Gwku,"wku");
@@ -779,7 +882,7 @@ protected:
   int Q0_index = 0;
 
   // H1[nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<MEM,ComplexType,4> hij;
+  memory::shared_array<HOST_MEMORY,ComplexType,4> hij;
 
   // half rotated one body hamiltonian: [ndet][nup+ndn][npol*NMO]. Kept in full basis
   memory::shared_array<MEM,ComplexType,3> haj;
@@ -806,7 +909,7 @@ protected:
   std::optional<decltype(_Luv_)> _Zuv_rot_; 
 
   // vexx(i,l) = -0.5 * sum_j <ij|jl> : [nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<MEM,ComplexType,4> vexx;
+  memory::shared_array<HOST_MEMORY,ComplexType,4> vexx;
 
   ComplexType E0;
 

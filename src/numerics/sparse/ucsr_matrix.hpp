@@ -47,6 +47,14 @@ namespace math
 namespace sparse
 {
 
+namespace detail
+{
+  template <typename A>
+  concept Vector = requires(A const &a) {
+    { a.size() } -> std::same_as<long>;
+  };
+}
+
 template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>
 class ucsr_matrix  
 {
@@ -95,10 +103,11 @@ public:
   }
 
   /* Constructor */
-  template<typename integer_type = long, typename = std::enable_if_t<std::is_integral_v<integer_type>>>
-  ucsr_matrix(std::tuple<long, long> const& dims, integer_type nnzpr = 0)
-      : size1_(std::get<0>(dims)),
-        size2_(std::get<1>(dims)),
+  template<typename IType = long, typename integer_type = long>
+  requires ( std::is_integral_v<IType> and std::is_integral_v<integer_type> )
+  ucsr_matrix(std::tuple<IType, IType> const& dims, integer_type nnzpr = 0)
+      : size1_(long(std::get<0>(dims))),
+        size2_(long(std::get<1>(dims))),
         data_(size1_ * long(nnzpr)),
         jdata_(size1_ * long(nnzpr)),
         row_begin_(size1_+1),
@@ -116,9 +125,11 @@ public:
     row_begin_(size1_) = int_type(size1_ * long(nnzpr));
   }
 
-  ucsr_matrix(std::tuple<long, long> const& dims, ::nda::MemoryArrayOfRank<1> auto const& nnzpr) 
-      : size1_(std::get<0>(dims)),
-        size2_(std::get<1>(dims)),
+  template<typename IType = long>
+  requires ( std::is_integral_v<IType> ) 
+  ucsr_matrix(std::tuple<IType, IType> const& dims, nda::MemoryVector auto const& nnzpr) 
+      : size1_(long(std::get<0>(dims))),
+        size2_(long(std::get<1>(dims))),
         data_(long(std::accumulate(nnzpr.begin(), nnzpr.end(), 0))),
         jdata_(data_.size()),
         row_begin_(size1_+1),
@@ -225,9 +236,15 @@ public:
     if(size1_*size2_==0) return int_type(0); 
     else return row_begin_(i+1)-row_begin_(i); 
   } 
+  auto values(long i) { return data_(i); }
+  auto values() { return data_(); }
+  auto values(long i) const { return data_(i); }
   auto values() const { return data_(); }
+  auto columns(long i) const { return jdata_(i); }
   auto columns() const { return jdata_(); }
+  auto row_begin(long i) const { return row_begin_(i); }
   auto row_begin() const { return row_begin_(); }
+  auto row_end(long i) const { return row_end_(i); }
   auto row_end() const { return row_end_(); }
   auto nnz() const {
     long n=0;

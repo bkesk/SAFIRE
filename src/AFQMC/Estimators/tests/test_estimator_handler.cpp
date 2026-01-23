@@ -67,8 +67,8 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   auto[NMO,nup, ndown] = read_info_from_wfn(UTEST_WFN, "any");
   utils::check(NMO == read_nmo_from_hdf(hamil_file), "NMO differ between hamil and wfn files.");
 
-  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
-  std::shared_ptr<utils::DeviceRandomGenerator_t> rng_dev = std::make_shared<utils::DeviceRandomGenerator_t>(utils::make_device_rng(777));
+  std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
+  std::shared_ptr<utils::RandomGenerator_t<MEM>> rng_dev = std::make_shared<utils::RandomGenerator_t<MEM>>(utils::make_rng<MEM>(777));
 
   std::map<std::string, AFQMCInfo> InfoMap;
   InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
@@ -103,17 +103,17 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   wfn_pt.put("dense_trial",true);
 
   int nwalk = 11;
-  WavefunctionFactory WfnFac(InfoMap);
+  WavefunctionFactory<MEM> WfnFac(InfoMap);
   WfnFac.push("wfn0", wfn_pt);
-  Wavefunction& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
+  auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 
   ptree prop_pt;
   prop_pt.put("name","prop0");
   prop_pt.put("system","info0");
 
-  PropagatorFactory PropgFac(InfoMap);
+  PropagatorFactory<MEM> PropgFac(InfoMap);
   PropgFac.push("prop0", prop_pt);
-  Propagator& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
+  auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
   auto initial_guess = WfnFac.getInitialGuess("wfn0");
   REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
@@ -202,7 +202,7 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
       float dt = 0.01f;
       float total_time = 0.0f;
       double E1 = 0.0;
-      EstimatorHandler estim0(mpi, InfoMap["info0"], "test_est_handler",
+      EstimatorHandler<MEM> estim0(mpi, InfoMap["info0"], "test_est_handler",
         est_pt, wset, WfnFac, wfn, prop,
                           type, HamFac, "ham0", dt);
     

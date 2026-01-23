@@ -31,6 +31,8 @@ namespace sfqmc
 {
 namespace afqmc
 {
+
+template<MEMORY_SPACE MEM>
 class WavefunctionFactory
 {
 public:
@@ -54,7 +56,6 @@ public:
     std::string info          = pt0.get<std::string>("system");
     std::string filename      = pt0.get<std::string>("filename");
 //    std::string restart_file  = pt0.get<std::string>("restart_file", "");
-    std::string compute       = pt0.get<std::string>("compute", memory::default_compute); 
     bool rediag        = pt0.get<bool>("rediag", false);
     // validate inputs
     // create verbose internal inputs
@@ -65,7 +66,6 @@ public:
 //    pt1.put("restart_file", restart_file);
     pt1.put("rediag", rediag);
     pt1.put("ndets_to_read", ndets_to_read);
-    pt1.put("compute", compute);
     // optional parameters 
     if( auto val = pt0.get_optional<int>("algorithm") )
       pt1.put("algorithm", *val);
@@ -183,33 +183,20 @@ protected:
   std::map<std::string, AFQMCInfo>& InfoMap;
 
   // generates a new Wavefunction and returns the pointer to the base class
-  Wavefunction buildWavefunction(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+  Wavefunction<MEM> buildWavefunction(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                                  ptree pt,
                                  WALKER_TYPES walker_type,
                                  Hamiltonian* h,
                                  int targetNW)
   {
-    std::string compute  = pt.get<std::string>("compute", memory::default_compute);
-
     app_log(1,"\n****************************************************");
     app_log(1,"               Initializing Wavefunction ");
     app_log(1,"\n****************************************************");
 
-    if (compute == "cpu")
-      return fromHDF5<HOST_MEMORY>(mpi, pt, walker_type, *h, targetNW);
-#if defined(ENABLE_DEVICE)
-    else if (compute == "gpu")
-      return fromHDF5<DEVICE_MEMORY>(mpi, pt, walker_type, *h, targetNW);
-#endif
-    else
-    {
-      utils::check(false," Error: Invalid Wavefunction compute in WavefunctionFactory::buildWavefunction(). ");
-    }
-    return Wavefunction{};
+    return fromHDF5(mpi, pt, walker_type, *h, targetNW);
   }
 
-  template<MEMORY_SPACE MEM>
-  Wavefunction fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+  Wavefunction<MEM> fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                         ptree pt,
                         WALKER_TYPES walker_type,
                         Hamiltonian& h,
@@ -232,15 +219,15 @@ protected:
   ComplexType slaterCondon0(Hamiltonian& ham, nda::MemoryVector auto& det, int NMO);
   ComplexType slaterCondon1(Hamiltonian& ham, std::vector<int>& excit, nda::MemoryVector auto& det, int NMO);
   ComplexType slaterCondon2(Hamiltonian& ham, std::vector<int>& excit, int NMO);
-
-  void build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int NPOL, int NMO, int nup, 
-	int ndown, int ndets, std::vector<ComplexType>& coeffs, 
-        std::vector<int>& occbuff, std::vector<PsiT_Matrix>& PsiT_MO);
 */
+
+  void build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int npol, int NMO, int nup, 
+	int ndown, int ndets, nda::array<ComplexType,1>& coeffs, 
+        nda::array<int,2>& occs, nda::array<PsiT_Matrix<HOST_MEMORY>,1>& PsiT_MO);
 
   std::map<std::string, ptree> wfnBlocks;
 
-  std::map<std::string, Wavefunction> wavefunctions;
+  std::map<std::string, Wavefunction<MEM>> wavefunctions;
 
   std::map<std::string, memory::shared_array<HOST_MEMORY, ComplexType, 3>> initial_guess;
 };

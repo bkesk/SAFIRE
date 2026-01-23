@@ -36,7 +36,8 @@ namespace afqmc
  * Top class for mixed estimators. 
  * An instance of this class will manage a set of observables evaluated at the mixed distribution.
  */
-class MixedEstimator : public EstimatorBase
+template<MEMORY_SPACE MEM>
+class MixedEstimator : public EstimatorBase<MEM>
 {
 
 public:
@@ -45,8 +46,8 @@ public:
                           std::string name,
                           ptree pt,
                           WALKER_TYPES wlk,
-                          Wavefunction& wfn)
-      : EstimatorBase(info),
+                          Wavefunction<MEM>& wfn)
+      : EstimatorBase<MEM>(info),
         observ0(mpi, info, name, pt, wlk, wfn)
   {
     int _pop_control_interval, equil_multiplier;
@@ -63,10 +64,10 @@ public:
   ~MixedEstimator() {}
 
   void accumulate_step([[maybe_unused]] double time, 
-                       [[maybe_unused]] WalkerSet& wset,
+                       [[maybe_unused]] WalkerSet<MEM>& wset,
                        [[maybe_unused]] std::vector<ComplexType>& curData) {}
 
-  void accumulate_block([[maybe_unused]] double time, WalkerSet& wset)
+  void accumulate_block([[maybe_unused]] double time, WalkerSet<MEM>& wset)
   {
     accumulated_in_last_block = false;
 
@@ -92,7 +93,7 @@ public:
     return measure_interval;
   }
 
-  void print([[maybe_unused]] std::ofstream& out, h5::file& file, [[maybe_unused]] WalkerSet& wset)
+  void print([[maybe_unused]] std::ofstream& out, h5::file& file, [[maybe_unused]] WalkerSet<MEM>& wset)
   {
     // print resets the counters for block average.
     if (accumulated_in_last_block and (iblock%block_size==0))
@@ -116,7 +117,7 @@ private:
   bool writer = false;
   bool accumulated_in_last_block = false;
 
-  MixedObsHandler observ0;
+  MixedObsHandler<MEM> observ0;
 
   // Blocking info 
   int block_size   = 1;

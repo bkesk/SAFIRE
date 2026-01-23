@@ -96,7 +96,7 @@ void test_basic_walker_features(std::string wtype)
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("walker_type",wtype);
-  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, info, rng);
   
   if(wtype != "collinear-ft" and wtype != "noncollinear-ft"){
@@ -287,44 +287,44 @@ void test_basic_walker_features(std::string wtype)
   }
 
   if(wtype != "collinear-ft" and wtype != "noncollinear-ft"){
-    auto SMs = wset.template SlaterMatrices<MEM>(Alpha);
+    auto SMs = wset.SlaterMatrices(Alpha);
     REQUIRE( SMs.extent(0) == wset.size() ); 
     if( wset.getWalkerType() == COLLINEAR ) { 
-      auto SMBs = wset.template SlaterMatrices<MEM>(Beta);
+      auto SMBs = wset.SlaterMatrices(Beta);
       REQUIRE( SMBs.extent(0) == wset.size() ); 
     }
 
     // BP
     wset.resize_bp(4,10,2);
     {
-      auto F0 = wset.template getFields<MEM>(0);
-      auto Fs = wset.template getFields<MEM>();
+      auto F0 = wset.template getFields(0);
+      auto Fs = wset.template getFields();
       memory::array<MEM,ComplexType,2> Fi(F0.shape());
       Fi() = Fs(nda::range::all,0,nda::range::all); 
       wset.storeFields(1,Fi);
-      auto WF = wset.template getWeightFactors<MEM>();
-      auto WH = wset.template getWeightHistory<MEM>();
+      auto WF = wset.template getWeightFactors();
+      auto WH = wset.template getWeightHistory();
       WF() = ComplexType(0.0);
       WH() = ComplexType(0.0);
     }
   }
   else{
-    auto UMats = wset.template UMatrices<MEM>(Alpha);
+    auto UMats = wset.UMatrices(Alpha);
     REQUIRE( UMats.extent(0) == wset.size() ); 
     if( wset.getWalkerType() == COLLINEAR_FT ) { 
-      auto UMatBs = wset.template UMatrices<MEM>(Beta);
+      auto UMatBs = wset.UMatrices(Beta);
       REQUIRE( UMatBs.extent(0) == wset.size() ); 
     }
-    auto DVecs = wset.template DMatrices<MEM>(Alpha);
+    auto DVecs = wset.DMatrices(Alpha);
     REQUIRE( DVecs.extent(0) == wset.size() ); 
     if( wset.getWalkerType() == COLLINEAR_FT ) { 
-      auto DVecBs = wset.template DMatrices<MEM>(Beta);
+      auto DVecBs = wset.DMatrices(Beta);
       REQUIRE( DVecBs.extent(0) == wset.size() ); 
     }
-    auto VMats = wset.template VMatrices<MEM>(Alpha);
+    auto VMats = wset.VMatrices(Alpha);
     REQUIRE( VMats.extent(0) == wset.size() ); 
     if( wset.getWalkerType() == COLLINEAR_FT ) { 
-      auto VMatBs = wset.template VMatrices<MEM>(Beta);
+      auto VMatBs = wset.VMatrices(Beta);
       REQUIRE( VMatBs.extent(0) == wset.size() ); 
     }
 

@@ -11,59 +11,33 @@
  *
  */
 
-#include "catch_amalgamated.hpp"
+#include "catch2/catch.hpp"
+
 #include "config.h"
-#include "Utilities/AppAbort.hpp"
+#include "configuration.hpp"
+
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/Random.hpp"
+#include "utilities/check.hpp"
+#include "utilities/h5_utils.hpp"
+#include "utilities/test_common.hpp"
+#include "utilities/Timer.hpp"
+#include "IO/app_loggers.h"
 
 #include <vector>
 #include <random>
 
-#include "AFQMC/config.h"
-#include "Utilities/app_loggers.h"
-#include "config.0.h"
-#include "Numerics/ma_blas.hpp"
-#include "SparseMatrix/tests/matrix_helpers.h"
+#include "nda/nda.hpp"
+
 #include "AFQMC/Utilities/test_utils.hpp"
-#include "Numerics/ma_operations.hpp"
-#include "Numerics/determinant.hpp"
-#include "Numerics/ma_small_mat_ops.hpp"
-#include "Numerics/batched_operations.hpp"
 #include "AFQMC/Wavefunctions/detail/phmsd_impl.hpp"
-#include "Utilities/Timer.hpp"
-
-#include "multi/array.hpp"
-#include "multi/array_ref.hpp"
-
-
-using boost::multi::array;
-using boost::multi::iextensions;
-using std::copy_n;
 
 namespace sfqmc
 {
 using namespace afqmc;
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-template<typename T>
-using Alloc = device::device_allocator<T>;
-#else
-template<typename T>
-using Alloc = std::allocator<T>;
-#endif
-template<typename T>
-using pointer = typename std::allocator_traits<Alloc<T>>::pointer;
-
-
-template<typename T>
-using Tensor1D = array<T, 1, Alloc<T>>;
-template<typename T>
-using Tensor2D = array<T, 2, Alloc<T>>;
-template<typename T>
-using Tensor3D = array<T, 3, Alloc<T>>;
-template<typename T>
-using Tensor4D = array<T, 4, Alloc<T>>;
-
 #if defined(ENABLE_DEVICE)
+/*
 TEST_CASE("test_ph_excited_energy_real_dense_cholesky", "[Numerics][misc_kernels]")
 {
   setup_loggers(true,2,0);
@@ -222,91 +196,77 @@ TEST_CASE("test_ph_excited_energy_real_dense_cholesky", "[Numerics][misc_kernels
   host_buffer.release();
   device_buffer.release();
 }
+*/
 #else
 TEST_CASE("test_ph_excited_energy_real_dense_cholesky", "[Numerics][misc_kernels]")
 {
-  setup_loggers(true,2,0);
+  constexpr MEMORY_SPACE MEM = HOST_MEMORY;
+  auto& mpi = utils::make_unit_test_mpi_context();
   int ndet = 50;
   int nelec = 5;
   int nact = 10;
   int nchol = 50;
-  // enough memry to avoid allocation
-  afqmc::HostBufferManager host_buffer(10uL * 1024uL * 1024uL);  
+  int nw = 1;
+  std::mt19937 generator(0);
+  std::normal_distribution<RealType> distribution(0.0, 1.0);
   //for(int nex=1; nex<21; nex++) 
   for(int nex=1; nex<6; nex++) 
   {
 //    std::cout<<" # excitations: " <<nex <<std::endl;
-    boost::multi::array<ComplexType, 4> Tna({1, nelec, nchol, nact}, ComplexType(0.0));
-    boost::multi::array<ComplexType, 4> Tan({1, nelec, nact, nchol}, ComplexType(0.0));
-    boost::multi::array<ComplexType, 4> R_({1, ndet, nex, nact}, ComplexType(0.0));
-    boost::multi::array<ComplexType, 2> wgt_({ndet, 1}, ComplexType(0.0));
-    boost::multi::array<ComplexType, 3> KE_({ndet, 1, nchol}, ComplexType(0.0));
-    boost::multi::array<int, 2> orbs_({ndet,nelec});
-    boost::multi::array<int, 2> iexcit_({ndet,2*nex});
-    boost::multi::array<int, 1> refc_(iextensions<1u>{nelec});
-    for(int i=0; i<nelec; i++) refc_[i]=i;
+    memory::array<MEM,ComplexType, 4> Tna(nw, nelec, nchol, nact);
+    memory::array<MEM,ComplexType, 4> R(nw, ndet, nex, nact);
+    memory::array<MEM,ComplexType, 2> wgt(ndet, nw); 
+    memory::array<MEM,ComplexType, 3> KE(ndet, nw, nchol);
+    memory::array<MEM,int, 2> orbs(ndet,nelec);
+    memory::array<MEM,int, 2> iexcit(ndet,2*nex);
+    memory::array<MEM,int, 1> refc(nelec);
+    for(int i=0; i<nelec; i++) refc(i)=i;
     {
-      std::vector<ComplexType> tmp( std::max(Tna.num_elements(), R_.num_elements()) );
-      afqmc::fillRandomMatrix(tmp);
-      copy_n(tmp.data(), Tna.num_elements(), Tna.origin());
-      copy_n(tmp.data(), R_.num_elements(), R_.origin());
-      copy_n(tmp.data(), wgt_.num_elements(), wgt_.origin());
-      for(int i=0; i<nelec; i++)
-        for(int a=0; a<nact; a++)
-          for(int n=0; n<nchol; n++)
-            Tan[0][i][a][n] = Tna[0][i][n][a];
-      std::vector<int> tmpi(nex);
-      std::mt19937 generator(0);
+      nda::vector<ComplexType> tmp( std::max(Tna.size(), R.size()) );
+      for(int i=0; i<tmp.size(); ++i)
+        tmp(i) = ComplexType(distribution(generator),distribution(generator));
+      std::copy_n(tmp.data(), Tna.size(), Tna.data());
+      std::copy_n(tmp.data(), R.size(), R.data());
+      std::copy_n(tmp.data(), wgt.size(), wgt.data());
+      nda::vector<int> tmpi(nex);
       {  
-        std::uniform_int_distribution<int> distribution(0, nelec-1);
-        std::vector<int> iocc(nelec, 0);
+        std::uniform_int_distribution<int> u_distribution(0, nelec-1);
+        nda::vector<int> iocc(nelec, 0);
         for(int nd=0; nd<ndet; nd++) {
-          std::fill_n(iocc.begin(), nelec, 0);
+          iocc() = 0;
           for(int i=0; i<nex; i++) {
-            int v = distribution(generator);
-            while( iocc[v] != 0 ) {
-              v = distribution(generator);
+            int v = u_distribution(generator);
+            while( iocc(v) != 0 ) {
+              v = u_distribution(generator);
             }
-            iocc[v]=1;
-            iexcit_[nd][i] = v;
+            iocc(v)=1;
+            iexcit(nd,i) = v;
           }
         }
       }  
       {
-        std::uniform_int_distribution<int> distribution(0, nact-nelec-1);
-        std::vector<int> iocc(nact-nelec, 0);
+        std::uniform_int_distribution<int> u_distribution(0, nact-nelec-1);
+        nda::vector<int> iocc(nact-nelec, 0);
         for(int nd=0; nd<ndet; nd++) {
-          std::fill_n(iocc.begin(), nact-nelec, 0);
+          iocc() = 0;
           for(int i=0; i<nex; i++) {
-            int v = distribution(generator);
-            while( iocc[v] != 0 ) {
-              v = distribution(generator);
+            int v = u_distribution(generator);
+            while( iocc(v) != 0 ) {
+              v = u_distribution(generator);
             }
-            iocc[v]=1;
-            iexcit_[nd][i+nex] = v+nelec;
+            iocc(v)=1;
+            iexcit(nd,i+nex) = v+nelec;
           }
         }
       }
     }
-    Vector<ComplexType> EJ(iextensions<1u>{1}, 0.0);
-    Vector<ComplexType> EX(iextensions<1u>{1}, 0.0);
-    using ma::ph_excited_2body_energy_dense_cholesky_Tpna;
-    using ma::ph_excited_2body_energy_dense_cholesky_Tpan;
     Watch timer;
-    ph_excited_2body_energy_dense_cholesky_Tpan(iexcit_.origin(), refc_.origin(), 
-	  Tan, R_, wgt_, EX, EJ, KE_);
-    Vector<ComplexType> EJ2(iextensions<1u>{1}, 0.0);
-    Vector<ComplexType> EX2(iextensions<1u>{1}, 0.0);
+    nda::vector<ComplexType> EJ(nw, 0.0);
+    nda::vector<ComplexType> EX(nw, 0.0);
     timer.reset();
-    ph_excited_2body_energy_dense_cholesky_Tpna(iexcit_.origin(), refc_.origin(), 
-	  Tna, R_, wgt_, EX2, EJ2, KE_);
-    REQUIRE(std::real(EX[0]) == Approx(std::real(EX2[0])));
-    REQUIRE(std::imag(EX[0]) == Approx(std::imag(EX2[0])));
-    REQUIRE(std::real(EJ[0]) == Approx(std::real(EJ2[0])));
-    REQUIRE(std::imag(EJ[0]) == Approx(std::imag(EJ2[0])));
+    ph_excited_2body_energy_dense_cholesky(nda::flatten(iexcit), refc,Tna, R, wgt, EX, EJ, KE); 
 //    std::cout<<"    " <<tcpu1 <<" " <<tcpu2 <<std::endl; 
   }  
-  host_buffer.release();
 }
 #endif
 

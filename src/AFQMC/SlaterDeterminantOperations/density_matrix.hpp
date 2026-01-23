@@ -515,6 +515,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ0, IVec && ref)
 {
+  auto all = nda::range::all;
   utils::check_strides(B,ovlp,QQ0,ref);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -540,7 +541,8 @@ void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ
   }
 
   // TNN(i,:) = TMN(ref(i),:)
-  nda::copy_select(false, 0, ref, Type(1.0), TMN, Type(0.0), TNN);
+  for(int n=0; n<nbatch; ++n)
+    nda::copy_select(false, 0, ref, Type(1.0), TMN(n,all,all), Type(0.0), TNN(n,all,all));
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);
@@ -697,6 +699,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && ovlp, QQ0_t && QQ0, IVec && ref, bool compact)
 {
+  auto all = nda::range::all;
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
@@ -724,7 +727,8 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   }
 
   // TNN(i,:) = TAB(ref(i),:)
-  nda::copy_select(false, 0, ref, Type(1.0), TAB, Type(0.0), TNN);
+  for(int n=0; n<nbatch; ++n)
+    nda::copy_select(false, 0, ref, Type(1.0), TAB(n,all,all), Type(0.0), TNN(n,all,all));
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);
@@ -771,6 +775,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_t && ovlp, IVec && ref, bool compact)
 {
+  auto all = nda::range::all;
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
@@ -797,7 +802,8 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   }
 
   // TNN(i,:) = TAB(ref(i),:)
-  nda::copy_select(false, 0, ref, Type(1.0), TAB, Type(0.0), TNN);
+  for(int n=0; n<nbatch; ++n)
+    nda::copy_select(false, 0, ref, Type(1.0), TAB(n,all,all), Type(0.0), TNN(n,all,all));
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);

@@ -32,6 +32,7 @@ namespace sfqmc
 {
 namespace afqmc
 {
+template<MEMORY_SPACE MEM>
 class WalkerSetFactory
 {
 public:
@@ -51,7 +52,7 @@ public:
       return true;
   }
 
-  WalkerSet& getWalkerSet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, const std::string& ID, std::shared_ptr<utils::RandomGenerator_t> rng)
+  auto& getWalkerSet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, const std::string& ID, std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> rng)
   {
     auto xml = wlkBlocks.find(ID);
     if (xml == wlkBlocks.end())
@@ -107,25 +108,18 @@ protected:
   std::map<std::string, AFQMCInfo>& InfoMap;
 
   // generates a new WalkerSet and returns the pointer to the base class
-  WalkerSet buildHandler(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, std::shared_ptr<utils::RandomGenerator_t> rng)
+  WalkerSet<MEM> buildHandler(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> rng)
   {
     std::string type, info;
     info = pt.get<std::string>("system", "");
-    std::string compute  = pt.get<std::string>("compute", memory::default_compute);
     utils::check(InfoMap.find(info) != InfoMap.end(), "ERROR: Undefined system: {}", info);
 
-    if (compute == "cpu")
-      return WalkerSet(WalkerSetBase<HOST_MEMORY>(mpi, pt, InfoMap[info], rng));
-#if defined(ENABLE_DEVICE)
-    else if(compute == "gpu")
-      return WalkerSet(WalkerSetBase<DEVICE_MEMORY>(mpi, pt, InfoMap[info], rng));
-#endif
-    return WalkerSet(WalkerSetBase<HOST_MEMORY>{});
+    return WalkerSet<MEM>(WalkerSetBase<MEM>(mpi, pt, InfoMap[info], rng));
   }
 
   std::map<std::string, ptree> wlkBlocks;
 
-  std::map<std::string, WalkerSet> handlers;
+  std::map<std::string, WalkerSet<MEM>> handlers;
 };
 } // namespace afqmc
 } // namespace sfqmc

@@ -100,7 +100,6 @@ option(ENABLE_CPPTRACE "Build with cpptrace support" ON)
 option(ENABLE_FFTW "Build using FFTW3 library." ON)
 option(ENABLE_SLATE "Build using Slate library." OFF)
 #option(ENABLE_CUTENSOR "Build using cutensor library. Must set CUTENSOR_ROOT" OFF)
-option(ENABLE_TBLIS "Build using tblis library. Must set TBLIS_ROOT" ON)
 option(COMPILE_NDA_TESTS "Build with nda tests" OFF)
 option(NDA_PYTHON_SUPPORT "Build nda with python support" OFF)
 option(FETCH_CCCL "Fetch CCCL and enable support. Only used with ENABLE_CUDA" OFF)
@@ -111,6 +110,7 @@ if( ENABLE_CUDA OR ENABLE_HIP ) #OR ENABLE_OPENMP)
 else()
   set(ENABLE_DEVICE OFF)
 endif() 
+set(ENABLE_TBLIS ON) 
 
 ######################################################################
 # CUDA
@@ -238,7 +238,7 @@ endif()
 #set(CutensorSupport ${ENABLE_CUTENSOR} CACHE INTERNAL "")
 set(CutensorSupport ${ENABLE_CUDA} CACHE INTERNAL "")
 set(CudaSupport ${ENABLE_CUDA} CACHE INTERNAL "")
-set(TblisSupport ${ENABLE_TBLIS} CACHE INTERNAL "")
+set(TblisSupport ON CACHE INTERNAL "")
 set(Build_Tests ${COMPILE_NDA_TESTS} CACHE INTERNAL "")
 if(COQUI_PYTHON_SUPPORT)
   # nda_py library is needed in CoQui python version
@@ -254,13 +254,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nda)
 
 set_property(GLOBAL PROPERTY nda_FOUND TRUE)
-  
-#if(ENABLE_CUDA) # AND ENABLE_CUTENSOR)
-#  add_compile_definitions(ENABLE_CUTENSOR)
-#endif()
-if(ENABLE_TBLIS)
-  add_compile_definitions(ENABLE_TBLIS)
-endif()
 
 ######################################################################
 # CCCL from github (useful if CudaToolkit is old 
@@ -411,21 +404,21 @@ install(FILES ${PROJECT_BINARY_DIR}/bin/safire.settings DESTINATION bin)
 add_library(${PROJECT_NAME}_warnings INTERFACE)
 target_compile_options(${PROJECT_NAME}_warnings
   INTERFACE
-    -Wall
-    -Wextra
-    -Wfloat-conversion
-    -Wpedantic
-    -Wno-sign-compare
+#    -Wall
+#    -Wextra
+#    -Wfloat-conversion
+#    -Wpedantic
+#    -Wno-sign-compare
     $<$<CXX_COMPILER_ID:GNU>:-Wno-comma-subscript>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-psabi> # Disable notes about ABI changes
-    $<$<CXX_COMPILER_ID:GNU>:-Wshadow=local>
+#    $<$<CXX_COMPILER_ID:GNU>:-Wshadow=local>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-attributes>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-deprecated-declarations>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-deprecated-comma-subscript>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-deprecated-declarations>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-unknown-warning-option>
-    $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wshadow>
-    $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wimplicit-float-conversion>
+#    $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wshadow>
+#    $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wimplicit-float-conversion>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-gcc-compat>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-c++20-extensions>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-c++20-compat>

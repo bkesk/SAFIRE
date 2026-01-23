@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "configuration.hpp"
+#include "utilities/check.hpp"
 #if defined(NDA_USE_MKL)
 //#include "numerics/sparse/detail/CPU/mkl_spblas.h"
 #include "mkl_spblas.h"
@@ -52,8 +53,7 @@ void csrmv(const char transa,
            const T beta,
            T* y)
 {
-  if(not(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F')))
-    throw std::runtime_error("backup_impl::csrmv: Invalid matdescra");
+  sfqmc::utils::check(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F'), "backup_impl::csrmv: Invalid matdescra");
   auto p0   = *pntrb;
   if (transa == 'n' || transa == 'N')
   {
@@ -112,8 +112,7 @@ void csrmv(const char transa,
            const std::complex<T> beta,
            std::complex<T>* y)
 {
-  if(not(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F')))
-    throw std::runtime_error("backup_impl::csrmv: Invalid matdescra");
+  sfqmc::utils::check(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F'), "backup_impl::csrmv: Invalid matdescra");
   auto p0   = *pntrb;
   if (transa == 'n' || transa == 'N')
   {
@@ -175,8 +174,7 @@ void csrmm(const char transa,
            T* C,
            const int ldc)
 {
-  if(not(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F')))
-    throw std::runtime_error("backup_impl::csrmm: Invalid matdescra"); 
+  sfqmc::utils::check(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F'), "backup_impl::csrmm: Invalid matdescra");
   auto p0   = *pntrb;
   if(matdescra[3] == 'F') {
     for(int nc=0; nc<N; ++nc, B+=ldb, C+=ldc) 
@@ -268,8 +266,7 @@ void csrmm(const char transa,
            std::complex<T>* C,
            const int ldc)
 {
-  if(not(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F')))
-    throw std::runtime_error("backup_impl::csrmm: Invalid matdescra");
+  sfqmc::utils::check(matdescra[0] == 'G' && (matdescra[3] == 'C' || matdescra[3]=='F'), "backup_impl::csrmm: Invalid matdescra");
   auto p0   = *pntrb;
   if(matdescra[3] == 'F') {
     for(int nc=0; nc<N; ++nc, B+=ldb, C+=ldc)
@@ -370,8 +367,7 @@ namespace detail
     else if(transa == 'C' or transa == 'c' or transa == 'H' or transa == 'h')
       return SPARSE_OPERATION_CONJUGATE_TRANSPOSE;
     else {
-      throw std::runtime_error("Invalid mkl_operation");
-      assert(false);
+      sfqmc::utils::check(false, "Invalid mkl_operation:{}",transa);
     }
     return SPARSE_OPERATION_NON_TRANSPOSE;
   }
@@ -380,8 +376,7 @@ namespace detail
   { 
     sparse_matrix_t csr = NULL;
     auto stat = mkl_sparse_s_create_csr (std::addressof(csr), SPARSE_INDEX_BASE_ZERO, rows, cols, rows_start, rows_end, col_indx, values);  
-    if( stat !=  SPARSE_STATUS_SUCCESS )
-      throw std::runtime_error("MKL error: mkl_sparse_d_create_csr");
+    sfqmc::utils::check(stat == SPARSE_STATUS_SUCCESS, "MKL error: mkl_sparse_s_create_csr");
     return csr;
   }
   
@@ -389,8 +384,7 @@ namespace detail
   { 
     sparse_matrix_t csr = NULL;
     auto stat = mkl_sparse_c_create_csr (std::addressof(csr), SPARSE_INDEX_BASE_ZERO, rows, cols, rows_start, rows_end, col_indx, mklcplx(values));
-    if( stat !=  SPARSE_STATUS_SUCCESS )
-      throw std::runtime_error("MKL error: mkl_sparse_d_create_csr");
+    sfqmc::utils::check(stat == SPARSE_STATUS_SUCCESS, "MKL error: mkl_sparse_c_create_csr");
     return csr;
   }
   
@@ -398,8 +392,7 @@ namespace detail
   {
     sparse_matrix_t csr = NULL;
     auto stat = mkl_sparse_d_create_csr (std::addressof(csr), SPARSE_INDEX_BASE_ZERO, rows, cols, rows_start, rows_end, col_indx, values);
-    if( stat !=  SPARSE_STATUS_SUCCESS )
-      throw std::runtime_error("MKL error: mkl_sparse_d_create_csr");
+    sfqmc::utils::check(stat == SPARSE_STATUS_SUCCESS, "MKL error: mkl_sparse_d_create_csr");
     return csr;
   }
 
@@ -407,8 +400,7 @@ namespace detail
   { 
     sparse_matrix_t csr = NULL;
     auto stat = mkl_sparse_z_create_csr (std::addressof(csr), SPARSE_INDEX_BASE_ZERO, rows, cols, rows_start, rows_end, col_indx, mklcplx(values));  
-    if( stat !=  SPARSE_STATUS_SUCCESS )
-      throw std::runtime_error("MKL error: mkl_sparse_d_create_csr");
+    sfqmc::utils::check(stat == SPARSE_STATUS_SUCCESS, "MKL error: mkl_sparse_z_create_csr");
     return csr;
   }
 
@@ -424,14 +416,13 @@ namespace detail
     } else if constexpr (std::is_same_v<T,std::complex<double>>) {
       return make_csr_z(rows,cols,values,col_indx,rows_start,rows_end);
     } else {
-      throw std::runtime_error("MKL error: make_csr invalid datatype.");
+      sfqmc::utils::check(false, "MKL error: make_csr invalid datatype.");
     }
   }
 
   inline void destroy_csr(sparse_matrix_t A) {
     auto stat = mkl_sparse_destroy(A);
-    if( stat !=  SPARSE_STATUS_SUCCESS )
-      throw std::runtime_error("MKL error: mkl_sparse_destroy");
+    sfqmc::utils::check(stat == SPARSE_STATUS_SUCCESS, "MKL error: mkl_sparse_destroy");
   }
 
 }
@@ -465,7 +456,7 @@ inline static void csrmv(const char transa,
     } else if constexpr (std::is_same_v<T,std::complex<double>>) {
       mkl_sparse_z_mv(detail::mkl_operation(transa), detail::mklcplx(alpha), csr, descr, detail::mklcplx(x), detail::mklcplx(beta), detail::mklcplx(y));
     } else {
-      throw std::runtime_error("MKL error: make_csr invalid datatype.");
+      sfqmc::utils::check(false, "MKL error: make_csr invalid datatype.");
     }
     detail::destroy_csr(csr);
 #else
@@ -507,7 +498,7 @@ inline static void csrmm_impl(const char transa,
     } else if constexpr (std::is_same_v<T,std::complex<double>>) {
       mkl_sparse_z_mm(detail::mkl_operation(transa), detail::mklcplx(alpha), csr, descr, lay, detail::mklcplx(B), N, ldb, detail::mklcplx(beta), detail::mklcplx(C), ldc);
     } else {
-      throw std::runtime_error("MKL error: make_csr invalid datatype.");
+      sfqmc::utils::check(false, "MKL error: make_csr invalid datatype.");
     }
     detail::destroy_csr(csr);
 #else
@@ -553,8 +544,8 @@ inline static void csrmm_impl(const char transa,
                          std::complex<T>* C,
                          const int ldc)
 {
-  if(matdescra[3] != 'C')
-    throw std::runtime_error("Mixed precision csrmm only with C_layout arrays");
+  // if this is needed, generalize and call back_up for mixed types
+  sfqmc::utils::check(matdescra[3] == 'C', "Mixed precision csrmm only with C_layout arrays"); 
   csrmm_impl(transa, M, 2 * N, K, alpha, matdescra, A, indx, pntrb, pntre, reinterpret_cast<T const*>(B), 2 * ldb, beta,
         reinterpret_cast<T*>(C), 2 * ldc);
 }

@@ -110,7 +110,7 @@ public:
         H1ext({2, 1, 1}, shared_allocator<ComplexType>{TG.Node()}),
         P1d({0,0,0},make_node_allocator<ComplexType>(TG)),
         vMF(iextensions<1u>{wfn.local_number_of_cholesky_vectors()}),
-        FieldTypes(wfn.getFieldTypes(FieldTypes)),
+        FieldTypes(wfn.getFieldTypes()),
         rng(r),
         uniformRNptr(nullptr),
 	rng_block_size(vMF.size(0)),
@@ -126,8 +126,8 @@ public:
       APP_ABORT(" Error: ncores>1 not allowed in AFQMCModelPropagator.");
 
     P1s.reserve(2);
-    P1s.emplace_back(P1Type(tp_ul_ul{0, 0}, tp_ul_ul{0, 0}, 0, aux_alloc_));
-    P1s.emplace_back(P1Type(tp_ul_ul{0, 0}, tp_ul_ul{0, 0}, 0, aux_alloc_));
+    P1s.emplace_back(P1Type({0, 0}, {0, 0}, 0, aux_alloc_));
+    P1s.emplace_back(P1Type({0, 0}, {0, 0}, 0, aux_alloc_));
     transposed_vHS_ = wfn.transposed_vHS();
     transposed_G_   = wfn.transposed_G_for_vbias();
     // convert user input to verbose input

@@ -30,6 +30,8 @@ namespace sfqmc
 {
 namespace afqmc
 {
+
+template<MEMORY_SPACE MEM>
 class PropagatorFactory
 {
 public:
@@ -52,7 +54,7 @@ public:
   }
 
   // returns a pointer to the base Propagator class associated with a given ID
-  auto& getPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, const std::string& ID, Wavefunction& wfn, std::shared_ptr<utils::DeviceRandomGenerator_t> rng)
+  auto& getPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, const std::string& ID, Wavefunction<MEM>& wfn, std::shared_ptr<utils::RandomGenerator_t<MEM>> rng)
   {
     auto xml = propBlocks.find(ID);
     if (xml == propBlocks.end())
@@ -106,28 +108,20 @@ protected:
   std::map<std::string, AFQMCInfo>& InfoMap;
 
   // generates a new Propagator and returns the pointer to the base class
-  Propagator buildPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, Wavefunction& wfn, std::shared_ptr<utils::DeviceRandomGenerator_t> rng)
+  Propagator<MEM> buildPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, Wavefunction<MEM>& wfn, std::shared_ptr<utils::RandomGenerator_t<MEM>> rng)
   {
-    std::string compute  = pt.get<std::string>("compute", memory::default_compute);
-    
     app_log(1,"\n****************************************************");
     app_log(1,"               Initializing Propagator ");
     app_log(1,"\n****************************************************");
-    if (compute == "cpu")
-      return buildAFQMCPropagator<HOST_MEMORY>(mpi, pt, wfn, rng);
-#if defined(ENABLE_DEVICE)
-    else if(compute == "gpu")
-      return buildAFQMCPropagator<DEVICE_MEMORY>(mpi, pt, wfn, rng);
-#endif
-    return Propagator{};
+
+    return buildAFQMCPropagator(mpi, pt, wfn, rng);
   }
 
-  template<MEMORY_SPACE MEM>
-  Propagator buildAFQMCPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, Wavefunction& wfn, std::shared_ptr<utils::DeviceRandomGenerator_t> r);
+  Propagator<MEM> buildAFQMCPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, Wavefunction<MEM>& wfn, std::shared_ptr<utils::RandomGenerator_t<MEM>> r);
 
   std::map<std::string, ptree> propBlocks;
 
-  std::map<std::string, Propagator> propagators;
+  std::map<std::string, Propagator<MEM>> propagators;
 };
 
 
