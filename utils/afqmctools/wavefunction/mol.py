@@ -334,8 +334,8 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
 
     Returns
     -------
-    wfn : :class:`np.ndarray`
-        Wavefunction as numpy array. Format depends on wavefunction.
+    nelec : :class:`tuple`
+        Number of electrons as a tuple (nalpha, nbeta).
     """
     mol = scf_data['mol']
     nelec = mol.nelec
