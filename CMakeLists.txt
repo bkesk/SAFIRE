@@ -63,6 +63,14 @@ SET(PROJECT_UNIT_TEST_DIR ${PROJECT_BINARY_DIR}/tests/bin)
 enable_testing()
 include( CTest )
 
+######################################################################
+# Code Coverage
+######################################################################
+if(ENABLE_COVERAGE)
+  include(CodeCoverage)
+  append_coverage_compiler_flags()
+endif()
+
 
 ######################################################################
 # Build level
@@ -95,6 +103,7 @@ option(BUILD_STATIC "Link to static libraries" OFF)
 option(ENABLE_TIMERS "Enable internal timers" ON)
 option(ENABLE_STACKTRACE "Enable use of boost::stacktrace" OFF)
 OPTION(BUILD_DOCUMENTATION "Enable compiling C++ Docs" OFF)
+option(ENABLE_COVERAGE "Enable code coverage reporting" OFF)
 
 if( ENABLE_CUDA OR ENABLE_HIP OR ENABLE_OPENMP)
   set(ENABLE_DEVICE ON)
@@ -309,6 +318,13 @@ target_compile_options(${PROJECT_NAME}_warnings
     $<$<COMPILE_LANGUAGE:CUDA>:--diag-error=128> # unreachable_code
 )
 subdirs(src)
+
+######################################################################
+# Setup code coverage targets
+######################################################################
+if(ENABLE_COVERAGE)
+  setup_coverage_targets()
+endif()
 
 
 #######################################################################
