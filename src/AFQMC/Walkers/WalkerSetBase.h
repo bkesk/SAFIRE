@@ -292,7 +292,7 @@ public:
 
   template<walker_data D>
   auto extract_SM( SpinTypes s ) {
-    static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
+    static_assert(D == SM or D == SMN, "Invalid enum");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
@@ -303,7 +303,7 @@ public:
 
   template<walker_data D>
   auto extract_SM( SpinTypes s ) const {
-    static_assert(D == SM or D == SMN or D == SM_AUX, "Invalid enum");
+    static_assert(D == SM or D == SMN, "Invalid enum");
     auto i0 = (s==Alpha?data_displ[D]:data_displ[D]+wlk_desc[0]*wlk_desc[1]);
     auto nc = (s==Alpha?wlk_desc[1]:wlk_desc[2]);
     std::array<long,3> shape = {tot_num_walkers,wlk_desc[0],nc};
@@ -407,18 +407,6 @@ public:
   {
     utils::check(data_displ[SMN]>=0, "access to uninitialized BP sector. ");
     return extract_SM<SMN>(s);
-  }
-
-  auto SlaterMatricesAux( SpinTypes s )
-  {
-    utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<SM_AUX>(s);
-  }
-
-  auto SlaterMatricesAux( SpinTypes s ) const
-  {
-    utils::check(data_displ[SM_AUX]>=0, "access to uninitialized BP sector. ");
-    return extract_SM<SM_AUX>(s);
   }
 
   void processWalkerData(std::vector<ComplexType>& curData);

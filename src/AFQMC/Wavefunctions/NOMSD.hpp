@@ -67,7 +67,6 @@ public:
         HamOp(std::move(hop_)),
         ci(std::move(ci_)),
         OrbMats(std::move(orbs_)),
-        RefOrbMats(0, 0, 0, 0),
         NuclearCoulombEnergy(nce)
   {
     utils::check(OrbMats.extent(0) == ci.size(), "Size mismatch");
@@ -296,22 +295,35 @@ public:
       accumulate_estimators_single_ref_impl(std::forward<Args>(args)...);    
   }
 */
-  /*
-   * Returns the number of reference Slater Matrices needed for back propagation.  
-   */
-  int number_of_references_for_back_propagation() const
-  {
-    return OrbMats.extent(0);
-  }
 
   ComplexType getReferenceWeight(int i) const { return ci[i]; }
 
+  int total_number_of_references() const { return OrbMats.extent(0); }
+
   /*
-    * Returns the reference Slater Matrices needed for back propagation.  
-    */
-  auto getReferences() const
+   * Returns the reference Slater Matrices needed for back propagation.  
+   */ 
+  void getReferences(int number_of_references, nda::MemoryArrayOfRank<3> auto&& Refs) const
   {
-    return OrbMats;
+    using nda::range;
+    auto all = range::all;
+    int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
+    int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
+    int nspin = (walker_type == COLLINEAR ? 2 : 1);
+    if(number_of_references==0) return;
+    if(number_of_references < 0) number_of_references = OrbMats.extent(0);
+    utils::check(number_of_references > 0 and 
+                 number_of_references < OrbMats.extent(0) and
+                 number_of_references < Refs.extent(0), 
+                 "Invalid number_of_references:{}", number_of_references);
+    utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
+    // this is slow and uses too much memory. Improve!!!
+//  write kernel
+//    for(int i=0; i<number_of_references; ++i) {
+//      Refs(i,all,range(nup)) = math::sparse::to_array<'H'>(OrbMats(i,0))();
+//      if(walker_type == COLLINEAR)
+//        Refs(i,all,range(nup,nel)) = math::sparse::to_array<'H'>(OrbMats(i,1))();
+//    }
   }
 
 protected:
@@ -326,10 +338,6 @@ protected:
 
   // OrbMats[ndet][nspin](nel,NMO)
   nda::array<devPsiT,2> OrbMats;
-
-  // RefOrbMats[ndet][nspin][nel][NMO]
-  // this should be a shared_array!!!
-  memory::array<MEM,ComplexType,4> RefOrbMats;
 
   ComplexType NuclearCoulombEnergy;
 

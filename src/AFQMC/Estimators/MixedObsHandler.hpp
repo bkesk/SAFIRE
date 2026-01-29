@@ -143,12 +143,20 @@ public:
     int nwalk = wset.size();
     int nspin = ( walker_type == COLLINEAR ? 2 : 1 );
     int npol = ( walker_type == NONCOLLINEAR ? 2 : 1 );    
-    int nrefs = wfn->number_of_references_for_back_propagation();
+    int nrefs = wfn->total_number_of_references();
 
     nda::array<ComplexType, 1> wgt(nwalk);
     wset.getProperty(WEIGHT, wgt);
     ncalls++;
     denominator(0) += std::accumulate(wgt.begin(), wgt.end(), ComplexType(0.0));
+
+// MAM: Implement this in the wavefuntion with a lambda function that is applied
+// e.g. [] (auto && G) { 
+//        for (auto& v : properties)
+//          v.accumulate(0, G, G, wgt, true);
+// }
+// This way each wfn can optimize their evaluation of green functions and 
+// there is no need reimplement algorithms here
 
     memory::buffered_array<MEM,ComplexType,1> Ov(nwalk);
     memory::buffered_array<MEM,ComplexType,4> G(nwalk,nspin,npol*NMO,npol*NMO); 

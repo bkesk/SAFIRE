@@ -61,11 +61,6 @@ public:
     return std::visit([&](auto&& a) { return a.number_of_cholesky_vectors(); }, var);
   }
 
-  int number_of_references_for_back_propagation() const
-  {
-    return std::visit([&](auto&& a) { return a.number_of_references_for_back_propagation(); }, var);
-  }
-
   template<class WlkSet>
   void runtime_optimization(WlkSet& wset)
   {
@@ -135,6 +130,11 @@ public:
     std::visit([&](auto&& a) { a.Log_Overlap(std::forward<Args>(args)...); }, var);
   }
 
+  auto total_number_of_references() const
+  {
+    return std::visit([&](auto&& a) { return a.total_number_of_references(); }, var);
+  }
+
   template<class... Args>
   ComplexType getReferenceWeight(Args&&... args)
   {
@@ -142,7 +142,7 @@ public:
   }
 
   template<class... Args>
-  auto getReferences(Args&&... args) const
+  void getReferences(Args&&... args) 
   {
     std::visit([&](auto&& a) { a.getReferences(std::forward<Args>(args)...); }, var);
   }
@@ -159,6 +159,7 @@ public:
     std::visit([&](auto&& a) { a.generalizedFockMatrix(std::forward<Args>(args)...); }, var);
   } 
 */
+
   HamiltonianTypes getHamType() const 
   {
     return std::visit([&](auto&& a) { return a.getHamType(); }, var);

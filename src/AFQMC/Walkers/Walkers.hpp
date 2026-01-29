@@ -116,15 +116,6 @@ public:
     return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]}, getw_(SMN)))
                         : (SMType<_M_>({desc[0], desc[2]}, getw_(SMN) + desc[0] * desc[1]));
   }
-  template<MEMORY_SPACE _M_>
-  auto SlaterMatrixAux(SpinTypes s)
-  {
-    utils::check(_M_ == MEM, "Memory space mismatch.");
-    utils::check(indx[SM_AUX]>=0, "error: access to uninitialized BP sector. ");
-    utils::check(s==Alpha or desc[2] > 0, "error:walker spin out of range in SlaterMatrixAux(SpinType).");
-    return (s == Alpha) ? (SMType<_M_>({desc[0], desc[1]},getw_(SM_AUX)))
-                        : (SMType<_M_>({desc[0], desc[2]},getw_(SM_AUX) + desc[0] * desc[1]));
-  }
   // accessor functions. Only defined from host, no device calls allowed. 
   decay_value_type get_property(walker_data P) const { return get_value(P); }
   template<typename V>

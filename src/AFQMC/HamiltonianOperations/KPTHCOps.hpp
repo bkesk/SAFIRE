@@ -52,6 +52,7 @@ public:
 
   /*
    * nup/ndown stands for number of alpha/beta electrons
+   * Completely broken for half_rotated integrals, FIX FIX FIX
    */
   KPTHCOps(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> ctxt,
          WALKER_TYPES type,
@@ -267,120 +268,121 @@ public:
     utils::check(G.is_contiguous(), "Layout mismatch"); 
     memory::array_view<MEM,const ComplexType,5> G5d(std::array<long,5>{nwalk,nel,npol,nkpts,nbnd},G.data());
 
-    // separate GPU implementation if needed!
-    int iw(0);
-    while (iw < nwalk)
+    if constexpr (MEM==HOST_MEMORY)
     {
-      int nw = std::min(nwmax, nwalk - iw);
-      // Guv[nspin][nu][nv]
-      memory::buffered_array<MEM,ComplexType,3> Guv(nw,nu,nu);
-      memory::buffered_array<MEM,ComplexType,3> Wuv(nw,nu,nu);
-      // Guu: summed over spin, polarization and k
-      memory::buffered_array<MEM,ComplexType,4> Guu(2,nw,nkpts,nu);
-      memory::buffered_array<MEM,ComplexType,1> Tbuff(nw*nocc_max*nu);
-      Guu() = ComplexType(0.0);
-      for (int ispin = 0; ispin < nspin; ++ispin)
+      memory::buffered_array<MEM,ComplexType,2> Wvu(nu,nu);
+      memory::buffered_array<MEM,ComplexType,2> Wuv(nu,nu);
+      memory::buffered_array<MEM,ComplexType,3> Guu(2,nkpts,nu);
+      for(int iw=0; iw<nwalk; ++iw) 
       {
-        long is_ = long(ispin)%nstot; 
-        for (int p1 = 0; p1 < npol; ++p1)
+        Guu() = ComplexType(0.0);
+        for (int ispin = 0; ispin < nspin; ++ispin)
         {
-          long ip1_ = long(p1)%nptot; 
-          for (int p2 = 0; p2 < npol; ++p2)
+          long is_ = long(ispin)%nstot; 
+          for (int p1 = 0; p1 < npol; ++p1)
           {
+            long ip1_ = long(p1)%nptot; 
+            for (int p2 = 0; p2 < npol; ++p2)
+            {
+
+              // Guv(k1,k2,0,u,v) = sum_a,j Y(d,s,k1,a,u) * G(w,k1,a,k2,j) * X(s,k2,j,v)
+              auto GKK = Guv_from_compact(G5d(range(iw,iw+1), nda::ellipsis{}),ispin,p1,p2,idet);
+              
  
-            for (int k1 = 0; k1 < nkpts; ++k1) {
-            for (int k2 = 0; k2 < nkpts; ++k2) {
+              // MAM: Is this always the case???
+              for (int k1 = 0, k12=0; k1 < nkpts; ++k1) {
+              for (int k2 = k1; k2 < nkpts; ++k2, ++k12) {
 
-              // Buffer space
-              get_Guv(ispin, p1, p2, k1, k2, G5d(range(iw, iw + nw), nda::ellipsis{}), 
-                      Guv, Tbuff, idet);
-
-              if(p1==p2) {
+                ComplexType k_scl = (k1==k2 ? 1.0 : 2.0);
+                if(p1==p2) {
                 //accumulate Guu
-                // find q such that qk_to_k2(q,k1) = k2
-                int iq=-1;
-                for(int i=0; i<nkpts; i++)
-                  if(qk_to_k2(i,k1)==k2) {
-                    iq=i;
-                    break;
+                  // find q such that qk_to_k2(q,k1) = k2
+                  int iq=-1;
+                  for(int i=0; i<nkpts; i++)
+                    if(qk_to_k2(i,k1)==k2) {
+                      iq=i;
+                      break;
+                    }
+                  utils::check(iq>=0, "Error: Problems mapping {k1,k2} to q.");
+                  Guu(0,iq,all) += k_scl*nda::diagonal(GKK(k1,k2,0,all,all));
+                  // now right hand side, where need to find q such that qk_to_k2(q,k2) = k1
+                  iq=-1;
+                  for(int i=0; i<nkpts; i++)
+                    if(qk_to_k2(i,k2)==k1) {
+                      iq=i;
+                      break;
+                    }
+                  utils::check(iq>=0, "Error: Problems mapping {k2,k1} to q.");
+                  Guu(1,iq,all) += k_scl*nda::diagonal(GKK(k1,k2,0,all,all));
+                }
+
+                // sum_k1_k2_u_v G(k1,k2,u,v) * sum_q Z(q,u,v) * G(k2-q,k1-q,v,u)
+                // sum_k1_k2_u_v G(k1,k2,u,v) * sum_q conj(Z(q,v,u)) * G(k2-q,k1-q,v,u)
+                // sum_k1_k2_u_v G(k1,k2,u,v) * T(k1,k2,v,u) 
+                Wvu() = ComplexType(0.0);
+                auto W1d = nda::flatten(Wvu);
+                for (int iq = 0; iq < nkpts; ++iq) {
+                  int k1_ = qk_to_k2(iq,k1); // k1-q
+                  int k2_ = qk_to_k2(iq,k2); // k2-q
+                  W1d += nda::conj(nda::flatten(Zuv(iq,all,all))) * 
+                                       nda::flatten(GKK(k2_,k1_,0,all,all));
+                }
+
+                Wuv() = nda::transpose(Wvu());
+                E(iw,1) += ComplexType(-0.5*k_scl*scl/double(nkpts)) * 
+                           nda::blas::dot(nda::flatten(GKK(k1,k2,0,all,all)),nda::flatten(Wuv));  
+
+/*
+                for (int iq = 0; iq < nkpts; ++iq) {
+                  int qk1 = qk_to_k2(iq,k1);
+                  int qk2 = qk_to_k2(iq,k2);
+                  int n0 = ( qk2==0 ? 0 : nda::sum(nocc_per_kp(ispin,range(qk2))) );
+                  int nel_qk2 = nocc_per_kp(ispin,qk2);
+                  memory::array_view<MEM,ComplexType,3> Tau(std::array<long,3>{nw,nel_qk2,nu},Tbuff.data());
+
+                  Wuv() = Guv();
+                  if constexpr (MEM==HOST_MEMORY) {
+                    for(int i=0; i<nw; ++i)
+                      Wuv(i,all,all) *= Zuv(iq,all,all);
+                  } else {
+                    nda::tensor::elementwise(ComplexType(1.0),Zuv(iq,all,all),"uv",
+                                             ComplexType(1.0),Wuv,"wuv",nda::tensor::op::MUL);
                   }
-                utils::check(iq>=0, "Error: Problems mapping {k1,k2} to q.");
-                if constexpr (MEM==HOST_MEMORY) {
-                  for(int i=0; i<nw; i++)
-                    Guu(0,i,iq,all) += nda::diagonal(Guv(i,all,all));
-                } else {
-                  std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
-                  nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm({nw,nu},str);
-                  memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
-                  nda::tensor::add(ComplexType(1.0),Guv_diag,ComplexType(1.0),Guu(0,all,iq,all));
-                }
-                // now right hand side, where need to find q such that qk_to_k2(q,k2) = k1
-                iq=-1;
-                for(int i=0; i<nkpts; i++)
-                  if(qk_to_k2(i,k2)==k1) {
-                    iq=i;
-                    break;
-                  }
-                utils::check(iq>=0, "Error: Problems mapping {k2,k1} to q.");
-                if constexpr (MEM==HOST_MEMORY) {
-                  for(int i=0; i<nw; i++)
-                    Guu(1,i,iq,all) += nda::diagonal(Guv(i,all,all));
-                } else {
-                  std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
-                  nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm({nw,nu},str);
-                  memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
-                  nda::tensor::add(ComplexType(1.0),Guv_diag,ComplexType(1.0),Guu(1,all,iq,all));
-                }
-              }
 
-              for (int iq = 0; iq < nkpts; ++iq) {
-                int qk1 = qk_to_k2(iq,k1);
-                int qk2 = qk_to_k2(iq,k2);
-                int n0 = ( qk2==0 ? 0 : nda::sum(nocc_per_kp(ispin,range(qk2))) );
-                int nel_qk2 = nocc_per_kp(ispin,qk2);
-                memory::array_view<MEM,ComplexType,3> Tau(std::array<long,3>{nw,nel_qk2,nu},Tbuff.data());
+                  // R[w,u][b] = sum_v Guv[w,u][v] * Yau[b][v]
+                  auto Yau = Ysau(ispin,p2,qk2,range(nel_qk2),all);
+                  nda::tensor::contract(Yau,"av",Wuv,"wuv",Tau,"wau"); 
+ 
+                  // reuse Guv memory
+                  memory::array_view<MEM,ComplexType,3> Twbi(std::array<long,3>{nw,nel_qk2,nbnd},Wuv.data());
+                  //T[w][b][k] = sum_u R[w][u][b] * Xiu[k][u]
+                  auto Xiu = Xsiu(is_,qk1,range(ip1_*nbnd,(ip1_+1)*nbnd),all);
+                  nda::tensor::contract(Tau,"wau",Xiu,"iu",Twbi,"wai"); 
+  
+                  // E[w] = sum_ai T[w][a][i] * G[w][a][i] 
+                  auto Gwai = G5d(range(iw, iw + nw),range(ispin*nup+n0,ispin*nup+n0+nel_qk2),p1,qk1,all); 
+                  memory::buffered_array<MEM,ComplexType,1> Ew(nw);
+                  nda::tensor::contract(ComplexType(-0.5*scl/double(nkpts)),Twbi,"wai",Gwai,"wai",ComplexType(0.0),Ew,"w"); 
+                  nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 1));
 
-                Wuv() = Guv();
-                if constexpr (MEM==HOST_MEMORY) {
-                  for(int i=0; i<nw; ++i)
-                    Wuv(i,all,all) *= Zuv(iq,all,all);
-                } else {
-                  nda::tensor::elementwise(ComplexType(1.0),Zuv(iq,all,all),"uv",
-                                           ComplexType(1.0),Wuv,"wuv",nda::tensor::op::MUL);
-                }
-
-                // R[w,u][b] = sum_v Guv[w,u][v] * Yau[b][v]
-                auto Yau = Ysau(ispin,p2,qk2,range(nel_qk2),all);
-                nda::tensor::contract(Yau,"av",Wuv,"wuv",Tau,"wau"); 
-
-                // reuse Guv memory
-                memory::array_view<MEM,ComplexType,3> Twbi(std::array<long,3>{nw,nel_qk2,nbnd},Wuv.data());
-                //T[w][b][k] = sum_u R[w][u][b] * Xiu[k][u]
-                auto Xiu = Xsiu(is_,qk1,range(ip1_*nbnd,(ip1_+1)*nbnd),all);
-                nda::tensor::contract(Tau,"wau",Xiu,"iu",Twbi,"wai"); 
-
-                // E[w] = sum_ai T[w][a][i] * G[w][a][i] 
-                auto Gwai = G5d(range(iw, iw + nw),range(ispin*nup+n0,ispin*nup+n0+nel_qk2),p1,qk1,all); 
-                memory::buffered_array<MEM,ComplexType,1> Ew(nw);
-                nda::tensor::contract(ComplexType(-0.5*scl/double(nkpts)),Twbi,"wai",Gwai,"wai",ComplexType(0.0),Ew,"w"); 
-                nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 1));
-
-              } // iq
-            } // k2
-            } //k1
-          } //p2
-        } // p1
-      } //is
-      if (addEJ)
-      {
-        memory::buffered_array<MEM,ComplexType,3> Twu(nw,nkpts,nu);
-        memory::buffered_array<MEM,ComplexType,1> Ew(nw);
-        nda::tensor::contract(Guu(0,all,all,all),"wqu",Zuv,"quv",Twu,"wqv");
-        nda::tensor::contract(ComplexType(RealType(0.5*scl*scl/nkpts)),Guu(1,all,all,all),"wqv",
-                              Twu,"wqv", ComplexType(0.0),Ew,"w"); 
-        nda::tensor::add(ComplexType(1.0),Ew,ComplexType(1.0),E(range(iw, iw + nw), 2));
-      }
-      iw += nw;
+                } // iq
+*/
+              } // k2
+              } //k1
+            } //p2
+          } // p1
+        } //is
+        if (addEJ)
+        {
+          memory::buffered_array<MEM,ComplexType,2> Tqu(nkpts,nu);
+          for (int iq = 0; iq < nkpts; ++iq) 
+            nda::blas::gemv(nda::transpose(Zuv(iq,all,all)),Guu(0,iq,all),Tqu(iq,all));
+          E(iw,2) += ComplexType(RealType(0.5*scl*scl/nkpts)) * 
+                       nda::blas::dot(nda::flatten(Tqu),nda::flatten(Guu(1,nda::ellipsis{})));
+        }
+      } // iw
+    } else {
+      utils::check(false,"finish");
     }
   }
 
@@ -679,69 +681,126 @@ public:
     {
       // can loop over walker blocks when memory is limited
       memory::array_view<MEM,const ComplexType,5> G5d(std::array<long,5>{nwalk,nel,npol,nkpts,nbnd},G.data());
-      memory::buffered_array<MEM,ComplexType,3> Awu(nwalk,nkpts,nu); 
-      memory::array_view<MEM,ComplexType,3> Awn(std::array<long,3>{nwalk,nkpts,nv},Awu.data()); 
-      memory::buffered_array<MEM,ComplexType,3> Bwu(nwalk,nkpts,nu); 
-      for(int ik=0; ik<nkpts; ik++) {
+      auto GKK = Gu_from_compact(G5d,0);
 
-        // A(w,k2,u) = sum_a,j Y(d,s,k,a,u) * G(w,k,a,k2,j) * X(s,k2,j)
-        Gu_from_compact(G5d, Awu, ik, range(nkpts), 0);
+      if constexpr (MEM==HOST_MEMORY) {
 
-        // B(q) = A(k-q), now reorder according to k-q
+        memory::buffered_array<MEM,ComplexType,2> Awu(nwalk,nu); 
+        memory::buffered_array<MEM,ComplexType,2> Awn(nwalk,nv); 
+        memory::buffered_array<MEM,ComplexType,2> Gwu(nwalk,nu); 
         for(int iq=0; iq<nkpts; iq++) {
-          int k2 = qk_to_k2(iq,ik);
-          Bwu(all,iq,all) = Awu(all,k2,all);
-        }
 
-        //A(w,q,n) = sum_u B(w,q,u)*L(q,u,n)
-        nda::tensor::contract(Bwu,"wqu",Luv,"qun",Awn,"wqn"); 
+          Gwu() = ComplexType(0.0);
+          for(int ik=0; ik<nkpts; ik++) {
+            int k2 = qk_to_k2(iq,ik);
+            // G(w,u) += sum_a,j Y(d,s,ik,a,u) * G(w,ik,a,k2,j) * X(s,k2,j,u)
+            Gwu() += GKK(ik,k2,all,all);
+          }
 
-        //v+(w,q,n) += 0.5*T(w,q,n) 
-        nda::tensor::add(ComplexType(a), Awn, "wqn", 
-                         ComplexType(1.0), v4d(all,0,all,all), "wqn");
+          //nda::tensor::contract(Twu,"wqu",Luv(iq,all,all),"qun",Awn,"wqn");
+          nda::blas::gemm(Gwu,Luv(iq,all,all),Awn);
 
-        //v-(w,q,n) += -i*0.5*T(w,q,n) 
-        nda::tensor::add(ComplexType(0.0,-a), Awn, "wqn", 
-                         ComplexType(1.0), v4d(all,1,all,all), "wqn");
+          //v+(w,q,n) += 0.5*T(w,q,n) 
+          v4d(all,0,iq,all) += ComplexType(a) * Awn();
 
-        // how to batch these???
-        for(int iq=0; iq<nkpts; iq++) {
+          //v-(w,q,n) += -i*0.5*T(w,q,n) 
+          v4d(all,1,iq,all) += ComplexType(0.0,-a) * Awn();
+
           //if(q != -q) v(w,-q,n) -= i*0.5*T(w,q,n)
           if(iq != minusq(iq)) {
-            nda::tensor::add(ComplexType(a), Awn(all,iq,all), "wn", 
-                             ComplexType(1.0), v4d(all,0,minusq(iq),all), "wn");
-            nda::tensor::add(ComplexType(0.0,a), Awn(all,iq,all), "wn", 
-                             ComplexType(1.0), v4d(all,1,minusq(iq),all), "wn");
-          }
-        }
-
-        // how to batch these???
-        // now v- contributions for q == -q
-        for(int iq=0; iq<nkpts; iq++) {
-          if(iq != minusq(iq)) continue;
-          // reuse memory
-          memory::array_view<MEM,ComplexType,2> A2dwu(std::array<long,2>{nwalk,nu},Awu.data());
-          // 3d view with a single kpoint, needed to call Gu_from_compact
-          memory::array_view<MEM,ComplexType,3> A3dwu(std::array<long,3>{nwalk,1,nu},Awu.data());
-          memory::array_view<MEM,ComplexType,2> B2dwn(std::array<long,2>{nwalk,nv},Bwu.data()); 
-          int k2 = qk_to_k2(iq,ik);
-
-          // G(w,u) = sum_a,j Y(d,s,k-q,a,u) * G(w,k-q,a,k,j) * X(s,k,j)
-          Gu_from_compact(G5d, A3dwu, k2, range(ik,ik+1), 0);
+            v4d(all,0,minusq(iq),all) += ComplexType(a) * Awn();
+            v4d(all,1,minusq(iq),all) += ComplexType(0.0,a) * Awn();
+          } else {
+ 
+            Gwu() = ComplexType(0.0);
+            for(int ik=0; ik<nkpts; ik++) {
+              int k2 = qk_to_k2(iq,ik);
+              // G(w,u) += sum_a,j Y(d,s,k-q,a,u) * G(w,k-q,a,k,j) * X(s,k,j)
+              Gwu() += GKK(k2,ik,all,all);
+            }
               
-          //T(w,n) = sum_u G(w,u)* conj(L(q,u,n))
-          nda::tensor::contract(A2dwu,"wu",nda::conj(Luv(iq,all,all)),"un",B2dwn,"wn");
+            //T(w,n) = sum_u G(w,u)* conj(L(q,u,n))   ***conjugating G and T instead of L***
+            Gwu() = nda::conj(Gwu());
+            nda::blas::gemm(Gwu,Luv(iq,all,all),Awn);
+            Awn() = nda::conj(Awn());
              
+            //v+(w,q,n) += 0.5*T(w,q,n) 
+            v4d(all,0,iq,all) += ComplexType(a) * Awn();
+            //v-(w,q,n) -= i*0.5*T(w,q,n) 
+            v4d(all,1,iq,all) += ComplexType(0.0,a) * Awn();
+
+          }
+
+        } // iq
+   
+      } else {
+        utils::check(false,"finish");
+/*
+        memory::buffered_array<MEM,ComplexType,3> Awu(nwalk,nkpts,nu); 
+        memory::array_view<MEM,ComplexType,3> Awn(std::array<long,3>{nwalk,nkpts,nv},Awu.data()); 
+        memory::buffered_array<MEM,ComplexType,3> Bwu(nwalk,nkpts,nu); 
+        for(int ik=0; ik<nkpts; ik++) {
+
+          // A(w,k2,u) = sum_a,j Y(d,s,k,a,u) * G(w,k,a,k2,j) * X(s,k2,j)
+          Gu_from_compact(G5d, Awu, ik, range(nkpts), 0);
+
+          // B(q) = A(k-q), now reorder according to k-q
+          for(int iq=0; iq<nkpts; iq++) {
+            int k2 = qk_to_k2(iq,ik);
+            Bwu(all,iq,all) = Awu(all,k2,all);
+          }
+
+          //A(w,q,n) = sum_u B(w,q,u)*L(q,u,n)
+          nda::tensor::contract(Bwu,"wqu",Luv,"qun",Awn,"wqn"); 
+
           //v+(w,q,n) += 0.5*T(w,q,n) 
-          nda::tensor::add(ComplexType(a), B2dwn, "wn", 
-                           ComplexType(1.0), v4d(all,0,iq,all), "wn");
+          nda::tensor::add(ComplexType(a), Awn, "wqn", 
+                           ComplexType(1.0), v4d(all,0,all,all), "wqn");
 
-          //v-(w,q,n) -= i*0.5*T(w,q,n) 
-          nda::tensor::add(ComplexType(0.0,a), B2dwn, "wn", 
-                           ComplexType(1.0), v4d(all,1,iq,all), "wn");
-        } // iq* 
+          //v-(w,q,n) += -i*0.5*T(w,q,n) 
+          nda::tensor::add(ComplexType(0.0,-a), Awn, "wqn", 
+                           ComplexType(1.0), v4d(all,1,all,all), "wqn");
 
-      } // ik 
+          // how to batch these???
+          for(int iq=0; iq<nkpts; iq++) {
+            //if(q != -q) v(w,-q,n) -= i*0.5*T(w,q,n)
+            if(iq != minusq(iq)) {
+              nda::tensor::add(ComplexType(a), Awn(all,iq,all), "wn", 
+                               ComplexType(1.0), v4d(all,0,minusq(iq),all), "wn");
+              nda::tensor::add(ComplexType(0.0,a), Awn(all,iq,all), "wn", 
+                               ComplexType(1.0), v4d(all,1,minusq(iq),all), "wn");
+            }
+          }
+
+          // how to batch these???
+          // now v- contributions for q == -q
+          for(int iq=0; iq<nkpts; iq++) {
+            if(iq != minusq(iq)) continue;
+            // reuse memory
+            memory::array_view<MEM,ComplexType,2> A2dwu(std::array<long,2>{nwalk,nu},Awu.data());
+            // 3d view with a single kpoint, needed to call Gu_from_compact
+            memory::array_view<MEM,ComplexType,3> A3dwu(std::array<long,3>{nwalk,1,nu},Awu.data());
+            memory::array_view<MEM,ComplexType,2> B2dwn(std::array<long,2>{nwalk,nv},Bwu.data()); 
+            int k2 = qk_to_k2(iq,ik);
+ 
+            // G(w,u) = sum_a,j Y(d,s,k-q,a,u) * G(w,k-q,a,k,j) * X(s,k,j)
+            Gu_from_compact(G5d, A3dwu, k2, range(ik,ik+1), 0);
+              
+            //T(w,n) = sum_u G(w,u)* conj(L(q,u,n))
+            nda::tensor::contract(A2dwu,"wu",nda::conj(Luv(iq,all,all)),"un",B2dwn,"wn");
+             
+            //v+(w,q,n) += 0.5*T(w,q,n) 
+            nda::tensor::add(ComplexType(a), B2dwn, "wn", 
+                             ComplexType(1.0), v4d(all,0,iq,all), "wn");
+
+            //v-(w,q,n) -= i*0.5*T(w,q,n) 
+            nda::tensor::add(ComplexType(0.0,a), B2dwn, "wn", 
+                             ComplexType(1.0), v4d(all,1,iq,all), "wn");
+          } // iq* 
+
+        } // ik 
+*/
+      }
     }
     else
     {
@@ -772,10 +831,8 @@ public:
   { return nda::array<ComplexType, 2>{}; }
 
 protected:
-  // for a given ispin, k
-  // G(w,k2,u) = sum_a,j Y(d,s,k,a,u) * G(w,k,a,k2,j) * X(s,k2,p,j,u)
-  void Gu_from_compact(nda::MemoryArrayOfRank<5> auto const& G,
-               nda::MemoryArrayOfRank<3> auto && Gwku, int ik, nda::range k2_rng, int idet)
+  // G(k1,k2,w,u) = sum_a,j Y(d,s,k1,a,u) * G(w,k1,a,k2,j) * X(s,k2,p,j,u)
+  auto Gu_from_compact(nda::MemoryArrayOfRank<5> auto const& G, int idet)
   {
     using nda::range;
     auto all = range::all;
@@ -785,7 +842,6 @@ protected:
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
     bool has_rot = _Xsiu_rot_.has_value();
-    int num_k2 = k2_rng.size();
     // [nstot][nkpts][nptot*nbnd][nu]
     const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_());
     // [nstot][nptot][nkpts][nocc_max][nu]
@@ -796,27 +852,87 @@ protected:
 
     utils::check(G.shape() == std::array<long,5>{nw,nel,npol,nkpts,nbnd}, 
                  "THC::Gu_from_compact: Shape mismatch");
-    utils::check(Gwku.shape() == std::array<long,3>{nw,num_k2,nu}, "THC::Gu_from_compact: Shape mismatch");
-    Gwku() = ComplexType(0.0);
-    ComplexType a = (walker_type == CLOSED) ? ComplexType(2.0) : ComplexType(1.0);
-    for( int is=0; is<nspin; is++ ) {
-      int n0 = ( ik==0 ? 0 : nda::sum(nocc_per_kp(is,range(ik))) );
-      int nel_k = nocc_per_kp(is,ik);
-      for( int ip=0; ip<npol; ip++ ) {
-        
-        memory::buffered_array<MEM,ComplexType,4> Tw(nw,num_k2,nel_k,nu);    
-        auto Xju = Xsiu(is%nstot,k2_rng,range((ip%nptot)*nbnd,(ip%nptot+1)*nbnd),all);
-        auto Yau = Ysau(is%nstot,ip%nptot,ik,range(nel_k),all);
 
-        auto Gwakj = G(all,range(is*nup+n0,is*nup+n0+nel_k),ip,k2_rng,all);
-        //  T(w,k2,a,u) = G(w,k,a,p,k2,j) * X(s,k2,p,j,u)
-//pull this outside loop over ik 
-        nda::tensor::contract(Gwakj,"wakj",Xju,"kju",Tw,"wkau");
-        // Gwku(w,k2,u) = scl * sum_a Y(s,p,k,a,u) * T(w,k2,a,u) 
-        nda::tensor::contract(ComplexType(a),Tw,"wkau",Yau,"au",ComplexType(1.0),Gwku,"wku");
+    memory::buffered_array<MEM,ComplexType,4> GKK(nkpts,nkpts,nw,nu);    
+    GKK() = ComplexType(0.0);
+    ComplexType a = (walker_type == CLOSED) ? ComplexType(2.0) : ComplexType(1.0);
+    if constexpr (MEM==HOST_MEMORY) {
+      for( int is=0; is<nspin; is++ ) {
+        memory::buffered_array<MEM,ComplexType,2> Tau(nelec[is],nu);    
+        for( int ip=0; ip<npol; ip++ ) {
+          for(int iw=0; iw<nw; ++iw) {
+        
+            for(int k2=0; k2<nkpts; k2++) {
+              auto Xju = Xsiu(is%nstot,k2,range((ip%nptot)*nbnd,(ip%nptot+1)*nbnd),all);
+              nda::blas::gemm(G(iw,range(is*nup,nup+is*ndown),ip,k2,all),Xju,Tau);
+
+              int n0 = 0; 
+              for(int k1=0; k1<nkpts; k1++) {
+                int nel_k = nocc_per_kp(is,k1);
+                auto Yau = Ysau(is%nstot,ip%nptot,k1,range(nel_k),all);
+                for(int i=0; i<nel_k; ++i)
+                  GKK(k1,k2,iw,all) += ComplexType(a) * Tau(n0+i,all) * Yau(i,all);
+                n0 += nel_k;
+              }  //k1
+            } // k2 
+
+          } // iw
+        } // npol 
+      } // nspin 
+    } else {
+      utils::check(false,"finish");
+    }
+    return GKK;
+  }
+
+  // G(k1,k2,w,u,v) = sum_a,j Y(d,s,k1,a,u) * G(w,k1,a,k2,j) * X(s,k2,p,j,v)
+  auto Guv_from_compact(nda::MemoryArrayOfRank<5> auto const& G, int is, int p1, int p2, int idet)
+  {
+    using nda::range;
+    auto all = range::all;
+    int nstot = hij.extent(0);
+    int nptot = hij.extent(2)/nbnd;
+    int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
+    bool has_rot = _Xsiu_rot_.has_value();
+    // [nstot][nkpts][nptot*nbnd][nu]
+    const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_());
+    // [nstot][nptot][nkpts][nocc_max][nu]
+    const auto Ysau = ( has_rot ? (*_Ydsau_rot_)()(idet,nda::ellipsis{}) :
+                                 _Ydsau_()(idet,nda::ellipsis{}) );
+    long nw   = G.extent(0);
+    long nu   = Xsiu.extent(3);
+
+    utils::check(G.shape() == std::array<long,5>{nw,nel,npol,nkpts,nbnd}, 
+                 "THC::Guv_from_compact: Shape mismatch");
+
+    memory::buffered_array<MEM,ComplexType,5> GKK(nkpts,nkpts,nw,nu,nu);    
+    GKK() = ComplexType(0.0);
+    ComplexType a = (walker_type == CLOSED) ? ComplexType(2.0) : ComplexType(1.0);
+    if constexpr (MEM==HOST_MEMORY) {
+      memory::buffered_array<MEM,ComplexType,2> Tau(nelec[is],nu);    
+      for(int iw=0; iw<nw; ++iw) {
       
-      } // npol 
-    } // nspin 
+        for(int k2=0; k2<nkpts; k2++) {
+          auto Xju = Xsiu(is%nstot,k2,range((p2%nptot)*nbnd,(p2%nptot+1)*nbnd),all);
+          nda::blas::gemm(G(iw,range(is*nup,nup+is*ndown),p2,k2,all),Xju,Tau);
+
+          int n0 = 0; 
+          for(int k1=0; k1<nkpts; k1++) {
+            int nel_k = nocc_per_kp(is,k1);
+            auto Yau = Ysau(is%nstot,p1%nptot,k1,range(nel_k),all);
+            nda::blas::gemm(ComplexType(a),nda::transpose(Yau),Tau(range(n0,n0+nel_k),all),
+                            ComplexType(1.0),GKK(k1,k2,iw,all,all));
+            n0 += nel_k;
+          }  //k1
+        } // k2 
+
+      } // iw
+    } else {
+      utils::check(false,"finish");
+    }
+    return GKK;
   }
 
   // Computes Guv and Guu for a set of walkers

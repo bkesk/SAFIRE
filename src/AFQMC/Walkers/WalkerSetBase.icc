@@ -261,7 +261,6 @@ void WalkerSetBase<_M_>::setup()
   walker_size                = cnt;
   walker_memory_usage        = walker_size * sizeof(ComplexType);
   data_displ[SMN]            = -1;
-  data_displ[SM_AUX]         = -1;
   data_displ[FIELDS]         = -1;
   data_displ[WEIGHT_FAC]     = -1;
   data_displ[WEIGHT_HISTORY] = -1;
@@ -614,12 +613,10 @@ void WalkerSetBase<_M_>::resize_bp(int nbp, int nCV, int nref)
     bp_buffer() = ComplexType(0.0);
     bp_buffer(nda::range::all, nda::range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6])) = ComplexType(1.0);
   }
-  if (nbp > 0 && (data_displ[SMN] < 0 || data_displ[SM_AUX] < 0))
+  if (nbp > 0 && data_displ[SMN] < 0)
   {
     auto sz(walker_size);
     data_displ[SMN] = walker_size;
-    walker_size += nrow * ncol;
-    data_displ[SM_AUX] = walker_size;
     walker_size += nrow * ncol;
     memory::array<MEM,ComplexType,2> wb(walker_buffer.extent(0),walker_size);
     wb(nda::range::all,nda::range(0,sz)) = walker_buffer();

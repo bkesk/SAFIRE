@@ -130,8 +130,6 @@ class WalkerSet
     VISITOR_ARGS(VMatrices,var,const)
     VISITOR_ARGS(SlaterMatricesN,var,)
     VISITOR_ARGS(SlaterMatricesN,var,const)
-    VISITOR_ARGS(SlaterMatricesAux,var,)
-    VISITOR_ARGS(SlaterMatricesAux,var,const)
     VISITOR_ARGS(getFields,var,)
     VISITOR(getWeightHistory,var,)
     VISITOR(getWeightFactors,var,)

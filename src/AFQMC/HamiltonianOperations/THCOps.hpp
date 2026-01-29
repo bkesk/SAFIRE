@@ -243,7 +243,7 @@ public:
     long Bytes = default_buffer_size_in_MB * 1024L * 1024L;
     Bytes /= long((nu * nu + nu + nu * nup) * sizeof(ComplexType));
     int nwmax = ( MEM==HOST_MEMORY ? 1 : std::min(nwalk, std::max(1, int(Bytes))));
-    
+
     utils::check(G.is_contiguous(), "Layout mismatch");
     memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel,npol*NMO},G.data());
 
@@ -253,6 +253,7 @@ public:
       int nw = std::min(nwmax, nwalk - iw);
       // Guv[nspin][nu][nv]
       memory::buffered_array<MEM,ComplexType,3> Guv(nw,nu,nu);
+//memory::buffered_array<MEM,ComplexType,3> Gvu(nw,nu,nu);
       // Guu[u]: summed over spin
       memory::buffered_array<MEM,ComplexType,2> Guu(nu,nw);
       Guu() = ComplexType(0.0);
@@ -270,6 +271,20 @@ public:
             Guv_Guu(ispin, p1, p2, G3d(range(iw, iw + nw), range(ispin*nup,nup+ispin*ndown), all), 
                     Guv, Guu, nda::flatten(Tva), idet);
 
+/*
+// need fast transposition, right now it is a bit slower and uses 2x more memory
+            if constexpr (MEM==HOST_MEMORY) {
+              for(int i=0; i<nw; ++i) {
+                Gvu(i,all,all) = nda::transpose(Guv(i,all,all)); 
+                Guv(i,nda::ellipsis{}) *= Zuv();
+                E(iw+i,1) += ComplexType(-0.5*scl) * 
+                    nda::dot(nda::flatten(Guv(i,nda::ellipsis{})),nda::flatten(Gvu(i,all,all))); 
+              }
+            } else {
+              utils::check(false,"finish");
+            }
+*/
+            
             if constexpr (MEM==HOST_MEMORY) {
               for(int i=0; i<nw; ++i)
                 Guv(i,nda::ellipsis{}) *= Zuv();
@@ -316,7 +331,6 @@ public:
             auto Gwai = G3d(range(iw, iw + nw),range(ispin*nup,nup+ispin*ndown),range(p1*NMO,(p1+1)*NMO)); 
             nda::tensor::contract(ComplexType(-0.5*scl),Twib,"wia",Gwai,"wai",
                                   ComplexType(1.0),E(range(iw, iw + nw),1),"w"); 
-
           }
         }
       }
@@ -502,7 +516,7 @@ public:
     long nptot = _Xsiu_().shape()[1]/NMO;
     utils::check_strides(X);
     // limiting X/v to contiguous arrays for simplicity now, reconsider if necessary
-    utils::check(X.shape() == std::array<long,2>{nwalk,nchol}, "THC::vbias: Size mismatch.");
+    utils::check(X.shape() == std::array<long,2>{nwalk,nchol}, "THC::vHS: Size mismatch.");
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
@@ -700,10 +714,10 @@ protected:
 
         if constexpr (MEM==HOST_MEMORY) {
           memory::buffered_array<MEM,ComplexType,2> Tau(nelec[is],nu);    
-          auto G4d = memory::to_real_view(G);
-          auto T3d = memory::to_real_view(Tau);
           for(int iw=0; iw<nw; iw++) {
             if constexpr (REAL) {
+              auto G4d = memory::to_real_view(G);
+              auto T3d = memory::to_real_view(Tau);
               auto Gaic = G4d(iw,range(is*nup,nup+is*ndown),range(ip*NMO,(ip+1)*NMO),all);
               // MAM: Not ideal, contract is not optimal in cpu
               nda::tensor::contract(Gaic,"aic",Xiu,"iu",T3d,"auc");

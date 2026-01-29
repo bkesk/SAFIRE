@@ -25,6 +25,7 @@
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/test_common.hpp"
 #include "utilities/check.hpp"
+#include "utilities/Timer.hpp"
 #include "utilities/h5_utils.hpp"
 
 #include <string>
@@ -125,6 +126,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);
   memory::array<MEM,ComplexType,3> G(nwalk, nel, npol * NMO);
   memory::array<MEM,ComplexType,1> ovlp(nwalk,ComplexType(0.0)); 
+TimerManager Timer;
   
   // Overlap/GreenFunction
   det_ops::MixedDensityMatrix(psi(0,0),OrbMat(all,all,range(nup)),G(all,range(nup),all),ovlp);
@@ -139,7 +141,10 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
 
   // Energy
   memory::array<MEM,ComplexType,2> Eloc(nwalk, 3);
+Timer.start("et");
   HOps.energy(Eloc, G2d, 0);
+Timer.stop("et");
+app_log(0,"ET: {}",Timer.elapsed("et"));
   auto eloc_h = nda::to_host(Eloc);
   if (std::abs(file_data.E0 + file_data.E1) > 1e-8) {
     ARRAY_EQUAL(eloc_h(all,0), nda::array<ComplexType,1>(nwalk,file_data.E0 + file_data.E1)); 
@@ -168,7 +173,10 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
 
   memory::array<MEM,ComplexType,2> X(nwalk, nCV);
   X() = ComplexType(0.0);
+Timer.start("vb");
   HOps.vbias(G2d, X, dt);
+Timer.stop("vb");
+app_log(0,"vbias: {}",Timer.elapsed("vb"));
   ComplexType Xsum = 0, Xsum2 = 0;
   auto X_h = nda::to_host(X);
   for (int i = 0; i < nCV; i++)
@@ -191,7 +199,10 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
 
   auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
+Timer.start("vh");
   auto vHS = HOps.vHS(X,dt);
+Timer.stop("vh");
+app_log(0,"vHS: {}",Timer.elapsed("vh"));
   REQUIRE( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
   auto vHS_h = nda::to_host(vHS);
   ComplexType Vsum = 0;
