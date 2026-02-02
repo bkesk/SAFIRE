@@ -61,8 +61,7 @@ write_hamil_mol(
     walker_type="closed"
 )
 
-# important!! scf_data is changed in-place by write_hamil_mol to reflect
-# the frozen core transformation. Must call write_wfn_mol after write_hamil_mol!
+# write the frozen core trial wavefunction
 wfn = write_wfn_mol(
     scf_data = scf_data,
     filename = fout,
