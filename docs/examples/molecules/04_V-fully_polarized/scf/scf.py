@@ -18,7 +18,7 @@ from pyscf import gto, scf, mcscf
 def main():
     """
     Computing the energy of ferro-magnetically coupled
-       Vandium atoms.       
+       Vandium atoms.
     """
 
     # 0. use an isolated vanadium atom to build a guess for the ferro-magnetic case
@@ -29,33 +29,23 @@ def main():
         verbose=5
     )
 
+    # this will be a basis
     mf = scf.ROHF(single_mol).newton()
     mf.chkfile = 'rohf.chk'
     mf.kernel()
 
     mf.analyze()
 
-    #ncas_list = [6+3+5 + i for i in range(12)]
-    ncas_list= [32]
-    e_cas = []
-
+    # this will be a trial wavefunction
+    uhf = scf.UHF(single_mol).newton()
+    uhf.chkfile = 'uhf.chk'
+    uhf.kernel()
     
-    for ncas in ncas_list:
+    # Getting a reference energy:
+    mycas = mcscf.CASCI(mf,32,3)
+    E_casci =  mycas.kernel()
+    print("CASCI(32,3) energy: ", E_casci[0])
 
-        #if ncas > 24:
-        #    break
-        
-        mycas = mcscf.CASCI(mf,ncas,3)
-        result =  mycas.kernel()
-        #print(f"{ncas} {e}")
-        e_cas.append(result[0])
-
-
-    for n,e in zip(ncas_list,e_cas):
-        print(f"{n} : {e}")
-
-    #plt.plot(ncas_list[:len(e_cas)],e_cas)
-    #plt.show()
 
 if __name__ == '__main__':
     main()
