@@ -15,7 +15,7 @@ Some preliminaries
 ==================
 
 Typical quantum chemistry calculations are performed in a basis
-of contracted Gaussian-type orbitals (cGTOs), $g_\mu(\vec{r})$;
+of contracted Gaussian-type orbitals (cGTOs), :math:`g_\mu(\vec{r})`;
 however, AFQMC is formulated in the language of 2nd quantization
 and requires an orthonormal basis.
 Some common choices of orthonormal basis are the set of canonical Hartree-Fock orbitals,
@@ -190,19 +190,5 @@ Online copies of tutorials
 Worked Examples
 ===============
 
-We provide the following worked examples in which we
-go through the entire workflow. For the convenience, we use
-PySCF since it can be directly invoked within
-interactive Python notebooks; however, using the information
-in the tutorials, these same calculations can be performed starting
-from other quantum chemistry codes so long as they can write a FCIDUMP,
-and can print wavefunction information. Both of these features are
-ubiquitous in modern quantum chemistry codes.
+.. include:: ../../examples/molecules/index.rst
 
-1. `Potential energy curve of the nitrogen dimer <https://colab.research.google.com/drive/1mGHyp2hxF-upogHeI_uTSlyegSyqimpu#scrollTo=HAXNMGv0fmdE>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Electron Affinity of the lead atom <https://colab.research.google.com/drive/1RUJ1buSrK8rBjreHA0oaPfOGPBuF3PAp#scrollTo=8rI2HhjiZRWO>`_ `🧑‍💻 ready for edits 🧑‍💻`
-3. `Charge density of the water molecule <https://colab.research.google.com/drive/1uiF2R6CE_cSQ7m9uj2R2aS0KB1Un3Bn_>`_  `🛠️ Under construction 🛠️`
-4. `B atom : SHCI trial wavefunction <https://colab.research.google.com/drive/1gC5CtD4Kw8PXFuPKAWuQReCEwzVQrvvd#scrollTo=UwuNT7DqI_rN>`_  `🧑‍💻 ready for edits 🧑‍💻`
-5. `Local embedding <https://colab.research.google.com/drive/1571aeCThqCVBlQeuXIASTbGRmD5BNlu8>`_  `🧑‍💻 ready for edits 🧑‍💻`
-6. `Ionization Potential <https://colab.research.google.com/drive/1We4jEkm_Vx8RLhGiXP16wGT6gw2WaM84>`_ 💭 Idea 💭 
-7. `3d-Transition Metal diatomics <https://colab.research.google.com/drive/1aLP4sl0Xe0ZvKlJl1jCOikYx_g6G6UEO>`_ `🛠️ Under construction 🛠️`
