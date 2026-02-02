@@ -20,7 +20,7 @@ The workflow includes the following steps:
 
    .. code-block:: bash
 
-      $ python 06_frozen_core.py
+      $ python 05_Li2_frozen_core.py
 
    This creates ``afqmc.h5`` containing the frozen-core Hamiltonian and trial wavefunction.
    You should see that the RHF energy of the full system is -14.8694988585082 Ha,
@@ -76,9 +76,9 @@ The workflow includes the following steps:
 Files
 -----
 
-**Frozen-Core Preparation** (``06_frozen_core.py``):
+**Frozen-Core Preparation** (``05_Li2_frozen_core.py``):
 
-.. literalinclude:: 06_frozen_core.py
+.. literalinclude:: 05_Li2_frozen_core.py
    :language: python
 
 This all-in-one script:
@@ -87,8 +87,8 @@ This all-in-one script:
 - Performs RHF calculation to generate molecular orbitals
 - Specifies active space using ``cas=(ne, no)`` notation: 2 valence electrons in all remaining orbitals (``no=-1``)
 - Applies frozen-core transformation via ``write_hamil_mol`` with the ``cas`` parameter
-- Writes Hamiltonian in the active space representation
-- Generates the trial wavefunction (note: ``write_wfn_mol`` must be called *after* ``write_hamil_mol`` since the transformation modifies ``scf_data`` in-place)
+- Writes Hamiltonian in the active space representation (including the constant core energy) to ``afqmc.h5``
+- Generates the trial wavefunction via ``write_wfn_mol`` and the ``cas`` parameter
 
 **AFQMC Input File** (``afqmc.json``):
 
