@@ -184,11 +184,22 @@ def write_wfn(
         Print additional information.
     orthonormalize : bool, optional
         If True (default), orthonormalize Slater matrices if not properly normalized.
-    """
-    # User defined wavefunction.
-    # PHMSD is a list of tuple of (ci, occa, occb).
-    # NOMSD is a tuple of (list, np.ndarray).
+
+    Raises
+    ------
+    ValueError
+        If an unknown wavefunction type is passed.
     
+    Notes
+    -----
+    The function supports two types of wavefunctions: PHMSD and NOMSD.
+        It writes the wavefunction data to the specified HDF5 file and handles
+        different walker types, including corrections for user input.    
+    For user-defined wavefunctions:
+        # PHMSD is a list of tuple of (ci, occa, occb).
+        # NOMSD is a tuple of (list, np.ndarray).
+    """
+
     walker_type = _slater_enum_map(walker_type)
 
     if len(wfn) == 3:
@@ -211,6 +222,9 @@ def write_wfn(
             )
             walker_type = _SlaterType.FULLYPOLARIZED
         
+        if "Wavefunction" in fh5:
+            del fh5['Wavefunction']
+
         if wfn_type == 'PHMSD':
             print("PHMSD trial wavfunction -> using uhf-like walkers")
             if nelec[1] > 0:
