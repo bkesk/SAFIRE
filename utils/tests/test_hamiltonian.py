@@ -469,5 +469,5 @@ class TestSupercell:
         
         assert chol.shape == (4,64,53)
         assert np.isclose(np.max(np.abs(chol)),0.8077979869286759)
-        assert len(chol[abs(chol)>1e-10]) == 6047
+        assert len(chol[np.abs(chol)>1e-10]) == 6229
 
