@@ -31,9 +31,9 @@ def main():
     #####################################
 
     scf_data = load_from_pyscf_chk_mol(
-            orbital_basis_chk,
-            'scf'
-        )
+        orbital_basis_chk,
+        'scf'
+    )
 
     write_hamil_mol(
         scf_data=scf_data,
@@ -56,7 +56,6 @@ def main():
             'scf'
         ),
         basis_scf_data=scf_data,
-        ortho_ao=False,
         filename=fout
     )
 
