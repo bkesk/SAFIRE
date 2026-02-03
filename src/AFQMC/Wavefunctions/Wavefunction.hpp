@@ -80,7 +80,7 @@ public:
 
   auto G_MF()
   {
-    return std::visit([&](auto&& a) { return a.template G_MF(); }, var);
+    return std::visit([&](auto&& a) { return a.G_MF(); }, var);
   }
 
   template<class... Args>

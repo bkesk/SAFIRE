@@ -30,7 +30,6 @@
 #include "utilities/proc_grid_partition.hpp"
 
 #include "nda/nda.hpp"
-#include "numerics/distributed_array/nda.hpp"
 #include "numerics/shared_array/nda.hpp"
 #include "utilities/test_common.hpp"
 

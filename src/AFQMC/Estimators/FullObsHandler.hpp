@@ -284,7 +284,7 @@ public:
         Xw() *= (CIcoeff * nda::exp(Ov_h) * nda::conj( nda::exp(logdetR_h(all,iref)) ));
       }
 
-      if constexpr (not MEM == HOST_MEMORY) 
+      if constexpr (MEM == DEVICE_MEMORY) 
         G4D_h() = G4D();
 
       //3. accumulate references

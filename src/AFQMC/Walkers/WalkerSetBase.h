@@ -73,10 +73,10 @@ public:
   static const bool contiguous_storage = true;
   static const bool fixed_population   = true;
 
-  using reference = walker<ComplexType>;
-  using iterator  = walker_iterator<ComplexType>;
-  using const_reference = walker<const ComplexType>;
-  using const_iterator  = walker_iterator<const ComplexType>;
+  using reference = walker<_MEM_,ComplexType>;
+  using iterator  = walker_iterator<_MEM_,ComplexType>;
+  using const_reference = walker<_MEM_,const ComplexType>;
+  using const_iterator  = walker_iterator<_MEM_,const ComplexType>;
 
   WalkerSetBase() 
   {

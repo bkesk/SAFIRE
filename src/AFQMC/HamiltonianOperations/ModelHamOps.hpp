@@ -283,11 +283,13 @@ public:
       nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
       ET.accumulate_energy(ispin, E, GIJ, J, addE1, addEJ, addEXX);
     }
-    if(allocate_EJn)
-      if constexpr (MEM==HOST_MEMORY)
+    if(allocate_EJn) {
+      if constexpr (MEM==HOST_MEMORY) {
         EJn() = nda::transpose(J);
-      else
+      } else {
         nda::tensor::add(ComplexType(1.0),J,"nw",ComplexType(1.0),EJn,"wn");
+      }
+    }
   }
 
   template<class... Args>
