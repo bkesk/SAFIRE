@@ -474,15 +474,9 @@ class HamiltonianBuilder:
             )
     
         if spin_symm == model.SpinSymm.COLLINEAR and in_mat.shape == (nbasis,nbasis):
-            out_mat = sps.bmat(
-                blocks=[
-                    [in_mat],
-                    [in_mat]
-                ],
-                format='csr'
-            )
-        else:
-          out_mat = sps.csr_array(in_mat)
+            in_mat = np.vstack([in_mat,in_mat])
+    
+        out_mat = sps.csr_array(in_mat)
 
         component = model.HamiltonianComponent(
             csr_array=out_mat,
