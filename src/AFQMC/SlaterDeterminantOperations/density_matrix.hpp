@@ -35,36 +35,43 @@ namespace detail
 {
 
 //inverse and log(det)
-template<typename A_t, typename O_t, typename T_t>
+template<typename A_t, nda::MemoryArrayOfRank<1> O_t, typename T_t>
 requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
           nda::mem::have_compatible_addr_space<A_t,O_t,T_t> and
           nda::have_same_value_type_v<A_t, O_t, T_t> and
           std::decay_t<T_t>::is_stride_order_C()
         )
-void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN)
+void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, int nbatch = 0, bool invert = true)
 {
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<A_t>;
 
   auto NMO = A.shape()[0];
+  auto res = Type(0.0);
 
   utils::check(A.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
-  utils::check(TNN.shape() == std::array<long,3>{1,NMO,NMO}, "Size mismatch"); 
+  utils::check(TNN.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch"); 
 
-  memory::buffered_array<MEM,int,2> ipiv(1,NMO);
+  memory::buffered_array<MEM,int,1> ipiv(NMO);
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  TNN(0,nda::range(NMO),nda::range(NMO)) = A;
+  // FIX : does this work for GPU? 
+  TNN = A;
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);
 
   // Log(Ovlp)
-  math::log_determinant_from_getrf(TNN,ipiv,ovlp);
+  math::log_determinant_from_getrf(TNN,ipiv,res);
+
+  // FIX : need a solution for GPU
+  for(int i = 0; i < nbatch; ++i)
+    ovlp(i) += res;
 
   // Invert
-  nda::lapack::getri(TNN,ipiv,work);
+  if(invert)
+    nda::lapack::getri(TNN,ipiv,work);
 }
 
 template<nda::MemoryArrayOfRank<3> A_t, typename O_t, nda::MemoryArrayOfRank<3> T_t>
@@ -73,7 +80,7 @@ requires( nda::mem::have_compatible_addr_space<A_t,O_t,T_t> and
           std::decay_t<A_t>::is_stride_order_C() and
           std::decay_t<T_t>::is_stride_order_C()
         )
-void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN)
+void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, bool invert = true)
 {
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<A_t>;
@@ -87,6 +94,7 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN)
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
+  // FIX : does this work for GPU? 
   TNN = A;
 
   // LU 
@@ -96,7 +104,8 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN)
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert
-  nda::lapack::getri(TNN,ipiv,work);
+  if(invert)
+    nda::lapack::getri(TNN,ipiv,work);
 }
 
 template<nda::MemoryArrayOfRank<2> A_t, nda::MemoryArrayOfRank<2> B_t,
@@ -119,7 +128,7 @@ void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0)
   utils::check(logdet.size() >= nbatch, "");
   utils::check(scl0.size() == nbatch, "");
 
-  logdet() = 0.0; //
+  //logdet() = 0.0; //
 
   for (int nb = 0; nb < nbatch; nb++){
     for (int i = 0; i < NMO; i++)
@@ -153,13 +162,13 @@ void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0)
 }
 
 template<nda::MemoryArrayOfRank<1> A_t, nda::MemoryArrayOfRank<1> B_t,
-                     nda::MemoryArrayOfRank<1> C_t, typename T_t>
-requires( nda::mem::have_compatible_addr_space<A_t,B_t,C_t> and
-          nda::have_same_value_type_v<A_t, B_t, C_t, T_t> and
+         nda::MemoryArrayOfRank<1> C_t, nda::MemoryArrayOfRank<1> O_t, typename T_t>
+requires( nda::mem::have_compatible_addr_space<A_t,B_t,C_t,O_t> and
+          nda::have_same_value_type_v<A_t, B_t, C_t, O_t, T_t> and
           std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C() and
           std::decay_t<C_t>::is_stride_order_C() 
         )
-auto splitDmatrix(A_t const& A, B_t&& B, C_t&& C, T_t const& scl0)
+void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0, int nbatch = 0)
 {
 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
@@ -169,7 +178,7 @@ auto splitDmatrix(A_t const& A, B_t&& B, C_t&& C, T_t const& scl0)
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(B.shape() == C.shape(), "Size mismatch");
 
-  auto logdet = 0.0;
+  auto res = 0.0;
 
   for (int i = 0; i < NMO; i++)
   {
@@ -184,7 +193,7 @@ auto splitDmatrix(A_t const& A, B_t&& B, C_t&& C, T_t const& scl0)
       else{
         C(i) = exp(-1.0*ksi);
       }
-      logdet += ksi; // store log(det(Dmax))
+      res += ksi; // store log(det(Dmax))
     }
     else
     {
@@ -198,7 +207,11 @@ auto splitDmatrix(A_t const& A, B_t&& B, C_t&& C, T_t const& scl0)
     }
   }
 
-  return logdet;
+  // logdet is accumulated
+  for(int i = 0; i < nbatch; ++i)
+    logdet(i) += res;
+
+  //return logdet;
 
 }
 
@@ -288,9 +301,7 @@ template<typename UL_t, typename DL_t, typename VL_t,
              nda::MemoryArrayOfRank<3> UR_t, nda::MemoryArrayOfRank<2> DR_t,
              nda::MemoryArrayOfRank<3> VR_t, nda::MemoryArrayOfRank<1> O_t,
              nda::MemoryArrayOfRank<3> T_t, typename SL_t, nda::MemoryArrayOfRank<1> SR_t>
-requires( (CSRMatrix<UL_t> or nda::MemoryMatrix<UL_t>) and
-          (CSRMatrix<DL_t> or nda::MemoryVector<DL_t>) and
-          (CSRMatrix<VL_t> or nda::MemoryMatrix<VL_t>) and
+requires( nda::MemoryMatrix<UL_t> and nda::MemoryVector<DL_t> and nda::MemoryMatrix<VL_t> and
           nda::mem::have_compatible_addr_space<UL_t,DL_t,VL_t,UR_t,DR_t,VR_t,O_t,T_t,SR_t> and
           nda::have_same_value_type_v<UL_t,DL_t,VL_t,UR_t,DR_t,VR_t,O_t,T_t,SR_t> and
           std::decay_t<UR_t>::is_stride_order_C() and std::decay_t<DR_t>::is_stride_order_C()
@@ -298,7 +309,7 @@ requires( (CSRMatrix<UL_t> or nda::MemoryMatrix<UL_t>) and
         )
 void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
                       UR_t && UR, DR_t && DR, VR_t && VR, SL_t const& sclL, SR_t const& sclR,
-                      O_t && ovlp, T_t && TNN, bool invert = false)
+                      O_t && ovlp, T_t && TNN, bool unitaryR, bool unitaryL, bool invert = false)
 {
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<UL_t>();
   using Type = nda::get_value_t<UR_t>;
@@ -311,42 +322,14 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
   utils::check(DR.shape() == std::array<long,2>{nbatch,NMO}, "Size mismatch");
   utils::check(VR.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
 
-  // FIX : temporary hack to deal with CSR wavefunctions
-  memory::buffered_array<MEM,Type,2> ULdense(NMO,NMO);
-  memory::buffered_array<MEM,Type,1> DLdense(NMO);
-  memory::buffered_array<MEM,Type,2> VLdense(NMO,NMO);
+  utils::check(UL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+  utils::check(VL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
 
-  if constexpr (CSRMatrix<UL_t>) 
-    ULdense = math::sparse::to_array<'N'>(UL); 
-  else
-    ULdense = UL;
-  if constexpr (CSRMatrix<DL_t>) 
-    DLdense = nda::diagonal(math::sparse::to_array<'N'>(DL)); 
-  else
-    DLdense = DL;
-  if constexpr (CSRMatrix<VL_t>) 
-    VLdense = math::sparse::to_array<'N'>(VL);
-  else
-    VLdense = VL;
-
-  utils::check(ULdense.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
-  utils::check(VLdense.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
-
-  memory::buffered_array<MEM,Type,3> UL_inv_3D(1,NMO,NMO); // 3D to be compatible with log_determinant_from_getrf
   memory::buffered_array<MEM,Type,2> UL_inv(NMO,NMO);
   memory::buffered_array<MEM,Type,2> DL_UL(NMO,NMO);
   memory::buffered_array<MEM,Type,3> UR_inv(nbatch,NMO,NMO);
   memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
   memory::buffered_array<MEM,Type,3> M2(nbatch,NMO,NMO);
-
-  Type logdetDL;
-  // matrices to store terms to compute log(P_T)
-  memory::buffered_array<MEM,Type,1> logdetDL_vec(nbatch,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetUL(1,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetUL_vec(nbatch,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetDR(nbatch,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetUR(nbatch,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetM(nbatch,Type(0.0));
 
   // matrices to store terms to Dmax^-1, Dmin
   memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
@@ -354,21 +337,38 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
   memory::buffered_array<MEM,Type,1> DLmin(NMO);
   memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-  logdetDL = detail::splitDmatrix(DL, DLmin, DLmax_inv, sclL);
-  logdetDL_vec() = logdetDL;
-  detail::splitDmatrix(DR, DRmin, DRmax_inv, logdetDR, sclR);
+  // overlap is accumulated, so it must first be zeroed
+  ovlp() = Type(0.0);
 
+  detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+  detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+ 
   memory::buffered_array<MEM,int,2> ipiv(nbatch,NMO);
   memory::buffered_array<MEM,Type,1> work;
  
   ipiv() = 0;
 
   // UL^-1
-  detail::inverse_logdet(ULdense,logdetUL,UL_inv_3D);
-  UL_inv() = UL_inv_3D(0,nda::ellipsis{});
-  logdetUL_vec() = logdetUL(0);
+  if(!unitaryL){
+    detail::inverse_logdet(UL,ovlp,UL_inv,nbatch);
+  }
+  else{
+    // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
+    // and det(UL) has a phase (i.e. det(UL) =/= +-1)
+    detail::inverse_logdet(UL,ovlp,UL_inv,nbatch,false);
+    UL_inv() = nda::dagger(UL);
+  }
+  //logdetUL_vec() = logdetUL(0);
   // UR^-1
-  detail::inverse_logdet(UR,logdetUR,UR_inv);
+  if(!unitaryR){
+    detail::inverse_logdet(UR,ovlp,UR_inv);
+  }
+  else{
+    // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
+    // and det(UR) has a phase (i.e. det(UR) =/= +-1)
+    detail::inverse_logdet(UR,ovlp,UR_inv,false);
+    nda::tensor::add(nda::conj(UR),"nij",UR_inv,"nji");
+  }
 
   // UR^-1*UL^-1
   nda::tensor::contract(UR_inv,"nik",UL_inv,"kj",M1,"nij");
@@ -380,7 +380,7 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
   nda::tensor::contract(TNN,"nij",DLmax_inv,"j",M1,"nij");
 
   // VR * VL
-  nda::tensor::contract(VR,"nij",VLdense,"jk",TNN,"nik");
+  nda::tensor::contract(VR,"nij",VL,"jk",TNN,"nik");
 
   // DRmin*VR*VL
   nda::tensor::contract(TNN,"nij",DRmin,"ni",M2,"nij");
@@ -395,10 +395,10 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
   nda::lapack::getrf(TNN,ipiv,work);
 
   // Log(Ovlp)
-  math::log_determinant_from_getrf(TNN,ipiv,logdetM);
+  math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // log(PT) = log(detUR) + log(detDRmax) + log(detM3) + log(detDLmax) + log(detUL)
-  ovlp(nda::range(nbatch)) = logdetUR + logdetDR + logdetM + logdetDL_vec + logdetUL_vec; 
+  //ovlp(nda::range(nbatch)) = logdetUR + logdetDR + logdetM + logdetDL_vec + logdetUL_vec; 
 
 }
 
@@ -489,7 +489,8 @@ requires( nda::mem::have_compatible_addr_space<UL_t,DL_t,VL_t,UR_t,DR_t,VR_t,O_t
           and std::decay_t<VR_t>::is_stride_order_C()        
         )
 void Log_Overlap(UL_t const& UL, DL_t const& DL, VL_t const& VL,
-                 UR_t && UR, DR_t && DR, VR_t && VR, SL_t const& sclL, SR_t const& sclR, O_t && ovlp)
+                 UR_t && UR, DR_t && DR, VR_t && VR, SL_t const& sclL, SR_t const& sclR, O_t && ovlp, 
+                 bool unitaryL = false, bool unitaryR = false)
 {
   utils::check_strides(UL,DL,VL,UR,DR,VR,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<UL_t>();
@@ -497,7 +498,7 @@ void Log_Overlap(UL_t const& UL, DL_t const& DL, VL_t const& VL,
   auto [nbatch, NMO, NEL] = UR.shape();
   memory::buffered_array<MEM,Type,3> TNN(nbatch,NMO,NMO);
 
-  detail::log_overlap_impl(UL,DL,VL,UR,DR,VR,sclL,sclR,ovlp,TNN);
+  detail::log_overlap_impl(UL,DL,VL,UR,DR,VR,sclL,sclR,ovlp,TNN,unitaryL,unitaryR);
 }
 
 template<typename A_t, nda::MemoryArrayOfRank<3> B_t, nda::MemoryArrayOfRank<1> O_t,
@@ -841,9 +842,7 @@ template<typename A_t, typename B_t, typename C_t,
          nda::MemoryArrayOfRank<1> O_t,
          typename SL_t,
          nda::MemoryArrayOfRank<1> SR_t>
-requires( ((CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
-           nda::MemoryVector<B_t> and
-           (CSRMatrix<C_t> or nda::MemoryMatrix<C_t>)) and
+requires(  nda::MemoryMatrix<A_t> and nda::MemoryVector<B_t> and nda::MemoryMatrix<C_t> and
           nda::mem::have_compatible_addr_space<A_t,B_t,C_t,D_t,E_t,F_t,G_t,O_t,SR_t> and
           nda::have_same_value_type_v<A_t, B_t, C_t, D_t, E_t, F_t, G_t, O_t, SR_t> and
           std::decay_t<D_t>::is_stride_order_C() and std::decay_t<E_t>::is_stride_order_C() and
@@ -855,7 +854,6 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
                         bool unitaryL = false, bool unitaryR = false)
 {
 
-  // FIX : unitaryL, unitaryR are not currently used
   utils::check_strides(UR,DR,VR,G,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -870,109 +868,358 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
   utils::check(ovlp.size() >= nbatch, "");
   utils::check(G.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
 
-  // FIX : temporary hack to deal with CSR wavefunctions
-  memory::buffered_array<MEM,Type,2> ULdense(NMO,NMO);
-  memory::buffered_array<MEM,Type,1> DLdense(NMO);
-  memory::buffered_array<MEM,Type,2> VLdense(NMO,NMO);
+  // overlap is accumulated, so it must first be zeroed
+  ovlp() = Type(0.0);
 
-  if constexpr (CSRMatrix<A_t>) 
-    ULdense = math::sparse::to_array<'N'>(UL); 
-  else
-    ULdense = UL;
-  if constexpr (CSRMatrix<B_t>) 
-    DLdense = nda::diagonal(math::sparse::to_array<'N'>(DL)); 
-  else
-    DLdense = DL;
-  if constexpr (CSRMatrix<C_t>) 
-    VLdense = math::sparse::to_array<'N'>(VL);
-  else
-    VLdense = VL;
+  // if running on GPU
+  if constexpr (nda::mem::have_device_compatible_addr_space<A_t>)
+  {
+    {
+      memory::buffered_array<MEM,Type,2> M0(NMO,NMO);
+      memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
 
-  utils::check(ULdense.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
-  //utils::check(DLdense.shape() == std::array<long,1>{NMO}, "Size mismatch");
-  utils::check(VLdense.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+      // scopes to limit memory usage
+      {
+        memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
+        memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
+        memory::buffered_array<MEM,Type,1> DLmin(NMO);
+        memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-  memory::buffered_array<MEM,Type,3> UL_inv_3D(1,NMO,NMO); // 3D to be compatible with log_determinant_from_getrf
-  memory::buffered_array<MEM,Type,2> UL_inv(NMO,NMO);
-  memory::buffered_array<MEM,Type,2> DL_UL(NMO,NMO);
-  memory::buffered_array<MEM,Type,3> UR_inv(nbatch,NMO,NMO);
-  memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
-  memory::buffered_array<MEM,Type,3> M2(nbatch,NMO,NMO);
-  memory::buffered_array<MEM,Type,3> M3(nbatch,NMO,NMO);
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+      
+        // M0 <-- VL * DLmin
+        nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
 
-  Type logdetDL;
-  // matrices to store terms to compute log(P_T)
-  memory::buffered_array<MEM,Type,1> logdetDL_vec(nbatch,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetUL(1,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetUL_vec(nbatch,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetDR(nbatch,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetUR(nbatch,Type(0.0));
-  memory::buffered_array<MEM,Type,1> logdetM(nbatch,Type(0.0));
+        // G <-- DRmin * VR (G used as temporary storage)
+        nda::tensor::contract(VR,"nij",DRmin,"ni",G,"nij");
 
-  // matrices to store terms to Dmax^-1, Dmin
-  memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
-  memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
-  memory::buffered_array<MEM,Type,1> DLmin(NMO);
-  memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
+        // G <-- DRmin*VR*VL*DLmin
+        nda::tensor::contract(ComplexType(1.0),G,"nij",M0,"jk",ComplexType(0.0),G,"nik");
 
-  logdetDL = detail::splitDmatrix(DL, DLmin, DLmax_inv, sclL);
-  logdetDL_vec() = logdetDL;
-  detail::splitDmatrix(DR, DRmin, DRmax_inv, logdetDR, sclR);
+        // M0 <-- UL^-1
+        if(!unitaryL){
+          detail::inverse_logdet(UL,ovlp,M0,nbatch);  
+        }
+        else{
+          // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
+          // and det(UL) has a phase (i.e. det(UL) =/= +-1)
+          detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
+          M0() = nda::dagger(UL);
+        }
+        // M1 <-- UR^-1
+        if(!unitaryR){
+          detail::inverse_logdet(UR,ovlp,M1); 
+        }
+        else{
+          // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
+          // and det(UR) has a phase (i.e. det(UR) =/= +-1)
+          detail::inverse_logdet(UR,ovlp,M1,false); 
+          nda::tensor::add(nda::conj(UR),"nij",M1,"nji");
+        }
 
-  // UL^-1
-  detail::inverse_logdet(UL,logdetUL,UL_inv_3D);
-  UL_inv() = UL_inv_3D(0,nda::ellipsis{});
-  logdetUL_vec() = logdetUL(0);
-  // UR^-1
-  detail::inverse_logdet(UR,logdetUR,UR_inv);
+        // M0 <-- UL^-1*DLmax^-1
+        nda::tensor::contract(ComplexType(1.0),M0,"ij",DLmax_inv,"j",ComplexType(0.0),M0,"ij");  
 
-  // UR^-1*UL^-1
-  nda::tensor::contract(UR_inv,"nik",UL_inv,"kj",M1,"nij");
+        // M1 <-- DRmax^-1*UR^-1
+        nda::tensor::contract(M1,"nij",DRmax_inv,"ni",M1,"nij"); 
 
-  // DRmax^-1*UR^-1*UL^-1
-  nda::tensor::contract(M1,"nij",DRmax_inv,"ni",M2,"nij");
+      } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
 
-  // DRmax^-1*UR^-1*UL^-1*DLmax^-1
-  nda::tensor::contract(M2,"nij",DLmax_inv,"j",M1,"nij");
+      // G <-- DRmax^-1*UR^-1*UL^-1*DLmax^-1 + DRmin*VR*VL*DLmin, i.e. (M1*M0 + G)
+      nda::tensor::contract(ComplexType(1.0),M1,"nij",M0,"jk",ComplexType(1.0),G,"nik"); 
 
-  // VR * VL
-  nda::tensor::contract(VR,"nij",VL,"jk",M2,"nik");
+      // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
+      detail::LUsolve(G,M1,ovlp);
 
-  // DRmin*VR*VL
-  nda::tensor::contract(M2,"nij",DRmin,"ni",M3,"nij");
+      // Gp^T = <c_i c_j^+>^T
+      //    = UL^-1*DLmax^-1*[DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
+      nda::tensor::contract(ComplexType(-1.0),M0,"ij",M1,"njk",ComplexType(0.0),G,"nki");
+      
+      // G = I - Gp^T
+      // FIX: finish gpu implementation
+      utils::check(false, "finish GPU implementation of finite-T MixedDensityMatrix");
+      // math::add_diagonal(ComplexType(1.0),G);
+
+    } // end of scope for M0, M1
+  }
+  else //if running on CPU
+  {
+    {
+      memory::buffered_array<MEM,Type,2> M0(NMO,NMO);
+      memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
+
+      // scopes to limit memory usage
+      {
+        memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
+        memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
+        memory::buffered_array<MEM,Type,1> DLmin(NMO);
+        memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
+
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+      
+        // M0 <-- VL * DLmin
+        // FIX : is there a way to do this with BLAS/LAPACK?
+        for(int col = 0; col < NMO; ++col)
+          M0(nda::range::all,col) = VL(nda::range::all,col)*DLmin(col);
+
+        for(int b = 0; b < nbatch; ++b){
+          // G <-- DRmin * VR (G used as temporary storage)
+          // FIX : is there a way to do this with BLAS/LAPACK?
+          for(int row = 0; row < VR.extent(2); ++row)
+            G(b,row,nda::ellipsis{}) = DRmin(b,row) * VR(b,row,nda::range::all);
+
+          // G <-- DRmin*VR*VL*DLmin
+          nda::blas::gemm(ComplexType(1.0),G(b,nda::ellipsis{}),M0,ComplexType(0.0),G(b,nda::ellipsis{}));
+        }
+        // M0 <-- UL^-1
+        if(!unitaryL){
+          detail::inverse_logdet(UL,ovlp,M0,nbatch);  
+        }
+        else{
+          // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
+          // and det(UL) has a phase (i.e. det(UL) =/= +-1)
+          detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
+          // U -> U^+ = U^-1 (for U unitary) 
+          M0() = nda::dagger(UL);
+        }
+        // M1 <-- UR^-1
+        if(!unitaryR){
+          detail::inverse_logdet(UR,ovlp,M1); 
+        }
+        else{
+          // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
+          // and det(UR) has a phase (i.e. det(UR) =/= +-1)
+          detail::inverse_logdet(UR,ovlp,M1,false);
+          // U -> U^+ = U^-1 (for U unitary) 
+          nda::tensor::add(nda::conj(UR),"nij",M1,"nji");
+        }
+
+        // M0 <-- UL^-1*DLmax^-1 
+        for(int col = 0; col < NMO; ++col)
+          nda::blas::scal(DLmax_inv(col),M0(nda::range::all,col)); 
+
+        // M1 <-- DRmax^-1*UR^-1
+        for(int b = 0; b < nbatch; ++b)
+          for(int row = 0; row < NMO; ++row)
+            nda::blas::scal(DRmax_inv(b,row),M1(b,row,nda::ellipsis{}));
+
+      } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
+
+      // G <-- DRmax^-1*UR^-1*UL^-1*DLmax^-1 + DRmin*VR*VL*DLmin, i.e. (M1*M0 + G)
+      for(int b = 0; b < nbatch; ++b) 
+        nda::blas::gemm(ComplexType(1.0),M1(b,nda::ellipsis{}),M0,ComplexType(1.0),G(b,nda::ellipsis{})); 
+      
+      // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
+      detail::LUsolve(G,M1,ovlp);
+
+      // Gp^T = <c_i c_j^+>^T
+      //    = UL^-1*DLmax^-1*[DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
+      for(int b = 0; b < nbatch; ++b){
+        nda::blas::gemm(ComplexType(-1.0),nda::transpose(M1(b,nda::ellipsis{})),nda::transpose(M0),
+                        ComplexType(0.0),G(b,nda::ellipsis{}));
+        //FIX: is there a better way to do I-G^T ? 
+        for(int i = 0; i < NMO; ++i){
+          G(b,i,i) += Type(1.0);
+        }
+      }
+    } // end of scope for M0, M1
   
-  // DRmin*VR*VL*DLmin
-  nda::tensor::contract(M3,"nij",DLmin,"j",M2,"nij");
+  }
 
-  //M2 <-- M1 + M2;
-  nda::tensor::add(ComplexType(1.0),M1,"nij",ComplexType(1.0),M2,"nij");
+}
 
-  // DRmax^-1*UR^-1
-  nda::tensor::contract(UR_inv,"nij",DRmax_inv,"ni",M1,"nij");
+// Finite temperature Density Matrices
+/*
+Computes <c^+_i c_j> directly according to :
+<c^+_i c_j> = UL^T*DLmin*[DLmin*UL*UR*DRmin+DLmax^-1*VL^-1*VR^-1*DRmax^-1]*DRmin*UR^T
+*/
+template<typename A_t, typename B_t, typename C_t,
+         nda::MemoryArrayOfRank<3> D_t,
+         nda::MemoryArrayOfRank<2> E_t,
+         nda::MemoryArrayOfRank<3> F_t,
+         nda::MemoryArrayOfRank<3> G_t, 
+         nda::MemoryArrayOfRank<1> O_t,
+         typename SL_t,
+         nda::MemoryArrayOfRank<1> SR_t>
+requires(  nda::MemoryMatrix<A_t> and nda::MemoryVector<B_t> and nda::MemoryMatrix<C_t> and
+          nda::mem::have_compatible_addr_space<A_t,B_t,C_t,D_t,E_t,F_t,G_t,O_t,SR_t> and
+          nda::have_same_value_type_v<A_t, B_t, C_t, D_t, E_t, F_t, G_t, O_t, SR_t> and
+          std::decay_t<D_t>::is_stride_order_C() and std::decay_t<E_t>::is_stride_order_C() and
+          std::decay_t<F_t>::is_stride_order_C() and std::decay_t<G_t>::is_stride_order_C()
+        )
+void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL, 
+                        D_t const& UR, E_t const& DR, F_t const& VR,
+                        G_t && G, O_t && ovlp, SL_t const& sclL, SR_t const& sclR, 
+                        bool unitaryL = false, bool unitaryR = false)
+{
 
-  // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
-  detail::LUsolve(M2,M1,logdetM);
+  utils::check_strides(UR,DR,VR,G,ovlp);
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
+  using Type = nda::get_value_t<B_t>;
 
-  // UL^-1*DLmax^-1
-  nda::tensor::contract(UL_inv,"ij",DLmax_inv,"j",DL_UL,"ij");
+  auto [nbatch, NMO, NEL] = UR.shape();
+  
+  utils::check(UL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+  utils::check(DL.shape() == std::array<long,1>{NMO}, "Size mismatch");
+  utils::check(VL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+  utils::check(DR.shape() == std::array<long,2>{nbatch,NMO}, "Size mismatch");
+  utils::check(VR.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
+  utils::check(ovlp.size() >= nbatch, "");
+  utils::check(G.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
 
-  // Gp^T = <c_i c_j^+>^T
-  //    = UL^-1*DLmax^-1*[DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
-  nda::tensor::contract(DL_UL,"ij",M1,"njk",G,"nki");
+  // overlap is accumulated, so it must first be zeroed
+  ovlp() = Type(0.0);
 
-  // FIX: is there a better way to construct a tensor of
-  // identity matrices? Or can we do the addition without
-  // needing a tensor of identity matrices?
-  memory::buffered_array<MEM,Type,3> It(nbatch,NMO,NMO);
-  for(int i = 0; i < nbatch; ++i)
-    It(i,nda::range(NMO),nda::range(NMO)) = nda::eye<Type>(NMO);
+  // if running on GPU
+  if constexpr (nda::mem::have_device_compatible_addr_space<A_t>)
+  {
+    { // scopes to limit memory usage
+      
+      memory::buffered_array<MEM,Type,2> M0(NMO,NMO);
+      memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
 
-  // G = <c_i^+ c_j> --> I - Gp^T
-  nda::tensor::add(ComplexType(1.0),It,"nij",ComplexType(-1.0),G,"nij");
+      {
+        memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
+        memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
+        memory::buffered_array<MEM,Type,1> DLmin(NMO);
+        memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-  // log(PT) = log(detUR) + log(detDRmax) + log(detM3) + log(detDLmax) + log(detUL)
-  ovlp(nda::range(nbatch)) = logdetUR + logdetDR + logdetM + logdetDL_vec + logdetUL_vec; 
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
 
+        // M0 <-- UL^-1
+        if(!unitaryL){
+          detail::inverse_logdet(VL,ovlp,M0,nbatch);  
+        }
+        else{
+          // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
+          // and det(UL) has a phase (i.e. det(UL) =/= +-1)
+          detail::inverse_logdet(VL,ovlp,M0,nbatch,false);
+          M0() = nda::dagger(VL);
+        }
+        // M1 <-- UR^-1
+        if(!unitaryR){
+          detail::inverse_logdet(VR,ovlp,G); 
+        }
+        else{
+          // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
+          // and det(UR) has a phase (i.e. det(UR) =/= +-1)
+          detail::inverse_logdet(VR,ovlp,G,false); 
+          nda::tensor::add(nda::conj(VR),"nij",G,"nji");
+        }
+
+        // M0 <-- DLmax^-1*VL^-1
+        nda::tensor::contract(M0,"ij",DLmax_inv,"i",M0,"ij");
+
+        // G <-- VR^-1*DRmax^-1   (G used as temporary storage)
+        nda::tensor::contract(ComplexType(1.0),G,"nij",DRmax_inv,"nj",ComplexType(0.0),G,"nij");
+
+        // G <-- (DLmax^-1*VL^-1*VR^-1*DRmax^-1)^T
+        nda::tensor::contract(ComplexType(1.0),G,"nkj",M0,"ik",ComplexType(0.0),G,"nji");
+
+        // M0 <-- UL^T*DLmin
+        nda::tensor::contract(ComplexType(1.0),UL,"ij",DLmin,"i",ComplexType(0.0),M0,"ji");  
+
+        // M1 <-- DRmin*UR^T
+        nda::tensor::contract(ComplexType(1.0),UR,"nij",DRmin,"nj",ComplexType(0.0),M1,"nji"); 
+
+      } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
+
+      // G <-- (DLmin*UL*UR*DRmin + DRmax^-1*VL^-1*VR^-1*DRmax^-1)^T , i.e. G = (M1^T*M0^T + G)^T
+      nda::tensor::contract(ComplexType(1.0),M1,"nij",M0,"jk",ComplexType(1.0),G,"nik"); 
+
+      // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
+      detail::LUsolve(G,M1,ovlp);
+
+      // G = <c_i^+ c_j>
+      //    = UL^-1*DLmax^-1*[DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
+      nda::tensor::contract(ComplexType(1.0),M0,"ij",M1,"njk",ComplexType(0.0),G,"nik");
+
+    } // end of scope for M0, M1
+  }
+  else //if running on CPU
+  {
+    {
+      memory::buffered_array<MEM,Type,2> M0(NMO,NMO);
+      memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
+
+      // scopes to limit memory usage
+      {
+        memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
+        memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
+        memory::buffered_array<MEM,Type,1> DLmin(NMO);
+        memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
+
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+
+        // M0 <-- VL^-1
+        if(!unitaryL){
+          detail::inverse_logdet(VL,ovlp,M0,nbatch);  
+        }
+        else{
+          // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
+          // and det(UL) has a phase (i.e. det(UL) =/= +-1)
+          detail::inverse_logdet(VL,ovlp,M0,nbatch,false);
+          M0() = nda::dagger(VL);
+        }
+        // M1 <-- VR^-1
+        if(!unitaryR){
+          detail::inverse_logdet(VR,ovlp,G); 
+        }
+        else{
+          // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
+          // and det(UR) has a phase (i.e. det(UR) =/= +-1)
+          detail::inverse_logdet(VR,ovlp,G,false); 
+          for(int b = 0; b < nbatch; ++b)
+            G(b,nda::range::all,nda::range::all) = nda::dagger(VR(b,nda::ellipsis{}));
+        }
+
+        // M0 <-- DLmax^-1*VL^-1
+        for(int row = 0; row < NMO; ++row)
+          nda::blas::scal(DLmax_inv(row),M0(row,nda::range::all));
+          //M0(row,nda::range::all) *= DLmax_inv(row);
+
+        // G <-- VR^-1*DRmax^-1   (G used as temporary storage)
+        for(int b = 0; b < nbatch; ++b){
+          for(int col = 0; col < NMO; ++col)
+            nda::blas::scal(DRmax_inv(b,col),G(b,nda::range::all,col));
+            //G(b,nda::range::all,col) *= DRmax_inv(b,col);
+
+          // G <-- (DLmax^-1*VL^-1*VR^-1*DRmax^-1)^T
+          nda::blas::gemm(ComplexType(1.0),nda::transpose(G(b,nda::ellipsis{})),
+                    nda::transpose(M0),ComplexType(0.0),G(b,nda::ellipsis{})); 
+        }
+
+        // M0 <-- UL^T*DLmin
+        for(int row = 0; row < NMO; ++row)
+          M0(nda::range::all,row) = DLmin(row) * UL(row,nda::range::all);
+
+        // M1 <-- DRmin*UR^T
+        for(int b = 0; b < nbatch; ++b)
+          // FIX : is there a way to do this with BLAS/LAPACK?
+          for(int row = 0; row < VR.extent(2); ++row)
+            M1(b,row,nda::ellipsis{}) = DRmin(b,row) * UR(b,nda::range::all,row);
+
+      } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
+
+      // G <-- (DLmin*UL*UR*DRmin + DRmax^-1*VL^-1*VR^-1*DRmax^-1)^T , i.e. G = (M1^T*M0^T + G)^T
+      for(int b = 0; b < nbatch; ++b)
+        nda::blas::gemm(ComplexType(1.0),M1(b,nda::ellipsis{}),M0,ComplexType(1.0),G(b,nda::ellipsis{})); 
+
+      // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
+      detail::LUsolve(G,M1,ovlp);
+
+      // G = <c_i^+ c_j>
+      //    = UL^-1*DLmax^-1*[DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
+      for(int b = 0; b < nbatch; ++b)
+        nda::blas::gemm(ComplexType(1.0),M0,M1(b,nda::ellipsis{}),ComplexType(0.0),G(b,nda::ellipsis{}));
+
+    }
+
+  }
 }
 
 } // namespace det_ops 

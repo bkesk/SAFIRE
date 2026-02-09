@@ -64,6 +64,7 @@ void SDetOps()
   using matrix       = memory::array<MEM,Type,2>;
   using matrix_view  = memory::array_view<MEM,Type,2>;
   using array       = memory::array<MEM,Type,3>;
+  using array_F     = memory::array<MEM,Type,3,nda::F_layout>;
   using array_view  = memory::array_view<MEM,Type,3>;
   using sfqmc::utils::ARRAY_EQUAL;
 
@@ -330,6 +331,7 @@ void SDetOps()
       ARRAY_EQUAL(Dmin,dmin_ref);
       ARRAY_EQUAL(Dmax,dmax_ref);
       ARRAY_EQUAL(logdetD,logdet_ref);
+
     }
 
     // inverse test
@@ -354,6 +356,7 @@ void SDetOps()
 
       ARRAY_EQUAL(Ainv,ainv_ref);
       ARRAY_EQUAL(logdetA,logdetA_ref);
+
     }
 
     // LU solve test
@@ -386,6 +389,7 @@ void SDetOps()
 
       ARRAY_EQUAL(b_LU,x_ref);
       ARRAY_EQUAL(ovlp_LU,ovlp_ref);
+
     }
 
     // density matrix test
@@ -394,10 +398,11 @@ void SDetOps()
       nda::array<Type,2> v_ref = {{ 0.46345438,  0.28564532,  0.26386935, -0.02614665},
                                   { 0.19396395,  0.65316095, -0.01660395,  0.15844344},
                                   { 0.20418108, -0.00392008,  0.61425088,  0.16850104},
-                                  {-0.04220508,  0.33912258,  0.31593366,  0.37148018},
+                                  {-0.04220508,  0.33912258,  0.31593366,  0.37148018}
                                 };
 
-      memory::array<MEM,Type,1> pt_ref(nwalk,Type(5.932363985793293+6.283185307179586i));
+      //memory::array<MEM,Type,1> pt_ref(nwalk,Type(5.932363985793293+6.283185307179586i));
+      memory::array<MEM,Type,1> pt_ref(nwalk,Type(5.932363985793293));
 
       array g_ref(nwalk, NMO, NMO);  copy_to_array(v_ref,g_ref);
       memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
@@ -439,16 +444,50 @@ void SDetOps()
 
       ARRAY_EQUAL(ovlp,pt_ref);
 
+      ovlp() = Type(0.0);
+
       // next check computation of G
-      det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL(0), sclR, false, false);
+      //det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL(0), sclR, false, false);
+      det_ops::MixedDensityMatrix_v2(UL, DL, VL, UR, DR, VR, G, ovlp, sclL(0), sclR, false, false);
 
       ARRAY_EQUAL(G,g_ref);
       ARRAY_EQUAL(ovlp,pt_ref);
+
+      // test with unitaryL = unitaryR = true
+      UL = {{-0.237618 - 0.475639i,  0.557280 + 0.299243i,  0.036048 - 0.330270i,  0.448652 - 0.074379i}, 
+              {-0.305195 - 0.383992i, -0.354404 - 0.430958i, -0.097159 + 0.291230i,  0.446308 + 0.393234i}, 
+              {-0.446376 - 0.227139i,  0.222971 + 0.224969i,  0.262307 + 0.583585i, -0.485308 + 0.062680i}, 
+              {-0.251706 - 0.403126i, -0.418286 - 0.115219i,  0.208887 - 0.585114i, -0.431311 - 0.117788i}};
+      VL = {{-0.444569, -0.565290 + 0.079594i, -0.458630 + 0.052340i, -0.512675 + 0.023534i}, 
+              { 0.539528,  0.171909 + 0.175095i, -0.493869 - 0.513051i, -0.227021 + 0.300053i}, 
+              { 0.584441, -0.085586 - 0.240616i,  0.149100 + 0.503800i, -0.539199 - 0.162564i}, 
+              { 0.411941, -0.713791 + 0.197946i, -0.059660 + 0.013674i,  0.509040 - 0.136951i}};
+      DL = {2.820064, 1.208732, 0.935833, 0.283179};
+
+      m_ur ={{-0.343131 - 0.185808i, -0.018351 + 0.453505i,  0.531238 - 0.003219i,  0.562208 + 0.208403i}, 
+             {-0.415303 - 0.186343i, -0.171196 - 0.128687i, -0.106071 + 0.579018i,  0.117211 - 0.621836i}, 
+             {-0.356510 - 0.515866i, -0.372402 + 0.123251i, -0.141028 - 0.558427i, -0.336376 - 0.089615i}, 
+             {-0.293124 - 0.401742i,  0.709033 - 0.302533i,  0.165383 + 0.110377i, -0.276500 + 0.206010i}};
+      m_dr ={3.219786, 0.999613, 0.725324, 0.297031};
+      m_vr ={{-0.357210, -0.470761 - 0.008791i, -0.654372 - 0.068256i, -0.466739 + 0.000411i}, 
+             { 0.794345, -0.485340 + 0.214702i, -0.113149 + 0.020006i,  0.033013 - 0.270318i}, 
+             {-0.309181, -0.594494 + 0.142615i,  0.709217 - 0.004657i, -0.160130 - 0.044656i}, 
+             {-0.381869, -0.087885 + 0.339366i, -0.197467 + 0.109234i,  0.634921 - 0.526529i}};
+
+      copy_to_array(m_ur,UR);
+      copy_to_array(m_dr,DR);
+      copy_to_array(m_vr,VR);
+
+      sclL(0) = Type(0.128);
+      sclR() = Type(0.346);
+
+      det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL(0), sclR, true, true);
 
     }
 
     // orthogonalization test
     {
+
       // for SVD decomp.
       nda::array<Type,2> m_ur_svd = {{ 2.95338068636468 + 8.23020525387664e-01i, 1.89676350413418 + 1.88249259364426i,  2.29295527394499 + 2.54894000652995i,  2.34319847964629e-01 + 5.69443156844357e-01i},
                                      { 1.07343274485525e-01 + 1.07167361317400i, 1.92056258506920 + 2.12568744821291i,  1.05142390313059 + 2.90726943932716i,  2.46015990539850 + 5.04272927692950e-03i},
@@ -496,6 +535,46 @@ void SDetOps()
       ARRAY_EQUAL(scl,scl_ref);
 
       // for QR decomp.
+
+      // first test QR + permutation tools
+      nda::array<Type,2> m_a = {{0.64931004, 0.89595978, 0.95907761, 0.13627804}, 
+                                {0.83864509, 0.95797175, 0.45327008, 0.26950401}, 
+                                {0.22622036, 0.16491264, 0.04999646, 0.22462399}, 
+                                {0.90275349, 0.51971977, 0.64154440, 0.46441128}};
+
+      array A(nwalk,NMO,NMO); copy_to_array(m_a,A);
+      array_F AT(NMO,NMO,nwalk);
+      nda::tensor::add(A,"nij",AT,"ijn");
+
+      nda::array<int,2,nda::F_layout> jpvt(NMO,nwalk);
+      jpvt() = 0;
+      nda::array<Type,2,nda::F_layout> tau(NMO,nwalk);
+      nda::array<Type,1,nda::F_layout> work; 
+      nda::array<Type,3,nda::F_layout> P(NMO,NMO,nwalk);
+
+      nda::lapack::geqp3_batch(AT,jpvt,tau,work); 
+
+      // get permutation matrices as tensor
+      P = nda::linalg::get_permutation_array_qr<Type>(jpvt);
+
+      nda::array<Type,1> m_b = {0.4, 0.3, 0.8, 0.1};
+
+      matrix B(NMO,nwalk); copy_to_array(m_b,B);
+      nda::array<Type,2,nda::F_layout> BT(nwalk,NMO);
+      nda::array<int,2,nda::F_layout> Psort_vec(NMO,nwalk);
+
+      BT() = nda::transpose(B);
+
+      for(int b = 0; b < nwalk; ++b)
+      {
+        //utility array for sort
+        Psort_vec(nda::range::all,b) = nda::arange(NMO)+1;
+      } 
+      
+      det_ops::detail::quick_sort(BT,Psort_vec);
+      //Psort_vec += 1;
+      P = nda::linalg::get_permutation_array<Type>(Psort_vec);
+
       nda::array<Type,2> m_ur_qr = {{-2.06492078,  0.66442708, -0.53408209, -0.67936867},
                                     {-14.87318197, 0.80202448, -3.61794482, -3.45620579},
                                     {-8.43967188,  6.33054898, -3.64130307, -4.36980777},
@@ -530,7 +609,7 @@ void SDetOps()
       copy_to_array(dr_ref_qr,DR_ref);
       copy_to_array(vr_ref_qr,VR_ref);
 
-      scl_ref() = -0.008280282078320766;          
+      scl_ref() = -0.008280282078320766;
 
       det_ops::orthogonalize_wQR(UR,DR,VR,scl);
 
@@ -539,7 +618,6 @@ void SDetOps()
       ARRAY_EQUAL(VR,VR_ref);
 
       ARRAY_EQUAL(scl,scl_ref);
-
     }
 
   }

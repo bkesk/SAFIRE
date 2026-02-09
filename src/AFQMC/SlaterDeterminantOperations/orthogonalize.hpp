@@ -102,44 +102,29 @@ namespace det_ops
       }
     }
 
-    /*
-      Routine to get Q, R matrices from QR decomposition
-    */
-   /*
-    template <nda::MemoryArrayOfRank<3> A, nda::MemoryMatrix TAU>
-      requires(nda::mem::have_host_compatible_addr_space<A, TAU> and nda::have_same_value_type_v<A, TAU> 
-              and nda::is_blas_lapack_v<nda::get_value_t<A>>)
-    auto get_qr_matrices(A const &a, TAU const &tau, bool complete = false) {
+    template<nda::MemoryArrayOfRank<2> A_t, nda::MemoryArrayOfRank<2> B_t>
+      requires(nda::mem::have_compatible_addr_space<A_t,B_t> and
+              std::decay_t<A_t>::is_stride_order_C() and
+              std::decay_t<B_t>::is_stride_order_C())
+    void quick_sort(A_t && A, B_t && B)
+    {
+      auto const [n, nbatch] = A.shape();
 
-      constexpr MEMORY_SPACE MEM = memory::get_memory_space<A>();
-
-      auto all = nda::range::all;
-
-      auto const [m, n, nbatch] = a.shape();
-      auto const min_mn = std::min(m, n);
-      auto const k      = (complete ? m : min_mn);
-      auto Q            = memory::buffered_array<MEM, nda::get_value_t<A>, 3, nda::F_layout>::zeros(m, k, nbatch);
-      auto R            = memory::buffered_array<MEM, nda::get_value_t<A>, 3, nda::F_layout>::zeros(k, n, nbatch);
-
-      // compute Q matrix
       for(int b = 0; b < nbatch; ++b){
-        Q(all, nda::range(min_mn),b) = a(all, nda::range(min_mn), b);
-        int info{};
-        if constexpr (nda::is_complex_v<nda::get_value_t<A>>) {
-          info = nda::lapack::ungqr(Q(all,all,b), tau(all,b));
-        } else {
-          info = nda::lapack::orgqr(Q(all,all,b), tau(all,b));
-        }
-        if (info != 0) NDA_RUNTIME_ERROR << "Error in nda::qr_in_place: orgqr/ungqr returned a non-zero value: info = " << info;
-
-        // extract R matrix
-        for (int i = 0; i < min_mn; ++i) R(nda::range(i + 1), i, b) = a(nda::range(i + 1), i, b);
-        for (int i = min_mn; i < n; ++i) R(all, i, b) = a(all, i, b);
+        quick_sort(A(b,nda::range::all),B(b,nda::range::all),0,n-1);
       }
-      return std::make_tuple(Q, R);
-
     }
-    */
+
+    template<nda::MemoryArrayOfRank<1> A_t, nda::MemoryArrayOfRank<1> B_t>
+      requires(nda::mem::have_compatible_addr_space<A_t,B_t> and
+              std::decay_t<A_t>::is_stride_order_C() and
+              std::decay_t<B_t>::is_stride_order_C())
+    void quick_sort(A_t && A, B_t && B)
+    {
+      auto const n = A.size();
+
+      quick_sort(A,B,0,n-1);
+    }
 
   }
 
@@ -200,77 +185,83 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
   if(U.size()==0) return;
   utils::check( scl.extent(0) >= Nw, "Size mismatch");
 
-  memory::buffered_array<MEM,Type,3,nda::F_layout> UT(M,M,Nw);
-  memory::buffered_array<MEM,Type,3,nda::F_layout> VT(M,M,Nw);
-  memory::buffered_array<MEM,Type,3,nda::F_layout> P(M,M,Nw);
-  memory::buffered_array<MEM,Type,2,nda::F_layout> DT(M,Nw);
-  memory::buffered_array<MEM,Type,1,nda::F_layout> scl_new(Nw);
-  memory::buffered_array<MEM,Type,2,nda::F_layout> Dinv(M,Nw);
-
-  memory::buffered_array<MEM,int,2,nda::F_layout> jpvt(M,Nw);
-  memory::buffered_array<MEM,Type,2,nda::F_layout> tau(M,Nw);
-
+  //memory::buffered_array<MEM,Type,3,nda::F_layout> UT(M,M,Nw);
+  //memory::buffered_array<MEM,Type,3,nda::F_layout> VT(M,M,Nw);
+  //memory::buffered_array<MEM,int,2,nda::F_layout> jpvt(M,Nw);
+  //memory::buffered_array<MEM,Type,2,nda::F_layout> tau(M,Nw);
+  //memory::buffered_array<MEM,Type,1,nda::F_layout> work;
+  memory::buffered_array<MEM,Type,2,nda::F_layout> UT(M,M);
+  memory::buffered_array<MEM,Type,2,nda::F_layout> VT(M,M);
+  memory::buffered_array<MEM,int,1,nda::F_layout> jpvt(M);
+  memory::buffered_array<MEM,Type,1,nda::F_layout> tau(M);
   memory::buffered_array<MEM,Type,1,nda::F_layout> work;
 
-  memory::buffered_array<MEM,int,2,nda::F_layout> Psort_vec(M,Nw);
-  memory::buffered_array<MEM,Type,3,nda::F_layout> Psort(M,M,Nw);
-
+  /*
   //U*D --> to fortran order
-  nda::tensor::contract(D, "nj", U, "nij", UT, "ijn");
+  for(int b = 0; b < Nw; ++b)
+    for(int col = 0; col < M; ++col)
+      UT(nda::range::all,col,b) = D(b,col) * U(b,nda::range::all,col);
 
   // pivoted QR : U*D = Q*R*P^T
-  nda::lapack::geqp3(UT,jpvt,tau,work);
+  nda::lapack::geqp3_batch(UT,jpvt,tau,work);
+
   // get Q, R
-  //std::tie(UT,VT) = detail::get_qr_matrices(UT, tau, true);
   std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
+  */
 
-  // get permutation matrices as tensor
-  P = nda::linalg::get_permutation_array<Type>(jpvt);
+  Type scl_new;
 
-  // FIX : any way to get rid of these loops?
-  // check performance later
+  // FIX : maybe wrap up in function/kernel for future GPU implementation?
   for(int b = 0; b < Nw; ++b)
   {
-    //utility array for sort
-    Psort_vec(nda::range::all,b) = nda::arange(M); 
-    for(int i = 0; i < M; ++i){ 
-      // D(i) = norm(R(i,:))
-      DT(i,b) = nda::norm(VT(i,nda::range(i,M),b));
+    jpvt() = 0;
+    for(int col = 0; col < M; ++col)
+      UT(nda::range::all,col) = D(b,col) * U(b,nda::range::all,col);
+
+    // pivoted QR : U*D = Q*R*P^T
+    // NOTE : non-batched version of geqp3 return jpvt indexed starting from 0
+    nda::lapack::geqp3(UT,jpvt,tau,work);
+
+    // get Q, R
+    std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
+
+    {
+      // FIX : is this scope beneficial?
+      memory::buffered_array<MEM,Type,2> M0(M,M);
+      memory::buffered_array<MEM,int,1> P1(M);
+    
+      for(int i = 0; i < M; ++i){ 
+        // D(i) = norm(R(i,:))
+        P1(jpvt(i)) = i;
+        D(b,i) = nda::norm(VT(i,nda::range(i,M)));
+      }
+
+      // FIX : any better way to do this permutations?
+      for(int i = 0; i < M; ++i)
+        for(int j = 0; j < M; ++j)
+          M0(i,j) = VT(i,P1(j))/D(b,i);
+
+      P1(nda::range::all) = nda::arange(M);
+      detail::quick_sort(D(b,nda::range::all),P1);
+
+      // FIX : any better way to do these permutations?
+      for(int i = 0; i < M; ++i){
+        for(int j = 0; j < M; ++j){
+          U(b,i,j) = UT(i,P1(j));
+          VT(i,j) = M0(P1(i),j);
+        }
+      }
+
     }
+
+    scl_new = 0.5 * ( std::log(D(b,0).real()) + std::log(D(b,M-1).real()) );
+    nda::blas::scal(std::exp(-scl_new),D(b,nda::range::all));
+    scl(b) += scl_new; 
+
+    nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),V(b,nda::ellipsis{})
+                    ,ComplexType(0.0),V(b,nda::ellipsis{}));
+
   }
-  
-  nda::tensor::contract(VT,"ijn",P,"jkn",VT,"ikn");
-
-  Dinv() = DT;
-
-  nda::tensor::scale(Type(1.0),Dinv,nda::tensor::op::RCP);
-
-  nda::tensor::contract(Dinv,"in",VT,"ijn",VT,"ijn");
-
-  detail::quick_sort(DT,Psort_vec);
-
-  // make compatible with get_permutation_array that
-  // assumes Fortran indexing
-  Psort_vec += 1;
-
-  Psort = nda::linalg::get_permutation_array<Type>(Psort_vec);
-
-  nda::tensor::contract(Psort,"ijn",VT,"jkn",VT,"ikn");
-
-  nda::tensor::contract(UT,"ijn",Psort,"jkn",UT,"ikn");
-
-  // FIX : any way to get rid of this loop?
-  for(int b = 0; b < Nw; ++b){
-   scl_new(b) = 0.5 * ( std::log(DT(0,b).real()) + std::log(DT(M-1,b).real()) );
-   // FIX : replace with elementwise?
-   DT(nda::range::all,b) *= std::exp(-scl_new(b)); 
-  }
-
-  scl += scl_new;
-
-  nda::tensor::contract(VT,"jin",V,"nik",V,"njk");
-  nda::tensor::add(UT,"ijn",U,"nij");
-  nda::tensor::add(DT,"in",D,"ni");
 
 }
 
@@ -302,7 +293,7 @@ void orthogonalize_wSVD(U_t && U, D_t && D, V_t && V, B_t && scl)
   nda::tensor::contract(D, "nj", U, "nij", VT, "ijn");
   //nda::tensor::contract(D, "nj", U, "nij", M2, "ijn");
 
-  nda::lapack::gesvd(VT,S,UT,VT);  
+  nda::lapack::gesvd_batch(VT,S,UT,VT);  
 
   // FIX : any way to get rid of this loop?
   for(int b = 0; b < Nw; ++b){

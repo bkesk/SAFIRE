@@ -58,6 +58,7 @@ namespace lapack
    * @param tau Output vector. The scalar factors of the elementary reflectors.
    * @return Integer return code from the LAPACK call.
    */
+  /*
   template <MemoryMatrix A, MemoryVector JPVT, MemoryVector TAU, MemoryVector W>
     requires(mem::on_host<A> and is_blas_lapack_v<get_value_t<A>> and have_same_value_type_v<A, TAU, W>
              and mem::have_compatible_addr_space<A, JPVT, TAU, W>)
@@ -100,6 +101,7 @@ namespace lapack
     nda::array<value_type, 1, C_layout, heap<mem::get_addr_space<A>>> work;
     return geqp3(std::forward<A>(a), std::forward<JPVT>(jpvt), std::forward<TAU>(tau), work);
   }
+  */
 
   namespace detail {
 
@@ -143,8 +145,77 @@ namespace lapack
   template <nda::MemoryArrayOfRank<3> A, MemoryMatrix JPVT, MemoryMatrix TAU, MemoryVector W>
   requires(mem::on_host<A> and is_blas_lapack_v<get_value_t<A>> and have_same_value_type_v<A, TAU, W>
              and mem::have_compatible_addr_space<A, JPVT, TAU, W>)   
-  auto geqp3(A && a, JPVT && jpvt, TAU && tau, W && work){
+  auto geqp3_batch(A && a, JPVT && jpvt, TAU && tau, W && work){
     return detail::geqp3_impl(std::forward<A>(a),jpvt,tau,work);
+  }
+
+  namespace detail {
+    template <nda::MemoryArrayOfRank<3> A, MemoryMatrix S, nda::MemoryArrayOfRank<3> U, nda::MemoryArrayOfRank<3> VT, MemoryVector W>
+      requires(have_same_value_type_v<A, U, VT, W> and mem::have_compatible_addr_space<A, S, U, VT, W> and is_blas_lapack_v<get_value_t<A>>
+              and has_F_layout<A> and has_F_layout<U> and has_F_layout<VT>)
+    auto gesvd_impl(A &&a, S &&s, U &&u, VT &&vt, W &&work){
+
+      auto batchSize = a.extent(2);
+      array<int, 1> info(batchSize, 0);
+
+      auto dm = std::min(a.extent(0), a.extent(1));
+      EXPECTS(s.extent(0) == dm);      
+      //if (s.size() < dm) s.resize(dm);
+
+      // must be lapack compatible
+      EXPECTS(a.indexmap().min_stride() == 1);
+      EXPECTS(s.indexmap().min_stride() == 1);
+      EXPECTS(u.indexmap().min_stride() == 1);
+      EXPECTS(vt.indexmap().min_stride() == 1);
+
+      // call host/device implementation depending on input type
+      auto gesvd_call = []<typename... Ts>(Ts &&...args) {
+        if constexpr (mem::have_device_compatible_addr_space<A, S, U, VT>) {
+  #if defined(NDA_HAVE_DEVICE)
+          lapack::device::gesvd(std::forward<Ts>(args)...);
+  #else
+          compile_error_no_gpu();
+  #endif
+        } else {
+          lapack::f77::gesvd(std::forward<Ts>(args)...);
+        }
+      };
+
+      // first call to get the optimal buffersize
+      using value_type = get_value_t<A>;
+      value_type bufferSize_T{};
+
+      auto a0 = a(range::all, range::all, 0);
+      auto s0 = s(range::all, 0);
+      auto u0 = u(range::all, range::all, 0);
+      auto vt0 = vt(range::all, range::all, 0);
+      auto rwork = array<remove_complex_t<value_type>, 1, C_layout, heap<mem::get_addr_space<A>>>(5 * dm);
+      gesvd_call('A', 'A', a0.extent(0), a0.extent(1), a0.data(), get_ld(a0), s0.data(), u0.data(), get_ld(u0), vt0.data(), get_ld(vt0), &bufferSize_T, -1,
+                rwork.data(), info(0));
+      int bufferSize = static_cast<int>(std::ceil(std::real(bufferSize_T)));
+
+      // allocate work buffer and perform actual library call
+      if (work.size() < bufferSize) work.resize(bufferSize);
+      EXPECTS(work.indexmap().min_stride() == 1);
+      for (int i = 0; i < batchSize; ++i) { 
+        auto a_b = a(range::all, range::all, i);
+        auto s_b = s(range::all, i);
+        auto u_b = u(range::all, range::all, i);
+        auto vt_b = vt(range::all, range::all, i);
+        gesvd_call('A', 'A', a.extent(0), a.extent(1), a_b.data(), get_ld(a_b), s_b.data(), u_b.data(), get_ld(u_b), 
+                  vt_b.data(), get_ld(vt_b), work.data(), bufferSize, rwork.data(), info(i));
+      }
+      return info;
+    } 
+
+  }
+  
+  template <nda::MemoryArrayOfRank<3> A, MemoryMatrix S, nda::MemoryArrayOfRank<3> U, nda::MemoryArrayOfRank<3> VT>
+    requires(have_same_value_type_v<A, U, VT> and mem::have_compatible_addr_space<A, S, U, VT> and is_blas_lapack_v<get_value_t<A>>)
+  auto gesvd_batch(A &&a, S &&s, U &&u, VT &&vt) { // NOLINT (temporary views are allowed here)
+    using value_type = get_value_t<A>;
+    nda::array<value_type, 1, C_layout, heap<mem::get_addr_space<A>>> work;
+    return detail::gesvd_impl(std::forward<A>(a), std::forward<S>(s), std::forward<U>(u), std::forward<VT>(vt), work);
   }
 
 } // namespace lapack
@@ -204,6 +275,17 @@ namespace linalg
     return P;
   }
 
+  template <Scalar T, typename LP = F_layout>
+  auto get_permutation_matrix_qr(Vector auto const &jpvt) {
+    static_assert(nda::mem::have_host_compatible_addr_space<decltype(jpvt)>);
+    int m  = jpvt.size();
+    auto P = matrix<T, LP>::zeros(m, m);
+    for (int i = 0; i < m; ++i){ 
+      P(jpvt(i)-1, i) = T{1};
+    }
+    return P;
+  }
+
   /**
    * @brief Get the permutation matrix \f$ \mathbf{P} \f$ from the pivot indices returned by nda::lapack::getrf or other
    * LAPACK routines.
@@ -234,13 +316,25 @@ namespace linalg
     return P;
   }
 
+  template <Scalar T, typename LP = F_layout>
+  auto get_permutation_array_qr(Matrix auto const &jpvt) {
+    static_assert(nda::mem::have_host_compatible_addr_space<decltype(jpvt)>);
+    auto [m,nbatch]  = jpvt.shape();
+    int dm = m;
+    auto P = nda::array<T, 3, LP>::zeros(m, m, nbatch);
+    for (int i = 0; i < nbatch; ++i) {
+      P(nda::range::all,nda::range::all,i) = get_permutation_matrix_qr<T,LP>(jpvt(nda::range::all,i));
+    }
+    return P;
+  }
+
     /*
       Routine to get Q, R matrices from QR decomposition
     */
     template <nda::MemoryArrayOfRank<3> A, nda::MemoryMatrix TAU>
       requires(nda::mem::have_host_compatible_addr_space<A, TAU> and nda::have_same_value_type_v<A, TAU> 
               and nda::is_blas_lapack_v<nda::get_value_t<A>>)
-    auto get_qr_matrices(A const &a, TAU const &tau, bool complete = false) {
+    auto get_qr_matrices(A const &a, TAU &tau, bool complete = false) {
 
       constexpr MEMORY_SPACE MEM = memory::get_memory_space<A>();
 
@@ -267,6 +361,42 @@ namespace linalg
         for (int i = 0; i < min_mn; ++i) R(nda::range(i + 1), i, b) = a(nda::range(i + 1), i, b);
         for (int i = min_mn; i < n; ++i) R(all, i, b) = a(all, i, b);
       }
+      return std::make_tuple(Q, R);
+
+    }
+
+        /*
+      Routine to get Q, R matrices from QR decomposition
+    */
+    template <nda::MemoryArrayOfRank<2> A, nda::MemoryVector TAU>
+      requires(nda::mem::have_host_compatible_addr_space<A, TAU> and nda::have_same_value_type_v<A, TAU> 
+              and nda::is_blas_lapack_v<nda::get_value_t<A>>)
+    auto get_qr_matrices(A const &a, TAU &tau, bool complete = false) {
+
+      constexpr MEMORY_SPACE MEM = memory::get_memory_space<A>();
+
+      auto all = nda::range::all;
+
+      auto const [m, n] = a.shape();
+      auto const min_mn = std::min(m, n);
+      auto const k      = (complete ? m : min_mn);
+      auto Q            = memory::buffered_array<MEM, nda::get_value_t<A>, 2, nda::F_layout>::zeros(m, k);
+      auto R            = memory::buffered_array<MEM, nda::get_value_t<A>, 2, nda::F_layout>::zeros(k, n);
+
+      // compute Q matrix
+      Q(all, nda::range(min_mn)) = a(all, nda::range(min_mn));
+      int info{};
+      if constexpr (nda::is_complex_v<nda::get_value_t<A>>) {
+        info = nda::lapack::ungqr(Q(all,all), tau(all));
+      } else {
+        info = nda::lapack::orgqr(Q(all,all), tau(all));
+      }
+      if (info != 0) NDA_RUNTIME_ERROR << "Error in nda::qr_in_place: orgqr/ungqr returned a non-zero value: info = " << info;
+
+      // extract R matrix
+      for (int i = 0; i < min_mn; ++i) R(nda::range(i + 1), i) = a(nda::range(i + 1), i);
+      for (int i = min_mn; i < n; ++i) R(all, i) = a(all, i);
+
       return std::make_tuple(Q, R);
 
     }
