@@ -177,6 +177,7 @@ We recommend going through them in order.
    02_understanding_the_input_file/02_understanding_the_input_file_executed.ipynb
    03_writing_a_hamiltonian/03_writing_a_hamiltonian_executed.ipynb
    04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction_executed.ipynb
+   05_computing_observables/05_computing_observables.ipynb
 
 Online copies of tutorials
 ==========================
@@ -185,7 +186,7 @@ Online copies of tutorials
 2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`_ `🧑‍💻 ready for edits 🧑‍💻`
 3. `Writing a Hamiltonian <03_writing_a_hamiltonian/03_writing_a_hamiltonian_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1qQmWtMg5aoWdLeG33jaqS0saIWJ94MTL>`_ `🧑‍💻 ready for edits 🧑‍💻`
 4. `Writing a trial wavefunction <04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/11C6SWJVSMy_BrXhGGpdIIG_DYpI6I7ig>`_ `🧑‍💻 ready for edits 🧑‍💻`
-5. `Computing Observables <05_computing_observables/05_computing_observables_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1fQvrANCxxetELZnCFOWfxB6JsQBIe3jp>`_ `🧑‍💻 ready for edits 🧑‍💻`
+5. `Computing Observables <05_computing_observables/05_computing_observables.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1fQvrANCxxetELZnCFOWfxB6JsQBIe3jp>`_ `🧑‍💻 ready for edits 🧑‍💻`
 
 Worked Examples
 ===============
