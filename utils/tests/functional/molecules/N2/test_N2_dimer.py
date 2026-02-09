@@ -134,78 +134,13 @@ def _expected_fail(
     return result_checker.same_error(
         fname_test=tmp_path/"results.h5",
         fname_ref=case.reference,
-        )
-
-# per push tests
-@pytest.mark.functional
-@pytest.mark.push
-@pytest.mark.parametrize("case",[
-    AFQMCInputSet(
-        hamiltonian=AFQMCHamiltonian(
-            INPUTS_DIR/"ham_chol_1e-5.h5",
-            SpinSymm.CLOSED,
-            HamiltonianClass.KPFAC_CHOL
-        ),
-        wavefunction=AFQMCWavefunction(
-            INPUTS_DIR/"wfn_mf_pbe.h5",
-            SpinSymm.COLLINEAR,
-            WavefunctionClass.NOMSD
-        ),
-        walker= AFQMCWalker("COLLINEAR",SpinSymm.COLLINEAR),
-        reference=REF_DATA_DIR/"ham_chol_closed/pbe_collinear_nomsd/collinear/results.h5"
-    )
-])
-def test_success_push(
-    afqmc_helper,
-    result_checker,
-    afqmc_runmode,
-    tmp_path,
-    case
-    ):
-    assert _expected_success(
-        afqmc_helper,
-        result_checker,
-        afqmc_runmode,
-        tmp_path,
-        case
     )
 
-@pytest.mark.functional
-@pytest.mark.push
-@pytest.mark.parametrize("case",[
-    AFQMCInputSet(
-        hamiltonian=AFQMCHamiltonian(
-            INPUTS_DIR/"ham_chol_1e-5.h5",
-            SpinSymm.CLOSED,
-            HamiltonianClass.KPFAC_CHOL
-        ),
-        wavefunction=AFQMCWavefunction(
-            INPUTS_DIR/"wfn_mf_pbe.h5",
-            SpinSymm.COLLINEAR,
-            WavefunctionClass.NOMSD
-        ),
-        walker= AFQMCWalker("NONCOLLINEAR",SpinSymm.NONCOLLINEAR),
-        reference=REF_DATA_DIR/"ham_chol_closed/pbe_collinear_nomsd/noncollinear/results.h5"
-    )
-])
-def test_fail_push(
-    afqmc_helper,
-    result_checker,
-    afqmc_runmode,
-    tmp_path,
-    case
-    ):
-    assert _expected_fail(
-        afqmc_helper,
-        result_checker,
-        afqmc_runmode,
-        tmp_path,
-        case
-    )
 
 # Weekly tests
 @pytest.mark.dev
 @pytest.mark.functional
+@pytest.mark.push
 @pytest.mark.weekly
 @pytest.mark.parametrize("case", should_run_successfully(generate_test_params()))
 def test_success_weekly(
@@ -225,6 +160,7 @@ def test_success_weekly(
 
 @pytest.mark.dev
 @pytest.mark.functional
+@pytest.mark.push
 @pytest.mark.weekly
 @pytest.mark.parametrize("case", should_exit_werror(generate_test_params()))
 def test_fail_weekly(
