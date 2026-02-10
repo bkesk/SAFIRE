@@ -211,7 +211,43 @@ void wfn_fac(boost::mpi3::communicator& world)
         CMatrix vHS_up_dense({vHS_up->size(0), vHS_up->size(1)}, alloc_);
         CMatrix vHS_down_dense({vHS_down->size(0), vHS_down->size(1)}, alloc_);
         
-        // Initialize dense matrices to zero
+#if defined(ENABLE_DEVICE)
+        // For GPU builds, use host-side temporary arrays to avoid direct assignment to device memory
+        boost::multi::array<ComplexType, 2> vHS_up_host({vHS_up->size(0), vHS_up->size(1)});
+        boost::multi::array<ComplexType, 2> vHS_down_host({vHS_down->size(0), vHS_down->size(1)});
+        
+        // Initialize host arrays to zero
+        std::fill_n(vHS_up_host.origin(), vHS_up_host.num_elements(), ComplexType(0.0));
+        std::fill_n(vHS_down_host.origin(), vHS_down_host.num_elements(), ComplexType(0.0));
+        
+        // Convert sparse to dense using correct sparse matrix API on host
+        for (int row = 0; row < static_cast<int>(vHS_up->size(0)); ++row) {
+          auto [nnz, vals, cols] = vHS_up->sparse_row(row);
+          for (size_t i = 0; i < nnz; ++i) {
+            vHS_up_host[row][cols[i]] = vals[i];
+          }
+        }
+        
+        // For collinear systems, handle vHS_down if it's different from vHS_up
+        // For noncollinear systems, vHS_up and vHS_down point to the same matrix
+        if (vHS_up != vHS_down) {
+          // COLLINEAR case: fill vHS_down_host separately
+          for (int row = 0; row < static_cast<int>(vHS_down->size(0)); ++row) {
+            auto [nnz, vals, cols] = vHS_down->sparse_row(row);
+            for (size_t i = 0; i < nnz; ++i) {
+              vHS_down_host[row][cols[i]] = vals[i];
+            }
+          }
+        } else {
+          // NONCOLLINEAR case: copy the same data
+          std::copy_n(vHS_up_host.origin(), vHS_up_host.num_elements(), vHS_down_host.origin());
+        }
+        
+        // Copy from host to device
+        std::copy_n(vHS_up_host.origin(), vHS_up_host.num_elements(), vHS_up_dense.origin());
+        std::copy_n(vHS_down_host.origin(), vHS_down_host.num_elements(), vHS_down_dense.origin());
+#else
+        // For CPU builds, initialize and directly assign to dense matrices
         std::fill_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), ComplexType(0.0));
         std::fill_n(vHS_down_dense.origin(), vHS_down_dense.num_elements(), ComplexType(0.0));
         
@@ -237,6 +273,7 @@ void wfn_fac(boost::mpi3::communicator& world)
           // NONCOLLINEAR case: copy the same data
           std::copy_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), vHS_down_dense.origin());
         }
+#endif
         
         ComplexType Vsum = 0;
         if (std::abs(file_data.Vsum) > 1e-8)
@@ -610,7 +647,43 @@ void wfn_fac_distributed(boost::mpi3::communicator& world, int ngroups)
       CMatrix vHS_up_dense({vHS_up->size(0), vHS_up->size(1)}, alloc_);
       CMatrix vHS_down_dense({vHS_down->size(0), vHS_down->size(1)}, alloc_);
       
-      // Initialize dense matrices to zero
+#if defined(ENABLE_DEVICE)
+      // For GPU builds, use host-side temporary arrays to avoid direct assignment to device memory
+      boost::multi::array<ComplexType, 2> vHS_up_host({vHS_up->size(0), vHS_up->size(1)});
+      boost::multi::array<ComplexType, 2> vHS_down_host({vHS_down->size(0), vHS_down->size(1)});
+      
+      // Initialize host arrays to zero
+      std::fill_n(vHS_up_host.origin(), vHS_up_host.num_elements(), ComplexType(0.0));
+      std::fill_n(vHS_down_host.origin(), vHS_down_host.num_elements(), ComplexType(0.0));
+      
+      // Convert sparse to dense using correct sparse matrix API on host
+      for (int row = 0; row < static_cast<int>(vHS_up->size(0)); ++row) {
+        auto [nnz, vals, cols] = vHS_up->sparse_row(row);
+        for (size_t i = 0; i < nnz; ++i) {
+          vHS_up_host[row][cols[i]] = vals[i];
+        }
+      }
+      
+      // For collinear systems, handle vHS_down if it's different from vHS_up
+      // For noncollinear systems, vHS_up and vHS_down point to the same matrix
+      if (vHS_up != vHS_down) {
+        // COLLINEAR case: fill vHS_down_host separately
+        for (int row = 0; row < static_cast<int>(vHS_down->size(0)); ++row) {
+          auto [nnz, vals, cols] = vHS_down->sparse_row(row);
+          for (size_t i = 0; i < nnz; ++i) {
+            vHS_down_host[row][cols[i]] = vals[i];
+          }
+        }
+      } else {
+        // NONCOLLINEAR case: copy the same data
+        std::copy_n(vHS_up_host.origin(), vHS_up_host.num_elements(), vHS_down_host.origin());
+      }
+      
+      // Copy from host to device
+      std::copy_n(vHS_up_host.origin(), vHS_up_host.num_elements(), vHS_up_dense.origin());
+      std::copy_n(vHS_down_host.origin(), vHS_down_host.num_elements(), vHS_down_dense.origin());
+#else
+      // For CPU builds, initialize and directly assign to dense matrices
       std::fill_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), ComplexType(0.0));
       std::fill_n(vHS_down_dense.origin(), vHS_down_dense.num_elements(), ComplexType(0.0));
       
@@ -636,6 +709,7 @@ void wfn_fac_distributed(boost::mpi3::communicator& world, int ngroups)
         // NONCOLLINEAR case: copy the same data
         std::copy_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), vHS_down_dense.origin());
       }
+#endif
       
       ComplexType Vsum = 0;
       if (std::abs(file_data.Vsum) > 1e-8)
