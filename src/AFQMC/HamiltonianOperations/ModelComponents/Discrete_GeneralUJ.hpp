@@ -17,6 +17,9 @@
 #include <vector>
 #include <type_traits>
 #include <boost/math/tools/roots.hpp>
+#if defined(ENABLE_DEVICE)
+#include <boost/math/tools/toms748_solve.hpp>
+#endif
 
 #include "config.h" // NOLINT(misc-include-cleaner)
 #include "Utilities/AppAbort.hpp"
