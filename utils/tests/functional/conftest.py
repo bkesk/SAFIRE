@@ -403,7 +403,7 @@ class ResultChecker:
                         test_group=f_test["error_messages"],
                         ref_group=f_ref["error_messages"]):
                    warn("Error messages do not match between test and reference files.") 
-                return self._same_return_code(f_test,f_ref,1,must_match=1)
+                return self._same_return_code(f_test,f_ref,must_match=1)
 
 @pytest.fixture(scope="session")
 def result_checker():
