@@ -185,82 +185,135 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
   if(U.size()==0) return;
   utils::check( scl.extent(0) >= Nw, "Size mismatch");
 
-  //memory::buffered_array<MEM,Type,3,nda::F_layout> UT(M,M,Nw);
-  //memory::buffered_array<MEM,Type,3,nda::F_layout> VT(M,M,Nw);
-  //memory::buffered_array<MEM,int,2,nda::F_layout> jpvt(M,Nw);
-  //memory::buffered_array<MEM,Type,2,nda::F_layout> tau(M,Nw);
-  //memory::buffered_array<MEM,Type,1,nda::F_layout> work;
-  memory::buffered_array<MEM,Type,2,nda::F_layout> UT(M,M);
-  memory::buffered_array<MEM,Type,2,nda::F_layout> VT(M,M);
-  memory::buffered_array<MEM,int,1,nda::F_layout> jpvt(M);
-  memory::buffered_array<MEM,Type,1,nda::F_layout> tau(M);
-  memory::buffered_array<MEM,Type,1,nda::F_layout> work;
-
-  /*
-  //U*D --> to fortran order
-  for(int b = 0; b < Nw; ++b)
-    for(int col = 0; col < M; ++col)
-      UT(nda::range::all,col,b) = D(b,col) * U(b,nda::range::all,col);
-
-  // pivoted QR : U*D = Q*R*P^T
-  nda::lapack::geqp3_batch(UT,jpvt,tau,work);
-
-  // get Q, R
-  std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
-  */
+  memory::host_array<Type,2,nda::F_layout> UT(M,M);
+  memory::host_array<Type,2,nda::F_layout> VT(M,M);
+  memory::host_array<int,1,nda::F_layout> jpvt(M);
+  memory::host_array<Type,1,nda::F_layout> tau(M);
+  memory::host_array<Type,1,nda::F_layout> work;
 
   Type scl_new;
 
-  // FIX : maybe wrap up in function/kernel for future GPU implementation?
-  for(int b = 0; b < Nw; ++b)
-  {
-    jpvt() = 0;
-    for(int col = 0; col < M; ++col)
-      UT(nda::range::all,col) = D(b,col) * U(b,nda::range::all,col);
+  // If running on GPU, copy to CPU
+  if constexpr (nda::mem::have_device_compatible_addr_space<U_t>){
 
-    // pivoted QR : U*D = Q*R*P^T
-    // NOTE : non-batched version of geqp3 return jpvt indexed starting from 0
-    nda::lapack::geqp3(UT,jpvt,tau,work);
+    auto Uh = nda::to_host(U);
+    auto Dh = nda::to_host(D);
+    auto Vh = nda::to_host(V);
+    auto sclh = nda::to_host(scl);
 
-    // get Q, R
-    std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
 
+    // FIX : maybe wrap up in function/kernel for future GPU implementation?
+    for(int b = 0; b < Nw; ++b)
     {
-      // FIX : is this scope beneficial?
-      memory::buffered_array<MEM,Type,2> M0(M,M);
-      memory::buffered_array<MEM,int,1> P1(M);
-    
-      for(int i = 0; i < M; ++i){ 
-        // D(i) = norm(R(i,:))
-        P1(jpvt(i)) = i;
-        D(b,i) = nda::norm(VT(i,nda::range(i,M)));
-      }
+      jpvt() = 0;
+      for(int col = 0; col < M; ++col)
+        UT(nda::range::all,col) = Dh(b,col) * Uh(b,nda::range::all,col);
 
-      // FIX : any better way to do this permutations?
-      for(int i = 0; i < M; ++i)
-        for(int j = 0; j < M; ++j)
-          M0(i,j) = VT(i,P1(j))/D(b,i);
+      // pivoted QR : U*D = Q*R*P^T
+      // NOTE : non-batched version of geqp3 return jpvt indexed starting from 0
+      nda::lapack::geqp3(UT,jpvt,tau,work);
 
-      P1(nda::range::all) = nda::arange(M);
-      detail::quick_sort(D(b,nda::range::all),P1);
+      // get Q, R
+      std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
 
-      // FIX : any better way to do these permutations?
-      for(int i = 0; i < M; ++i){
-        for(int j = 0; j < M; ++j){
-          U(b,i,j) = UT(i,P1(j));
-          VT(i,j) = M0(P1(i),j);
+      {
+        // FIX : is this scope beneficial?
+        memory::buffered_array<HOST_MEMORY,Type,2> M0(M,M);
+        memory::buffered_array<HOST_MEMORY,int,1> P1(M);
+      
+        for(int i = 0; i < M; ++i){ 
+          // D(i) = norm(R(i,:))
+          P1(jpvt(i)) = i;
+          Dh(b,i) = nda::norm(VT(i,nda::range(i,M)));
         }
+
+        // FIX : any better way to do this permutation?
+        for(int i = 0; i < M; ++i)
+          for(int j = 0; j < M; ++j)
+            M0(i,j) = VT(i,P1(j))/Dh(b,i);
+
+        P1(nda::range::all) = nda::arange(M);
+        detail::quick_sort(Dh(b,nda::range::all),P1);
+
+        // FIX : any better way to do these permutations?
+        for(int i = 0; i < M; ++i){
+          for(int j = 0; j < M; ++j){
+            Uh(b,i,j) = UT(i,P1(j));
+            VT(i,j) = M0(P1(i),j);
+          }
+        }
+
       }
+
+      scl_new = 0.5 * ( std::log(Dh(b,0).real()) + std::log(Dh(b,M-1).real()) );
+      nda::blas::scal(std::exp(-scl_new),Dh(b,nda::range::all));
+      sclh(b) += scl_new; 
+
+      nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),Vh(b,nda::ellipsis{})
+                      ,ComplexType(0.0),Vh(b,nda::ellipsis{}));
+
 
     }
 
-    scl_new = 0.5 * ( std::log(D(b,0).real()) + std::log(D(b,M-1).real()) );
-    nda::blas::scal(std::exp(-scl_new),D(b,nda::range::all));
-    scl(b) += scl_new; 
+    U = nda::to_device(Uh);
+    D = nda::to_device(Dh);
+    V = nda::to_device(Vh);
+    scl = nda::to_device(sclh);
 
-    nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),V(b,nda::ellipsis{})
-                    ,ComplexType(0.0),V(b,nda::ellipsis{}));
+  }
+  else{
 
+    // FIX : maybe wrap up in function?
+    for(int b = 0; b < Nw; ++b)
+    {
+      jpvt() = 0;
+      for(int col = 0; col < M; ++col)
+        UT(nda::range::all,col) = D(b,col) * U(b,nda::range::all,col);
+
+      // pivoted QR : U*D = Q*R*P^T
+      // NOTE : non-batched version of geqp3 return jpvt indexed starting from 0
+      nda::lapack::geqp3(UT,jpvt,tau,work);
+
+      // get Q, R
+      std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
+
+      {
+        // FIX : is this scope beneficial?
+        memory::buffered_array<MEM,Type,2> M0(M,M);
+        memory::buffered_array<MEM,int,1> P1(M);
+      
+        for(int i = 0; i < M; ++i){ 
+          // D(i) = norm(R(i,:))
+          P1(jpvt(i)) = i;
+          D(b,i) = nda::norm(VT(i,nda::range(i,M)));
+        }
+
+        // FIX : any better way to do this permutation?
+        for(int i = 0; i < M; ++i)
+          for(int j = 0; j < M; ++j)
+            M0(i,j) = VT(i,P1(j))/D(b,i);
+
+        P1(nda::range::all) = nda::arange(M);
+        detail::quick_sort(D(b,nda::range::all),P1);
+
+        // FIX : any better way to do these permutations?
+        for(int i = 0; i < M; ++i){
+          for(int j = 0; j < M; ++j){
+            U(b,i,j) = UT(i,P1(j));
+            VT(i,j) = M0(P1(i),j);
+          }
+        }
+
+      }
+
+      scl_new = 0.5 * ( std::log(D(b,0).real()) + std::log(D(b,M-1).real()) );
+      nda::blas::scal(std::exp(-scl_new),D(b,nda::range::all));
+      scl(b) += scl_new; 
+
+      nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),V(b,nda::ellipsis{})
+                      ,ComplexType(0.0),V(b,nda::ellipsis{}));
+
+    }
   }
 
 }

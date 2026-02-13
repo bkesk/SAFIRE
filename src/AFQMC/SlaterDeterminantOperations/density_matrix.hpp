@@ -17,6 +17,7 @@
 #pragma once
 
 #include "AFQMC/config.h"
+#include "numerics/device_kernels/cuda/accumulate.cuh"
 #include "utilities/check_strides.hpp"
 #include "numerics/operations/determinants.hpp"
 #include "numerics/nda_functions.hpp"
@@ -47,27 +48,41 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, int nbatch = 0, bool 
   using Type = nda::get_value_t<A_t>;
 
   auto NMO = A.shape()[0];
-  auto res = Type(0.0);
+  //auto nbatch = ovlp.size();
+  //auto res = Type(0.0);
 
   utils::check(A.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
   utils::check(TNN.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch"); 
 
   memory::buffered_array<MEM,int,1> ipiv(NMO);
   memory::buffered_array<MEM,Type,1> work;
+  memory::buffered_array<MEM,Type,1> res(nbatch,Type(0.0));
   ipiv() = 0;
 
-  // FIX : does this work for GPU? 
   TNN = A;
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);
 
   // Log(Ovlp)
-  math::log_determinant_from_getrf(TNN,ipiv,res);
+  math::log_determinant_from_getrf(TNN,ipiv,res(0));
 
+  //memory::buffered_array<MEM,Type,1> res(nbatch,Type(ovlp(0)));
+
+  if constexpr (nda::mem::have_device_compatible_addr_space<A_t>){
+  //  //kernels::device::copy(res,ovlp);
+  //  kernels::device::accumulate(Type(1.0),res,ovlp);
+    auto resh = nda::to_host(res);
+    for(int i = 1; i < nbatch; ++i)
+      resh(i) += resh(0);
+    res = nda::to_device(resh);
+    kernels::device::accumulate(Type(1.0),res,ovlp);
+  }
+  else{
   // FIX : need a solution for GPU
-  for(int i = 0; i < nbatch; ++i)
-    ovlp(i) += res;
+    for(int i = 1; i < nbatch; ++i)
+      ovlp(i) += res(0);
+  }
 
   // Invert
   if(invert)
@@ -130,31 +145,76 @@ void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0)
 
   //logdet() = 0.0; //
 
-  for (int nb = 0; nb < nbatch; nb++){
-    for (int i = 0; i < NMO; i++)
-    {
-      double ksi = log(A(nb,i).real()) + scl0(nb).real();
-          
-      if(ksi > 0.0)
+  // FIX : make kernel
+  if(nda::mem::have_device_compatible_addr_space<A_t>){
+    // Doing work on host (to be replace with dedicated kernel)
+    auto Ah = nda::to_host(A);
+    auto sclh = nda::to_host(scl0);
+    auto logdeth = nda::to_host(logdet);
+    memory::host_array<Type,1> ldet_tmp(nbatch,Type(0.0));
+    memory::host_array<Type,2> B_tmp(nbatch,NMO);
+    memory::host_array<Type,2> C_tmp(nbatch,NMO);
+    for (int nb = 0; nb < nbatch; nb++){
+      for (int i = 0; i < NMO; i++)
       {
-        B(nb,i) = 1.0; // Dmin
-        if(ksi >= 32*log(10.0)){
-          C(nb,i) = 0.0; // Dmax^-1
+        double ksi = log(Ah(nb,i).real()) + sclh(nb).real();
+            
+        if(ksi > 0.0)
+        {
+          B_tmp(nb,i) = Type(1.0); // Dmin
+          if(ksi >= 32*log(10.0)){
+            C_tmp(nb,i) = Type(0.0); // Dmax^-1
+          }
+          else{
+            C_tmp(nb,i) = exp(-1.0*ksi);
+          }
+          ldet_tmp(nb) += ksi;
         }
-        else{
-          C(nb,i) = exp(-1.0*ksi);
+        else
+        {
+          if(ksi <= -32*log(10.0)){
+            B_tmp(nb,i) = Type(0.0);
+          }
+          else{
+            B_tmp(nb,i) = exp(ksi);
+          }
+          C_tmp(nb,i) = Type(1.0);
         }
-        logdet(nb) += ksi; // store log(det(Dmax))
       }
-      else
+    }
+    B = nda::to_device(B_tmp);
+    C = nda::to_device(C_tmp);
+    logdeth() += ldet_tmp();
+    logdet = nda::to_device(logdeth);
+  }
+  else{
+    for (int nb = 0; nb < nbatch; nb++){
+      for (int i = 0; i < NMO; i++)
       {
-        if(ksi <= -32*log(10.0)){
-          B(nb,i) = 0.0;
+        double ksi = log(A(nb,i).real()) + scl0(nb).real();
+            
+        if(ksi > 0.0)
+        {
+          B(nb,i) = 1.0; // Dmin
+          if(ksi >= 32*log(10.0)){
+            C(nb,i) = Type(0.0); // Dmax^-1
+          }
+          else{
+            C(nb,i) = exp(-1.0*ksi);
+          }
+          logdet(nb) += ksi; // store log(det(Dmax))
+          //ldet_tmp(nb) += ksi;
         }
-        else{
-          B(nb,i) = exp(ksi);
+        else
+        {
+          if(ksi <= -32*log(10.0)){
+            B(nb,i) = 0.0;
+          }
+          else{
+            B(nb,i) = exp(ksi);
+          }
+          C(nb,i) = 1.0;
         }
-        C(nb,i) = 1.0;
       }
     }
   }
@@ -168,48 +228,91 @@ requires( nda::mem::have_compatible_addr_space<A_t,B_t,C_t,O_t> and
           std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C() and
           std::decay_t<C_t>::is_stride_order_C() 
         )
-void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0, int nbatch = 0)
+void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0)//, int nbatch = 0)
 {
 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
   auto NMO = B.size();
+  auto nbatch = logdet.size();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(B.shape() == C.shape(), "Size mismatch");
 
   auto res = 0.0;
 
-  for (int i = 0; i < NMO; i++)
-  {
-    double ksi = log(A(i).real()) + scl0.real();
-        
-    if(ksi > 0.0)
+  if(nda::mem::have_device_compatible_addr_space<A_t>){
+    auto Ah = nda::to_host(A);
+    auto sclh = nda::to_host(scl0);
+    memory::host_array<Type,1> ldet_tmp(nbatch,Type(0.0));
+    memory::host_array<Type,1> B_tmp(NMO);
+    memory::host_array<Type,1> C_tmp(NMO);
+    for (int i = 0; i < NMO; i++)
     {
-      B(i) = 1.0; // Dmin
-      if(ksi >= 32*log(10.0)){
-        C(i) = 0.0; // Dmax^-1
+      double ksi = log(Ah(i).real()) + sclh(0).real();
+          
+      if(ksi > 0.0)
+      {
+        B_tmp(i) = 1.0; // Dmin
+        if(ksi >= 32*log(10.0)){
+          C_tmp(i) = 0.0; // Dmax^-1
+        }
+        else{
+          C_tmp(i) = exp(-1.0*ksi);
+        }
+        //res += ksi; // store log(det(Dmax))
+        ldet_tmp() += ksi;
       }
-      else{
-        C(i) = exp(-1.0*ksi);
+      else
+      {
+        if(ksi <= -32*log(10.0)){
+          B_tmp(i) = 0.0;
+        }
+        else{
+          B_tmp(i) = exp(ksi);
+        }
+        C_tmp(i) = 1.0;
       }
-      res += ksi; // store log(det(Dmax))
     }
-    else
+
+    B = nda::to_device(B_tmp);
+    C = nda::to_device(C_tmp);
+    logdet = nda::to_device(ldet_tmp);
+  }
+  else{
+    for (int i = 0; i < NMO; i++)
     {
-      if(ksi <= -32*log(10.0)){
-        B(i) = 0.0;
+      double ksi = log(A(i).real()) + scl0(0).real();
+          
+      if(ksi > 0.0)
+      {
+        B(i) = 1.0; // Dmin
+        if(ksi >= 32*log(10.0)){
+          C(i) = 0.0; // Dmax^-1
+        }
+        else{
+          C(i) = exp(-1.0*ksi);
+        }
+        res += ksi; // store log(det(Dmax))
       }
-      else{
-        B(i) = exp(ksi);
+      else
+      {
+        if(ksi <= -32*log(10.0)){
+          B(i) = 0.0;
+        }
+        else{
+          B(i) = exp(ksi);
+        }
+        C(i) = 1.0;
       }
-      C(i) = 1.0;
     }
+
+    // logdet is accumulated
+    for(int i = 0; i < nbatch; ++i)
+      logdet(i) += res;
+
   }
 
-  // logdet is accumulated
-  for(int i = 0; i < nbatch; ++i)
-    logdet(i) += res;
 
   //return logdet;
 
@@ -325,81 +428,151 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
   utils::check(UL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
   utils::check(VL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
 
-  memory::buffered_array<MEM,Type,2> UL_inv(NMO,NMO);
-  memory::buffered_array<MEM,Type,2> DL_UL(NMO,NMO);
-  memory::buffered_array<MEM,Type,3> UR_inv(nbatch,NMO,NMO);
-  memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
-  memory::buffered_array<MEM,Type,3> M2(nbatch,NMO,NMO);
-
-  // matrices to store terms to Dmax^-1, Dmin
-  memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
-  memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
-  memory::buffered_array<MEM,Type,1> DLmin(NMO);
-  memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
-
-  // overlap is accumulated, so it must first be zeroed
-  ovlp() = Type(0.0);
-
-  detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
-  detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
- 
   memory::buffered_array<MEM,int,2> ipiv(nbatch,NMO);
   memory::buffered_array<MEM,Type,1> work;
- 
-  ipiv() = 0;
 
-  // UL^-1
-  if(!unitaryL){
-    detail::inverse_logdet(UL,ovlp,UL_inv,nbatch);
+  // if running on GPU
+  if constexpr (nda::mem::have_device_compatible_addr_space<UL_t>)
+  {
+    { // scopes to limit memory usage
+      memory::buffered_array<MEM,Type,2> M0(NMO,NMO);
+      memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
+
+      {
+        memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
+        memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
+        memory::buffered_array<MEM,Type,1> DLmin(NMO);
+        memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
+
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
+        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+      
+        // M0 <-- VL * DLmin
+        nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
+
+        // TNN <-- DRmin * VR
+        nda::tensor::contract(VR,"nij",DRmin,"ni",TNN,"nij");
+
+        // G <-- DRmin*VR*VL*DLmin
+        nda::tensor::contract(ComplexType(1.0),TNN,"nij",M0,"jk",ComplexType(0.0),TNN,"nik");
+
+        // M0 <-- UL^-1
+        if(!unitaryL){
+          detail::inverse_logdet(UL,ovlp,M0,nbatch);  
+        }
+        else{
+          // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
+          // and det(UL) has a phase (i.e. det(UL) =/= +-1)
+          detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
+          M0() = nda::dagger(UL);
+        }
+        // M1 <-- UR^-1
+        if(!unitaryR){
+          detail::inverse_logdet(UR,ovlp,M1); 
+        }
+        else{
+          // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
+          // and det(UR) has a phase (i.e. det(UR) =/= +-1)
+          detail::inverse_logdet(UR,ovlp,M1,false); 
+          nda::tensor::add(nda::conj(UR),"nij",M1,"nji");
+        }
+
+        // M0 <-- UL^-1*DLmax^-1
+        nda::tensor::contract(ComplexType(1.0),M0,"ij",DLmax_inv,"j",ComplexType(0.0),M0,"ij");  
+
+        // M1 <-- DRmax^-1*UR^-1
+        nda::tensor::contract(M1,"nij",DRmax_inv,"ni",M1,"nij"); 
+
+      } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
+
+      // G <-- DRmax^-1*UR^-1*UL^-1*DLmax^-1 + DRmin*VR*VL*DLmin, i.e. (M1*M0 + G)
+      nda::tensor::contract(ComplexType(1.0),M1,"nij",M0,"jk",ComplexType(1.0),TNN,"nik"); 
+
+      // LU of [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]
+      nda::lapack::getrf(TNN,ipiv,work);
+
+      // Log(Ovlp)
+      math::log_determinant_from_getrf(TNN,ipiv,ovlp);
+
+
+    } // end of scope for M0, M1
   }
   else{
-    // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
-    // and det(UL) has a phase (i.e. det(UL) =/= +-1)
-    detail::inverse_logdet(UL,ovlp,UL_inv,nbatch,false);
-    UL_inv() = nda::dagger(UL);
+
+    {
+      memory::buffered_array<MEM,Type,2> M0(NMO,NMO);
+      memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);
+
+      {
+        memory::buffered_array<MEM,Type,2> DRmin(nbatch,NMO);
+        memory::buffered_array<MEM,Type,2> DRmax_inv(nbatch,NMO);
+        memory::buffered_array<MEM,Type,1> DLmin(NMO);
+        memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
+
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
+        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+      
+        // M0 <-- VL * DLmin
+        // FIX : is there a way to do this with BLAS/LAPACK?
+        for(int col = 0; col < NMO; ++col)
+          M0(nda::range::all,col) = VL(nda::range::all,col)*DLmin(col);
+
+        for(int b = 0; b < nbatch; ++b){
+          // G <-- DRmin * VR (G used as temporary storage)
+          // FIX : is there a way to do this with BLAS/LAPACK?
+          for(int row = 0; row < VR.extent(2); ++row)
+            TNN(b,row,nda::ellipsis{}) = DRmin(b,row) * VR(b,row,nda::range::all);
+
+          // G <-- DRmin*VR*VL*DLmin
+          nda::blas::gemm(ComplexType(1.0),TNN(b,nda::ellipsis{}),M0,ComplexType(0.0),TNN(b,nda::ellipsis{}));
+        }
+        // M0 <-- UL^-1
+        if(!unitaryL){
+          detail::inverse_logdet(UL,ovlp,M0,nbatch);  
+        }
+        else{
+          // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
+          // and det(UL) has a phase (i.e. det(UL) =/= +-1)
+          detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
+          // U -> U^+ = U^-1 (for U unitary) 
+          M0() = nda::dagger(UL);
+        }
+        // M1 <-- UR^-1
+        if(!unitaryR){
+          detail::inverse_logdet(UR,ovlp,M1); 
+        }
+        else{
+          // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
+          // and det(UR) has a phase (i.e. det(UR) =/= +-1)
+          detail::inverse_logdet(UR,ovlp,M1,false);
+          // U -> U^+ = U^-1 (for U unitary) 
+          nda::tensor::add(nda::conj(UR),"nij",M1,"nji");
+        }
+
+        // M0 <-- UL^-1*DLmax^-1 
+        for(int col = 0; col < NMO; ++col)
+          nda::blas::scal(DLmax_inv(col),M0(nda::range::all,col)); 
+
+        // M1 <-- DRmax^-1*UR^-1
+        for(int b = 0; b < nbatch; ++b)
+          for(int row = 0; row < NMO; ++row)
+            nda::blas::scal(DRmax_inv(b,row),M1(b,row,nda::ellipsis{}));
+
+      } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
+
+      // G <-- DRmax^-1*UR^-1*UL^-1*DLmax^-1 + DRmin*VR*VL*DLmin, i.e. (M1*M0 + G)
+      for(int b = 0; b < nbatch; ++b) 
+        nda::blas::gemm(ComplexType(1.0),M1(b,nda::ellipsis{}),M0,ComplexType(1.0),TNN(b,nda::ellipsis{}));
+
+      // LU of [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]
+      nda::lapack::getrf(TNN,ipiv,work);
+
+      // Log(Ovlp)
+      math::log_determinant_from_getrf(TNN,ipiv,ovlp);
+       
+    }
+
   }
-  //logdetUL_vec() = logdetUL(0);
-  // UR^-1
-  if(!unitaryR){
-    detail::inverse_logdet(UR,ovlp,UR_inv);
-  }
-  else{
-    // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
-    // and det(UR) has a phase (i.e. det(UR) =/= +-1)
-    detail::inverse_logdet(UR,ovlp,UR_inv,false);
-    nda::tensor::add(nda::conj(UR),"nij",UR_inv,"nji");
-  }
-
-  // UR^-1*UL^-1
-  nda::tensor::contract(UR_inv,"nik",UL_inv,"kj",M1,"nij");
-
-  // DRmax^-1*UR^-1*UL^-1
-  nda::tensor::contract(M1,"nij",DRmax_inv,"ni",TNN,"nij");
-
-  // DRmax^-1*UR^-1*UL^-1*DLmax^-1
-  nda::tensor::contract(TNN,"nij",DLmax_inv,"j",M1,"nij");
-
-  // VR * VL
-  nda::tensor::contract(VR,"nij",VL,"jk",TNN,"nik");
-
-  // DRmin*VR*VL
-  nda::tensor::contract(TNN,"nij",DRmin,"ni",M2,"nij");
-  
-  // DRmin*VR*VL*DLmin
-  nda::tensor::contract(M2,"nij",DLmin,"j",TNN,"nij");
-
-  //M2 <-- M1 + M2;
-  nda::tensor::add(ComplexType(1.0),M1,"nij",ComplexType(1.0),TNN,"nij");
-
-  // LU of [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]
-  nda::lapack::getrf(TNN,ipiv,work);
-
-  // Log(Ovlp)
-  math::log_determinant_from_getrf(TNN,ipiv,ovlp);
-
-  // log(PT) = log(detUR) + log(detDRmax) + log(detM3) + log(detDLmax) + log(detUL)
-  //ovlp(nda::range(nbatch)) = logdetUR + logdetDR + logdetM + logdetDL_vec + logdetUL_vec; 
-
 }
 
 
@@ -885,7 +1058,7 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
         detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
       
         // M0 <-- VL * DLmin
@@ -956,7 +1129,7 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
         detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
       
         // M0 <-- VL * DLmin
@@ -1086,7 +1259,7 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
         detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
 
         // M0 <-- UL^-1
@@ -1152,7 +1325,7 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL, nbatch);
+        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
         detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
 
         // M0 <-- VL^-1
