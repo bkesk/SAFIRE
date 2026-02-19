@@ -318,6 +318,7 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
 
 }
 
+// FIX: there is only a CPU version at the moment
 // Finite temperature w/SVD
 template<nda::MemoryArrayOfRank<3> U_t, nda::MemoryArrayOfRank<2> D_t,
          nda::MemoryArrayOfRank<3> V_t, nda::MemoryVector B_t>

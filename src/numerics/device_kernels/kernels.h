@@ -12,6 +12,9 @@
 #include "numerics/device_kernels/cuda/construct_fields.cuh"
 #include "numerics/device_kernels/cuda/determinants.cuh"
 #include "numerics/device_kernels/cuda/accumulate.cuh"
+#include "numerics/device_kernels/cuda/split_singular_vals.cuh"
+#include "numerics/device_kernels/cuda/add_diagonal.cuh"
+#include "numerics/device_kernels/cuda/add_scalar.cuh"
 
 #endif
 

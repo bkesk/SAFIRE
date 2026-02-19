@@ -17,9 +17,11 @@
 #pragma once
 
 #include "AFQMC/config.h"
-#include "numerics/device_kernels/cuda/accumulate.cuh"
+#include "numerics/device_kernels/cuda/add_scalar.cuh"
 #include "utilities/check_strides.hpp"
 #include "numerics/operations/determinants.hpp"
+#include "numerics/operations/split_singular_vals.hpp"
+#include "numerics/operations/add_diagonal.hpp"
 #include "numerics/nda_functions.hpp"
 #include "nda/tensor.hpp"
 
@@ -48,15 +50,14 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, int nbatch = 0, bool 
   using Type = nda::get_value_t<A_t>;
 
   auto NMO = A.shape()[0];
-  //auto nbatch = ovlp.size();
-  //auto res = Type(0.0);
 
   utils::check(A.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
   utils::check(TNN.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch"); 
 
   memory::buffered_array<MEM,int,1> ipiv(NMO);
   memory::buffered_array<MEM,Type,1> work;
-  memory::buffered_array<MEM,Type,1> res(nbatch,Type(0.0));
+  memory::buffered_array<MEM,Type,1> res(1,Type(0.0));
+
   ipiv() = 0;
 
   TNN = A;
@@ -67,20 +68,12 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, int nbatch = 0, bool 
   // Log(Ovlp)
   math::log_determinant_from_getrf(TNN,ipiv,res(0));
 
-  //memory::buffered_array<MEM,Type,1> res(nbatch,Type(ovlp(0)));
-
+  // FIX : is there a better solution for the GPU here?
   if constexpr (nda::mem::have_device_compatible_addr_space<A_t>){
-  //  //kernels::device::copy(res,ovlp);
-  //  kernels::device::accumulate(Type(1.0),res,ovlp);
-    auto resh = nda::to_host(res);
-    for(int i = 1; i < nbatch; ++i)
-      resh(i) += resh(0);
-    res = nda::to_device(resh);
-    kernels::device::accumulate(Type(1.0),res,ovlp);
+    kernels::device::add_scalar(res,ovlp,nbatch);
   }
   else{
-  // FIX : need a solution for GPU
-    for(int i = 1; i < nbatch; ++i)
+    for(int i = 0; i < nbatch; ++i)
       ovlp(i) += res(0);
   }
 
@@ -102,14 +95,12 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, bool invert = true)
 
   auto [nbatch, NMO, NMO2] = A.shape();
 
-  //utils::check(A.shape() == std::array<long,3>{NMO,NMO}, "Size mismatch");
   utils::check(TNN.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch"); 
 
   memory::buffered_array<MEM,int,2> ipiv(nbatch,NMO);
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  // FIX : does this work for GPU? 
   TNN = A;
 
   // LU 
@@ -121,201 +112,6 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, bool invert = true)
   // Invert
   if(invert)
     nda::lapack::getri(TNN,ipiv,work);
-}
-
-template<nda::MemoryArrayOfRank<2> A_t, nda::MemoryArrayOfRank<2> B_t,
-                     nda::MemoryArrayOfRank<2> C_t, nda::MemoryArrayOfRank<1> O_t,
-                     nda::MemoryArrayOfRank<1> T_t>
-requires( nda::mem::have_compatible_addr_space<A_t,B_t,C_t,O_t,T_t> and
-          nda::have_same_value_type_v<A_t, B_t, C_t, O_t, T_t> and
-          std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C() and
-          std::decay_t<C_t>::is_stride_order_C() 
-        )
-void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0)
-{
-
-  constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
-  using Type = nda::get_value_t<B_t>;
-
-  auto [nbatch, NMO] = B.shape();
-  utils::check(A.shape() == B.shape(), "Size mismatch");
-  utils::check(B.shape() == C.shape(), "Size mismatch");
-  utils::check(logdet.size() >= nbatch, "");
-  utils::check(scl0.size() == nbatch, "");
-
-  //logdet() = 0.0; //
-
-  // FIX : make kernel
-  if(nda::mem::have_device_compatible_addr_space<A_t>){
-    // Doing work on host (to be replace with dedicated kernel)
-    auto Ah = nda::to_host(A);
-    auto sclh = nda::to_host(scl0);
-    auto logdeth = nda::to_host(logdet);
-    memory::host_array<Type,1> ldet_tmp(nbatch,Type(0.0));
-    memory::host_array<Type,2> B_tmp(nbatch,NMO);
-    memory::host_array<Type,2> C_tmp(nbatch,NMO);
-    for (int nb = 0; nb < nbatch; nb++){
-      for (int i = 0; i < NMO; i++)
-      {
-        double ksi = log(Ah(nb,i).real()) + sclh(nb).real();
-            
-        if(ksi > 0.0)
-        {
-          B_tmp(nb,i) = Type(1.0); // Dmin
-          if(ksi >= 32*log(10.0)){
-            C_tmp(nb,i) = Type(0.0); // Dmax^-1
-          }
-          else{
-            C_tmp(nb,i) = exp(-1.0*ksi);
-          }
-          ldet_tmp(nb) += ksi;
-        }
-        else
-        {
-          if(ksi <= -32*log(10.0)){
-            B_tmp(nb,i) = Type(0.0);
-          }
-          else{
-            B_tmp(nb,i) = exp(ksi);
-          }
-          C_tmp(nb,i) = Type(1.0);
-        }
-      }
-    }
-    B = nda::to_device(B_tmp);
-    C = nda::to_device(C_tmp);
-    logdeth() += ldet_tmp();
-    logdet = nda::to_device(logdeth);
-  }
-  else{
-    for (int nb = 0; nb < nbatch; nb++){
-      for (int i = 0; i < NMO; i++)
-      {
-        double ksi = log(A(nb,i).real()) + scl0(nb).real();
-            
-        if(ksi > 0.0)
-        {
-          B(nb,i) = 1.0; // Dmin
-          if(ksi >= 32*log(10.0)){
-            C(nb,i) = Type(0.0); // Dmax^-1
-          }
-          else{
-            C(nb,i) = exp(-1.0*ksi);
-          }
-          logdet(nb) += ksi; // store log(det(Dmax))
-          //ldet_tmp(nb) += ksi;
-        }
-        else
-        {
-          if(ksi <= -32*log(10.0)){
-            B(nb,i) = 0.0;
-          }
-          else{
-            B(nb,i) = exp(ksi);
-          }
-          C(nb,i) = 1.0;
-        }
-      }
-    }
-  }
-
-}
-
-template<nda::MemoryArrayOfRank<1> A_t, nda::MemoryArrayOfRank<1> B_t,
-         nda::MemoryArrayOfRank<1> C_t, nda::MemoryArrayOfRank<1> O_t, typename T_t>
-requires( nda::mem::have_compatible_addr_space<A_t,B_t,C_t,O_t> and
-          nda::have_same_value_type_v<A_t, B_t, C_t, O_t, T_t> and
-          std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C() and
-          std::decay_t<C_t>::is_stride_order_C() 
-        )
-void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0)//, int nbatch = 0)
-{
-
-  constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
-  using Type = nda::get_value_t<B_t>;
-
-  auto NMO = B.size();
-  auto nbatch = logdet.size();
-  utils::check(A.shape() == B.shape(), "Size mismatch");
-  utils::check(B.shape() == C.shape(), "Size mismatch");
-
-  auto res = 0.0;
-
-  if(nda::mem::have_device_compatible_addr_space<A_t>){
-    auto Ah = nda::to_host(A);
-    auto sclh = nda::to_host(scl0);
-    memory::host_array<Type,1> ldet_tmp(nbatch,Type(0.0));
-    memory::host_array<Type,1> B_tmp(NMO);
-    memory::host_array<Type,1> C_tmp(NMO);
-    for (int i = 0; i < NMO; i++)
-    {
-      double ksi = log(Ah(i).real()) + sclh(0).real();
-          
-      if(ksi > 0.0)
-      {
-        B_tmp(i) = 1.0; // Dmin
-        if(ksi >= 32*log(10.0)){
-          C_tmp(i) = 0.0; // Dmax^-1
-        }
-        else{
-          C_tmp(i) = exp(-1.0*ksi);
-        }
-        //res += ksi; // store log(det(Dmax))
-        ldet_tmp() += ksi;
-      }
-      else
-      {
-        if(ksi <= -32*log(10.0)){
-          B_tmp(i) = 0.0;
-        }
-        else{
-          B_tmp(i) = exp(ksi);
-        }
-        C_tmp(i) = 1.0;
-      }
-    }
-
-    B = nda::to_device(B_tmp);
-    C = nda::to_device(C_tmp);
-    logdet = nda::to_device(ldet_tmp);
-  }
-  else{
-    for (int i = 0; i < NMO; i++)
-    {
-      double ksi = log(A(i).real()) + scl0(0).real();
-          
-      if(ksi > 0.0)
-      {
-        B(i) = 1.0; // Dmin
-        if(ksi >= 32*log(10.0)){
-          C(i) = 0.0; // Dmax^-1
-        }
-        else{
-          C(i) = exp(-1.0*ksi);
-        }
-        res += ksi; // store log(det(Dmax))
-      }
-      else
-      {
-        if(ksi <= -32*log(10.0)){
-          B(i) = 0.0;
-        }
-        else{
-          B(i) = exp(ksi);
-        }
-        C(i) = 1.0;
-      }
-    }
-
-    // logdet is accumulated
-    for(int i = 0; i < nbatch; ++i)
-      logdet(i) += res;
-
-  }
-
-
-  //return logdet;
-
 }
 
 template<typename A_t, nda::MemoryArrayOfRank<3> B_t, nda::MemoryArrayOfRank<1> O_t,
@@ -430,6 +226,7 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
 
   memory::buffered_array<MEM,int,2> ipiv(nbatch,NMO);
   memory::buffered_array<MEM,Type,1> work;
+  memory::buffered_array<MEM,Type,1> ovlp_loc(1,Type(0.0));
 
   // if running on GPU
   if constexpr (nda::mem::have_device_compatible_addr_space<UL_t>)
@@ -444,9 +241,10 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
-        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
-      
+        math::splitDmatrix(DL, DLmin, DLmax_inv, ovlp_loc, sclL);
+        kernels::device::add_scalar(ovlp_loc,ovlp,nbatch);
+        math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+
         // M0 <-- VL * DLmin
         nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
 
@@ -509,9 +307,10 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
-        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
-      
+        math::splitDmatrix(DL, DLmin, DLmax_inv, ovlp_loc, sclL);
+        for(int b = 0; b < nbatch; ++b) ovlp(b) += ovlp_loc(0);
+        math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+
         // M0 <-- VL * DLmin
         // FIX : is there a way to do this with BLAS/LAPACK?
         for(int col = 0; col < NMO; ++col)
@@ -1041,6 +840,8 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
   utils::check(ovlp.size() >= nbatch, "");
   utils::check(G.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
 
+  memory::buffered_array<MEM,Type,1> ovlp_loc(1,Type(0.0));
+
   // overlap is accumulated, so it must first be zeroed
   ovlp() = Type(0.0);
 
@@ -1058,8 +859,9 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
-        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+        math::splitDmatrix(DL, DLmin, DLmax_inv, ovlp_loc, sclL);
+        kernels::device::add_scalar(ovlp_loc,ovlp,nbatch);
+        math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
       
         // M0 <-- VL * DLmin
         nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
@@ -1110,9 +912,7 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
       nda::tensor::contract(ComplexType(-1.0),M0,"ij",M1,"njk",ComplexType(0.0),G,"nki");
       
       // G = I - Gp^T
-      // FIX: finish gpu implementation
-      utils::check(false, "finish GPU implementation of finite-T MixedDensityMatrix");
-      // math::add_diagonal(ComplexType(1.0),G);
+      math::add_diagonal(ComplexType(1.0),G);
 
     } // end of scope for M0, M1
   }
@@ -1129,9 +929,10 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
-        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
-      
+        math::splitDmatrix(DL, DLmin, DLmax_inv, ovlp_loc, sclL);
+        for(int b = 0; b < nbatch; ++b) ovlp(b) += ovlp_loc(0);
+        math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+
         // M0 <-- VL * DLmin
         // FIX : is there a way to do this with BLAS/LAPACK?
         for(int col = 0; col < NMO; ++col)
@@ -1242,6 +1043,8 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
   utils::check(ovlp.size() >= nbatch, "");
   utils::check(G.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
 
+  memory::buffered_array<MEM,Type,1> ovlp_loc(1,Type(0.0));
+
   // overlap is accumulated, so it must first be zeroed
   ovlp() = Type(0.0);
 
@@ -1259,8 +1062,9 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
-        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+        math::splitDmatrix(DL, DLmin, DLmax_inv, ovlp_loc, sclL);
+        kernels::device::add_scalar(ovlp_loc,ovlp,nbatch);
+        math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
 
         // M0 <-- UL^-1
         if(!unitaryL){
@@ -1325,8 +1129,9 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
         memory::buffered_array<MEM,Type,1> DLmin(NMO);
         memory::buffered_array<MEM,Type,1> DLmax_inv(NMO);
 
-        detail::splitDmatrix(DL, DLmin, DLmax_inv, ovlp, sclL);//, nbatch);
-        detail::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+        math::splitDmatrix(DL, DLmin, DLmax_inv, ovlp_loc, sclL);
+        for(int b = 0; b < nbatch; ++b) ovlp(b) += ovlp_loc(0);
+        math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
 
         // M0 <-- VL^-1
         if(!unitaryL){

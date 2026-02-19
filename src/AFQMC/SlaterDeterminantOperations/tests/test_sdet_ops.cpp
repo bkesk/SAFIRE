@@ -26,6 +26,8 @@
 #include "utilities/test_common.hpp"
 #include "utilities/mpi_context.h"
 #include "numerics/sparse/sparse.hpp"
+#include "numerics/operations/split_singular_vals.hpp"
+#include "numerics/operations/add_diagonal.hpp"
 
 #include <stdio.h>
 #include <string>
@@ -328,8 +330,7 @@ void SDetOps()
 
       matrix Dmin(nwalk, NMO);
       matrix Dmax(nwalk, NMO);
-      det_ops::detail::splitDmatrix(D, Dmin, Dmax, logdetD, scl0);
-
+      math::splitDmatrix(D, Dmin, Dmax, logdetD, scl0);
       ARRAY_EQUAL(Dmin,dmin_ref);
       ARRAY_EQUAL(Dmax,dmax_ref);
       ARRAY_EQUAL(logdetD,logdet_ref);
@@ -465,6 +466,15 @@ void SDetOps()
       {
         
         // test with unitaryL = unitaryR = true
+        nda::array<Type,2> v_ref = {{ 2.01845628 + 0.61848589i, -0.14007696 + 1.42121428i,  0.85849076 + 0.64936321i,  0.17511422 - 0.13382246i},
+                                    { 0.49614863 + 0.55704152i,  0.43209424 + 0.43351669i,  0.61327589 + 0.38363281i, -0.24551059 + 0.88243555i},
+                                    {-0.26314996 + 0.11754702i, -0.25208817 - 0.39498037i,  0.31569503 + 0.03437365i, -0.09750865 - 0.12972531i},
+                                    {-1.35914169 + 0.15217979i, -0.30619456 - 0.94682906i, -0.74582831 + 0.11717011i,  0.57373942 - 0.39778497i}};
+
+        array g_ref(nwalk, NMO, NMO);  copy_to_array(v_ref,g_ref);
+
+        memory::array<MEM,Type,1> pt_ref(nwalk,Type(2.0386257031701116+2.250415836940481i));
+
         nda::array<Type,2> m_ul = {{-0.237618 - 0.475639i,  0.557280 + 0.299243i,  0.036048 - 0.330270i,  0.448652 - 0.074379i}, 
                 {-0.305195 - 0.383992i, -0.354404 - 0.430958i, -0.097159 + 0.291230i,  0.446308 + 0.393234i}, 
                 {-0.446376 - 0.227139i,  0.222971 + 0.224969i,  0.262307 + 0.583585i, -0.485308 + 0.062680i}, 
@@ -496,9 +506,13 @@ void SDetOps()
         memory::array<MEM,Type,1> sclL(1,Type(0.128));
         memory::array<MEM,Type,1> sclR(nwalk,Type(0.346));
 
-        // FIX: missing last step of routine from <ci*cj^+> --> I - <ci*cj^+>^T
-        //det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL, sclR, true, true);
-        
+        ovlp() = Type(0.0);
+
+        det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL, sclR, true, true);
+
+        ARRAY_EQUAL(G,g_ref);
+        ARRAY_EQUAL(ovlp,pt_ref);
+
       }
 
     }
@@ -508,6 +522,7 @@ void SDetOps()
 
       {
         // for SVD decomp.
+        /*
         nda::array<Type,2> m_ur_svd = {{ 2.95338068636468 + 8.23020525387664e-01i, 1.89676350413418 + 1.88249259364426i,  2.29295527394499 + 2.54894000652995i,  2.34319847964629e-01 + 5.69443156844357e-01i},
                                       { 1.07343274485525e-01 + 1.07167361317400i, 1.92056258506920 + 2.12568744821291i,  1.05142390313059 + 2.90726943932716i,  2.46015990539850 + 5.04272927692950e-03i},
                                       { 2.04044215935208 + 1.95148570447483i, 1.19694076923315 + 2.81689476834468i,  1.80597460855661 + 1.07259625639558i,  7.51581660566915e-01 + 4.15770164097312e-01i},
@@ -543,63 +558,20 @@ void SDetOps()
         array VR_ref(nwalk,NMO,NMO); copy_to_array(vr_ref_svd,VR_ref);
 
         memory::array<MEM, Type, 1> scl(nwalk,Type(0.0));
-        //memory::array<MEM, Type, 1> scl_ref(nwalk,Type(1.7667744977546749));
+        memory::array<MEM, Type, 1> scl_ref(nwalk,Type(1.7667744977546749));
 
-        //det_ops::orthogonalize_wSVD(UR,DR,VR,scl);
+        det_ops::orthogonalize_wSVD(UR,DR,VR,scl);
 
-        //ARRAY_EQUAL(UR,UR_ref);
-        //ARRAY_EQUAL(DR,DR_ref);
-        //ARRAY_EQUAL(VR,VR_ref);
+        ARRAY_EQUAL(UR,UR_ref);
+        ARRAY_EQUAL(DR,DR_ref);
+        ARRAY_EQUAL(VR,VR_ref);
 
-        //ARRAY_EQUAL(scl,scl_ref);
+        ARRAY_EQUAL(scl,scl_ref);
+        */
       }
 
       {
         // for QR decomp.
-
-        // first test QR + permutation tools
-        nda::array<Type,2> m_a = {{0.64931004, 0.89595978, 0.95907761, 0.13627804}, 
-                                  {0.83864509, 0.95797175, 0.45327008, 0.26950401}, 
-                                  {0.22622036, 0.16491264, 0.04999646, 0.22462399}, 
-                                  {0.90275349, 0.51971977, 0.64154440, 0.46441128}};
-
-        array A(nwalk,NMO,NMO); copy_to_array(m_a,A);
-        array_F AT(NMO,NMO,nwalk);
-        nda::tensor::add(A,"nij",AT,"ijn");
-
-        nda::array<int,2,nda::F_layout> jpvt(NMO,nwalk);
-        //jpvt() = 0;
-        nda::array<Type,2,nda::F_layout> tau(NMO,nwalk);
-        nda::array<Type,1,nda::F_layout> work; 
-        nda::array<Type,3,nda::F_layout> P(NMO,NMO,nwalk);
-
-        //if constexpr (memory::get_memory_space<array_F>()==DEVICE_MEMORY){
-        //  auto ATh = nda::to_host(AT);
-        //  nda::lapack::geqp3_batch(ATh,jpvt,tau,work);
-        //}
-        //else{
-        //  nda::lapack::geqp3_batch(AT,jpvt,tau,work); 
-        //}
-        //// get permutation matrices as tensor
-        //P = nda::linalg::get_permutation_array_qr<Type>(jpvt);
-
-        //nda::array<Type,1> m_b = {0.4, 0.3, 0.8, 0.1};
-
-        //matrix B(NMO,nwalk); copy_to_array(m_b,B);
-        //nda::array<Type,2,nda::F_layout> BT(nwalk,NMO);
-        //nda::array<int,2,nda::F_layout> Psort_vec(NMO,nwalk);
-
-        //BT() = nda::transpose(B);
-
-        //for(int b = 0; b < nwalk; ++b)
-        //{
-        //  //utility array for sort
-        //  Psort_vec(nda::range::all,b) = nda::arange(NMO)+1;
-        //} 
-        
-        //det_ops::detail::quick_sort(BT,Psort_vec);
-        ////Psort_vec += 1;
-        //P = nda::linalg::get_permutation_array<Type>(Psort_vec);
 
         nda::array<Type,2> m_ur_qr = {{-2.06492078,  0.66442708, -0.53408209, -0.67936867},
                                       {-14.87318197, 0.80202448, -3.61794482, -3.45620579},
@@ -643,6 +615,7 @@ void SDetOps()
         ARRAY_EQUAL(VR,VR_ref);
 
         ARRAY_EQUAL(scl,scl_ref);
+
       }
     }
     
@@ -654,7 +627,7 @@ void SDetOps()
 
 TEST_CASE("SDetOps", "[sdet_ops]")
 {
-  //SDetOps<HOST_MEMORY>();
+  SDetOps<HOST_MEMORY>();
 #if defined(ENABLE_DEVICE)
   SDetOps<DEVICE_MEMORY>();
 #endif
