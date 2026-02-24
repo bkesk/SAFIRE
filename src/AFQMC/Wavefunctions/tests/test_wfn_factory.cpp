@@ -167,6 +167,29 @@ void wfn_fac(boost::mpi3::communicator& world)
       double dt(0.01);
       auto nCV      = wfn.local_number_of_cholesky_vectors();
       CMatrix X({nCV, nwalk}, alloc_);
+      
+      // Initialize discrete propagators if using model Hamiltonian
+      // Only root process should do this to avoid race conditions
+      if (wfn.getHamType() == ModelHamiltonian) {
+        //if (MP) return; // just for debugging.
+        if (TG.Global().root()) {
+          // Use single precision types when MP=true to match internal storage
+          using SPComplexType = typename to_working_precision<MP, ComplexType>::type;
+          boost::multi::array<SPComplexType, 1> vMF_discrete(iextensions<1u>{nCV});
+          boost::multi::array<SPComplexType, 1> nMF(iextensions<1u>{2*NMO}); 
+          //CMatrix Gmf({nspins * npol * NMO, npol * NMO}, ComplexType(0.0, 0.0), alloc_);
+          // setup sparse vector to generate <nI>
+          //wfn.G_MF(Gmf);
+          for(int i = 0; i < npol*NMO; i++)
+            nMF[i] = SPComplexType(0.0, 0.0);	
+          if(type == COLLINEAR)
+            for(int i = 0; i < NMO; i++)
+              nMF[i+NMO] = SPComplexType(0.0, 0.0);
+          wfn.update_potentials(dt, nMF, vMF_discrete, false);
+        }
+        TG.Global().barrier();
+      }
+      
       Time.reset();
       wfn.vbias(G, X, dt);
       TG.TG_local().barrier();
@@ -589,6 +612,28 @@ void wfn_fac_distributed(boost::mpi3::communicator& world, int ngroups)
     double dt(0.01);
     auto nCV      = wfn.local_number_of_cholesky_vectors();
     CMatrix X({nCV, nwalk}, alloc_);
+    
+    // Initialize discrete propagators if using model Hamiltonian
+    // Only root process should do this to avoid race conditions
+    if (wfn.getHamType() == ModelHamiltonian) {
+      if (TG.Global().root()) {
+        // Use single precision types when MP=true to match internal storage
+        using SPComplexType = typename to_working_precision<MP, ComplexType>::type;
+        boost::multi::array<SPComplexType, 1> vMF_discrete(iextensions<1u>{nCV});
+        boost::multi::array<SPComplexType, 1> nMF(iextensions<1u>{2*NMO}); 
+        CMatrix Gmf({nspins * npol * NMO, npol * NMO}, ComplexType(0.0, 0.0), alloc_);
+        // setup sparse vector to generate <nI>
+        wfn.G_MF(Gmf);
+        for(int i = 0; i < npol*NMO; i++)
+          nMF[i] = SPComplexType(Gmf[i][i]);	
+        if(type == COLLINEAR)
+          for(int i = 0; i < NMO; i++)
+            nMF[i+NMO] = SPComplexType(Gmf[i+NMO][i]);
+        wfn.update_potentials(dt, nMF, vMF_discrete, false);
+      }
+      TG.Global().barrier();
+    }
+    
     Time.reset();
     wfn.vbias(G, X, dt);
     TG.TG().barrier();
