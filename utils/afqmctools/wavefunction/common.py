@@ -55,7 +55,7 @@ def modified_gram_schmidt(mat, tol=1.0e-12):
   ValueError
     If a column is (near) linearly dependent on the previous ones.
   """
-
+  print("Orthonormalizing Slater matrix using modified Gram-Schmidt...")
   q = np.zeros_like(mat, dtype=np.complex128)
 
   for j in range(mat.shape[1]):
