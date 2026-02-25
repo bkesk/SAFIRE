@@ -153,7 +153,10 @@ void reduced_density_matrix(boost::mpi3::communicator& world)
                                                                         type, wset, wfn, prop, impsamp)));
 
     // generate P1 with dt=0
-    prop.generateP1(0.0, wset.getWalkerType());
+    //   Discrete HS transformation requires finite dt to generate P1, 
+    //   but for continuous HS transformation we can safely use dt=0.0
+    double dt = ( wfn.getHamType() == ModelHamiltonian ) ? 1.0e-12 : 0.0;                                                                      
+    prop.generateP1(dt, wset.getWalkerType());
 
     std::string file = create_test_hdf(UTEST_WFN, UTEST_HAMIL);
     std::ofstream out;
