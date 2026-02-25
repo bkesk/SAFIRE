@@ -147,10 +147,10 @@ def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=
     # TODO: put this somewhere else, probably parse from an input file
     settings = dict(
         ansatz = 'SD',
-        numSteps = -1, # prints only the reference energy
+        steps = -1, # prints only the reference energy
         verbose = True,
         nelec = nelec,
-        numTrials = 1,
+        batch_size = 1,
         measure_spin = measure_spin
     )
 
