@@ -183,11 +183,54 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         }
       }
     } else if(format.substr(0,4) == "std") {
-      utils::check(false,"finish");
+      // MAM: The "std" format, written for pyscf and the old fortran QE converter,
+      //      was/is limited to spin independent basis sets. Generalize this if needed...
+      // Current implementation is limited to cases with a consistent number of bands 
+      // per kpoint, unlikely we will go back to the more general case.
+      nspin_in_file = 1;
+      npol_in_file  = 1;
       h5::group hgrp = grp.open_group("Hamiltonian");
       std::vector<int> Idata(8);
       h5::h5_read(hgrp,"dims",Idata);
       nkpts = Idata[2];
+      nkpts_ibz = Idata[2];
+      nqpts_ibz = Idata[2];
+      utils::check(Idata[3] == NMO, " Error: NMO differs from value in integral file. ");
+
+      Idata.resize(nkpts);
+      std::vector<double> Ddata(nkpts);  
+      h5::h5_read(hgrp,"NMOPerKP",Idata);
+      utils::check(Idata.size() == nkpts, "size(NMOPerKP):{} != nkpts",Idata.size());
+      nbnd = Idata[0];
+      for(int i=1; i<nkpts; ++i)
+        utils::check(Idata[i] == nbnd, "Inconsistent number of bands per kpoint. We now require all kpoints to have a consistent number of bands (NMOPerKP)."); 
+      minusq.resize(nkpts);
+      nda::h5_read(hgrp,"MinusK",minusq);
+      qk_to_k2.resize(nkpts,nkpts);
+      nda::h5_read(hgrp,"QKTok2",qk_to_k2);
+      nchol.resize(nqpts_ibz);
+      nda::h5_read(hgrp,"NCholPerKP",nchol);
+      utils::check(NMO == nbnd*nkpts, " Error: NMO:{}, nkpts:{}, nbnd:{}",NMO,nkpts,nbnd); 
+      Q0_index=-1;
+      for (int Q = 0; Q < nkpts; Q++)
+      {
+        if (minusq(Q) == Q)
+        {
+          bool found = true;
+          for (int KI = 0; KI < nkpts; KI++)
+            if (KI != qk_to_k2(Q,KI))
+            { 
+              found = false;
+              break;
+            }
+          if (found)
+          {
+            Q0_index = Q;
+            break;
+          }
+        }
+      }  
+      utils::check(Q0_index>=0, "Error: Problems finding Q=0");
     } else {
       utils::check(false,"Unknown file format:",format);
     }
@@ -246,24 +289,34 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
 
   if (mpi->comm.root()) 
   {
+    h5::group grp = h5::group(file);
+
     if(format == "std") {
-/*
+
+      utils::check(npol_in_file==1 and nspin_in_file==1, "KPFactorized: std format requires nspin_in_file==1 and npol_in_file==1.");
+
+      h5::group hgrp = grp.open_group("Hamiltonian");
+
+      // only spin independent hamiltonians right now!
       // now read H1_kpK
-      for (int K = 0; K < nspins_H1*nkpts; K++)
+      for (int K = 0; K < nkpts; K++)
       {
-        int nmo_K = nmo_per_kp[K%nkpts];
-        // until double_hyperslabs work!
-        boost::multi::array<ComplexType, 2> h1({npol * nmo_K, npol * nmo_K});
-        std::string h_id = std::string("Hamiltonian/H1_kp") + std::to_string(K); 
-        if (!dump.readEntry(h1, h_id)) 
-          APP_ABORT(base_error + " Problems reading " + h_id);
-        ma::add(ComplexType(1.0), h1, ComplexType(0.0), h1, 
-          H1[K]({0, npol * nmo_K}, {0, npol * nmo_K}));
+        auto h_ = H1()(0,K,all,all);
+        utils::h5_read(hgrp,std::string("H1_kp") + std::to_string(K), h_);
       }
-*/
+
+      // now read KPFactorized/L
+      h5::group lgrp = hgrp.open_group("KPFactorized");
+      for(int Q=0; Q<nkpts; ++Q) {
+        if(Q <= minusq(Q)) {
+          auto L2d = nda::reshape(LQ(Q)()(0,0,nda::ellipsis{}),
+                                  std::array<long,2>{nkpts,nbnd*nbnd*nchol(Q)});
+          utils::h5_read(lgrp,std::string("L") + std::to_string(Q),L2d);
+        }
+      }
+      // normalization (1/sqrt(nkpts)) assummed to be included
+
     } else if(format == "coqui") {
-      
-      h5::group grp = h5::group(file);
 
       h5::group sgrp = grp.open_group("System");
       auto h_ = H1();

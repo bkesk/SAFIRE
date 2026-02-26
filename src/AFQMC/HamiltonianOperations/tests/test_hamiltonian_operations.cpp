@@ -186,8 +186,7 @@ app_log(0,"vbias: {}",Timer.elapsed("vb"));
   }
   if (std::abs(file_data.Xsum) > 1e-8)
   {
-    REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
-    REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
+    utils::VALUE_EQUAL(Xsum,file_data.Xsum);
   }
   else
   {
@@ -211,8 +210,7 @@ app_log(0,"vHS: {}",Timer.elapsed("vh"));
       Vsum += vHS_h(0,0,i,j);
   if (std::abs(file_data.Vsum) > 1e-8)
   {
-    REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
-    REQUIRE(imag(Vsum) == Approx(imag(file_data.Vsum)));
+    utils::VALUE_EQUAL(Vsum,file_data.Vsum);
   }
   else
   {
@@ -225,8 +223,7 @@ app_log(0,"vHS: {}",Timer.elapsed("vh"));
     ComplexType Vsum2 = nda::sum(nda::to_host(vHS_sparse(0).values()))/double(nwalk);
     if (std::abs(file_data.Vsum) > 1e-8)
     {
-      REQUIRE(real(Vsum2) == Approx(real(file_data.Vsum)));
-      REQUIRE(imag(Vsum2) == Approx(imag(file_data.Vsum)));
+      utils::VALUE_EQUAL(Vsum2,file_data.Vsum);
     }
     else
     {
