@@ -199,13 +199,14 @@ public:
           }
           else if (name == "time_evolved_operators")
           {
+utils::check(false, "finish BPWithTimeEvolvedOperators");
             utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
             est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
 //            estimators.emplace_back(static_cast<EstimPtr>(
-//                std::make_shared<BPWithTimeEvolvedOperators>(mpi, info, title, 
-//                            exec_pt, est_pt, walker_type, wset, *wfn, prop0, impsamp)));
-//            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
-//            est_index++;
+//                std::make_shared<BPWithTimeEvolvedOperators<MEM>>(mpi, info, title, 
+//                            est_pt, walker_type, wset, *wfn, prop0, impsamp)));
+            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
+            est_index++;
             hdf_output = true;
             bp_estimator = true;
           }

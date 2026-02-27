@@ -309,8 +309,6 @@ void PropagateWlkSet(WlkSet& wset, P_t const& P1, V_t const& V, int order = 6, c
   auto all = nda::range::all;
   int nwalk        = wset.size();
   auto walker_type = wset.getWalkerType();
-  bool npol      = (walker_type == NONCOLLINEAR ? 2 : 1);
-  bool nspin     = (walker_type == COLLINEAR ? 2 : 1);
   utils::check(V.extent(1) == nwalk, "Size mismatch");
   long nspin_P1 = P1.extent(0);
   

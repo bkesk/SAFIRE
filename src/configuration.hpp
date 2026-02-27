@@ -271,5 +271,38 @@ namespace detail
     }
   }
 
+  template<nda::MemoryArray A_t>
+  requires(nda::get_rank<A_t> > 1 and (std::decay_t<A_t>::is_stride_order_C() or std::decay_t<A_t>::is_stride_order_Fortran()) )
+  auto diagonal_view(A_t && a) {
+    using A = std::decay_t<A_t>;
+    // don't use nda::get_value_t, which removes qualifiers
+    using value_type = typename A::value_type;
+    constexpr int rank = nda::get_rank<A>;
+    constexpr MEMORY_SPACE MEM = get_memory_space<A>();
+    std::array<long,rank-1> str; 
+    std::array<long,rank-1> shape; 
+    if constexpr (std::decay_t<A_t>::is_stride_order_C()) {
+      if(a.extent(rank-1) != a.extent(rank-2) ) {
+        std::source_location loc = std::source_location::current();
+        sfqmc::APP_ABORT_with_source(loc, "Shape mismatch");
+      }
+      std::copy_n(a.strides().begin(),rank-1,str.begin());
+      std::copy_n(a.shape().begin(),rank-1,shape.begin());
+      str[rank-2]++;  
+      nda::idx_map<rank-1, 0, nda::C_stride_order<rank-1>, nda::layout_prop_e::none> idxm(shape,str);
+      return memory::array_view<MEM,value_type,rank-1>(idxm, a.data());
+    } else if constexpr (std::decay_t<A_t>::is_stride_order_Fortran()) {
+      if(a.extent(0) != a.extent(1) ) {
+        std::source_location loc = std::source_location::current();
+        sfqmc::APP_ABORT_with_source(loc, "Shape mismatch");
+      }
+      if constexpr (rank>2) std::copy_n(a.strides().begin()+2,rank-2,str.begin()+1);
+      str[0] = a.strides()[0]+1;  
+      std::copy_n(a.shape().begin()+1,rank-1,shape.begin());
+      nda::idx_map<rank-1, 0, nda::Fortran_stride_order<rank-1>, nda::layout_prop_e::none> idxm(shape,str);
+      return memory::array_view<MEM,value_type,rank-1,nda::F_stride_layout>(idxm, a.data());
+    }
+  }
+
 }
 

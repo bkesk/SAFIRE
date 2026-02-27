@@ -60,7 +60,6 @@ public:
         name(name_)
   {
     using std::fill_n;
-    block_size = pt.get<int>("block_size", 1);
     if(number_of_averages <= 0)
       APP_ABORT("Error:  Empty measure_at.");
 
@@ -70,7 +69,7 @@ public:
       io::tolower(cname);
       if (cname == "onerdm")
       {
-        properties_1body.emplace_back(Observable(full1rdm(mpi, info, it.second, walker_type, number_of_averages, block_size)));
+        properties_1body.emplace_back(Observable(full1rdm(mpi, info, it.second, walker_type, number_of_averages)));
       }
 /*
       else if (cname == "gfock" || cname == "genfock" || cname == "ekt")

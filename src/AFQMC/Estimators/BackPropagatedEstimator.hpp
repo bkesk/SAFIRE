@@ -66,14 +66,13 @@ public:
                           Propagator<MEM>& prop,
                           bool impsamp_ = true)
       : EstimatorBase<MEM>(info),
-        mpi(mpi),
+        mpi(_mpi),
         walker_type(wlk),
         observ0(mpi, info, name, pt_in, wlk, wfn),
         wfn0(std::addressof(wfn)),
-        prop0(prop),
+        prop0(std::addressof(prop)),
         max_nback_prop(10),
         nStabilize(10),
-        block_size(1),
         path_restoration(false),
         importanceSampling(impsamp_),
         extra_path_restoration(false),
@@ -88,10 +87,9 @@ public:
     path_restoration = pt.get<bool>("path_restoration");
     extra_path_restoration = pt.get<bool>("extra_path_restoration");
     nStabilize     = pt.get<int>("bp_walker_ortho_interval"); // units of steps!!
-    block_size     = pt.get<int>("block_size");
     equil_multiplier  = pt.get<int>("equil_multiplier"); // units of population control interval
     number_of_references = pt.get<int>("number_of_references"); // number of references 
-    nback_prop_interval_multipliers = io::get_value_or_vector<int>(pt, "measure_interval_multiplier", {DEFAULT_MEASURE_INTERVAL_MULTIPLIER}); // units of population control interval
+    std::vector<int> nback_prop_interval_multipliers = io::get_value_or_vector<int>(pt, "measure_interval_multiplier", {DEFAULT_MEASURE_INTERVAL_MULTIPLIER}); // units of population control interval
     naverages = nback_prop_interval_multipliers.size();
 
     // allocate memory
@@ -109,22 +107,13 @@ public:
     nblocks_equil = (equil_multiplier *_population_control_interval )/ max_nback_prop; // Note: nback_prop is in steps, so we have to convert equil_multiplier to steps by multiplying by _population_control_interval
     _measure_interval_for_handler = max_nback_prop;
 
-    /* 
-    BP uses "blocks" internally, but we want the input
-        file to use "Steps". Convert here to keep the 
-        user-facing side simple. "block_size" should be considered deprecated,
-        and now the size of a block is given by "max_nback_prop". 
-    */
-    if (block_size != 1)
-      app_warning("Explicit block_sizes other than 1 are deprecated in Back Propagtion.");
-
     average_has_run.reserve(naverages);
     average_has_run.assign(naverages, false);
 
     // sort the requested number of steps
     std::sort(nback_prop_steps.begin(), nback_prop_steps.end());
 
-    int ncv(prop0.number_of_cholesky_vectors());
+    int ncv(prop0->number_of_cholesky_vectors());
     if(number_of_references < 0) number_of_references = wfn0->total_number_of_references();
     if(number_of_references != 0 ) {
       wset.resize_bp(max_nback_prop, ncv, number_of_references);
@@ -142,14 +131,12 @@ public:
   {
     // read inputs with default options
     bool path_restoration, extra_path_restoration;
-    int ortho, block_size, equil_multiplier, _population_control_interval;
-    std::vector<int> nback_prop_steps; // determined by nback_prop_interval_multipliers and nPopulation;
+    int ortho, equil_multiplier, _population_control_interval;
     std::vector<int> nback_prop_interval_multipliers;
     path_restoration       = pt0.get<bool>("path_restoration", false);
     extra_path_restoration = pt0.get<bool>("extra_path_restoration", false);
     ortho         = pt0.get<int>("bp_walker_ortho_interval", 1);
     equil_multiplier = pt0.get<int>("equil_multiplier", 0);
-    block_size    = pt0.get<int>("block_size", 1);
     int nrefs = pt0.get<int>("number_of_references", -1);
      _population_control_interval = pt0.get<int>("_population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL); // only for computing nback_prop_steps!
     
@@ -168,7 +155,6 @@ public:
     pt1.put("path_restoration", path_restoration);
     pt1.put("extra_path_restoration", extra_path_restoration);
     pt1.put("bp_walker_ortho_interval", ortho);
-    pt1.put("block_size", block_size);
     pt1.put("equil_multiplier", equil_multiplier);
     pt1.put("_population_control_interval", _population_control_interval);
     pt1.put("number_of_references", nrefs);
@@ -221,29 +207,17 @@ public:
 
     // check if measurement is needed
     int iav(-1);
-    for (int i = 0; i < nback_prop_steps.size(); i++)
-    {
-      if (bp_step == nback_prop_steps[i])
-      {
-        iav = i;
-        break;
-      }
-    }
-    // check if we've missed a measurement
-    {
-      int previous_average(0);
-      auto it = std::lower_bound(nback_prop_steps.begin(), nback_prop_steps.end(), bp_step);
-      previous_average = std::distance(nback_prop_steps.begin(), it) - 1; // this is -1 if nothing is found
-      utils::check(previous_average == -1 or average_has_run[previous_average],
+    if( auto it = std::find(nback_prop_steps.begin(), nback_prop_steps.end(), bp_step); 
+        it != nback_prop_steps.end() ) {
+      iav = *it;
+      utils::check(iav==0 || average_has_run[iav-1],
           "Error: missed a measurement in BackPropagate::accumulate_block.\n"
           "Use a number of steps in the back propagation estimator that is divisible\n"
           "by the measurement_interval defined in the execute block.");
-    }
-
-    if (iav < 0)
+    } else {
       return;
+    } 
 
-    using std::fill_n;
     // 0. skip if requested
     if (iblock < nblocks_equil)
     {
@@ -272,7 +246,7 @@ public:
     mpi->node_comm.barrier();
 
     //3. propagate backwards the references
-//    prop0.BackPropagate(bp_step, nStabilize, wset, Refs_, logdetR);
+//    prop0->BackPropagate(bp_step, nStabilize, wset, Refs_, logdetR);
 
     //4. calculate properties
     // adjust weights here is path restoration
@@ -374,12 +348,12 @@ private:
 
   Wavefunction<MEM>* wfn0;
 
-  Propagator<MEM>& prop0;
+  Propagator<MEM>* prop0;
 
   int number_of_references = 0;
   int max_nback_prop = 0;
   std::vector<int> nback_prop_steps;
-  std::vector<int> nback_prop_interval_multipliers;
+//  std::vector<int> nback_prop_interval_multipliers;
 
   // this is for the EstimatorHandler
   int _measure_interval_for_handler = 1; 
@@ -389,8 +363,6 @@ private:
 
   // Frequency of reorthogonalisation.
   int nStabilize = 1;
-  // Block size over which RDM will be averaged.
-  int block_size = 1;
   // number of intervals to divide max_nback_prop into
   //   BP will be peformed using each of these intervals for
   //   'm' starting from the same 'n'
