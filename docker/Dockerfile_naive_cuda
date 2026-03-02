@@ -38,5 +38,13 @@ RUN --mount=type=ssh \
 
 ENV AFQMC_EXEC=/var/app/afqmc/build/bin/safire
 
+
+# Build Python layer
+RUN cd /var/app/ \
+   && python3  -m venv venv --system-site-packages \
+   && source /var/app/venv/bin/activate \
+   && pip install /var/app/afqmc/utils[AUTOHF,PYSCF,TESTING] \
+   && cd /var/app/afqmc/utils
+
 # run make test and pytest as entrypoint to verify build
-CMD cd /var/app/afqmc/build && ctest --output-on-failure
+CMD cd /var/app/afqmc/build && ctest --output-on-failure && cd /var/app/afqmc/utils && pytest
