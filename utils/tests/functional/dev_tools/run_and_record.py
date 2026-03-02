@@ -218,7 +218,9 @@ class AFQMCHelper:
 
     def __init__(self,afqmc_exec,num_mpi_tasks,timeout_mins=None) -> None:
         self.afqmc_exec = afqmc_exec
-        self.num_mpi_tasks = num_mpi_tasks
+        if num_mpi_tasks is None:
+            num_mpi_tasks = os.environ.get("AFQMC_NUM_MPI_TASKS", 1)
+        self.num_mpi_tasks = int(num_mpi_tasks)
 
         if timeout_mins is not None:
             timeout_mins = float(timeout_mins)
@@ -234,7 +236,20 @@ class AFQMCHelper:
         )
 
     # TODO: update to use the afqmctools to generate the input file
-    def make_afqmc_input(self,fname,hamil_file,wfn_file,walker_type,num_mpi_tasks=None,n_walkers_per_mpi_task=None,run_bp=False,gpu=False,total_walkers=1600):
+    def make_afqmc_input(
+            self,
+            fname,
+            hamil_file,
+            wfn_file,
+            walker_type,
+            num_mpi_tasks=None,
+            n_walkers_per_mpi_task=None,
+            run_bp=False,
+            gpu=False,
+            total_walkers=1600,
+            steps=10000,
+            timestep=0.01
+        ):
 
         num_mpi_tasks = self.num_mpi_tasks if num_mpi_tasks is None else num_mpi_tasks
 
@@ -261,8 +276,8 @@ class AFQMCHelper:
       "hamiltonian": {''' + f'''
         "filename": "{hamil_file}" ''' + '''
       }, ''' + f'''
-      "timestep": 0.01,
-      "steps": 10000,
+      "timestep": {timestep},
+      "steps": {steps},
       "n_walkers_per_mpi_task": {n_walkers_per_mpi_task},'''
 
             if run_bp:
@@ -312,12 +327,16 @@ class AFQMCHelper:
         
         if timeout_mins is None:
             timeout_mins = self.timeout_mins
-    
-        runparams = kwargs.pop("runparams", {}) # do not forward runparams to make_afqmc_input!
-        num_mpi_tasks = runparams.get("num_mpi_tasks",self.num_mpi_tasks)
-        max_num_mpi_ranks = runparams.get("max_num_mpi_ranks",None)
-        total_walkers = runparams.get("total_walkers",1600)
-    
+
+        _runparams = kwargs.pop("runparams", {}) # do not forward  allrunparams to make_afqmc_input!
+        num_mpi_tasks = _runparams.setdefault("num_mpi_tasks",self.num_mpi_tasks)
+        max_num_mpi_ranks = _runparams.setdefault("max_num_mpi_ranks",None)
+        total_walkers = _runparams.setdefault("total_walkers",1600)
+        _runparams.pop("num_mpi_tasks")
+        _runparams.pop("max_num_mpi_ranks")
+        _runparams.pop("total_walkers")
+        kwargs.update(_runparams)
+
         if max_num_mpi_ranks is not None and num_mpi_tasks > max_num_mpi_ranks:
             warn(
                 f"Requested {num_mpi_tasks} MPI tasks, but the maximum allowed is {max_num_mpi_ranks}. "
