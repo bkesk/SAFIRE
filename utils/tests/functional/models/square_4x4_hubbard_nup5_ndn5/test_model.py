@@ -17,6 +17,8 @@ Define functional tests for 4x4 Hubbard model.
 """
 from pathlib import Path
 from warnings import warn
+from typing import List, Optional
+
 
 import pytest
 
@@ -102,15 +104,47 @@ def walker_type_list():
         AFQMCWalker("NONCOLLINEAR",SpinSymm.NONCOLLINEAR),
     ]
 
+# specific test cases
+ExtraInputSetList = [
+    AFQMCInputSet( # expected to succeed
+        hamiltonian=AFQMCHamiltonian(
+            INPUTS_DIR/"ham_collinear_Um4_disc_charge.h5",
+            SpinSymm.COLLINEAR,
+            HamiltonianClass.MODEL
+        ),
+        wavefunction=AFQMCWavefunction(
+            INPUTS_DIR/"uhf_U0.1_wfn_nup5_ndn5.h5",
+            SpinSymm.COLLINEAR,
+            WavefunctionClass.NOMSD
+        ),
+        walker= AFQMCWalker("COLLINEAR",SpinSymm.COLLINEAR),
+        reference=REF_DATA_DIR/"ham_collinear_disc_charge/hf_U0.1_collinear/collinear/results.h5"
+    ),
+    AFQMCInputSet( # expected to succeed
+        hamiltonian=AFQMCHamiltonian(
+            INPUTS_DIR/"ham_collinear_Um4_cont_charge.h5",
+            SpinSymm.COLLINEAR,
+            HamiltonianClass.MODEL
+        ),
+        wavefunction=AFQMCWavefunction(
+            INPUTS_DIR/"uhf_U0.1_wfn_nup5_ndn5.h5",
+            SpinSymm.COLLINEAR,
+            WavefunctionClass.NOMSD
+        ),
+        walker= AFQMCWalker("COLLINEAR",SpinSymm.COLLINEAR),
+        reference=REF_DATA_DIR/"ham_collinear_cont_charge/hf_U0.1_collinear/collinear/results.h5"
+    )
+]
 
 # Use centralized generate_param_list
-def generate_test_params():
+def generate_test_params(extra_input_set: Optional[List[AFQMCInputSet]] = None) -> List[AFQMCInputSet]:
     """Generate test parameters using the centralized infrastructure."""
     return generate_param_list(
         hamil_type_dictionary=hamil_type_dictionary(),
         wavefunction_type_dictionary=wavefunction_type_dictionary(),
         walker_type_list=walker_type_list(),
-        ref_data_dir=REF_DATA_DIR
+        ref_data_dir=REF_DATA_DIR,
+        extra_input_set=extra_input_set
     )
 
 def _expected_success(
@@ -235,7 +269,7 @@ def test_fail_push(
 # Weekly tests
 @pytest.mark.functional
 @pytest.mark.weekly
-@pytest.mark.parametrize("case", should_run_successfully(generate_test_params()))
+@pytest.mark.parametrize("case", should_run_successfully(generate_test_params(extra_input_set=ExtraInputSetList)))
 def test_success_weekly(
     afqmc_helper,
     result_checker,
