@@ -20,6 +20,7 @@ import numpy as np
 
 from stats.scalar_dat import analyze_scalar_data
 from afqmctools.analysis.rdm import average_afqmc_rdm
+from dev_tools.results import Results
 
 AFQMC_EXEC = os.environ.get("AFQMC_EXEC",None)
 if AFQMC_EXEC is None:
@@ -140,57 +141,19 @@ def get_afqmc_results(return_code:int,run_time_secs=-1.0,nequil=5.0,run_bp=False
     3. AFQMC avg. walker weight (set equil)
     4. AFQMC LogOvlpFActor (set equil)
     5. Averaged 1-rdm
+    
+    This function now uses the Results class internally for better modularity.
     """
-
-    with h5.File("results.h5","w") as f:
-        f.create_dataset("return_code",data=return_code)
-        f.create_dataset("run_time_seconds",data=run_time_secs)
-
-        f.create_dataset("afqmc_raised_warning",data=afqmc_raised_warning("afqmc.out"))
-        get_and_save_warnings("afqmc.out",fh5=f)
-        
-        f.create_dataset("afqmc_raised_error",data=afqmc_raised_error("afqmc.out"))
-        get_and_save_errors("afqmc.out",fh5=f)
-
-        f.create_dataset("afqmc_is_finite",data=afqmc_out_is_finite("afqmc.out"))
-
-        with open("afqmc.json","r") as infile:
-            f.create_dataset("input_file",data=infile.read())
-
-        if return_code == 0:
-            E,dE = analyze_scalar_data(
-                dict(
-                    fname = "qmc.s000.scalar.dat",
-                    xaxis = "time",
-                    nequil = nequil
-                )
-            )
-            f.create_dataset("energy",data=np.array([E,dE]))
-
-            weight,dweight = analyze_scalar_data(
-                dict(
-                    fname = "qmc.s000.scalar.dat",
-                    xaxis = "time",
-                    nequil = nequil,
-                    column = "weight"
-                )
-            )
-            f.create_dataset("weight",data=np.array([weight,dweight]))
-
-            log_ovlp,dlog_ovlp = analyze_scalar_data(
-                dict(
-                    fname = "qmc.s000.scalar.dat",
-                    xaxis = "time",
-                    nequil = nequil,
-                    column = "LogOvlpFactor"
-                )
-            )
-            f.create_dataset("LogOvlpFactor",data=np.array([log_ovlp,dlog_ovlp]))
-
-            if run_bp:
-                rho_avg, delta_rho = average_afqmc_rdm()
-                f.create_dataset("avg_1rdm",data=rho_avg)
-                f.create_dataset("avg_1rdm_stoch_error",data=delta_rho)
+    # Create Results object from AFQMC run output files
+    results = Results.from_afqmc_run(
+        return_code=return_code,
+        run_time_secs=run_time_secs,
+        nequil=nequil,
+        run_bp=run_bp
+    )
+    
+    # Write to HDF5 file
+    results.to_hdf5("results.h5")
 
 
 def afqmc_raised_error(fname):
@@ -201,7 +164,7 @@ def afqmc_raised_error(fname):
     """
     # TODO: use regex groups to identify what error is raised
     with open(fname,'r') as f:
-        result = re.search("\[error\]",f.read())
+        result = re.search(r"\[error\]",f.read())
     if result is None:
         return False
     else:
@@ -216,7 +179,7 @@ def afqmc_raised_warning(fname):
     """
     # TODO: use regex groups to identify what warning is raised
     with open(fname,'r') as f:
-        result = re.search("\[warning\]",f.read())
+        result = re.search(r"\[warning\]",f.read())
     if result is None:
         return False
     else:
