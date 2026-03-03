@@ -342,8 +342,7 @@ TEST_CASE("ham_ops_basic_serial", "[hamiltonian_operations]")
 #endif
   } else {
     app_log(0,"HamiltonianOperations unit testing. Running standard tests.");
-    // ghf energy evaluation needs to be finished in Real3Index hamiltonian
-    auto files = utils::molecule_unit_tests_files(true,true,false,true,false);
+    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
     for( auto f : files ) { 
       ham_ops_basic_serial<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
 #if defined(ENABLE_DEVICE)

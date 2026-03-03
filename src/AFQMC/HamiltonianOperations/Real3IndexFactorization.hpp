@@ -860,9 +860,9 @@ private:
       max_nCV     = std::min(std::max(1, Bytes), nCV);
       utils::check(max_nCV > 0 and max_nCV <= nCV, "Logic error!!!");
 
-      utils::check(npol==1, "finish");
-      auto L2d = nda::reshape(Lnak(ispin)()(idet,0,nda::ellipsis{}), 
-                              std::array<long,2>{nCV*nel[ispin],NMO});
+      // [ndet,npol,nCV,nup,NMO]
+      auto L3d = nda::reshape(Lnak(ispin)()(idet,nda::ellipsis{}), 
+                              std::array<long,3>{npol,nCV*nel[ispin],NMO});
  
       // contiguous G to allow use of gemm
       bool needs_Gc = (MEM==HOST_MEMORY and not (npol==1 and G.is_contiguous()));
@@ -883,10 +883,12 @@ private:
 
           if(npol==1 and G.is_contiguous()) {
             auto G2d = nda::reshape(G, std::array<long,2>{nwalk*nel[ispin],NMO});
-            nda::blas::gemm(G2d,nda::transpose(L2d(range(nv*nel[ispin],(nv+nvecs)*nel[ispin]),all)),T2d);
+            nda::blas::gemm(G2d,nda::transpose(L3d(0,range(nv*nel[ispin],(nv+nvecs)*nel[ispin]),all)),T2d);
           } else {
-            auto G2d = nda::reshape(Gc, std::array<long,2>{nwalk*nel[ispin],NMO});
-            nda::blas::gemm(G2d,nda::transpose(L2d(range(nv*nel[ispin],(nv+nvecs)*nel[ispin]),all)),T2d);
+            auto G3d = nda::reshape(Gc, std::array<long,3>{nwalk*nel[ispin],npol,NMO});
+            T2d() = ComplexType(0.0);
+            for(int ip=0; ip<npol; ++ip) 
+              nda::blas::gemm(ComplexType(1.0),G3d(all,ip,all),nda::transpose(L3d(ip,range(nv*nel[ispin],(nv+nvecs)*nel[ispin]),all)),ComplexType(1.0),T2d);
           }
           for(int iw=0; iw<nwalk; ++iw)
             for(int ia=0; ia<nel[ispin]; ++ia) {
@@ -904,8 +906,11 @@ private:
         } else {
 
           memory::buffered_array<MEM,ComplexType,4> Twbna(nwalk,nel[ispin],nvecs,nel[ispin]); 
-          auto Lna = Lnak(ispin)()(idet,0,range(nv,nv+nvecs),range(nel[ispin]),all);
-          nda::tensor::contract(ComplexType(1.0),G,"wbk",Lna,"nak",ComplexType(0.0),Twbna,"wbna");
+          auto Lna = Lnak(ispin)()(idet,all,range(nv,nv+nvecs),range(nel[ispin]),all);
+          utils::check(G.is_contiguous(), "Requires cnotiguous G. Talk to developers for generalization.");
+          auto G4d = nda::reshape(G, std::array<long,4>{nwalk,nel[ispin],npol,NMO});
+          nda::tensor::contract(ComplexType(1.0),G4d,"wbpk",Lna,"pnak",ComplexType(0.0),Twbna,"wbna");
+
           // E[w] = -0.5*scl* sum_abn Twanb * Twbna
           nda::tensor::contract(ComplexType(-0.5*scl),Twbna,"wanb",Twbna,"wbna",
                                 ComplexType(1.0),E(all,1),"w");
@@ -956,8 +961,6 @@ private:
     utils::check(G2d.is_contiguous(), "Layout mismatch");
     memory::array_view<MEM,const ComplexType,3> G(std::array<long,3>{nwalk,nel,npol*NMO},G2d.data());
 
-    utils::check(npol==1,"finish");
- 
     // one-body contribution
     // haj(ndet,nact,npol*NMO)
     if (addH1)
@@ -993,11 +996,14 @@ private:
     if constexpr (MEM==HOST_MEMORY) {
 
       // fix polarization!!!
-      auto G_ = nda::reshape(G2d, std::array<long,2>{nwalk*nel,npol*NMO});
-      auto L2d = nda::reshape(Lnak(is)()(0,0,nda::ellipsis{}),
-                              std::array<long,2>{nCV*nact[is],NMO});
+      auto G3d = nda::reshape(G2d, std::array<long,3>{nwalk*nel,npol,NMO});
+      auto L3d = nda::reshape(Lnak(is)()(0,nda::ellipsis{}),
+                              std::array<long,3>{npol,nCV*nact[is],NMO});
       auto T2d = nda::reshape(Twina, std::array<long,2>{nwalk*nel,nCV*nact[is]});
-      nda::blas::gemm(G_,nda::transpose(L2d),T2d);
+      T2d() = ComplexType(0.0);
+      for(int ip=0; ip<npol; ip++)
+        nda::blas::gemm(ComplexType(1.0),G3d(all,ip,all),nda::transpose(L3d(ip,all,all)),
+                        ComplexType(1.0),T2d);
 
       for(int iw=0; iw<nwalk; ++iw)
         for(int ia=0; ia<nel; ++ia) {
@@ -1012,8 +1018,9 @@ private:
 
     } else {
 
-      auto Lna = Lnak(is)()(0,0,nda::ellipsis{});
-      nda::tensor::contract(ComplexType(1.0),G,"wik",Lna,"nak",ComplexType(0.0),Twina,"wina");
+      auto Lna = Lnak(is)()(0,nda::ellipsis{});
+      auto G4d = nda::reshape(G2d, std::array<long,4>{nwalk,nel,npol,NMO});
+      nda::tensor::contract(ComplexType(1.0),G,"wipk",Lna,"pnak",ComplexType(0.0),Twina,"wina");
 
       // E[w] = -0.5*scl* sum_abn Twanb * Twina
       nda::tensor::contract(ComplexType(-0.5*scl),Twina(all,all,all,range(nel)),"winj",
