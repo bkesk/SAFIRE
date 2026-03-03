@@ -74,6 +74,8 @@ public:
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int nstot = hij.extent(0);
     int nptot = hij.extent(1)/NMO;
+    int npol_H2  = (walker_type == NONCOLLINEAR) ? Likn.extent(0) : 1;
+    int nspin_H2  = (walker_type == COLLINEAR) ? Likn.extent(0) : 1;
     int ndet = haj.extent(0);
     int nel[] = {nup, (type == COLLINEAR ? ndown : 0) };
     // checking dimensions!!!
@@ -81,14 +83,14 @@ public:
                  "Real3IndexFactorization: Size mismatch");
     utils::check(haj.shape() == std::array<long,3>{ndet,nel[0]+nel[1],npol*NMO},
                  "Real3IndexFactorization: Size mismatch");
-    utils::check(Likn.shape() == std::array<long,4>{nstot*nptot,NMO,NMO,nCV},
+    utils::check(Likn.shape() == std::array<long,4>{nspin_H2*npol_H2,NMO,NMO,nCV},
                  "Real3IndexFactorization: Size mismatch");
     utils::check(Lnak(0).shape() == std::array<long,5>{ndet,npol,nCV,nup,NMO}, 
                  "Real3IndexFactorization: Size mismatch");
     if(nspin==2)
       utils::check(Lnak(1).shape() == std::array<long,5>{ndet,npol,nCV,ndown,NMO}, 
                    "Real3IndexFactorization: Size mismatch");
-    utils::check(vexx.shape() == std::array<long,3>{nstot*nptot,NMO,NMO},
+    utils::check(vexx.shape() == std::array<long,3>{nspin_H2*npol_H2,NMO,NMO},
                  "Real3IndexFactorization: Size mismatch");
     app_log(1,"****************************************************************** ");
     app_log(1,"  Static memory usage by Real3IndexFactorization (node 0 in MB) ");
@@ -113,8 +115,11 @@ public:
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int nstot = hij.extent(0);
     int nptot = hij.extent(1)/NMO;
+    int npol_H2  = (walker_type == NONCOLLINEAR) ? Likn.extent(0) : 1;
+    int nspin_H2  = (walker_type == COLLINEAR) ? Likn.extent(0) : 1;
     utils::check(vMF.extent(0) == number_of_cholesky_vectors(), "Size mismatch");
     utils::check( nstot <= nspin and nptot <= npol, "Invalid nstot:{}, nptot:{}",nstot,nptot);
+    utils::check( nspin_H2 <= nspin and npol_H2 <= npol, "Invalid nspin_H2:{}, npol_H2:{}",nspin_H2,npol_H2);
 
     // v[nstot][nwalk=1][nptot*NMO][NMO]
     nda::array<ComplexType, 4> v;
@@ -122,29 +127,31 @@ public:
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.extent(0));
       vMF_2d(0,nda::range::all) = vMF();
       v = std::move(vHS(vMF_2d, dt));
-      utils::check(v.shape() == std::array<long,4>{1,nspin,npol*NMO,NMO}, "Size mismatch");
+      utils::check(v.shape() == std::array<long,4>{nspin_H2,1,npol_H2*NMO,NMO}, "Size mismatch");
     }
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
     H1() = ComplexType(0.0);
 
-    // add hij(nstot,nptot*NMO,nptot*NMO) + vexx(nstot*nptot,NMO,NMO) and symmetrize
+    // add hij(nstot,nptot*NMO,nptot*NMO) + vexx(nstot_H2*nptot_H2,NMO,NMO) and symmetrize
     //
     for (int is = 0; is < nspin; is++) {
-      int is_ = is%nstot;
+      int is_1 = is%nstot;
+      int is_2 = is%nspin_H2;
       for (int p1 = 0; p1 < npol; p1++) {
-        int p1_ = p1%nptot;
+        int p1_1 = p1%nptot;
+        int p1_2 = p1%npol_H2;
         for (int p2 = 0; p2 < npol; p2++) {
-          int p2_ = p2%nptot;
+          int p2_1 = p2%nptot;
           for (int i = 0; i < NMO; i++) {
             for (int j = 0 ; j < NMO; j++)
             {
               if(p1==p2) {
-                H1(is,p1*NMO+i,p2*NMO+j) = v(0,is_,p1_*NMO+i,j) +
-                                           dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,i,j));
+                H1(is,p1*NMO+i,p2*NMO+j) = v(is_2,0,p1_2*NMO+i,j) +
+                  dt * (hij()(is_1,p1_1*NMO+i,p2_1*NMO+j) + vexx()(is_2*npol_H2+p1_2,i,j));
               } else {
                 // only spin-orbit terms here coming from hij
-                H1(is,p1*NMO+i,p2*NMO+j) = dt * hij()(is_,p1_*NMO+i,p2_*NMO+j);
+                H1(is,p1*NMO+i,p2*NMO+j) = dt * hij()(is_1,p1_1*NMO+i,p2_1*NMO+j);
               }
             }
           }
@@ -336,9 +343,11 @@ public:
     static_assert(MEM == MEM_X, "Memory space mismatch");
     using nda::range;
     auto all = range::all;
+    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nwalk = X.extent(0);
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(1)/NMO;
+    int nstot = (walker_type == COLLINEAR) ? Likn.extent(0) : 1;
+    int nptot = (walker_type == NONCOLLINEAR) ? Likn.extent(0) : 1;
     utils::check_strides(X);
     utils::check(X.shape() == std::array<long,2>{nwalk,nCV}, "Size mismatch.");
 
@@ -384,8 +393,8 @@ public:
     int nwalk = G.extent(0);
     int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(1)/NMO;
+    int nstot = (walker_type == COLLINEAR) ? Likn.extent(0) : 1;
+    int nptot = (walker_type == NONCOLLINEAR) ? Likn.extent(0) : 1;
     int nCV   = Lnak(0).extent(2);
     int nel   = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
     utils::check_strides(G,v);
@@ -768,7 +777,9 @@ public:
   }
 
   std::tuple<int,int> vHS_dims() const {
-    return std::make_tuple(hij.extent(0),hij.extent(1)/NMO);
+    int nstot = (walker_type == COLLINEAR) ? Likn.extent(0) : 1;
+    int nptot = (walker_type == NONCOLLINEAR) ? Likn.extent(0) : 1;
+    return std::make_tuple(nstot,nptot);
   }
   int number_of_ke_vectors() const { return nCV; }
   int number_of_cholesky_vectors() const { return nCV; }
@@ -791,7 +802,7 @@ private:
   // (potentially half rotated) one body hamiltonian
   memory::shared_array<MEM,ComplexType,3> haj;
 
-  //Cholesky Tensor Lik(nstot*nptot,NMO,NMO,nCV)
+  //Cholesky Tensor Lik(nstot_H2*nptot_H2,NMO,NMO,nCV)
   memory::shared_array<MEM,RealType,4> Likn;
 
   // half-tranformed Cholesky tensor
@@ -849,9 +860,9 @@ private:
       max_nCV     = std::min(std::max(1, Bytes), nCV);
       utils::check(max_nCV > 0 and max_nCV <= nCV, "Logic error!!!");
 
-      utils::check(npol==1, "finish");
-      auto L2d = nda::reshape(Lnak(ispin)()(idet,0,nda::ellipsis{}), 
-                              std::array<long,2>{nCV*nel[ispin],NMO});
+      // [ndet,npol,nCV,nup,NMO]
+      auto L3d = nda::reshape(Lnak(ispin)()(idet,nda::ellipsis{}), 
+                              std::array<long,3>{npol,nCV*nel[ispin],NMO});
  
       // contiguous G to allow use of gemm
       bool needs_Gc = (MEM==HOST_MEMORY and not (npol==1 and G.is_contiguous()));
@@ -872,10 +883,12 @@ private:
 
           if(npol==1 and G.is_contiguous()) {
             auto G2d = nda::reshape(G, std::array<long,2>{nwalk*nel[ispin],NMO});
-            nda::blas::gemm(G2d,nda::transpose(L2d(range(nv*nel[ispin],(nv+nvecs)*nel[ispin]),all)),T2d);
+            nda::blas::gemm(G2d,nda::transpose(L3d(0,range(nv*nel[ispin],(nv+nvecs)*nel[ispin]),all)),T2d);
           } else {
-            auto G2d = nda::reshape(Gc, std::array<long,2>{nwalk*nel[ispin],NMO});
-            nda::blas::gemm(G2d,nda::transpose(L2d(range(nv*nel[ispin],(nv+nvecs)*nel[ispin]),all)),T2d);
+            auto G3d = nda::reshape(Gc, std::array<long,3>{nwalk*nel[ispin],npol,NMO});
+            T2d() = ComplexType(0.0);
+            for(int ip=0; ip<npol; ++ip) 
+              nda::blas::gemm(ComplexType(1.0),G3d(all,ip,all),nda::transpose(L3d(ip,range(nv*nel[ispin],(nv+nvecs)*nel[ispin]),all)),ComplexType(1.0),T2d);
           }
           for(int iw=0; iw<nwalk; ++iw)
             for(int ia=0; ia<nel[ispin]; ++ia) {
@@ -893,8 +906,11 @@ private:
         } else {
 
           memory::buffered_array<MEM,ComplexType,4> Twbna(nwalk,nel[ispin],nvecs,nel[ispin]); 
-          auto Lna = Lnak(ispin)()(idet,0,range(nv,nv+nvecs),range(nel[ispin]),all);
-          nda::tensor::contract(ComplexType(1.0),G,"wbk",Lna,"nak",ComplexType(0.0),Twbna,"wbna");
+          auto Lna = Lnak(ispin)()(idet,all,range(nv,nv+nvecs),range(nel[ispin]),all);
+          utils::check(G.is_contiguous(), "Requires cnotiguous G. Talk to developers for generalization.");
+          auto G4d = nda::reshape(G, std::array<long,4>{nwalk,nel[ispin],npol,NMO});
+          nda::tensor::contract(ComplexType(1.0),G4d,"wbpk",Lna,"pnak",ComplexType(0.0),Twbna,"wbna");
+
           // E[w] = -0.5*scl* sum_abn Twanb * Twbna
           nda::tensor::contract(ComplexType(-0.5*scl),Twbna,"wanb",Twbna,"wbna",
                                 ComplexType(1.0),E(all,1),"w");
@@ -945,8 +961,6 @@ private:
     utils::check(G2d.is_contiguous(), "Layout mismatch");
     memory::array_view<MEM,const ComplexType,3> G(std::array<long,3>{nwalk,nel,npol*NMO},G2d.data());
 
-    utils::check(npol==1,"finish");
- 
     // one-body contribution
     // haj(ndet,nact,npol*NMO)
     if (addH1)
@@ -982,11 +996,14 @@ private:
     if constexpr (MEM==HOST_MEMORY) {
 
       // fix polarization!!!
-      auto G_ = nda::reshape(G2d, std::array<long,2>{nwalk*nel,npol*NMO});
-      auto L2d = nda::reshape(Lnak(is)()(0,0,nda::ellipsis{}),
-                              std::array<long,2>{nCV*nact[is],NMO});
+      auto G3d = nda::reshape(G2d, std::array<long,3>{nwalk*nel,npol,NMO});
+      auto L3d = nda::reshape(Lnak(is)()(0,nda::ellipsis{}),
+                              std::array<long,3>{npol,nCV*nact[is],NMO});
       auto T2d = nda::reshape(Twina, std::array<long,2>{nwalk*nel,nCV*nact[is]});
-      nda::blas::gemm(G_,nda::transpose(L2d),T2d);
+      T2d() = ComplexType(0.0);
+      for(int ip=0; ip<npol; ip++)
+        nda::blas::gemm(ComplexType(1.0),G3d(all,ip,all),nda::transpose(L3d(ip,all,all)),
+                        ComplexType(1.0),T2d);
 
       for(int iw=0; iw<nwalk; ++iw)
         for(int ia=0; ia<nel; ++ia) {
@@ -1001,8 +1018,9 @@ private:
 
     } else {
 
-      auto Lna = Lnak(is)()(0,0,nda::ellipsis{});
-      nda::tensor::contract(ComplexType(1.0),G,"wik",Lna,"nak",ComplexType(0.0),Twina,"wina");
+      auto Lna = Lnak(is)()(0,nda::ellipsis{});
+      auto G4d = nda::reshape(G2d, std::array<long,4>{nwalk,nel,npol,NMO});
+      nda::tensor::contract(ComplexType(1.0),G,"wipk",Lna,"pnak",ComplexType(0.0),Twina,"wina");
 
       // E[w] = -0.5*scl* sum_abn Twanb * Twina
       nda::tensor::contract(ComplexType(-0.5*scl),Twina(all,all,all,range(nel)),"winj",

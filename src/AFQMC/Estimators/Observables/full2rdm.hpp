@@ -179,17 +179,6 @@ public:
       acc_no_rotation(iav, G, Xw);
   }
 
-  // Second interface, including factorized G in addition to full G and G_host 
-  template<class Mat1, class Mat2, class Mat3, class Mat4,
-           class MatG, class MatG_host, class HostCVec1>
-  void accumulate(int iav, [[maybe_unused]] Mat1&& Sa, [[maybe_unused]] Mat2&& Ga,
-                  [[maybe_unused]] Mat3&& Sb, [[maybe_unused]] Mat4&& Gb,
-                  MatG&& G, MatG_host&& G_host, HostCVec1&& Xw, bool impsamp)
-  {
-    accumulate(iav,std::forward<MatG>(G),std::forward<MatG_host>(G_host),
-                   std::forward<HostCVec1>(Xw),impsamp);
-  }
-
 /*******   Interface for PHMSD-like wfns: Reference + excited configurations  *******/
   template<class... Args>
   void accumulate_reference_configuration([[maybe_unused]] Args&&... args)

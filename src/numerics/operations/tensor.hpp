@@ -78,4 +78,14 @@ void zero_imag(Arr && A)
   }
 }
 
+template<nda::MemoryArray Arr>
+void set_identity(Arr && A)
+requires( nda::get_rank<Arr> > 1 and nda::get_rank<Arr> < 6 and std::decay_t<Arr>::is_stride_order_C())
+{
+  using value_type = nda::get_value_t<Arr>;
+  auto A_diag = memory::diagonal_view(A);
+  A() = value_type(0.0);
+  A_diag() = value_type(1.0);
+}
+
 }

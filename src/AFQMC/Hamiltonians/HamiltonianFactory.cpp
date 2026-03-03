@@ -105,7 +105,7 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
     if(format == "std") {
       std::vector<RealType> Rdata(2,RealType(0.0));
    
-//      h5::h5_read(*hgrp,"Energies",Rdata);  
+      h5::h5_read(*hgrp,"Energies",Rdata);  
       if (Rdata.size() > 0)
         NuclearCoulombEnergy = Rdata[0];
       if (Rdata.size() > 1)
@@ -144,7 +144,7 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   else if (htype == KPFactorized)
   {
     if(mpi->comm.root())
-      utils::check(format == "coqui", "Error: format: {} not yet implemented with this hamiltonian type.", format);
+      utils::check(format == "coqui" or format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
     return Hamiltonian(KPFactorizedHamiltonian(AFinfo, pt, NuclearCoulombEnergy, FrozenCoreEnergy));
   }
   else if (htype == RealDenseFactorized)

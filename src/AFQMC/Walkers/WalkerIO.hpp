@@ -301,43 +301,16 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
     { // to limit the scope
       auto w = wset[0];
       if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
-        if(MEM == HOST_MEMORY) {
-          auto SM = w.template SlaterMatrix<HOST_MEMORY>(Alpha);
-          NMO = SM.extent(0); 
-          nup = SM.extent(1); 
-          if (walker_type == COLLINEAR)
-            ndn = w.template SlaterMatrix<HOST_MEMORY>(Beta).extent(1);
-        } else if(MEM == DEVICE_MEMORY) {
-          auto SM = w.template SlaterMatrix<DEVICE_MEMORY>(Alpha);
-          NMO = SM.extent(0); 
-          nup = SM.extent(1); 
-          if (walker_type == COLLINEAR)
-            ndn = w.template SlaterMatrix<DEVICE_MEMORY>(Beta).extent(1);
-        } else if(MEM == UNIFIED_MEMORY) {
-          auto SM = w.template SlaterMatrix<UNIFIED_MEMORY>(Alpha);
-          NMO = SM.extent(0); 
-          nup = SM.extent(1); 
-          if (walker_type == COLLINEAR)
-            ndn = w.template SlaterMatrix<UNIFIED_MEMORY>(Beta).extent(1);
-        } else {
-          utils::check(false,"Invalid memory space");
-        }
+        auto SM = w.SlaterMatrix(Alpha);
+        NMO = SM.extent(0); 
+        nup = SM.extent(1); 
+        if (walker_type == COLLINEAR)
+          ndn = w.SlaterMatrix(Beta).extent(1);
         if (walker_type == NONCOLLINEAR)
           NMO /= 2;
-      }
-      else{
-          if(MEM == HOST_MEMORY) {
-          auto UR = w.template UMatrix<HOST_MEMORY>(Alpha);
-          NMO = UR.extent(0); 
-        } else if(MEM == DEVICE_MEMORY) {
-          auto UR = w.template UMatrix<DEVICE_MEMORY>(Alpha);
-          NMO = UR.extent(0); 
-        } else if(MEM == UNIFIED_MEMORY) {
-          auto UR = w.template UMatrix<UNIFIED_MEMORY>(Alpha);
-          NMO = UR.extent(0); 
-        } else {
-          utils::check(false,"Invalid memory space");
-        }
+      } else {
+        auto UR = w.UMatrix(Alpha);
+        NMO = UR.extent(0); 
         if (walker_type == NONCOLLINEAR_FT)
           NMO /= 2;
       }

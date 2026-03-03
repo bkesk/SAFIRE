@@ -215,9 +215,9 @@ void hybrid_walker_update(Wlk& w,
   if (BackProp)
   {
     auto pos = w.getHistoryPos();
-    auto WFac = w.template getWeightFactors();  
+    auto WFac = w.getWeightFactors();  
     WFac(pos,all) = work(3,all);
-    auto WHis = w.template getWeightFactors();  
+    auto WHis = w.getWeightFactors();  
     WHis(pos,all) = work(0,all);
   }
 }
@@ -302,9 +302,9 @@ void local_energy_walker_update(Wlk& w,
   if (BackProp)
   {
     auto pos = w.getHistoryPos();
-    auto WFac = w.template getWeightFactors();
+    auto WFac = w.getWeightFactors();
     WFac(pos,all) = work(6,all);
-    auto WHis = w.template getWeightFactors();
+    auto WHis = w.getWeightFactors();
     WHis(pos,all) = work(0,all);
   }
 }

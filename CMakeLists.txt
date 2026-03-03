@@ -97,9 +97,7 @@ OPTION(BUILD_DOCUMENTATION "Enable compiling C++ Docs" OFF)
 option(ENABLE_SPDLOG "Build with spdlog" ON)
 option(ENABLE_CPPTRACE "Build with cpptrace support" ON)
 
-option(ENABLE_FFTW "Build using FFTW3 library." ON)
-option(ENABLE_SLATE "Build using Slate library." OFF)
-#option(ENABLE_CUTENSOR "Build using cutensor library. Must set CUTENSOR_ROOT" OFF)
+#option(ENABLE_FFTW "Build using FFTW3 library." ON)
 option(COMPILE_NDA_TESTS "Build with nda tests" OFF)
 option(NDA_PYTHON_SUPPORT "Build nda with python support" OFF)
 option(FETCH_CCCL "Fetch CCCL and enable support. Only used with ENABLE_CUDA" OFF)
@@ -367,10 +365,10 @@ endif(ENABLE_CPPTRACE)
 ######################################################################
 # FFTW: not using MKL's FFTW yet, figure out how if requested 
 ######################################################################
-if(ENABLE_FFTW)
-  find_package(FFTW REQUIRED DOUBLE_OPENMP_LIB) 
-  add_compile_definitions(ENABLE_FFTW)
-endif()
+#if(ENABLE_FFTW)
+#  find_package(FFTW REQUIRED DOUBLE_OPENMP_LIB) 
+#  add_compile_definitions(ENABLE_FFTW)
+#endif()
 
 
 ######################################################################

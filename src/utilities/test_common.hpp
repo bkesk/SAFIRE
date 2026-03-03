@@ -35,14 +35,52 @@
 namespace sfqmc {
 namespace utils {
 
+// mpi context for unit tests
+namespace detail {
+extern std::shared_ptr<mpi_context_t<boost::mpi3::communicator>> __unit_test_mpi_context__;
+}
+
+/* Path to unit test files included in the code base */
+inline constexpr std::string unit_test_base() 
+{
+  //std::string pre = std::string(PROJECT_SOURCE_DIR_STR) + "/tests/unit_test_files/";
+  std::string pre = std::string(PROJECT_SOURCE_DIR_STR) + "/utils/tests/functional/";
+  return pre;
+}
+
+inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd) 
+{
+  std::vector< std::tuple<std::string, std::string> > files;
+  auto pre = unit_test_base() + "molecules/";
+  if(nomsd) { 
+    if(rhf) {
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_closed.h5", 
+                                          pre + "BH/afqmc_inputs/afqmc_rhf_nomsd.h5") );
+    } 
+    if(uhf) {
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
+                                          pre + "BH/afqmc_inputs/afqmc_uhf_nomsd.h5") );
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
+                                          pre + "BH/afqmc_inputs/afqmc_uhf_nomsd_init_rhf.h5") );
+    }    
+    if(ghf) {
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_noncollinear.h5",
+                                          pre + "BH/afqmc_inputs/afqmc_ghf_nomsd.h5") );
+    }
+  }
+  if (phmsd) {
+
+  }
+  return files;
+}
+
+
+
+/* Checks if a file exists in the file system */
 inline bool file_exists(const std::string& name)
 {
   std::ifstream f(name.c_str());
   return f.good();
-}
-
-namespace detail {
-extern std::shared_ptr<mpi_context_t<boost::mpi3::communicator>> __unit_test_mpi_context__;
 }
 
 inline std::shared_ptr<mpi_context_t<mpi3::communicator>>& make_unit_test_mpi_context()

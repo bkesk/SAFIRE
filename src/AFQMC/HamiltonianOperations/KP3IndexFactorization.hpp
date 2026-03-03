@@ -181,6 +181,7 @@ public:
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
       v = std::move(nda::to_host(vHS(vMF_2d, dt)));
+      utils::check(v.shape() == std::array<long,4>{nstot,1,npol*NMO,NMO}, "Size mismatch");
     }
 
     //
@@ -191,7 +192,7 @@ public:
         // vHS finite 'q' contributions (full NMO*NMO) 
         for (int I = 0; I < NMO; I++)
           for (int J = 0 ; J < NMO; J++)
-              H1(is,p1*NMO+I,p1*NMO+J) += v(0,is_,p1_*NMO+I,J);
+              H1(is,p1*NMO+I,p1*NMO+J) += v(is_,0,p1_*NMO+I,J);
 
         // hij and vexx only have q=0 contributions  
         for (int p2 = 0; p2 < npol; p2++) {

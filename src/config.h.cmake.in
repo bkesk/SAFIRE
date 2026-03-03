@@ -1,6 +1,9 @@
 #ifndef SFQMC_CONFIGURATION_H
 #define SFQMC_CONFIGURATION_H
 
+/* define location of source directory */
+#define PROJECT_SOURCE_DIR_STR "@PROJECT_SOURCE_DIR@"
+
 /* define the major version */
 #define AF_APP_VERSION_MAJOR  @AF_APP_VERSION_MAJOR@
 

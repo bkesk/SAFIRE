@@ -11,27 +11,24 @@
  *
  */
 
-#ifndef SFQMC_AFQMC_BPWITHTIMEEVOLVEDOPERATORS_HPP
-#define SFQMC_AFQMC_BPWITHTIMEEVOLVEDOPERATORS_HPP
+#pragma once
 
 #include "AFQMC/config.h"
 #include <vector>
-#include <queue>
 #include <string>
 #include <iostream>
 #include <fstream>
 
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
-#include "AFQMC/Utilities/AFQMCTimer.h"
+#include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/check.hpp"
+#include "utilities/mpi_context.h"
+#include "nda/nda.hpp"
+#include "nda/h5.hpp"
 
-#include "AFQMC/Estimators/TimeEvolvedObsHandler.hpp"
-#include "AFQMC/SlaterDeterminantOperations/SlaterDetOperations.hpp"
+//#include "AFQMC/Estimators/TimeEvolvedObsHandler.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 #include "AFQMC/Propagators/Propagator.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
-#include "Numerics/ma_operations.hpp"
-#include "Memory/buffer_managers.h"
 
 namespace sfqmc
 {
@@ -43,18 +40,8 @@ namespace detail
 
 inline int get_number_of_averages(ptree pt)
 {
-  std::string measure_at = pt.get<std::string>("measure_at");
-  std::vector<int> measure_at_blocks = io::str2vec<int>(measure_at);
-  // sort the requested blocks and remove repeated
-  std::sort(measure_at_blocks.begin(), measure_at_blocks.end());
-  {
-    auto last = std::unique(measure_at_blocks.begin(), measure_at_blocks.end());
-    measure_at_blocks.erase(last, measure_at_blocks.end());
-    for(auto v: measure_at_blocks)
-      if(v <= 0)
-        APP_ABORT(" Error: measure_at must be > 0.");
-  }
-  return measure_at_blocks.size();
+  std::vector<int> nback_prop_interval_multipliers = io::get_value_or_vector<int>(pt, "measure_interval_multiplier", {DEFAULT_MEASURE_INTERVAL_MULTIPLIER});
+  return nback_prop_interval_multipliers.size();
 }
 
 }
@@ -63,116 +50,89 @@ inline int get_number_of_averages(ptree pt)
  * Implements back propagation by evolving operators forward in time.
  * Based on 10.1103/PhysRevA.100.023621.
  */
-class BPWithTimeEvolvedOperators : public EstimatorBase
+template<MEMORY_SPACE MEM>
+class BPWithTimeEvolvedOperators : public EstimatorBase<MEM>
 {
-  // allocators
-  using Allocator = device_allocator<ComplexType>;
 
-  // type defs
-  using pointer       = typename std::allocator_traits<Allocator>::pointer;
-  using const_pointer = typename std::allocator_traits<Allocator>::const_pointer;
-
-  using CMatrix_ref    = boost::multi::array_ref<ComplexType, 2, pointer>;
-  using CVector        = boost::multi::array<ComplexType, 1, Allocator>;
-  using CMatrix        = boost::multi::array<ComplexType, 2, Allocator>;
-  using C4Tensor       = boost::multi::array<ComplexType, 4, Allocator>;
-  using stdCVector_ref = boost::multi::array_ref<ComplexType, 1>;
-  using stdCVector     = boost::multi::array<ComplexType, 1>;
-  using stdCMatrix     = boost::multi::array<ComplexType, 2>;
-  using stdCTensor     = boost::multi::array<ComplexType, 3>;
-  using mpi3CVector    = boost::multi::array<ComplexType, 1, shared_allocator<ComplexType>>;
-  using mpi3CMatrix    = boost::multi::array<ComplexType, 2, shared_allocator<ComplexType>>;
-  using mpi3CTensor    = boost::multi::array<ComplexType, 3, shared_allocator<ComplexType>>;
-
-  using stack_alloc_type = DeviceBufferManager::template allocator_t<ComplexType>;
-  using StaticMatrix     = boost::multi::static_array<ComplexType, 2, stack_alloc_type>;
+  using EstimatorBase<MEM>::NMO;
+  using EstimatorBase<MEM>::nup;
+  using EstimatorBase<MEM>::ndown;
 
 public:
-  BPWithTimeEvolvedOperators(afqmc::TaskGroup_& tg_,
+  BPWithTimeEvolvedOperators(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                           AFQMCInfo& info,
                           std::string name,
-                          ptree exec_pt,
-                          ptree est_pt,
+                          ptree pt_in,
                           WALKER_TYPES wlk,
-                          WalkerSet& wset,
-                          Wavefunction& wfn,
-                          Propagator& prop,
+                          WalkerSet<MEM>& wset,
+                          Wavefunction<MEM>& wfn,
+                          Propagator<MEM>& prop,
                           bool impsamp_ = true)
-      : EstimatorBase(info),
-        TG(tg_),
+      : EstimatorBase<MEM>(info),
+        mpi(_mpi),
         walker_type(wlk),
         nspin( (walker_type==COLLINEAR) ? 2 : 1 ),
         npol( (walker_type==NONCOLLINEAR) ? 2 : 1 ),
-        writer(false),
-        observ0(TG, info, name, est_pt, wlk, detail::get_number_of_averages(est_pt), wfn),
-        wfn0(wfn),
-        prop0(prop),
-        iblock(0),
-        block_size(1),
+//        observ0(TG, info, name, pt_in, wlk, detail::get_number_of_averages(pt_in), wfn),
+        prop0(std::addressof(prop)),
+        ncalls(0),
         path_restoration(false),
         importanceSampling(impsamp_),
         extra_path_restoration(false),
         first(true),
-        wgt_factors(iextensions<1u>{wset.size()}, ComplexType(1.0)),
-        // hard-wired for the full MO space. Add choices later
-        X({wset.size(), nspin, npol*NMO, npol*NMO}),
-        Y({wset.size(), nspin, npol*NMO, npol*NMO}),
-        M({wset.size(), nspin, npol*NMO, npol*NMO})
+        wgt_factors(wset.size(), ComplexType(1.0)),
+        X(wset.size(), nspin, npol*info.NMO, npol*info.NMO),
+        Y(wset.size(), nspin, npol*info.NMO, npol*info.NMO),
+        M(wset.size(), nspin, npol*info.NMO, npol*info.NMO)
   {
-    // KE: Current implementation is not consistent with the new driver conventions. Adding a block until we refactor here.
-    APP_ABORT("BPWithTimeEvolvedOperators is not yet implemented. Use BackPropagatedEstimator instead.\n");
-
+    // convert user input to verbose input
+    ptree pt = interpret_inputs(pt_in);
     app_log(1, "\n  --   Back Propagation with Time Evolved Operators -- \n"); 
-    int driver_nstep, driver_nsubstep, driver_nstabilize;
-    driver_nstep = exec_pt.get<int>("steps", 1);
-    driver_nsubstep = exec_pt.get<int>("substeps", 1);
-    driver_nstabilize = exec_pt.get<int>("bp_walker_ortho_interval", 1);
-    if( driver_nstabilize>driver_nstep or driver_nstep%driver_nstabilize != 0)
-      APP_ABORT(" Error: Back Propagation with time evolved operators requires steps >= ortho and steps%ortho==0. ");
 
-    measure_interval = est_pt.get<int>("measure_interval", 1);
+    // initialize using verbose input
+    int equil_multiplier, _population_control_interval;
+    _population_control_interval = pt.get<int>("_population_control_interval"); // only for computing nback_prop_steps!
+    path_restoration = pt.get<bool>("path_restoration");
+    extra_path_restoration = pt.get<bool>("extra_path_restoration");
+    equil_multiplier  = pt.get<int>("equil_multiplier"); // units of population control interval
+    std::vector<int> nback_prop_interval_multipliers = io::get_value_or_vector<int>(pt, "measure_interval_multiplier", {DEFAULT_MEASURE_INTERVAL_MULTIPLIER}); // units of population control interval
+    naverages = nback_prop_interval_multipliers.size();
 
-    // to trigger default value
-    path_restoration  = est_pt.get<bool>("path_restoration", false);
-    extra_path_restoration = est_pt.get<bool>("extra_path_restoration", false);
-    block_size = est_pt.get<int>("block_size", 1);
-    nblocks_equil = est_pt.get<int>("equil", 0);
-    nblock_between_bp_starts = est_pt.get<int>("period", -1);
-    if (extra_path_restoration)
+    // allocate memory
+    nback_prop_steps.reserve(naverages);
+    for (int i = 0; i < naverages; i++){
+      if (nback_prop_interval_multipliers[i] <= 0)
+      utils::check(nback_prop_interval_multipliers[i]>0,
+                   "BPWithTimeEvolvedOperators: measure_interval_multiplier values must be positive.");
+      nback_prop_steps.push_back(nback_prop_interval_multipliers[i] * _population_control_interval);
+      app_log(2, "BPWithTimeEvolvedOperators: nback_prop_steps[{}] = {} ( = measure_interval_multiplier[{}] * population_control_interval) \n", i, nback_prop_steps[i], i);
+    }
+    max_nback_prop = *std::max_element(nback_prop_steps.begin(), nback_prop_steps.end());
+
+    utils::check((equil_multiplier * _population_control_interval) % max_nback_prop == 0,
+                 "Error in BPWithTimeEvolvedOperators user input: 'equil_multiplier' must be evenly divisible by the maximum value in 'measure_interval_multiplier'");
+    nblocks_equil = (equil_multiplier *_population_control_interval )/ max_nback_prop; // Note: nback_prop is in steps, so we have to convert equil_multiplier to steps by multiplying by _population_control_interval
+    _measure_interval_for_handler = max_nback_prop;
+
+    average_has_run.reserve(naverages);
+    average_has_run.assign(naverages, false);
+
+    // sort the requested number of steps
+    std::sort(nback_prop_steps.begin(), nback_prop_steps.end());
+
+    int ncv(prop0->number_of_cholesky_vectors());
+    wset.resize_bp(max_nback_prop, ncv, 1);
+    wset.setBPPos(0);
+    // set SMN in case BP begins right away
+    if (nblocks_equil == 0)
+      reset(wset);
+
+    if(extra_path_restoration)
     {
-      APP_ABORT("  Error: extra_path_restoration not yet working.");
+      utils::check(false,"  Error: extra_path_restoration not yet working.");
       path_restoration       = true;
       extra_path_restoration = true;
     }
-    std::string measure_at = est_pt.get<std::string>("measure_at");
-    measure_at_blocks = io::str2vec<int>(measure_at);
-    // sort the requested blocks and remove repeated
-    std::sort(measure_at_blocks.begin(), measure_at_blocks.end());
-    {
-      auto last = std::unique(measure_at_blocks.begin(), measure_at_blocks.end());
-      measure_at_blocks.erase(last, measure_at_blocks.end());
-      for(auto v: measure_at_blocks) 
-        if(v <= 0)
-          APP_ABORT(" Error: measure_at must be > 0.");
-    }
-
-// MAM: later on, enable measure_at to be zero, which will lead to the Mixed Distribution!
-
-    if (measure_at_blocks.size() == 0)
-      APP_ABORT("Error:  Empty measure_at.");
-
-    nblocks_equil = std::max(0,nblocks_equil);
-    if(nblock_between_bp_starts < 0)
-      nblock_between_bp_starts = measure_at_blocks.back();
-
-    // make sure nblocks_between is larger or equal than measure_at_blocks.back()
-    if(nblock_between_bp_starts < measure_at_blocks.back())
-    {
-      app_warning(" BPWithTimeEvolvedOperators: period should be larger or equal than");
-      app_warning("          the largest number of blocks in measure_at.");
-      app_warning("          Re-setting period to: {}", measure_at_blocks.back());
-      nblock_between_bp_starts = measure_at_blocks.back();
-    } 
 
     if(extra_path_restoration)
       app_log(1," Using path restoration with modification to include extra time segment. "); 
@@ -180,79 +140,128 @@ public:
       app_log(1," Using path restoration. "); 
     else
       app_log(1," Path restoration is not used "); 
-    app_log(1," Number of equilibration blocks: {}", nblocks_equil);
-    app_log(1," Number of blocks between the start of BP: {}", nblock_between_bp_starts);
-    app_log(1," Number of blocks in local averaging: {}", block_size);
-    app_log(1," Number of time measurements: {}", measure_at_blocks.size());
-    app_log(1," Measuring at blocks (relative to each BP start): ");
-    for(auto v: measure_at_blocks) 
-      app_log(1, "{} ", v);
-
-    // number of time propagations per block in current driver
-    steps_per_block = driver_nstep*driver_nsubstep; 
-
-// MAM: Note
-// I don't need SMAux in this formulation of BP. Add a flag to prevent allocating it!
-    int ncv(prop0.global_number_of_cholesky_vectors());
-    wset.resize_bp(steps_per_block, ncv, 1);
-    wset.setBPPos(0);
-    if (nblocks_equil == 0) 
-      reset(wset);
-
-    if (TG.getNCoresPerTG() > 1)
-      APP_ABORT("ncores > 1 is broken with back propagation. Fix this.");
-    writer = (TG.Global().rank() == 0);
-    app_log(1, "\n");
+//    app_log(1," Number of equilibration blocks: {}", nblocks_equil);
+//    app_log(1," Number of blocks between the start of BP: {}", nblock_between_bp_starts);
+    app_log(1," Number of time measurements: {}", nback_prop_steps.size());
+    app_log(1," Measuring at steps (relative to each BP start in units of population control interval): {}",nback_prop_steps);
   }
 
   ~BPWithTimeEvolvedOperators() {}
 
+  static ptree interpret_inputs(const ptree pt0)
+  {
+    // read inputs with default options
+    bool path_restoration, extra_path_restoration;
+    int ortho, equil_multiplier, _population_control_interval;
+    std::vector<int> nback_prop_interval_multipliers;
+    path_restoration       = pt0.get<bool>("path_restoration", false);
+    extra_path_restoration = pt0.get<bool>("extra_path_restoration", false);
+    ortho         = pt0.get<int>("bp_walker_ortho_interval", 1);
+    equil_multiplier = pt0.get<int>("equil_multiplier", 0);
+    int nrefs = pt0.get<int>("number_of_references", -1);
+     _population_control_interval = pt0.get<int>("_population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL); // only for computing nback_prop_steps!
+
+    // Use utility function to read either a single integer or vector of integers
+    nback_prop_interval_multipliers = io::get_value_or_vector<int>(pt0, "measure_interval_multiplier", 1);
+
+    // check if empty vector was returned
+    if (nback_prop_interval_multipliers.empty())
+      nback_prop_interval_multipliers.push_back(DEFAULT_MEASURE_INTERVAL_MULTIPLIER);
+
+    // validate inputs
+    if (std::any_of(nback_prop_interval_multipliers.begin(), nback_prop_interval_multipliers.end(), [](int x) { return x <= 0; }))
+      APP_ABORT("BPWithTimeEvolvedOperators: measure_interval_multiplier values must be positive.");
+    // create verbose internal inputs
+    ptree pt1;
+    pt1.put("path_restoration", path_restoration);
+    pt1.put("extra_path_restoration", extra_path_restoration);
+    pt1.put("bp_walker_ortho_interval", ortho);
+    pt1.put("equil_multiplier", equil_multiplier);
+    pt1.put("_population_control_interval", _population_control_interval);
+    pt1.put("number_of_references", nrefs);
+    ptree temp_tree;
+    for (const auto& value : nback_prop_interval_multipliers) {
+        ptree item;
+        item.put("", value); // empty key for the value
+        temp_tree.push_back(std::make_pair("", item));
+    }
+    pt1.add_child("measure_interval_multiplier", temp_tree);
+
+    // check for unkown input keys
+    std::unordered_set<std::string> pass_through_keys = {
+      "name",
+      "onerdm",
+      "gfock",
+      "genfock",
+      "ekt",
+      "diag2rdm",
+      "twordm",
+      "n2r",
+      "ontop2rdm",
+      "realspace_correlators",
+      "correlators",
+      "pair_correlators",
+      "spinspin"
+    };
+    io::compare_known_keys("Back propagated estimator",pt1, pt0, pass_through_keys);
+    return pt1;
+  }
+
   void accumulate_step([[maybe_unused]] double time,
-                       [[maybe_unused]] WalkerSet& wset,
+                       [[maybe_unused]] WalkerSet<MEM>& wset,
                        [[maybe_unused]] std::vector<ComplexType>& curData) {}
 
-  void accumulate_block([[maybe_unused]] double time, WalkerSet& wset)
+  void accumulate_block([[maybe_unused]] double time, WalkerSet<MEM>& wset)
   {
     // always set to false
     accumulated_in_last_block = false;
+    int bp_step               = wset.getBPPos();
+    int nwalk = wset.size();
+    int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
+    int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
+    int nspin = (walker_type == COLLINEAR ? 2 : 1);
+    utils::check(bp_step>0," Error: Found bp_step <=0 in ~BPWithTimeEvolvedOperators::accumulate_block. ");
+    utils::check(bp_step<=max_nback_prop, " Error: max_nback_prop in back propagation estimator must be commensurate with measure_interval.");
+    utils::check(max_nback_prop <= wset.NumBackProp()," Error: max_nback_prop > wset.NumBackProp() ");
 
-    // return if within equilibration time
-    if(iblock < nblocks_equil) {
-      iblock++;
-      return;  
-    }   
-
-    // check if this is the start of BP
-    if( iblock == nblocks_equil ) {
-      // start of BP
-      // start bp in WalkerSet and store SM
-      iblock++;
-      reset(wset);
+    // check if measurement is needed
+    int iav(-1);
+    if( auto it = std::find(nback_prop_steps.begin(), nback_prop_steps.end(), bp_step);
+        it != nback_prop_steps.end() ) {
+      iav = *it;
+      utils::check(iav==0 || average_has_run[iav-1],
+          "Error: missed a measurement in BPWithTimeEvolvedOperators::accumulate_block.\n"
+          "Use a number of steps in the back propagation estimator that is divisible\n"
+          "by the measurement_interval defined in the execute block.");
+    } else {
       return;
     }
 
-    // counter within BP block  
-    int bp_blk = (iblock - nblocks_equil)%nblock_between_bp_starts;
-    if( bp_blk == 0 ) bp_blk = nblock_between_bp_starts;
+    // 0. skip if requested
+    if(ncalls < nblocks_equil) {
+      average_has_run[iav] = true; // during equil, "running" means do nothing
+      if (bp_step == max_nback_prop)
+      {
+        ncalls++;
+        wset.setBPPos(0);
+      }
+      if( ncalls == nblocks_equil ) reset(wset);
+      return;  
+    }   
 
-    // check if we are in "dead" period between last BP measurement and BP restart
-    if( bp_blk > measure_at_blocks.back() ) {
-      iblock++;
-      if( bp_blk == nblock_between_bp_starts ) 
-        reset(wset);
-      return;
-    } 
+    // no time between measurement blocks for now 
+    // skip is bp_step > max_nback_prop and 
 
     // We are within the BP measurement phase
     // 1. Propagate X, Y matrices forward and accumulate M 
-    prop0.PropagateOperators(steps_per_block, wset, X, Y, M);
+//    prop0->PropagateOperators(steps_per_block, wset, X, Y, M);
 
     // 2. accumulate weights if using path restoration
-    RUNTIME_CHECK(wgt_factors.size(0) == wset.size(), "");
+    utils::check(wgt_factors.extent(0) == wset.extent(), "Size mismatch");
     if (path_restoration)
     {
-      auto&& factors = *wset.getWeightFactors();
-      int hpos(wset.getHistoryPos()); // position where next step goes... go back for history...
+      auto factors = nda::to_host(wset.getWeightFactors());
+      int hpos(wset.getHistoryPos()); // position where next step goes... go bach in history...
       int maxpos(wset.HistoryBufferLength());
       int nbp(steps_per_block);
       for (int k = 0; k < nbp; k++)
@@ -271,6 +280,7 @@ public:
         wgt_factors[i] *= phase[i];
     }
 
+/*
     // 3. Calculate observables if needed
     for(int iav=0; iav<measure_at_blocks.size(); iav++) {
       if(bp_blk == measure_at_blocks[iav]) { 
@@ -286,20 +296,18 @@ public:
         ma::complex_conjugate(Y.flatted());
       }
     }
+*/
 
-    if( bp_blk == nblock_between_bp_starts ) {
+    if (bp_step == max_nback_prop) {
       // last measurement on this block, full reset 
       reset(wset);
       accumulated_in_last_block = true;
+      // increase counter
+      ncalls++;
     } else {
-      // reset wset BP pos if we need to collect fields
-      if(bp_blk < measure_at_blocks.back())
-        wset.setBPPos(0);
+      // reset wset BP pos 
+      wset.setBPPos(0);
     }
-
-    // increase counter
-    iblock++;
-
   }
 
   void tags([[maybe_unused]] std::ofstream& out)
@@ -308,75 +316,69 @@ public:
 
   int get_measurement_interval()
   {
-    app_log(1, "Warning: BPWithTimeEvolvedOperators is hard_coded to use measurement_interval == 1.\n");
-    return measure_interval;
+    // this is forced to be commensurate with population control interval; see constructor.
+    return _measure_interval_for_handler;
   }
 
-  void print([[maybe_unused]] std::ofstream& out, hdf_archive& dump, [[maybe_unused]] WalkerSet& wset)
+  void print([[maybe_unused]] std::ofstream& out, h5::file& file, [[maybe_unused]] WalkerSet<MEM>& wset)
   {
     if (accumulated_in_last_block)
     {
-      if (writer && first)
+      if (mpi->comm.root())
       {
-        first = false;
-        if (write_metadata)
-        {
-          dump.push("Observables");
-          dump.push("BackPropagated");
-          dump.push("Metadata");
-          std::vector<double> times;
-          for(auto v:measure_at_blocks)
-            times.push_back(v*steps_per_block);
-          dump.write(measure_at_blocks, "BackPropTimes");
-          int sz = measure_at_blocks.size();
-          dump.write(sz, "NumAverages");
-          int one(1);
-          dump.write(one, "NumReferences");
-          dump.pop();
-          dump.pop();
-          dump.pop();
-          write_metadata = false;
+        h5::group grp(file);
+        h5::group g1 = ( grp.has_key("Observables") ? grp.open_group("Observables") :
+                                                      grp.create_group("Observables") );
+        h5::group g2 = ( g1.has_key("BackPropagated") ? g1.open_group("BackPropagated") :
+                                                g1.create_group("BackPropagated") );
+        if(first) {
+          first = false;
+          if (write_metadata)
+          {
+            h5::group g3 = g2.create_group("Metadata"); // can this already exist???
+            h5::h5_write(g3,"BackPropSteps",nback_prop_steps);
+            h5::h5_write(g3, "NumAverages", nback_prop_steps.size());
+            h5::h5_write(g3, "NumReferences", int(1));
+            write_metadata = false;
+          }
         }
-      }
-      if (writer)
-      {
-        dump.push("Observables");
-        dump.push("BackPropagated");
-      }
-      observ0.print(iblock, dump);
-      if (writer)
-      {
-        dump.pop();
-        dump.pop();
+//        observ0.print(ncalls, &g2);
+      } else {
+        h5::group *g = nullptr;
+//        observ0.print(ncalls, g);
       }
     }
   }
 
 private:
-  TaskGroup_& TG;
+  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
   WALKER_TYPES walker_type = UNDEFINED_WALKER_TYPE;
 
   int nspin;
   int npol;
-  bool writer = false;
   int accumulated_in_last_block = 0;
 
-  TimeEvolvedObsHandler observ0;
+//  TimeEvolvedObsHandler<MEM> observ0;
 
-  [[maybe_unused]] Wavefunction& wfn0;
+  Propagator<MEM>* prop0;
 
-  Propagator& prop0;
+  int max_nback_prop = 0;
+  std::vector<int> nback_prop_steps;
 
-  std::vector<int> measure_at_blocks;
+  // this is for the EstimatorHandler
+  int _measure_interval_for_handler = 1;
 
-  int steps_per_block = 1;
-  int iblock        = 0;
+  int ncalls        = 0;
   int nblocks_equil = 0;
-  int nblock_between_bp_starts = 0;
 
-  // Block size over which RDM will be averaged.
-  int block_size = 1;
+  // number of intervals to divide max_nback_prop into
+  //   BP will be peformed using each of these intervals for
+  //   'm' starting from the same 'n'
+  int naverages = 1;
+  // stores True if an 'average' has already been run since the last BP reset
+  std::vector<bool> average_has_run;
+
   // Whether to restore cosine projection and real local energy apprximation for weights
   // along back propagation path.
   bool path_restoration = true;
@@ -387,40 +389,34 @@ private:
 
   bool write_metadata = true;
 
-  int measure_interval = 1;
-
-  stdCVector wgt_factors;
+  nda::vector<ComplexType> wgt_factors;
 
 // if memory is a problem, you can keep these in host memory
-// and use buffer space in Propagator for calculations 
+// and use buffer space for calculations 
   // State matrices for the evolved operators. X->c^+, Y->c
-  C4Tensor X;
-  C4Tensor Y;
+  memory::array<MEM,ComplexType,4> X;  
+  memory::array<MEM,ComplexType,4> Y;  
   // Accumulates the scalar terms coming from the stabilization procedure
-  C4Tensor M;  
+  memory::array<MEM,ComplexType,4> M;  
 
   template<class WlkSet>
   void reset(WlkSet& wset)
   {
     wset.setBPPos(0);
-// this BP scheme does not need SMs at earlier times
-//    for (auto it = wset.begin(); it < wset.end(); ++it)
-//      it->setSlaterMatrixN();
 
-    ma::fill(wgt_factors, ComplexType(1.0));
+    wgt_factors() = ComplexType(1.0);
     //if(extra_path_restoration) {
      //accumulate phase and cosine factors from previous history 
     //}   
 
     // initialize X, Y, M
     // hard-wired for the native basis set. Add choices later...
-    ma::fill(M.flatted().flatted(), ComplexType(0.0));
-    ma::set_identity(X.flatted());
-    ma::set_identity(Y.flatted());
+    M() = ComplexType(0.0);
+    math::set_identity(X);
+    math::set_identity(Y);
   }
 
 };
 } // namespace afqmc
 } // namespace sfqmc
 
-#endif

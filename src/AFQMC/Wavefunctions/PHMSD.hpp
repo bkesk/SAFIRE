@@ -76,7 +76,7 @@ public:
         abij(std::move(abij_)),
         OpSpinDetCouplings(std::move(op_spin_det_coupling_)),
         OrbMats(std::move(orbs_)),
-        number_of_references(-1),
+        RefOrbMats(memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{0,0,0})),
         NuclearCoulombEnergy(nce) 
 //        maxnactive(std::max(OrbMats[0].size(0), OrbMats[1].size(0))),
 //        max_exct_n(std::max(abij.maximum_excitation_number()[0], abij.maximum_excitation_number()[1]))
@@ -105,7 +105,6 @@ public:
     ptree pt = interpret_inputs(pt_in);
     app_log(2,"\nPHMSD input:\n{}\n",io::to_string(pt));
     // initialize using verbose input
-    number_of_references = pt.get<int>("number_of_references");
 
     // optional
     if( auto val = pt.get_optional<int>("algorithm") ) {
@@ -139,10 +138,8 @@ public:
   static ptree interpret_inputs(const ptree pt0)
   {
     // read inputs with default options
-    int number_of_references = pt0.get<int>("number_of_references", -1);
     // create verbose internal inputs
     ptree pt1;
-    pt1.put("number_of_references", number_of_references);
     // leave as a true optional, to bypass issue with default value
     if( auto val = pt0.get_optional<int>("algorithm") )
       pt1.put("algorithm", *val);
@@ -358,85 +355,64 @@ public:
         Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
 */
 
-  /*
-   * Returns the number of reference Slater Matrices needed for back propagation.  
-   */
-  int number_of_references_for_back_propagation() const
-  {
-    if (number_of_references > 0)
-      return number_of_references;
-    else
-      return abij.number_of_configurations();
-  }
+  ComplexType getReferenceWeight(int i) const { return std::get<2>(*abij.configuration(i)); }
 
-  ComplexType getReferenceWeight(int i) const { return 0.0; } //std::get<2>(*abij.configuration(i)); }
+  int total_number_of_references() const { return abij.number_of_configurations(); } 
 
   /*
    * Returns the reference Slater Matrices needed for back propagation.  
    */
-  auto getReferences() const
+  void getReferences(int number_of_references, nda::MemoryArrayOfRank<3> auto&& Refs) 
   {
-    utils::check(false,"finish");
-    return  OrbMats; // This is wrong!!!
-/*
-    static_assert(std::decay<Mat>::type::dimensionality == 2, "Wrong dimensionality");
-    int ndet = number_of_references_for_back_propagation();
-    RUNTIME_CHECK(A.size(0) == ndet, "");
-    if (RefOrbMats.size(0) == 0)
+    using nda::range;
+    auto all = range::all;
+    int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
+    int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
+    int nspin = (walker_type == COLLINEAR ? 2 : 1);
+    if(number_of_references==0) return;
+    if(number_of_references < 0) number_of_references = total_number_of_references(); 
+    utils::check(number_of_references > 0 and
+                 number_of_references < OrbMats.extent(0) and
+                 number_of_references < Refs.extent(0),
+                 "Invalid number_of_references:{}", number_of_references);
+    utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
+    if (RefOrbMats.extent(0) < number_of_references)
     {
-      TG.Node().barrier(); // for safety
-      int nrow(NMO * ((walker_type == NONCOLLINEAR) ? 2 : 1));
-      int ncol(nup + ndown); //careful here, spins are stored contiguously
-      RefOrbMats = mpi3CMatrix({ndet, nrow * ncol}, RefOrbMats.get_allocator());
-      TG.Node().barrier(); // for safety
-      if (TG.Node().root())
+      mpi->node_comm.barrier(); // for safety
+      RefOrbMats = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{number_of_references,npol*NMO,nel}); 
+      if (mpi->node_comm.root())
       {
-        boost::multi::array<ComplexType, 2> OA_({OrbMats[0].size(1), OrbMats[0].size(0)});
-        boost::multi::array<ComplexType, 2> OB_({0, 0});
-        if (OrbMats.size() > 1)
-          OB_.reextent({OrbMats[1].size(1), OrbMats[1].size(0)});
-        ma::Matrix2MAREF('H', OrbMats[0], OA_);
-        if (OrbMats.size() > 1)
-          ma::Matrix2MAREF('H', OrbMats[1], OB_);
-        std::vector<int> Ac(nup);
-        std::vector<int> Bc(ndown);
-        for (int i_det = 0; i_det < ndet; ++i_det)
         {
-          auto c=abij.configuration(i_det);
-          abij.get_configuration(0, std::get<0>(*c), Ac);
-          abij.get_configuration(1, std::get<1>(*c), Bc);
-          boost::multi::array_ref<ComplexType, 2> A_(raw_pointer_cast(RefOrbMats[i_det].origin()), {NMO, nup});
-          boost::multi::array_ref<ComplexType, 2> B_(A_.origin() + A_.num_elements(), {NMO, ndown});
-          for (int i = 0, ia = 0; i < NMO; ++i)
-            for (int a = 0; a < nup; ++a, ia++)
-              A_[i][a] = OA_[i][Ac[a]];
-          if (OrbMats.size() > 1)
+          auto psi = math::sparse::to_array<'N'>(OrbMats(0));
+          nda::vector<int> Ac(nup);
+          for (int i_det = 0; i_det < number_of_references; ++i_det)
           {
-            for (int i = 0, ia = 0; i < NMO; ++i)
-              for (int a = 0; a < ndown; ++a, ia++)
-                B_[i][a] = OB_[i][Bc[a]];
+            auto c=abij.configuration(i_det);
+            abij.get_configuration(0, std::get<0>(*c), Ac);
+            for (int a = 0; a < nup; ++a)
+              RefOrbMats()(i_det,all,a) = nda::conj(psi(Ac(a),all));
           }
-          else if(walker_type == COLLINEAR)
-          {
-            for (int i = 0, ia = 0; i < NMO; ++i)
-              for (int a = 0; a < ndown; ++a, ia++)
-                B_[i][a] = OA_[i][Bc[a]];
+        }
+        if(walker_type == COLLINEAR) 
+        {
+          auto psi = math::sparse::to_array<'N'>(OrbMats(1));
+          nda::vector<int> Ac(ndown); 
+          for (int i_det = 0; i_det < number_of_references; ++i_det)
+          { 
+            auto c=abij.configuration(i_det);
+            abij.get_configuration(1, std::get<0>(*c), Ac);
+            for (int a = 0; a < ndown; ++a)
+              RefOrbMats()(i_det,all,nup+a) = nda::conj(psi(Ac(a),all));
           }
         }
       }                    // TG.Node().root()
-      TG.Node().barrier(); // for safety
     }
-    RUNTIME_CHECK(RefOrbMats.size(0) == ndet, "");
-    RUNTIME_CHECK(RefOrbMats.size(1) == A.size(1), "");
-    auto&& RefOrbMats_=boost::multi::static_array_cast<ComplexType, ComplexType*>(RefOrbMats);
-    auto&& A_=boost::multi::static_array_cast<ComplexType, Ptr>(A);
-    using std::copy_n;
-    int n0, n1;
-    std::tie(n0, n1) = FairDivideBoundary(TG.getLocalTGRank(), int(A.size(1)), TG.getNCoresPerTG());
-    for (int i = 0; i < ndet; i++)
-      copy_n(RefOrbMats_[i].origin() + n0, n1 - n0, A_[i].origin() + n0);
-    TG.TG_local().barrier();
-*/
+    mpi->node_comm.barrier();
+    utils::check(RefOrbMats.extent(0) >= number_of_references and
+                 RefOrbMats.extent(1) == npol*NMO and RefOrbMats.extent(2) == nel,
+                 "Problems with RefOrbMats");
+    // this is slow and uses too much memory. Improve!!!
+    Refs() = RefOrbMats()(range(number_of_references),all,all);
   }
 
 protected:
@@ -460,7 +436,9 @@ protected:
   nda::array<PsiT_Matrix<MEM>,1> OpSpinDetCouplings;
 
   nda::array<PsiT_Matrix<MEM>,1> OrbMats;
-  int number_of_references;
+
+  // store references for back propagation
+  memory::shared_array<HOST_MEMORY,ComplexType,3> RefOrbMats;
 
   ComplexType NuclearCoulombEnergy;
 
