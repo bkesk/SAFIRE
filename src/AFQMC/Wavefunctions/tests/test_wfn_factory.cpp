@@ -186,12 +186,13 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
 
   if (wfn.getHamType() == ModelHamiltonian) // only sparseP2 is used - denseP2 is hardcoded to never run!
   {
-    utils::check(false,"finish");
-/*
-    Time.reset();
-    auto [vHS_up, vHS_down] = wfn.vHS_sparse(X, dt); // vHS_sparse lives inside the ModelHamOps class
-        TG.TG_local().barrier();
-        
+
+    auto vHS = wfn.vHS_sparse(X, dt); 
+    utils::check(vHS.extent(0) == nspin, "Size mismatch");
+    utils::check((vHS(0).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}) and
+                 (vHS(nspin-1).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}),
+                 "Size mismatch");        
+    /*
         // Convert sparse matrices to dense CMatrix objects for easier manipulation
         CMatrix vHS_up_dense({vHS_up->size(0), vHS_up->size(1)}, alloc_);
         CMatrix vHS_down_dense({vHS_down->size(0), vHS_down->size(1)}, alloc_);
