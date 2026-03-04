@@ -158,5 +158,4 @@ HF calculations, and afqmctools to generate Hamiltonians and write trial wavefun
 5. `Multi-Slater determinant trial wavefunction <https://colab.research.google.com/drive/1yTDk1u8Ww-c1t6kUKhBkEAKUIsnmGm3e>`_ `🧑‍💻 ready for edits 🧑‍💻`
 6. `Hubbard on a Honeycomb lattice <https://colab.research.google.com/drive/1g9_84kc92vAyDfKHTjDiuWHXeJsp12vZ>`_  `🛠️ Under construction 🛠️`
 7. `Hubbard with t-prime <https://colab.research.google.com/drive/1eR1RNS-BiMToOswQ4OyJWeijcpW21a4J>`_ `🛠️ Under construction 🛠️`
-8. `Emery Model <https://colab.research.google.com/drive/1s3nON1d7OvS7sOJBSPZZhBGj8fWm_Vsh>`_ `🛠️ Under construction 🛠️`
-
+8. `Emery Model <https://colab.research.google.com/drive/1-zKd4kHd6Pu8WrDFbQzv3MqeyC4tiiQz>`_ `🛠️ Under construction 🛠️`

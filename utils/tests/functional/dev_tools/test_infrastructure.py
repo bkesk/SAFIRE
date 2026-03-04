@@ -367,7 +367,8 @@ def generate_param_list(
         hamil_type_dictionary: dict,
         wavefunction_type_dictionary: dict,
         walker_type_list: List[AFQMCWalker],
-        ref_data_dir: Path
+        ref_data_dir: Path,
+        extra_input_set: Optional[List[AFQMCInputSet]] = None
 ) -> List[AFQMCInputSet]:
     """
     Generate the full list of test case combinations.
@@ -385,6 +386,8 @@ def generate_param_list(
         List of walker configurations to test
     ref_data_dir : Path
         Root directory containing reference data
+    extra_input_set : List[AFQMCInputSet], optional
+        Additional specific test cases to include beyond the combinatorial generation
         
     Returns
     -------
@@ -425,6 +428,8 @@ def generate_param_list(
                         runparams=runparams
                     )
                 )
+    if extra_input_set is not None:
+        params.extend(extra_input_set)
     return params
 
 
