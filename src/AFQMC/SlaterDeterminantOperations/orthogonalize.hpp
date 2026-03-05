@@ -170,6 +170,31 @@ void orthogonalize(A_t && A, B_t && log_detR)
 
 
 // Finite temperature w/QR
+ /**
+   * @brief Performs batched finite temperature stabilization procedure for product of propagator matrices
+   * @details Given the arrays \f$ \mathbf{U}\f$, \f$ \mathbf{D}\f$ and \f$ \mathbf{V}\f$ representing the product
+   * of progator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
+   * function stabilizes the matrices by first computing the pivoted-QR decomposition of 
+   * \f$\mathbf{U}\mathbf{D} = \mathbf{Q}\mathbf{R}\mathbf{P}^{\mathsf T}\f$.
+   *
+   * Following the QR decomposition, the norm of each row of \f$ \mathbf{R} \f$ is computed and assigned to a vector, \f$ \mathbf{N}_i = \textrm{norm}(\mathbf{R}_i) \f$.
+   * The stabilized matrices are then computed according to:
+   * \f[
+      \begin{align}
+        \mathbf{U} & = \mathbf{Q}\mathbf{P}_s^{\mathsf T}\\
+        \mathbf{D} & = \mathbf{P}_s\mathbf{N}\mathbf{P}_s^{\mathsf T}*\exp(-\xi) \\
+        \mathbf{V} & = \left(\mathbf{P}_s\frac{1}{\mathbf{N}}\mathbf{R}\mathbf{P}^{\mathsf T}\right)\mathbf{V}\\
+      \end{align}
+    \f]
+   * where the matrix \f$ \mathbf{P}_s \f$ is the permutation matrix that sorts the vector \f$ \mathbf{N} \f$ into
+   * descending order, and \f$ \xi = 0.5 * \left[\log(\textrm{max}(\mathbf{N})) +\log(\textrm{min}(\mathbf{N}))\right] \f$.
+   * 
+   * The new scale factor, scl = scl \f$ + \xi \f$
+   * @param U Input/Output. Array of propagator matrices.
+   * @param D Input/Output. Matrix of propagator eigen/singular values.
+   * @param V Input/Output. Array of propagator matrices.
+   * @param scl Input/Output. Vector of scale factors for eigen/singular values for each walker in the batch.
+   */
 template<nda::MemoryArrayOfRank<3> U_t, nda::MemoryArrayOfRank<2> D_t,
          nda::MemoryArrayOfRank<3> V_t, nda::MemoryVector B_t>
 requires( nda::mem::have_compatible_addr_space<U_t,D_t,V_t,B_t> and
@@ -201,11 +226,9 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
     auto Vh = nda::to_host(V);
     auto sclh = nda::to_host(scl);
 
-
-    // FIX : maybe wrap up in function/kernel for future GPU implementation?
     for(int b = 0; b < Nw; ++b)
     {
-      jpvt() = 0;
+      jpvt() = 0; // NOTE : if jpvt != 0, columns are pre-permuted by geqp3
       for(int col = 0; col < M; ++col)
         UT(nda::range::all,col) = Dh(b,col) * Uh(b,nda::range::all,col);
 
@@ -222,12 +245,11 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
         memory::buffered_array<HOST_MEMORY,int,1> P1(M);
       
         for(int i = 0; i < M; ++i){ 
-          // D(i) = norm(R(i,:))
           P1(jpvt(i)) = i;
+          // D(i) = norm(R(i,:))
           Dh(b,i) = nda::norm(VT(i,nda::range(i,M)));
         }
 
-        // FIX : any better way to do this permutation?
         for(int i = 0; i < M; ++i)
           for(int j = 0; j < M; ++j)
             M0(i,j) = VT(i,P1(j))/Dh(b,i);
@@ -235,7 +257,6 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
         P1(nda::range::all) = nda::arange(M);
         detail::quick_sort(Dh(b,nda::range::all),P1);
 
-        // FIX : any better way to do these permutations?
         for(int i = 0; i < M; ++i){
           for(int j = 0; j < M; ++j){
             Uh(b,i,j) = UT(i,P1(j));
@@ -249,8 +270,8 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
       nda::blas::scal(std::exp(-scl_new),Dh(b,nda::range::all));
       sclh(b) += scl_new; 
 
-      nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),Vh(b,nda::ellipsis{})
-                      ,ComplexType(0.0),Vh(b,nda::ellipsis{}));
+      nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),Vh(b,nda::ellipsis{}),
+                      ComplexType(0.0),Vh(b,nda::ellipsis{}));
 
 
     }
@@ -263,10 +284,9 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
   }
   else{
 
-    // FIX : maybe wrap up in function?
     for(int b = 0; b < Nw; ++b)
     {
-      jpvt() = 0;
+      jpvt() = 0;  // NOTE : if jpvt != 0, columns are pre-permuted by geqp3
       for(int col = 0; col < M; ++col)
         UT(nda::range::all,col) = D(b,col) * U(b,nda::range::all,col);
 
@@ -283,12 +303,11 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
         memory::buffered_array<MEM,int,1> P1(M);
       
         for(int i = 0; i < M; ++i){ 
-          // D(i) = norm(R(i,:))
           P1(jpvt(i)) = i;
+          // D(i) = norm(R(i,:))
           D(b,i) = nda::norm(VT(i,nda::range(i,M)));
         }
 
-        // FIX : any better way to do this permutation?
         for(int i = 0; i < M; ++i)
           for(int j = 0; j < M; ++j)
             M0(i,j) = VT(i,P1(j))/D(b,i);
@@ -296,7 +315,6 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
         P1(nda::range::all) = nda::arange(M);
         detail::quick_sort(D(b,nda::range::all),P1);
 
-        // FIX : any better way to do these permutations?
         for(int i = 0; i < M; ++i){
           for(int j = 0; j < M; ++j){
             U(b,i,j) = UT(i,P1(j));
@@ -310,8 +328,8 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
       nda::blas::scal(std::exp(-scl_new),D(b,nda::range::all));
       scl(b) += scl_new; 
 
-      nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),V(b,nda::ellipsis{})
-                      ,ComplexType(0.0),V(b,nda::ellipsis{}));
+      nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),V(b,nda::ellipsis{}),
+                      ComplexType(0.0),V(b,nda::ellipsis{}));
 
     }
   }
@@ -320,6 +338,27 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
 
 // FIX: there is only a CPU version at the moment
 // Finite temperature w/SVD
+ /**
+   * @brief Performs batched finite temperature stabilization procedure for product of propagator matrices
+   * @details Given the arrays \f$ \mathbf{U}\f$, \f$ \mathbf{D}\f$ and \f$ \mathbf{V}\f$ representing the product
+   * of progator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
+   * function stabilizes the matrices using the SVD decomposition of 
+   * \f$\mathbf{U}\mathbf{D} = \tilde{\mathbf{U}}\tilde{\mathbf{D}}\tilde{\mathbf{V}}^\dagger\f$.
+   *
+   * The stabilized matrices are then:
+   * \f[
+      \begin{align}
+        \mathbf{U} & = \tilde{\mathbf{U}}\\
+        \mathbf{D} & = \tilde{\mathbf{D}}*\exp(-\xi) \\
+        \mathbf{V} & = \tilde{\mathbf{V}}^\dagger\mathbf{V}\\
+      \end{align}
+    \f]
+   * where \f$ \xi = 0.5 * \left[\log(\textrm{max}(\tilde{\mathbf{D}})) +\log(\textrm{min}(\tilde{\mathbf{D}}))\right] \f$.
+   * @param U Input/Output. Array of propagator matrices.
+   * @param D Input/Output. Matrix of propagator eigen/singular values.
+   * @param V Input/Output. Array of propagator matrices.
+   * @param scl Input/Output. Vector of scale factors for eigen/singular values for each walker in the batch.
+   */
 template<nda::MemoryArrayOfRank<3> U_t, nda::MemoryArrayOfRank<2> D_t,
          nda::MemoryArrayOfRank<3> V_t, nda::MemoryVector B_t>
 requires( nda::mem::have_compatible_addr_space<U_t,D_t,V_t,B_t> and
@@ -335,32 +374,48 @@ void orthogonalize_wSVD(U_t && U, D_t && D, V_t && V, B_t && scl)
   if(U.size()==0) return;
   utils::check( scl.extent(0) >= Nw, "Size mismatch");
 
-  memory::buffered_array<MEM,Type,3,nda::F_layout> UT(M,M,Nw);
-  memory::buffered_array<MEM,Type,3,nda::F_layout> VT(M,M,Nw);
-  memory::buffered_array<MEM,Type,3,nda::F_layout> M2(M,M,Nw); 
-  memory::buffered_array<MEM,Type,3,nda::C_layout> M1(Nw,M,M);
-  memory::buffered_array<MEM,nda::remove_complex_t<Type>,2,nda::F_layout> S(M,Nw);
-  memory::buffered_array<MEM,Type,2,nda::F_layout> DT(M,Nw);
-  memory::buffered_array<MEM,nda::remove_complex_t<Type>,1,nda::F_layout> scl_new(Nw);
-  
+  memory::host_array<Type,2,nda::F_layout> UT(M,M);
+  memory::host_array<Type,2,nda::F_layout> VT(M,M);
+  memory::host_array<nda::remove_complex_t<Type>,1,nda::F_layout> S(M);
+
+  double scl_new;
+
+  if constexpr (MEM==DEVICE_MEMORY)
+  {  
+    utils::check(false,"Orthogonalization routine with SVD only implemented for CPU");
+  }
+  else{
+    for(int b = 0; b < Nw; ++b)
+    {
+      for(int row = 0; row < M; ++row)
+        VT(nda::range::all,row) = D(b,row) * U(b,nda::range::all,row);
+
+      nda::lapack::gesvd(VT,S,UT,VT);
+
+      scl_new = 0.5 * ( std::log(S(0)) + std::log(S(M-1)) );
+      nda::blas::scal(std::exp(-scl_new),S(nda::range::all));
+      scl(b) += scl_new; 
+      math::copy(S(nda::range::all),D(b,nda::range::all));
+
+      U(b,nda::range::all,nda::range::all) = UT();
+      
+      nda::blas::gemm(ComplexType(1.0),VT,V(b,nda::ellipsis{}),
+                      ComplexType(0.0),V(b,nda::ellipsis{}));
+    }
+  }
+
+  /*
   //U*D --> to fortran order
   nda::tensor::contract(D, "nj", U, "nij", VT, "ijn");
-  //nda::tensor::contract(D, "nj", U, "nij", M2, "ijn");
 
   nda::lapack::gesvd_batch(VT,S,UT,VT);  
 
-  // FIX : any way to get rid of this loop?
   for(int b = 0; b < Nw; ++b){
-   scl_new(b) = 0.5 * ( std::log(S(0,b)) + std::log(S(M-1,b)) );
-   // FIX : replace with elementwise?
-   S(nda::range::all,b) *= std::exp(-scl_new(b)); 
+   scl_new = 0.5 * ( std::log(S(0,b)) + std::log(S(M-1,b)) );
+   nda::blas::scal(std::exp(-scl_new),S(nda::range::all,b));
+   scl(b) += scl_new; 
+   math::copy(S(nda::range::all,b),D(b,nda::range::all));
   }
-
-  scl += scl_new;
-
-  //nda::tensor::contract(UT,"kin",V,"nkj",VT,"ijn");
-
-  //nda::tensor::add(V,"nij",U,"nji");
 
   nda::tensor::add(UT,"ijn",U,"nij");
 
@@ -369,11 +424,8 @@ void orthogonalize_wSVD(U_t && U, D_t && D, V_t && V, B_t && scl)
 
   // V <-- V'*V
   nda::tensor::contract(V,"nij",nda::conj(M1),"nki",V,"nkj");
+  */  
 
-  //nda::copy_cast(S,DT);
-  math::copy(S,DT);
-
-  nda::tensor::add(DT,"in",D,"ni");
 
 }
 

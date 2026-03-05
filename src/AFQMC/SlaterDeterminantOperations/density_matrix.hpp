@@ -806,6 +806,50 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
 }
 
 // Finite temperature Density Matrices
+ /**
+   * @brief Computes the equal-time density matrix \f$ \mathbf{G} \f$, with elements \f$ G^{\sigma\sigma^\prime}_{ij} \equiv \langle c^\dagger_{i\sigma}c_{j\sigma^\prime}\rangle\f$, at finite temperature for a batch of walkers.
+   *
+   * @details Given the arrays \f$ \mathbf{U}_R\f$, \f$ \mathbf{D}_R\f$, \f$ \mathbf{V}_R\f$, representing walkers,
+   * and the arrays \f$ \mathbf{U}_L\f$, \f$ \mathbf{D}_L\f$, \f$ \mathbf{V}_L\f$, representing the trial propagator,
+   * this function first computes \f$ \mathcal{G}\f$, with elements \f$ \mathcal{G}^{\sigma\sigma^\prime}_{ij} \equiv \langle c_{i\sigma}c^\dagger_{j\sigma^\prime}\rangle\f$ according to:
+   *\f[
+   *   \mathcal{G}=(\mathbf{U}_L)^{-1}(\mathbf{D}^\mathrm{max}_L)^{-1}\left[(\mathbf{D}^\mathrm{max}_R)^{-1}
+   *   (\mathbf{U}_R)^{-1}(\mathbf{U}_L)^{-1}(\mathbf{D}^\mathrm{max}_L)^{-1}+\mathbf{D}^\mathrm{min}_R\mathbf{V}_R\mathbf{V}_L\mathbf{D}^\mathrm{min}_L\right]^{-1}
+   *   (\mathbf{D}^\mathrm{max}_R)^{-1}(\mathbf{U}_R)^{-1},
+    \f]
+   * where \f$\mathbf{D}_R=\mathbf{D}^\mathrm{max}_R\mathbf{D}^\mathrm{min}_R\f$ and \f$\mathbf{D}_L=\mathbf{D}^\mathrm{min}_L\mathbf{D}^\mathrm{max}_L\f$, with,
+   * \f[ \begin{align}
+      \mathbf{D}^\textrm{max}_{ii} &= \left\{
+      \begin{array}{ll}
+      \vert \mathbf{D}_{ii}\vert\,,\,\,\, \textrm{if}\,\,\, \vert \mathbf{D}_{ii}\vert\geq 1 \\
+       1\,,\,\,\, \textrm{otherwise}
+    \end{array}
+    \right. \\
+    \mathbf{D}^\mathrm{min}_{ii} &= \left\{
+    \begin{array}{ll}
+       \textrm{sgn}\left[\mathbf{D}_{ii}\right]\,,\,\,\, \textrm{if}\,\,\, \vert \mathbf{D}_{ii}\vert\geq 1 \\
+       \mathbf{D}_{ii}\,,\,\,\, \textrm{otherwise}
+    \end{array}
+    \right.
+    \end{align}
+   \f]
+   * and returns \f$ \mathbf{G} = \mathbf{I} - \mathcal{G}^{\mathsf T} \f$.
+   *
+   * @tparam A_t nda::MemoryMatrix type
+   * @tparam B_t nda::MemoryVector type
+   * @tparam C_t nda::MemoryMatrix type
+   * @param UL Trial propagator matrix
+   * @param DL Trial propagator eigen/singular values
+   * @param VL Trial propagator matrix
+   * @param UR Array of walker matrices
+   * @param DR Matrix of walker eigen/singular values
+   * @param VR Array of walker matrices
+   * @param G Output array for density matrices
+   * @param ovlp Input/Output vector for overlaps
+   * @param sclL Input scalar. Used to scale \f$ \mathbf{D}_L\f$.
+   * @param sclR Input scalar Used to scale \f$ \mathbf{D}_R\f$.
+   * @return The equal-time density matrix, \f$ \mathbf{G} = \mathbf{I} - \mathcal{G}^{\mathsf T} \f$
+   */
 template<typename A_t, typename B_t, typename C_t,
          nda::MemoryArrayOfRank<3> D_t,
          nda::MemoryArrayOfRank<2> E_t,
@@ -1005,10 +1049,51 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
 }
 
 // Finite temperature Density Matrices
-/*
-Computes <c^+_i c_j> directly according to :
-<c^+_i c_j> = UL^T*DLmin*[DLmin*UL*UR*DRmin+DLmax^-1*VL^-1*VR^-1*DRmax^-1]*DRmin*UR^T
-*/
+ /**
+   * @brief Computes the equal-time density matrix \f$ \mathbf{G} \f$, with elements \f$ G^{\sigma\sigma^\prime}_{ij} \equiv \langle c^\dagger_{i\sigma}c_{j\sigma^\prime}\rangle\f$, at finite temperature for a batch of walkers.
+   *
+   * @details Given the arrays \f$ \mathbf{U}_R\f$, \f$ \mathbf{D}_R\f$, \f$ \mathbf{V}_R\f$, representing walkers,
+   * and the arrays \f$ \mathbf{U}_L\f$, \f$ \mathbf{D}_L\f$, \f$ \mathbf{V}_L\f$, representing the trial propagator,
+   * this function computes \f$ \mathbf{G}\f$ according to:
+   * \f[
+       \mathbf{G} = \mathbf{U}_L^{\mathsf T}\mathbf{D}^\mathrm{min}_L
+            \left[\mathbf{D}^\mathrm{min}_L\mathbf{U}_L\mathbf{U}_R\mathbf{D}^\mathrm{min}_R
+                +(\mathbf{D}^\mathrm{max}_L)^{-1}(\mathbf{V}_L)^{-1}(\mathbf{V}_R)^{-1}(\mathbf{D}^\mathrm{max}_R)^{-1}
+                \right]^{-{\mathsf T}}
+                \mathbf{D}^\mathrm{min}_R\mathbf{U}_R^{\mathsf T},
+     \f]
+   * where \f$\mathbf{D}_R=\mathbf{D}^\mathrm{max}_R\mathbf{D}^\mathrm{min}_R\f$ and \f$\mathbf{D}_L=\mathbf{D}^\mathrm{min}_L\mathbf{D}^\mathrm{max}_L\f$, with,
+   * \f[ \begin{align}
+      \mathbf{D}^\textrm{max}_{ii} &= \left\{
+      \begin{array}{ll}
+      \vert \mathbf{D}_{ii}\vert\,,\,\,\, \textrm{if}\,\,\, \vert \mathbf{D}_{ii}\vert\geq 1 \\
+       1\,,\,\,\, \textrm{otherwise}
+    \end{array}
+    \right. \\
+    \mathbf{D}^\mathrm{min}_{ii} &= \left\{
+    \begin{array}{ll}
+       \textrm{sgn}\left[\mathbf{D}_{ii}\right]\,,\,\,\, \textrm{if}\,\,\, \vert \mathbf{D}_{ii}\vert\geq 1 \\
+       \mathbf{D}_{ii}\,,\,\,\, \textrm{otherwise}
+    \end{array}
+    \right.
+    \end{align}
+   \f]
+   *
+   * @tparam A_t nda::MemoryMatrix type
+   * @tparam B_t nda::MemoryVector type
+   * @tparam C_t nda::MemoryMatrix type
+   * @param UL Trial propagator matrix
+   * @param DL Trial propagator eigen/singular values
+   * @param VL Trial propagator matrix
+   * @param UR Array of walker matrices
+   * @param DR Matrix of walker eigen/singular values
+   * @param VR Array of walker matrices
+   * @param G Output array for density matrices
+   * @param ovlp Input/Output vector for overlaps
+   * @param sclL Input scalar. Used to scale \f$ \mathbf{D}_L\f$.
+   * @param sclR Input scalar Used to scale \f$ \mathbf{D}_R\f$.
+   * @return The equal-time density matrix, \f$ \mathbf{G} \f$
+   */
 template<typename A_t, typename B_t, typename C_t,
          nda::MemoryArrayOfRank<3> D_t,
          nda::MemoryArrayOfRank<2> E_t,
