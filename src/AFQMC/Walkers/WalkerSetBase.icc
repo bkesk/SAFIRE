@@ -564,6 +564,52 @@ void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<3> auto const& U,
            targetN,targetN_per_rank,mpi->comm.size());
 }
 
+template<MEMORY_SPACE _M_>
+void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<4> auto const& UDV)
+{ 
+  auto all = nda::range::all;
+  int nspin = (walkerType == COLLINEAR_FT ? 2 : 1);
+  utils::check(UDV.shape() == std::array<long,4>{3,nspin,wlk_desc[0],wlk_desc[1]}, "Size mismatch.");
+  reserve(n);
+  if (n > tot_num_walkers)
+  { 
+    auto pos = tot_num_walkers;
+    // careful here!!!
+    while (pos < n)
+    { 
+      walker_buffer(pos,all) = ComplexType(0.0);
+      reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
+      w0.template UMatrix<_M_>(Alpha) = UDV(0,0,nda::ellipsis{});
+      w0.template DMatrix<_M_>(Alpha) = nda::diagonal(UDV(1,0,nda::ellipsis{}));
+      w0.template VMatrix<_M_>(Alpha) = UDV(2,0,nda::ellipsis{});
+      if (walkerType == COLLINEAR_FT)
+      {
+        w0.template UMatrix<_M_>(Beta) = UDV(0,1,all,nda::range(wlk_desc[2]));
+        w0.template DMatrix<_M_>(Beta) = nda::diagonal(UDV(1,1,all,nda::range(wlk_desc[2])));
+        w0.template VMatrix<_M_>(Beta) = UDV(2,1,all,nda::range(wlk_desc[2]));
+      }
+      pos++;
+    }
+    auto r = nda::range(tot_num_walkers,n); 
+    walker_buffer(r,data_displ[WEIGHT]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[OVLP]) = ComplexType(0.0); //finite-T keeps log(ovlp), instead of ovlp 
+    walker_buffer(r,data_displ[PHASE]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[PHASE1]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[PHASE2]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[PHASE3]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[LOGSCL_UP]) = ComplexType(0.0);
+    walker_buffer(r,data_displ[LOGSCL_DN]) = ComplexType(0.0);
+    walker_buffer(r,data_displ[IS_UNITARY]) = ComplexType(1.0);
+    walker_buffer(r,data_displ[THETA]) = ComplexType(0.0);
+  }
+  tot_num_walkers = n;
+  targetN_per_rank  = tot_num_walkers;
+  targetN         = GlobalPopulation();
+  utils::check(targetN == targetN_per_rank * mpi->comm.size(), 
+           " Error in total walker population: targetN, targetN_per_rank, # of ranks: {}, {}, {}",
+           targetN,targetN_per_rank,mpi->comm.size());
+}
+
 /*
 * Resizes back propagation buffers.
 * Must be called before any call to bp-related routines.

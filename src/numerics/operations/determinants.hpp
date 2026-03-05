@@ -46,7 +46,7 @@ void log_determinant_from_getrf(A const& a, IPIV const& ipiv, V && log_det) {
     auto F = detail::log_determinant_from_getrf_impl<A,IPIV,V>{a,ipiv,log_det};
     std::ranges::for_each(nda::range(a.extent(0)),F); 
   }
-} 
+}
 
 template<nda::MemoryArrayOfRank<2> A, nda::MemoryVector IPIV>
 requires(std::decay_t<A>::is_stride_order_C() and std::decay_t<IPIV>::is_stride_order_C() and

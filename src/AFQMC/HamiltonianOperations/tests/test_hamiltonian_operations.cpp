@@ -120,6 +120,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
       for(int i=0; i<nwalk; ++i)
         OrbMat(i,all,range(nup,nel)) = T();
     }
+
   }
 
   auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);
