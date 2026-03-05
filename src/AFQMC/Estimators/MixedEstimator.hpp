@@ -18,6 +18,7 @@
 #include <string>
 #include <iostream>
 
+#include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/check.hpp"
 #include "utilities/mpi_context.h"
 #include "nda/nda.hpp"

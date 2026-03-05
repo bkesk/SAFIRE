@@ -24,7 +24,7 @@ namespace afqmc
 {
 // wlk_descriptor: [ nmo, naea, naeb, nback_prop, nCV, nRefs, nHist]
 using wlk_descriptor = std::array<int, 8>;
-using wlk_indices    = std::array<int, 23>;
+using wlk_indices    = std::array<int, 22>;
 enum walker_data
 {
   SM,
@@ -45,7 +45,6 @@ enum walker_data
   LOGSCL_DN,
   IS_UNITARY,
   SMN,
-  SM_AUX,
   FIELDS,
   WEIGHT_FAC,
   WEIGHT_HISTORY,

@@ -92,11 +92,13 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
   WALKER_TYPES wfn_type = afqmc::initWALKER_TYPES(dims[3]);
 
   if(wfn_type == walker_type) {
+std::cout<<" ndets, nspin, nel: " <<ndets <<" " <<nspin <<" " <<nup <<" " <<ndown <<std::endl;
     for(int id=0, k=0; id<ndets; ++id) {
       for(int is=0; is<nspin; ++is, ++k) {
         h5::group pgrp = grp.open_group("PsiT_"+std::to_string(k));
         psi(id,is) = std::move(math::sparse::HDF2CSR<ComplexType,MEM,int,int>(pgrp));
-        utils::check(psi(id,is).shape() == std::array<long,2>{nel[is],NMO}, "Shape mismatch");
+std::cout<<" shape: " <<psi(id,is).shape() <<std::endl;
+        utils::check(psi(id,is).shape() == std::array<long,2>{nel[is],Mtot}, "Shape mismatch");
       } 
     }
   } else if(wfn_type == COLLINEAR) { 

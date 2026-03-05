@@ -63,9 +63,12 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   int nact_up = PsiT(0,0).extent(0);
   int NMO = PsiT(0,0).extent(1)/npol;
   int nspin_in_PsiT = PsiT.extent(1);
-  int nspin_in_file = 1, npol_in_file = 1; // read/broadcast below
+  int nspin_in_H1 = 1, npol_in_H1 = 1; // read/broadcast below
+  int nspin_in_H2 = 1, npol_in_H2 = 1; // read/broadcast below
   utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.size(1)%npol != 0");
   utils::check(nspin_in_PsiT == 1 or nspin_in_PsiT == nspin, base_error + "Size mismatch PsiT");
+  utils::check(nspin==1 or npol==1, base_error + "Both nspin and npol can not be >1 simultaneously."); 
+
   // MAM: should this be zero with CLOSED shell???
   int nact_dn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
               (type == CLOSED ? nact_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
@@ -85,45 +88,70 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     h5::h5_read(g,"Energies",E_);
     E0 = E_[0] + E_[1];
 
-    // Too many choices, consider forcing standard structure (e.g. [ns_f][np_f*NMO][np_f*NMO]
-    auto l = h5::array_interface::get_dataset_info(g,"hcore");
-    if(l.rank() == 2) {
-      // [2*NMO][NMO] 
-      if( l.lengths[0]==2*NMO and l.lengths[1]==NMO ) {
-        nspin_in_file=2;
-        npol_in_file=1; 
+    {
+      // Too many choices, consider forcing standard structure (e.g. [ns_f][np_f*NMO][np_f*NMO]
+      auto l = h5::array_interface::get_dataset_info(g,"hcore");
+      if(l.rank() == 2) {
+        // [2*NMO][NMO] 
+        if( l.lengths[0]==2*NMO and l.lengths[1]==NMO ) {
+          nspin_in_H1=2;
+          npol_in_H1=1; 
+        } else {
+          nspin_in_H1=1;
+          utils::check(l.lengths[0] == l.lengths[1], base_error + "Size mismatch");
+          utils::check(l.lengths[0]==NMO or l.lengths[0]==2*NMO, base_error +  "Size mismatch");
+          npol_in_H1 = l.lengths[0]/NMO;
+        }
+      } else if(l.rank() == 3) {
+        nspin_in_H1=l.lengths[0];
+        utils::check(l.lengths[1] == l.lengths[2], base_error + "Size mismatch");
+        utils::check(l.lengths[1]==NMO or l.lengths[1]==2*NMO, base_error + "Size mismatch");
+        npol_in_H1 = l.lengths[1]/NMO;
       } else {
-        nspin_in_file=1;
-        utils::check(l.lengths[0] == l.lengths[1], base_error + "Size mismatch");
-        utils::check(l.lengths[0]==NMO or l.lengths[0]==2*NMO, base_error +  "Size mismatch");
-        npol_in_file = l.lengths[0]/NMO;
+        utils::check(false, base_error + "Invalid hcore rank:{}",l.rank());
       }
-    } else if(l.rank() == 3) {
-      nspin_in_file=l.lengths[0];
-      utils::check(l.lengths[1] == l.lengths[2], base_error + "Size mismatch");
-      utils::check(l.lengths[1]==NMO or l.lengths[1]==2*NMO, base_error + "Size mismatch");
-      npol_in_file = l.lengths[1]/NMO;
-    } else {
-      utils::check(false, base_error + "Invalid hcore rank:{}",l.rank());
+      utils::check(nspin_in_H1 == 1 or nspin_in_H1 == nspin, 
+                   base_error +  "Invalid nspin_in_H1:{}",nspin_in_H1);
+      utils::check(npol_in_H1 == 1 or npol_in_H1 == npol, 
+                   base_error +  "Invalid npol_in_H1:{}",npol_in_H1);
     }
-    utils::check(nspin_in_file == 1 or nspin_in_file == nspin, 
-                 base_error +  "Invalid nspin_in_file:{}",nspin_in_file);
-    utils::check(npol_in_file == 1 or npol_in_file == npol, 
-                 base_error +  "Invalid npol_in_file:{}",npol_in_file);
+    {
+      // cholesky tensor
+      h5::group vgrp = g.open_group("DenseFactorized");
+      auto l = h5::array_interface::get_dataset_info(vgrp,"L");
+      if(l.rank()==2) {
+        //[nspin_in_H2*npol_in_H2*NMO*NMO]][ncv]
+        if( nspin > 1 ) nspin_in_H2 = l.lengths[0] / (NMO*NMO); 
+        if( npol > 1 ) npol_in_H2 = l.lengths[0] / (NMO*NMO); 
+        utils::check( l.lengths[0] == nspin_in_H2*npol_in_H2*NMO*NMO, 
+                      base_error + "Inconsistent size of DenseFactorized/L:({}, {}). Incompatible with nspin_in_H2:{}, npol_in_H2:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],nspin_in_H2,npol_in_H2,NMO);
+      } else if(l.rank()==3 or l.rank()==4) {
+        //rank:3 [nspin_in_H2*npol_in_H2][NMO*NMO]][ncv]
+        //rank:4 [nspin_in_H2*npol_in_H2][NMO][NMO]][ncv]
+        if( nspin > 1 ) nspin_in_H2 = l.lengths[0]; 
+        if( npol > 1 ) npol_in_H2 = l.lengths[0];  
+        utils::check( l.lengths[0] == nspin_in_H2*npol_in_H2, 
+                      base_error +  "Inconsistent size of DenseFactorized/L:({}, ...). Incompatible with nspin_in_H2:{}, npol_in_H2:{} found in hcore",l.lengths[0],nspin_in_H2,npol_in_H2);
+      } else {
+        utils::check(false, "Invalid Cholesky vector rank:{} ",l.rank());
+      }
+    }
   }
   mpi->comm.broadcast_n(Idata.begin(), 8, 0);
   mpi->comm.broadcast_n(&E0, 1, 0);
-  mpi->comm.broadcast_n(&nspin_in_file, 1, 0);
-  mpi->comm.broadcast_n(&npol_in_file, 1, 0);
+  mpi->comm.broadcast_n(&nspin_in_H1, 1, 0);
+  mpi->comm.broadcast_n(&npol_in_H1, 1, 0);
+  mpi->comm.broadcast_n(&nspin_in_H2, 1, 0);
+  mpi->comm.broadcast_n(&npol_in_H2, 1, 0);
 
   // number of cholesky vectors
   int ncv = Idata[7];
   
   // allocate shared arrays
   auto H1 = memory::make_shared_array<HOST_MEMORY,RealType,3>(mpi,
-                      {nspin_in_file,npol_in_file*NMO,npol_in_file*NMO});
+                      {nspin_in_H1,npol_in_H1*NMO,npol_in_H1*NMO});
   auto Likn = memory::make_shared_array<MEM,RealType,4>(mpi,
-                      {nspin_in_file*npol_in_file,NMO,NMO,ncv});
+                      {nspin_in_H2*npol_in_H2,NMO,NMO,ncv});
 
   if(mpi->comm.root()) {
     h5::group g = h5::group(file).open_group("Hamiltonian"); 
@@ -131,7 +159,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       // hcore
       auto l = h5::array_interface::get_dataset_info(g,"hcore");
       if(l.rank() == 2) {
-        auto h_ = nda::reshape(H1(),std::array<long,2>{nspin_in_file*npol_in_file*NMO,npol_in_file*NMO});
+        auto h_ = nda::reshape(H1(),std::array<long,2>{nspin_in_H1*npol_in_H1*NMO,npol_in_H1*NMO});
         nda::h5_read(g,"hcore",h_);
       } else if(l.rank() == 3) {
         auto h_ = H1();
@@ -143,25 +171,25 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       h5::group vgrp = g.open_group("DenseFactorized"); 
       auto l = h5::array_interface::get_dataset_info(vgrp,"L");
       if(l.rank()==2) {
-        //[nspin_in_file*npol_in_file*NMO*NMO]][ncv]
-        utils::check( l.lengths[0] == nspin_in_file*npol_in_file*NMO*NMO  and
-                      l.lengths[1] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}). Incompatible with nspin_in_file:{}, npol_in_file:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],nspin_in_file,npol_in_file,NMO);
-        auto L_ = nda::reshape(Likn(),std::array<long,2>{nspin_in_file*npol_in_file*NMO*NMO,ncv});
+        //[nspin_in_H2*npol_in_H2*NMO*NMO]][ncv]
+        utils::check( l.lengths[0] == nspin_in_H2*npol_in_H2*NMO*NMO  and
+                      l.lengths[1] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}). Incompatible with nspin_in_H2:{}, npol_in_H2:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],nspin_in_H2,npol_in_H2,NMO);
+        auto L_ = nda::reshape(Likn(),std::array<long,2>{nspin_in_H2*npol_in_H2*NMO*NMO,ncv});
         utils::h5_read(vgrp,"L",L_);
       } else if(l.rank()==3) {
-        //[nspin_in_file][npol_in_file*NMO*npol_in_file*NMO]][ncv]
-        utils::check( l.lengths[0] == nspin_in_file*npol_in_file  and
+        //[nspin_in_H2*npol_in_H2][NMO*NMO]][ncv]
+        utils::check( l.lengths[0] == nspin_in_H2*npol_in_H2  and
                       l.lengths[1] == NMO*NMO  and
-                      l.lengths[2] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}, {}). Incompatible with nspin_in_file:{}, npol_in_file:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],l.lengths[2],nspin_in_file,npol_in_file,NMO);
-        auto L_ = nda::reshape(Likn(),std::array<long,3>{nspin_in_file*npol_in_file,NMO*NMO,ncv});
+                      l.lengths[2] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}, {}). Incompatible with nspin_in_H2:{}, npol_in_H2:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],l.lengths[2],nspin_in_H2,npol_in_H2,NMO);
+        auto L_ = nda::reshape(Likn(),std::array<long,3>{nspin_in_H2*npol_in_H2,NMO*NMO,ncv});
         utils::h5_read(vgrp,"L",L_);
       } else if(l.rank()==4) {
-        //[nspin_in_file][npol_in_file*NMO][npol_in_file*NMO]][ncv]
-        utils::check( l.lengths[0] == nspin_in_file*npol_in_file  and
+        //[nspin_in_H2*npol_in_H2][NMO][NMO]][ncv]
+        utils::check( l.lengths[0] == nspin_in_H2*npol_in_H2  and
                       l.lengths[1] == NMO  and
                       l.lengths[2] == NMO  and
-                      l.lengths[3] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}, {}, {}). Incompatible with nspin_in_file:{}, npol_in_file:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],l.lengths[2],l.lengths[3],nspin_in_file,npol_in_file,NMO);
-        auto L_ = nda::reshape(Likn(),std::array<long,4>{nspin_in_file*npol_in_file,NMO,NMO,ncv});
+                      l.lengths[3] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}, {}, {}). Incompatible with nspin_in_H2:{}, npol_in_H2:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],l.lengths[2],l.lengths[3],nspin_in_H2,npol_in_H2,NMO);
+        auto L_ = nda::reshape(Likn(),std::array<long,4>{nspin_in_H2*npol_in_H2,NMO,NMO,ncv});
         utils::h5_read(vgrp,"L",L_);
       } else {
         utils::check(false, "Invalid Cholesky vector rank:{} ",l.rank());
@@ -169,10 +197,11 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     }
   }
   if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(H1.data(),H1.size(),0); 
-  if constexpr (MEM==HOST_MEMORY)
+  if constexpr (MEM==HOST_MEMORY) {
     if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(Likn.data(),Likn.size(),0); 
-  else
+  } else {
     mpi->broadcast(Likn());
+  }
   mpi->comm.barrier();
 
   long nel[] = {nact_up, (type == COLLINEAR ? nact_dn : 0l) };
@@ -188,14 +217,14 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     for(long is=0; is<nspin; ++is, ++itot) {
       if( itot%mpi->comm.size() != mpi->comm.rank() ) continue;
       auto Aai = math::sparse::to_array<'N'>(PsiT(id,is%nspin_in_PsiT));
-      int is_f = is%nspin_in_file;
 
       // H1
       {
+        int is_f = is%nspin_in_H1;
         auto h_ = haj()(id,range(is*nact_up,nact_up+is*nact_dn),all);
         nda::array<ComplexType,2> hc(npol*NMO,npol*NMO);
         hc() = ComplexType(0.0);
-        if(npol_in_file==1) {
+        if(npol_in_H1==1) {
           for(int p=0; p<npol; p++)
             for(int a=0; a<NMO; a++)
               for(int b=0; b<NMO; b++)
@@ -215,10 +244,11 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
 
       // Lnak
       {
+        int is_f = is%nspin_in_H2;
         auto Aai_r = memory::to_real_view(Aai);
         auto L_r = memory::to_real_view(Lnak(is)()(id,nda::ellipsis{}));
         for(int p=0; p<npol; ++p) {
-          int ip_f = p%npol_in_file;
+          int ip_f = p%npol_in_H2;
           nda::range rng(ip_f*NMO,(ip_f+1)*NMO);
           auto Aai_is = Aai_r(all,nda::range(p*NMO,(p+1)*NMO),all);
           nda::tensor::contract(RealType(1.0),Aai_is,"aic",Likn()(is_f,rng,rng,all),"ijn",
@@ -242,21 +272,21 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   mpi->comm.barrier();
 
   // exchange potential, parallelize over i:{0,NMO} to avoid temporary mamory
-  auto v0 = memory::make_shared_array<HOST_MEMORY,RealType,3>(mpi,std::array<long,3>{nspin_in_file*npol_in_file, NMO, NMO});
+  auto v0 = memory::make_shared_array<HOST_MEMORY,RealType,3>(mpi,std::array<long,3>{nspin_in_H2*npol_in_H2, NMO, NMO});
   auto [n0, n1] = itertools::chunk_range(0, NMO, mpi->comm.size(), mpi->comm.rank());
   // calculate v0(i,l) = -0.5 sum_j sum_n L[i][j][n] L[j][l][n] = -0.5 sum_j sum_n L[i][j][n] L[l][j][n]
   if(n1>n0)
   {
     if constexpr (MEM==HOST_MEMORY) {
-      for(int is=0, isp=0; is<nspin_in_file; ++is)
-        for(int ip=0; ip<npol_in_file; ++ip, ++isp)
+      for(int is=0, isp=0; is<nspin_in_H2; ++is)
+        for(int ip=0; ip<npol_in_H2; ++ip, ++isp)
           nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
                                               Likn()(isp,all,all,all),"ljn",
                                 RealType(0.0),v0()(isp,range(n0,n1),all),"il");
     } else {
       memory::array<MEM,RealType,2> vt(n1-n0, NMO);
-      for(int is=0, isp=0; is<nspin_in_file; ++is)
-        for(int ip=0; ip<npol_in_file; ++ip, ++isp) {
+      for(int is=0, isp=0; is<nspin_in_H2; ++is)
+        for(int ip=0; ip<npol_in_H2; ++ip, ++isp) {
           nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
                                               Likn()(isp,all,all,all),"ljn",
                                 RealType(0.0),vt,"il");

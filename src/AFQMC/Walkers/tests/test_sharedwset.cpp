@@ -117,15 +117,15 @@ void test_basic_walker_features(std::string wtype)
     //Type tot_weight(0.0);
     for (auto it = wset.begin(); it != wset.end(); ++it)
     {
-      auto sm = it->template SlaterMatrix<MEM>(Alpha);
+      auto sm = it->SlaterMatrix(Alpha);
       REQUIRE( sm.extent(0) == initA.extent(1) );	
       REQUIRE( sm.extent(1) == nup );	
-      REQUIRE(nda::to_host(it->template SlaterMatrix<MEM>(Alpha)) == initA(0,nda::ellipsis{}));
+      REQUIRE(nda::to_host(it->SlaterMatrix(Alpha)) == initA(0,nda::ellipsis{}));
       if( wset.getWalkerType() == COLLINEAR ) { 
-        auto smB = it->template SlaterMatrix<MEM>(Beta);
+        auto smB = it->SlaterMatrix(Beta);
         REQUIRE( smB.extent(0) == initA.extent(1) );	
         REQUIRE( smB.extent(1) == ndown );	
-        REQUIRE( nda::to_host(it->template SlaterMatrix<MEM>(Beta)) == initA(1,nda::range::all,nda::range(ndown)));
+        REQUIRE( nda::to_host(it->SlaterMatrix(Beta)) == initA(1,nda::range::all,nda::range(ndown)));
       }
       it->set_property(WEIGHT,base * 1.0 + 0.5);
       it->set_property(OVLP,base * 1.0 + 0.5);
@@ -170,15 +170,15 @@ void test_basic_walker_features(std::string wtype)
     //Type tot_weight(0.0);
     for (auto it = wset.begin(); it != wset.end(); ++it)
     {
-      auto umat = it->template UMatrix<MEM>(Alpha);
+      auto umat = it->UMatrix(Alpha);
       REQUIRE( umat.extent(0) == initU.extent(1) );	
       REQUIRE( umat.extent(1) == M );	
-      REQUIRE(nda::to_host(it->template UMatrix<MEM>(Alpha)) == initU(0,nda::ellipsis{}));
+      REQUIRE(nda::to_host(it->UMatrix(Alpha)) == initU(0,nda::ellipsis{}));
       if( wset.getWalkerType() == COLLINEAR ) { 
-        auto umatB = it->template UMatrix<MEM>(Beta);
+        auto umatB = it->UMatrix(Beta);
         REQUIRE( umatB.extent(0) == initU.extent(1) );	
         REQUIRE( umatB.extent(1) == M );	
-        REQUIRE( nda::to_host(it->template UMatrix<MEM>(Beta)) == initU(1,nda::range::all,nda::range(M)));
+        REQUIRE( nda::to_host(it->UMatrix(Beta)) == initU(1,nda::range::all,nda::range(M)));
       }
       it->set_property(WEIGHT,base * 1.0 + 0.5);
       it->set_property(OVLP,base * 1.0 + 0.5);
@@ -297,13 +297,13 @@ void test_basic_walker_features(std::string wtype)
     // BP
     wset.resize_bp(4,10,2);
     {
-      auto F0 = wset.template getFields(0);
-      auto Fs = wset.template getFields();
+      auto F0 = wset.getFields(0);
+      auto Fs = wset.getFields();
       memory::array<MEM,ComplexType,2> Fi(F0.shape());
       Fi() = Fs(nda::range::all,0,nda::range::all); 
       wset.storeFields(1,Fi);
-      auto WF = wset.template getWeightFactors();
-      auto WH = wset.template getWeightHistory();
+      auto WF = wset.getWeightFactors();
+      auto WH = wset.getWeightHistory();
       WF() = ComplexType(0.0);
       WH() = ComplexType(0.0);
     }
@@ -379,15 +379,15 @@ void test_walker_io(std::string wtype)
   Type tot_weight(0.0);
   for (auto it = wset.begin(); it != wset.end(); ++it)
   {
-    auto sm = it->template SlaterMatrix<MEM>(Alpha);
+    auto sm = it->SlaterMatrix(Alpha);
     REQUIRE( sm.extent(0) == initA.extent(0) );
     REQUIRE( sm.extent(1) == initA.extent(1) ); 
-    REQUIRE( nda::to_host(it->template SlaterMatrix<MEM>(Alpha)) == initA );
+    REQUIRE( nda::to_host(it->SlaterMatrix(Alpha)) == initA );
     if( wset.getWalkerType() == COLLINEAR ) {
-      auto smB = it->template SlaterMatrix<MEM>(Beta);
+      auto smB = it->SlaterMatrix(Beta);
       REQUIRE( smB.extent(0) == initB.extent(0) );
       REQUIRE( smB.extent(1) == initB.extent(1) ); 
-      REQUIRE( nda::to_host(it->template SlaterMatrix<MEM>(Beta)) == initB );
+      REQUIRE( nda::to_host(it->SlaterMatrix(Beta)) == initB );
     }
     it->set_property(WEIGHT,base * 1.0 + 0.1);
     it->set_property(OVLP,base * 1.0 + 0.2);
@@ -415,7 +415,7 @@ void test_walker_io(std::string wtype)
     std::array<walker_data,5> tags = {WEIGHT,OVLP,E1_,EXX_,EJ_};
     for (int i = 0; i < nwalkers; i++)
     {
-      CHECK(nda::to_host(wset[i].template SlaterMatrix<MEM>(Alpha)) == nda::to_host(wset2[i].template SlaterMatrix<MEM>(Alpha)));
+      CHECK(nda::to_host(wset[i].SlaterMatrix(Alpha)) == nda::to_host(wset2[i].SlaterMatrix(Alpha)));
       for(auto v : tags)
         CHECK(wset[i].get_property(v) == wset2[i].get_property(v));
     }

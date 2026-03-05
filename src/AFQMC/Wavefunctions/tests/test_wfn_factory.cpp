@@ -63,6 +63,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
              std::string hamil_file, std::string wfn_file, bool dense_trial)
 {
   using sfqmc::utils::ARRAY_EQUAL;
+  using sfqmc::utils::VALUE_EQUAL;
   using nda::range;
   auto all = range::all;
   utils::check(utils::file_exists(hamil_file),
@@ -134,9 +135,9 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   {
     for (auto it = wset.begin(); it != wset.end(); ++it)
     {
-      REQUIRE(real(it->get_property(E1_)) == Approx(real(file_data.E0 + file_data.E1)));
-      REQUIRE(real(it->get_property(EXX_) + it->get_property(EJ_)) == Approx(real(file_data.E2))); 
-      REQUIRE(imag(it->energy()) == Approx(imag(file_data.E0 + file_data.E1 + file_data.E2)));
+      VALUE_EQUAL(it->get_property(E1_), file_data.E0 + file_data.E1);
+      VALUE_EQUAL(it->get_property(EXX_) + it->get_property(EJ_), file_data.E2); 
+      VALUE_EQUAL(it->energy(), file_data.E0 + file_data.E1 + file_data.E2);
     }
   }
   else
@@ -169,8 +170,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
       for (int n = 0; n < nwalk; n++)
       {
         Xsum = nda::sum(X_h(n,all));
-        REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
-        REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
+        VALUE_EQUAL(Xsum,file_data.Xsum);
       }
     }
     else
@@ -186,12 +186,13 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
 
   if (wfn.getHamType() == ModelHamiltonian) // only sparseP2 is used - denseP2 is hardcoded to never run!
   {
-    utils::check(false,"finish");
-/*
-    Time.reset();
-    auto [vHS_up, vHS_down] = wfn.vHS_sparse(X, dt); // vHS_sparse lives inside the ModelHamOps class
-        TG.TG_local().barrier();
-        
+
+    auto vHS = wfn.vHS_sparse(X, dt); 
+    utils::check(vHS.extent(0) == nspin, "Size mismatch");
+    utils::check((vHS(0).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}) and
+                 (vHS(nspin-1).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}),
+                 "Size mismatch");        
+    /*
         // Convert sparse matrices to dense CMatrix objects for easier manipulation
         CMatrix vHS_up_dense({vHS_up->size(0), vHS_up->size(1)}, alloc_);
         CMatrix vHS_down_dense({vHS_down->size(0), vHS_down->size(1)}, alloc_);
@@ -243,8 +244,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
               for (int i = 0; i < vHS_down_dense.size(0); i++)
                 Vsum += vHS_down_dense[i][n];
             }
-            REQUIRE(real(ComplexType(Vsum)) == Approx(real(file_data.Vsum)));
-            REQUIRE(imag(ComplexType(Vsum)) == Approx(imag(file_data.Vsum)));
+            VALUE_EQUAL(Vsum,file_data.Vsum);
           }
         } else {
           Vsum = 0;
@@ -277,8 +277,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
       for (int n = 0; n < nwalk; n++)
       {
         Vsum = nda::sum(vHS(all,n,all,all));
-        REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
-        REQUIRE(imag(Vsum) == Approx(imag(file_data.Vsum)));
+        VALUE_EQUAL(Vsum,file_data.Vsum);
       }
     }
     else

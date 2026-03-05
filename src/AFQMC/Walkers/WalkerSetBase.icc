@@ -261,7 +261,6 @@ void WalkerSetBase<_M_>::setup()
   walker_size                = cnt;
   walker_memory_usage        = walker_size * sizeof(ComplexType);
   data_displ[SMN]            = -1;
-  data_displ[SM_AUX]         = -1;
   data_displ[FIELDS]         = -1;
   data_displ[WEIGHT_FAC]     = -1;
   data_displ[WEIGHT_HISTORY] = -1;
@@ -487,9 +486,9 @@ void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<3> auto const& A)
     { 
       walker_buffer(pos,all) = ComplexType(0.0);
       reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
-      w0.template SlaterMatrix<_M_>(Alpha) = A(0,nda::ellipsis{});
+      w0.SlaterMatrix(Alpha) = A(0,nda::ellipsis{});
       if (walkerType == COLLINEAR)
-        w0.template SlaterMatrix<_M_>(Beta) = A(1,all,nda::range(wlk_desc[2]));
+        w0.SlaterMatrix(Beta) = A(1,all,nda::range(wlk_desc[2]));
       pos++;
     }
     auto r = nda::range(tot_num_walkers,n); 
@@ -534,14 +533,14 @@ void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<3> auto const& U,
     { 
       walker_buffer(pos,all) = ComplexType(0.0);
       reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
-      w0.template UMatrix<_M_>(Alpha) = U(0,nda::ellipsis{});
-      w0.template DMatrix<_M_>(Alpha) = D(0,nda::ellipsis{});
-      w0.template VMatrix<_M_>(Alpha) = V(0,nda::ellipsis{});
+      w0.UMatrix(Alpha) = U(0,nda::ellipsis{});
+      w0.DMatrix(Alpha) = D(0,nda::ellipsis{});
+      w0.VMatrix(Alpha) = V(0,nda::ellipsis{});
       if (walkerType == COLLINEAR_FT)
       {
-        w0.template UMatrix<_M_>(Beta) = U(1,all,nda::range(wlk_desc[2]));
-        w0.template DMatrix<_M_>(Beta) = D(1,nda::range(wlk_desc[2]));
-        w0.template VMatrix<_M_>(Beta) = V(1,all,nda::range(wlk_desc[2]));
+        w0.UMatrix(Beta) = U(1,all,nda::range(wlk_desc[2]));
+        w0.DMatrix(Beta) = D(1,nda::range(wlk_desc[2]));
+        w0.VMatrix(Beta) = V(1,all,nda::range(wlk_desc[2]));
       }
       pos++;
     }
@@ -660,12 +659,10 @@ void WalkerSetBase<_M_>::resize_bp(int nbp, int nCV, int nref)
     bp_buffer() = ComplexType(0.0);
     bp_buffer(nda::range::all, nda::range(data_displ[WEIGHT_FAC],data_displ[WEIGHT_FAC]+wlk_desc[6])) = ComplexType(1.0);
   }
-  if (nbp > 0 && (data_displ[SMN] < 0 || data_displ[SM_AUX] < 0))
+  if (nbp > 0 && data_displ[SMN] < 0)
   {
     auto sz(walker_size);
     data_displ[SMN] = walker_size;
-    walker_size += nrow * ncol;
-    data_displ[SM_AUX] = walker_size;
     walker_size += nrow * ncol;
     memory::array<MEM,ComplexType,2> wb(walker_buffer.extent(0),walker_size);
     wb(nda::range::all,nda::range(0,sz)) = walker_buffer();

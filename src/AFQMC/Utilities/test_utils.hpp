@@ -136,6 +136,8 @@ TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_ty
     utils::check(false," Error in read_test_results_from_hdf(): Invalid h5 format. ");
   }
   T E0(0), E1(0), E2(0), Xsum(0), Vsum(0);
+// MAM: put test results inside Wavefunction dataset, to avoid needing to provide wfn_type.
+//      This also allows a single Hamiltonian to be used in multiple tests with different wfn_types.
   if (grp.has_key("TEST_RESULTS"))
   { 
     // Data might be real even if T is complex

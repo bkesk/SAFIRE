@@ -347,7 +347,7 @@ private:
     if constexpr (MEM==HOST_MEMORY) {
       if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(hMF.data(),hMF.extent(0),0);
     } else {
-      mpi->broadcast(hMF);
+      mpi->broadcast(hMF());
     }
   }
 

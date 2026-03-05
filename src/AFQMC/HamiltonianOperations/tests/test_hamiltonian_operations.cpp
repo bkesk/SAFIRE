@@ -75,7 +75,6 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
-  std::cout<<" NMO: " <<NMO <<" " <<file_data.NMO <<std::endl;
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   std::map<std::string, AFQMCInfo> InfoMap;
@@ -133,7 +132,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   if (wtype == COLLINEAR)
     det_ops::MixedDensityMatrix(psi(0,1),OrbMat(all,all,range(nup,nel)),G(all,range(nup,nel),all),ovlp);
 //  ARRAY_EQUAL(ovlp,nda::array<ComplexType,1>(nwalk,ComplexType(0.0)));
-  // 2d views and transposed copies just in case
+  // 2d views just in case
   auto G2d = nda::reshape(G,std::array<long,2>{nwalk,nel*npol * NMO});
 
   // optimize HOps evaluation
@@ -180,8 +179,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   }
   if (std::abs(file_data.Xsum) > 1e-8)
   {
-    REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
-    REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
+    utils::VALUE_EQUAL(Xsum,file_data.Xsum);
   }
   else
   {
@@ -202,8 +200,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
       Vsum += vHS_h(0,0,i,j);
   if (std::abs(file_data.Vsum) > 1e-8)
   {
-    REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
-    REQUIRE(imag(Vsum) == Approx(imag(file_data.Vsum)));
+    utils::VALUE_EQUAL(Vsum,file_data.Vsum);
   }
   else
   {
@@ -216,8 +213,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     ComplexType Vsum2 = nda::sum(nda::to_host(vHS_sparse(0).values()))/double(nwalk);
     if (std::abs(file_data.Vsum) > 1e-8)
     {
-      REQUIRE(real(Vsum2) == Approx(real(file_data.Vsum)));
-      REQUIRE(imag(Vsum2) == Approx(imag(file_data.Vsum)));
+      utils::VALUE_EQUAL(Vsum2,file_data.Vsum);
     }
     else
     {
@@ -337,10 +333,25 @@ TEST_CASE("ham_ops_basic_serial", "[hamiltonian_operations]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  ham_ops_basic_serial<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+  if(UTEST_HAMIL!="" and UTEST_WFN!="") {
+    app_log(0,"HamiltonianOperations unit testing. Running user provided test:");
+    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
+    app_log(0," Wavefunction: {}", UTEST_WFN);
+    ham_ops_basic_serial<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #if defined(ENABLE_DEVICE)
-  ham_ops_basic_serial<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+    ham_ops_basic_serial<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #endif
+  } else {
+    app_log(0,"HamiltonianOperations unit testing. Running standard tests.");
+    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    for( auto f : files ) { 
+      ham_ops_basic_serial<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+#if defined(ENABLE_DEVICE)
+      ham_ops_basic_serial<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+#endif
+    }
+  }
 }
+
 
 } // namespace sfqmc

@@ -136,7 +136,7 @@ public:
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
       v = std::move(vHS(vMF_2d, dt));
-      utils::check(v.shape() == std::array<long,4>{1,nspin,npol*NMO,NMO}, "Size mismatch");
+      utils::check(v.shape() == std::array<long,4>{nstot,1,npol*NMO,NMO}, "Size mismatch");
     }
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
@@ -154,7 +154,7 @@ public:
             for (int j = 0 ; j < NMO; j++)
             {
               if(p1==p2) {
-                H1(is,p1*NMO+i,p2*NMO+j) = v(0,is_,p1_*NMO+i,j) + 
+                H1(is,p1*NMO+i,p2*NMO+j) = v(is_,0,p1_*NMO+i,j) + 
                                            dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,i,j));
               } else {
                 // only spin-orbit terms here coming from hij
@@ -243,7 +243,7 @@ public:
     long Bytes = default_buffer_size_in_MB * 1024L * 1024L;
     Bytes /= long((nu * nu + nu + nu * nup) * sizeof(ComplexType));
     int nwmax = ( MEM==HOST_MEMORY ? 1 : std::min(nwalk, std::max(1, int(Bytes))));
-    
+
     utils::check(G.is_contiguous(), "Layout mismatch");
     memory::array_view<MEM,const ComplexType,3> G3d(std::array<long,3>{nwalk,nel,npol*NMO},G.data());
 
@@ -253,6 +253,7 @@ public:
       int nw = std::min(nwmax, nwalk - iw);
       // Guv[nspin][nu][nv]
       memory::buffered_array<MEM,ComplexType,3> Guv(nw,nu,nu);
+//memory::buffered_array<MEM,ComplexType,3> Gvu(nw,nu,nu);
       // Guu[u]: summed over spin
       memory::buffered_array<MEM,ComplexType,2> Guu(nu,nw);
       Guu() = ComplexType(0.0);
@@ -270,6 +271,20 @@ public:
             Guv_Guu(ispin, p1, p2, G3d(range(iw, iw + nw), range(ispin*nup,nup+ispin*ndown), all), 
                     Guv, Guu, nda::flatten(Tva), idet);
 
+/*
+// need fast transposition, right now it is a bit slower and uses 2x more memory
+            if constexpr (MEM==HOST_MEMORY) {
+              for(int i=0; i<nw; ++i) {
+                Gvu(i,all,all) = nda::transpose(Guv(i,all,all)); 
+                Guv(i,nda::ellipsis{}) *= Zuv();
+                E(iw+i,1) += ComplexType(-0.5*scl) * 
+                    nda::dot(nda::flatten(Guv(i,nda::ellipsis{})),nda::flatten(Gvu(i,all,all))); 
+              }
+            } else {
+              utils::check(false,"finish");
+            }
+*/
+            
             if constexpr (MEM==HOST_MEMORY) {
               for(int i=0; i<nw; ++i)
                 Guv(i,nda::ellipsis{}) *= Zuv();
@@ -293,8 +308,9 @@ public:
             if constexpr (MEM==HOST_MEMORY) 
               for(int iw=0; iw<nw; iw++) 
                 nda::blas::gemm(Guv(iw,all,all),nda::transpose(Yau),Tva(iw,all,all));
-            else
+            else {
               nda::tensor::contract(Yau,"av",Guv,"wuv",Tva,"wua"); 
+            }
 
             //T[w][b][k] = sum_u R[w][u][b] * Piu[k][u]
             auto Xiu = Xsiu(is_,range(ip1_*NMO,(ip1_+1)*NMO),all);
@@ -315,7 +331,6 @@ public:
             auto Gwai = G3d(range(iw, iw + nw),range(ispin*nup,nup+ispin*ndown),range(p1*NMO,(p1+1)*NMO)); 
             nda::tensor::contract(ComplexType(-0.5*scl),Twib,"wia",Gwai,"wai",
                                   ComplexType(1.0),E(range(iw, iw + nw),1),"w"); 
-
           }
         }
       }
@@ -501,7 +516,7 @@ public:
     long nptot = _Xsiu_().shape()[1]/NMO;
     utils::check_strides(X);
     // limiting X/v to contiguous arrays for simplicity now, reconsider if necessary
-    utils::check(X.shape() == std::array<long,2>{nwalk,nchol}, "THC::vbias: Size mismatch.");
+    utils::check(X.shape() == std::array<long,2>{nwalk,nchol}, "THC::vHS: Size mismatch.");
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
@@ -699,10 +714,10 @@ protected:
 
         if constexpr (MEM==HOST_MEMORY) {
           memory::buffered_array<MEM,ComplexType,2> Tau(nelec[is],nu);    
-          auto G4d = memory::to_real_view(G);
-          auto T3d = memory::to_real_view(Tau);
           for(int iw=0; iw<nw; iw++) {
             if constexpr (REAL) {
+              auto G4d = memory::to_real_view(G);
+              auto T3d = memory::to_real_view(Tau);
               auto Gaic = G4d(iw,range(is*nup,nup+is*ndown),range(ip*NMO,(ip+1)*NMO),all);
               // MAM: Not ideal, contract is not optimal in cpu
               nda::tensor::contract(Gaic,"aic",Xiu,"iu",T3d,"auc");
@@ -726,7 +741,7 @@ protected:
             nda::tensor::contract(Gwai,"wai",Xiu,"iu",Twau,"wau");
           }
           // Gwu[w][u] = a * sum_a T1[w][a][u] * cXau[a][u]
-          nda::tensor::contract(ComplexType(a),Twau,"wau",Yau,"au",ComplexType(1.0),Guu,"wu");
+          nda::tensor::contract(ComplexType(a),Twau,"wau",Yau,"au",ComplexType(1.0),Guu,"uw");
         }
  
       } // npol 
@@ -853,7 +868,8 @@ protected:
           Guu(all,i) += nda::diagonal(Guv(i,all,all));
       } else {
         std::array<long,2> str = {Guv.strides()[0],Guv.strides()[1]+1};
-        nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(Guu.shape(),str);
+        std::array<long,2> shape = {Guv.extent(0),Guv.extent(1)};
+        nda::idx_map<2, 0, nda::C_stride_order<2>, nda::layout_prop_e::none> idxm(shape,str);
         memory::array_view<MEM,ComplexType,2> Guv_diag(idxm, Guv.data());
         nda::tensor::add(ComplexType(1.0),Guv_diag,"wu",ComplexType(1.0),Guu,"uw");   
       }
