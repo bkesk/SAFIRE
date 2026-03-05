@@ -9,6 +9,7 @@
 #      http://www.apache.org/licenses/LICENSE-2.0
 
 import sys
+import textwrap
 from types import SimpleNamespace
 
 import numpy as np
@@ -20,10 +21,177 @@ from stats.lib.stats import corr
 
 from afqmctools.utils.io import dump_dict
 
-# use pretty column names for user output
-PRETTY_COLUMN_NAMES = {
-    'EnergyEstim__nume_real':'AFQMC Energy'
+# Complex column pairs: maps complex identifier to (real_col, imag_col) tuple
+COMPLEX_COLUMN_PAIRS = {
+    'EnergyEstim': ('EnergyEstim__nume_real', 'EnergyEstim__nume_imag'),
+    'EnergyDeno': ('EnergyEstim__deno_real', 'EnergyEstim__deno_imag'),
 }
+
+# Short aliases for common columns (user-friendly input)
+COLUMN_ALIASES = {
+    'energy': 'EnergyEstim',  # Now points to complex pair
+    'energy_real': 'EnergyEstim__nume_real',
+    'energy_imag': 'EnergyEstim__nume_imag',
+    'deno': 'EnergyDeno',  # Complex denominator
+    'deno_real': 'EnergyEstim__deno_real',
+    'deno_imag': 'EnergyEstim__deno_imag',
+    'energy_timer': 'EnergyEstim__timer',
+    'pseudo': 'PseudoEloc',
+    'overlap': 'LogOvlpFactor',
+    'walkers': 'nWalkers',
+    'memory': 'freeMemory',
+    'eshift': 'Eshift',
+    'shift': 'Eshift',
+    'block': 'block',
+    'time': 'time',
+    'weight': 'weight',
+    # Legacy compatibility
+    'LocalEnergy': 'EnergyEstim',  # Also points to complex
+}
+
+# Pretty column names for display (long descriptive names)
+PRETTY_COLUMN_NAMES = {
+    'EnergyEstim': 'AFQMC Energy',
+    'EnergyEstim__nume_real': 'AFQMC Energy (real)',
+    'EnergyEstim__nume_imag': 'AFQMC Energy (imag)',
+    'EnergyDeno': 'Energy Denominator',
+    'EnergyEstim__deno_real': 'Energy Denominator (real)',
+    'EnergyEstim__deno_imag': 'Energy Denominator (imag)',
+    'EnergyEstim__timer': 'Energy Estimator Time',
+    'PseudoEloc': 'Pseudo Local Energy',
+    'LogOvlpFactor': 'Log Overlap Factor',
+    'nWalkers': 'Number of Walkers',
+    'freeMemory': 'Free Memory (MB)',
+    'Eshift': 'Energy Shift',
+    'block': 'Block',
+    'time': 'Time',
+    'weight': 'Walker Weight',
+}
+
+def is_complex_column(column_name):
+    """
+    Check if a column name refers to a complex column pair.
+    
+    Parameters
+    ----------
+    column_name : str
+        Column identifier to check
+    
+    Returns
+    -------
+    bool
+        True if this is a complex column with real/imag parts
+    """
+    return column_name in COMPLEX_COLUMN_PAIRS
+
+def get_column_data(df, column_name):
+    """
+    Extract column data, handling both real and complex columns.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing the data
+    column_name : str
+        Column name (can be complex identifier or actual column)
+    
+    Returns
+    -------
+    np.ndarray
+        Real array if single column, complex array if complex pair
+    tuple or None
+        (real_col_name, imag_col_name) if complex, None if real
+    """
+    if is_complex_column(column_name):
+        real_col, imag_col = COMPLEX_COLUMN_PAIRS[column_name]
+        data = df[real_col].values + 1j * df[imag_col].values
+        return data, (real_col, imag_col)
+    else:
+        # Single real column
+        return df[column_name].values, None
+
+def perform_division(numerator, denominator):
+    """
+    Perform element-wise complex division.
+    
+    Parameters
+    ----------
+    numerator : np.ndarray
+        Numerator array (can be real or complex)
+    denominator : np.ndarray
+        Denominator array (can be real or complex)
+    
+    Returns
+    -------
+    np.ndarray
+        Result of numerator / denominator
+    """
+    return numerator / denominator
+
+def resolve_column_name(user_input, df):
+    """
+    Resolve user input to actual column name or complex identifier.
+    
+    Accepts three formats:
+    1. Short alias (e.g., 'energy', 'walkers')
+    2. Actual column name (e.g., 'EnergyEstim__nume_real')
+    3. Pretty display name (e.g., 'AFQMC Energy (real)')
+    4. Complex column identifier (e.g., 'EnergyEstim')
+    
+    Parameters
+    ----------
+    user_input : str
+        Column name/alias provided by user
+    df : pd.DataFrame
+        DataFrame to check for actual column names
+    
+    Returns
+    -------
+    str
+        Actual column name, or complex column identifier
+    
+    Raises
+    ------
+    RuntimeError
+        If the column cannot be resolved
+    """
+    # First, check if it's a complex column identifier
+    if is_complex_column(user_input):
+        real_col, imag_col = COMPLEX_COLUMN_PAIRS[user_input]
+        if real_col in df.columns and imag_col in df.columns:
+            return user_input
+    
+    # Second, check if it's already an actual column name
+    if user_input in df.columns:
+        return user_input
+    
+    # Third, check if it's a short alias
+    if user_input in COLUMN_ALIASES:
+        actual_name = COLUMN_ALIASES[user_input]
+        # Check if it's a complex column
+        if is_complex_column(actual_name):
+            real_col, imag_col = COMPLEX_COLUMN_PAIRS[actual_name]
+            if real_col in df.columns and imag_col in df.columns:
+                return actual_name
+        # Otherwise check if it's a regular column
+        elif actual_name in df.columns:
+            return actual_name
+    
+    # Fourth, check if it's a pretty name (reverse lookup)
+    for actual_name, pretty_name in PRETTY_COLUMN_NAMES.items():
+        if user_input == pretty_name:
+            if is_complex_column(actual_name):
+                real_col, imag_col = COMPLEX_COLUMN_PAIRS[actual_name]
+                if real_col in df.columns and imag_col in df.columns:
+                    return actual_name
+            elif actual_name in df.columns:
+                return actual_name
+    
+    # If we get here, the column was not found
+    msg = f'Column "{user_input}" not found.\n'
+    msg += f'Available columns: {list(df.columns)}\n'
+    msg += f'Available aliases: {list(COLUMN_ALIASES.keys())}'
+    raise RuntimeError(msg)
 
 def read_scalar_table(args):
     fdat   = args.fname
@@ -141,7 +309,9 @@ def _get_default_args():
         return_data = False,
         autocorr = None,
         verbose = True,
-        dump_avail_columns = False
+        dump_avail_columns = False,
+        denominator = None,
+        return_complex = False
     )
 
 
@@ -238,29 +408,62 @@ def analyze_scalar_data(args=None,**pyplot_kwargs):
     # check or override "df" here
 
     if args.dump_avail_columns:
-        print('====== [Available columns] ======')
+        print('\n====== [Available columns] ======\n')
+        print(f'{"Column Name":<40s} {"Aliases":<30s} {"Pretty Name":<40s}')
+        print('-' * 110)
+        
+        # Create reverse mapping of actual columns to their aliases
         for col in df.columns:
-            print(f'{col:>40s}')
-        return None,None 
+            # Find all aliases that point to this column
+            aliases = [alias for alias, actual in COLUMN_ALIASES.items() if actual == col]
+            aliases_str = ', '.join(aliases) if aliases else '-'
+            pretty = PRETTY_COLUMN_NAMES.get(col, '-')
+            
+            # Wrap text for proper display
+            col_lines = textwrap.wrap(col, width=38) or [col]
+            alias_lines = textwrap.wrap(aliases_str, width=28) or [aliases_str]
+            pretty_lines = textwrap.wrap(pretty, width=38) or [pretty]
+            
+            # Print first line
+            max_lines = max(len(col_lines), len(alias_lines), len(pretty_lines))
+            for i in range(max_lines):
+                col_part = col_lines[i] if i < len(col_lines) else ''
+                alias_part = alias_lines[i] if i < len(alias_lines) else ''
+                pretty_part = pretty_lines[i] if i < len(pretty_lines) else ''
+                print(f'{col_part:<40s} {alias_part:<30s} {pretty_part:<40s}')
+        return None,None
 
-    # interpret inputs
+    # interpret inputs and resolve column name
     if (column == 'LocalEnergy') and ('LocalEnergy' not in df.columns):
-        # change default
-        column = 'EnergyEstim__nume_real'
-        if column not in df.columns:
-            column = df.columns[0]
-    if column not in df.columns:
-        msg = 'requested column "%s" not found\n' % column
-        msg += ' available: %s' % str(df.columns.values)
-        raise RuntimeError(msg)
+        # change default - now points to complex version
+        column = 'EnergyEstim'
+        # Fall back to first column if energy columns don't exist
+        if not is_complex_column(column):
+            if 'EnergyEstim__nume_real' in df.columns:
+                column = 'EnergyEstim__nume_real'
+            else:
+                column = df.columns[0]
+    
+    # Resolve column name (supports aliases, actual names, and pretty names)
+    column = resolve_column_name(column, df)
+    
+    # Handle denominator if specified
+    denominator = args.denominator
+    if denominator is not None:
+        denominator = resolve_column_name(denominator, df)
 
     # calculate the mean and error of a single column of scalars
     if args.reblock > 1:
         df = reblock_scalar_df(df, args.reblock)
+    
     # dump column if requested
     if args.dump:
-        write(args.dump_fname, df[[column]])
-    
+        if is_complex_column(column):
+            real_col, imag_col = COMPLEX_COLUMN_PAIRS[column]
+            write(args.dump_fname, df[[real_col, imag_col]])
+        else:
+            write(args.dump_fname, df[[column]])
+
     # throw out equilibration
     series_column = args.series_column
     if series_column is None:
@@ -272,46 +475,128 @@ def analyze_scalar_data(args=None,**pyplot_kwargs):
                          "Must be 'block' or 'time'.")
     nequil = args.nequil
     if args.estimate_equil:
-        nequil = nequil_std(df[column].values)
+        # Use real part for equilibration estimation
+        if is_complex_column(column):
+            real_col, _ = COMPLEX_COLUMN_PAIRS[column]
+            nequil = nequil_std(df[real_col].values)
+        else:
+            nequil = nequil_std(df[column].values)
         nequil = myx.values[nequil]
     sel = myx > nequil
-    ymean, yerr, ycorr = single_column(df.loc[sel], column, 0, kappa=args.autocorr)
+    
+    # Extract data and handle complex columns
+    is_complex = is_complex_column(column)
+    
+    if is_complex:
+        # Get complex data
+        data, (real_col, imag_col) = get_column_data(df.loc[sel], column)
+        
+        # Handle denominator division if specified
+        if denominator is not None:
+            denom_data, _ = get_column_data(df.loc[sel], denominator)
+            data = perform_division(data, denom_data)
+        
+        # Analyze real part first to get correlation length
+        ymean_real, yerr_real, ycorr = single_column_from_array(data.real, 0, kappa=args.autocorr)
+        
+        # Analyze imaginary part using same correlation length
+        ymean_imag, yerr_imag, _ = single_column_from_array(data.imag, 0, kappa=ycorr)
+        
+        # For backwards compatibility, default return is real part only
+        ymean, yerr = ymean_real, yerr_real
+    else:
+        # Single real column - original behavior
+        data, _ = get_column_data(df.loc[sel], column)
+        
+        # Handle denominator division if specified
+        if denominator is not None:
+            denom_data, _ = get_column_data(df.loc[sel], denominator)
+            data = perform_division(data, denom_data)
+        
+        ymean, yerr, ycorr = single_column_from_array(data.real if np.iscomplexobj(data) else data, 0, kappa=args.autocorr)
+        ymean_real, yerr_real = ymean, yerr
+        ymean_imag, yerr_imag = 0.0, 0.0
 
     if args.verbose:
         # print statistics
-        prt_format = "\n{name:14s} {mean:10.6f} +/- {error:10.6f} {corr:4.2f} {nequil:4.1f}/{ndat:4.1f}"
-        output = prt_format.format(
-            name = PRETTY_COLUMN_NAMES.get(str(column),str(column)),
-            mean = ymean,
-            error= yerr,
-            corr = ycorr,
-            nequil = nequil,
-            ndat = myx.max(),
-        )
-        print(output)
+        pretty_name = PRETTY_COLUMN_NAMES.get(str(column), str(column))
+        if is_complex:
+            # Print both real and imaginary parts
+            prt_format = "{name:40s} (real): {mean:10.6f} +/- {error:10.6f} {corr:4.2f} {nequil:4.1f}/{ndat:4.1f}"
+            output = prt_format.format(
+                name = pretty_name,
+                mean = ymean_real,
+                error= yerr_real,
+                corr = ycorr,
+                nequil = nequil,
+                ndat = myx.max(),
+            )
+            print(output)
+            prt_format = "{name:40s} (imag): {mean:10.6f} +/- {error:10.6f} {corr:4.2f}"
+            output = prt_format.format(
+                name = pretty_name,
+                mean = ymean_imag,
+                error= yerr_imag,
+                corr = ycorr,
+            )
+            print(output)
+        else:
+            prt_format = "{name:40s} {mean:10.6f} +/- {error:10.6f} {corr:4.2f} {nequil:4.1f}/{ndat:4.1f}"
+            output = prt_format.format(
+                name = pretty_name,
+                mean = ymean,
+                error= yerr,
+                corr = ycorr,
+                nequil = nequil,
+                ndat = myx.max(),
+            )
+            print(output)
 
     if args.trace:    # plot column
-
         ndiscard = getattr(args,"ndiscard",0)
-
-        myy0 = df[column].values
+        
+        # Plot real part only
+        if is_complex:
+            real_col, _ = COMPLEX_COLUMN_PAIRS[column]
+            myy0 = df[real_col].values
+            # Apply denominator if specified
+            if denominator is not None:
+                full_data, _ = get_column_data(df, column)
+                denom_full, _ = get_column_data(df, denominator)
+                myy0 = perform_division(full_data, denom_full).real
+        else:
+            myy0 = df[column].values
+            # Apply denominator if specified
+            if denominator is not None:
+                full_data, _ = get_column_data(df, column)
+                denom_full, _ = get_column_data(df, denominator)
+                myy0 = perform_division(full_data, denom_full).real if np.iscomplexobj(perform_division(full_data, denom_full)) else perform_division(full_data, denom_full)
+        
         fig, ax_arr = plot_trace(myx, myy0, nequil, series_column, column, ndiscard=ndiscard, **pyplot_kwargs)
         if args.savefig:
             fig.savefig(args.savefig, dpi=320)
         else:
             plt.show()
+    
     if hasattr(args,"return_data") and args.return_data:
         output = dict(
               name = str(column),
-              mean = ymean,
-              error= yerr,
+              mean_real = ymean_real,
+              error_real = yerr_real,
+              mean_imag = ymean_imag,
+              error_imag = yerr_imag,
               corr = ycorr,
               nequil = nequil,
               ndat = myx.max(),
           )
         return output
-
-    return ymean,yerr
+    
+    # Return value based on return_complex flag
+    if args.return_complex and is_complex:
+        return ymean_real + 1j*ymean_imag, yerr_real + 1j*yerr_imag
+    else:
+        # Backwards compatible: return real part only
+        return ymean, yerr
 
 def interpret_headers(headers):
     columns = []
@@ -554,6 +839,25 @@ def single_column(df, column, nequil, kappa=None):
          , yerr is the 1-sigma error of column, and ycorr is the autocorrelation
     """
     myy = df[column].values[nequil:]
+    return single_column_from_array(myy, nequil=0, kappa=kappa)
+
+def single_column_from_array(data_array, nequil, kappa=None):
+    """Calculate mean and error from a numpy array
+
+        nequil data points are thrown out; autocorrelation time is taken into
+    account when calculating error. The equilibrated data is assumed to have
+    Gaussian distribution. Error is calculated for one standard deviation
+    (1-sigma error).
+
+    Args:
+        data_array (np.ndarray): array of data
+        nequil (int): number of equilibration points (usually 0 if already equilibrated)
+        kappa (float, optional): autocorrelation time, default is to re-calculate
+    Return:
+        (float,float,float): (ymean,yerr,ycorr), where ymean is the mean,
+         yerr is the 1-sigma error, and ycorr is the autocorrelation
+    """
+    myy = data_array[nequil:]
 
     ymean = np.mean(myy)
     if kappa is not None:
@@ -562,7 +866,7 @@ def single_column(df, column, nequil, kappa=None):
     # check if data is uniform - based on absolute tolerance only since
     #  we want to know if the data is constant
     elif np.allclose(ymean*np.ones_like(myy), myy, rtol=0):
-        print(f'uniform data deteced in {column}')
+        print('uniform data detected')
         ycorr = np.inf
         yerr = 0.0
     else:
