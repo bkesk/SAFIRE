@@ -146,6 +146,7 @@ from afqmctools.hamiltonian.mol import write_hamil_mol
 # Requirements
 
 TODO: 07252024 This needs to be tested; minimum versions are not known
+MAM: We seem to depend also on yaml and toml. Either make explicit or guard in the code.
 
 The tools work with the following:
 
