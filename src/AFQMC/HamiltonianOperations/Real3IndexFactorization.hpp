@@ -332,7 +332,7 @@ public:
 
   auto vHS_sparse(nda::MemoryArrayOfRank<2> auto && X, double dt)
   {
-    utils::check(false, "vHS_sparse not implemented in THCOps.");
+    utils::check(false, "vHS_sparse not implemented in Real3IndexFactorization.");
     nda::array<math::sparse::csr_matrix<ComplexType,MEM,int,int>,1> spvHS;
     return spvHS();
   }
@@ -399,11 +399,11 @@ public:
     int nel   = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
     utils::check_strides(G,v);
     // limiting G to contiguous arrays for simplicity now, reconsider if necessary
-    utils::check(v.shape() == std::array<long,2>{nwalk,nCV}, "THC::vbias: Size mismatch.");
+    utils::check(v.shape() == std::array<long,2>{nwalk,nCV}, "Real3IndexFactorization::vbias: Size mismatch.");
     if(haj.extent(0) == 1) // ndet==1, G half rotated
-      utils::check(G.extent(1) == nel*npol*NMO, "THC::vbias: Size mismatch.");
+      utils::check(G.extent(1) == nel*npol*NMO, "Real3IndexFactorization::vbias: Size mismatch.");
     else // ndet>1, full G 
-      utils::check(G.extent(1) == nspin*npol*NMO*npol*NMO, "THC::vbias: Size mismatch.");
+      utils::check(G.extent(1) == nspin*npol*NMO*npol*NMO, "Real3IndexFactorization::vbias: Size mismatch.");
     utils::check(G.is_contiguous(), "Layout mismatch");
 
     // scale a by sqrt(dt)
@@ -425,7 +425,7 @@ public:
               for(int ia=0; ia<(is==0?nup:ndown); ++ia) {
                 auto Ln = Lnak(is)()(0,ip,all,ia,all);
                 auto G_ = G3d(all,is*nup+ia,range(ip*NMO,(ip+1)*NMO));
-                nda::blas::gemm(ComplexType(a), G_(), Ln(), ComplexType(1.0), v);
+                nda::blas::gemm(ComplexType(a), G_(), nda::transpose(Ln), ComplexType(1.0), v);
               }
             }
           }
@@ -435,6 +435,7 @@ public:
           for (int ip = 0; ip < npol; ip++) {
             auto Ln = Lnak(is)()(0,ip,all,range(is==0?nup:ndown),all);
             auto G_ = G3d(all,range(is*nup,nup+is*ndown),range(ip*NMO,(ip+1)*NMO));
+            // KE: Likely need to transpose Ln, check on GPU build first!
             nda::tensor::contract(ComplexType(a), G_, "wak",  Ln, "nak", ComplexType(1.0), v, "wn");
           }
         }

@@ -123,8 +123,11 @@ def write_dense(
 
     with h5.File(filename, 'a') as fh5:
 
-        write_to_hdf5(fh5,'Hamiltonian/Energies',data=numpy.array([enuc,0]))
-        
+        write_to_hdf5(fh5,'Hamiltonian/Energies',
+                      data=numpy.array([enuc,0.]),
+                      dtype=numpy.float64
+        )
+
         if real_chol is None:
             real_chol = not numpy.any(numpy.iscomplex(chol))
 
@@ -140,7 +143,7 @@ def write_dense(
 
         write_to_hdf5(fh5,'Hamiltonian/dims', data = numpy.array([0, 0, 0, nmo,
                                                nelec[0], nelec[1], 0,
-                                               chol.shape[-1]]))
+                                               chol.shape[-1]], dtype=numpy.int32))
         write_to_hdf5(fh5,'Hamiltonian/ComplexIntegrals', data=numpy.array([not int(real_chol)],
                                                           dtype=numpy.int32))
         if ortho is not None:

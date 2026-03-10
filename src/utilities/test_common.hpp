@@ -62,14 +62,27 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
                                           pre + "BH/afqmc_inputs/afqmc_uhf_nomsd.h5") );
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
                                           pre + "BH/afqmc_inputs/afqmc_uhf_nomsd_init_rhf.h5") );
+      files.emplace_back( std::make_tuple(pre + "Li/afqmc_inputs/hamil_closed.h5",
+                                          pre + "Li/afqmc_inputs/rohf_nomsd_fullypolarized.h5") );
     }    
     if(ghf) {
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_noncollinear.h5",
                                           pre + "BH/afqmc_inputs/afqmc_ghf_nomsd.h5") );
+      files.emplace_back( std::make_tuple(pre + "Pb/afqmc_inputs/afqmc_H_rhf_basis_noncollinear_sf.h5",
+                                          pre + "Pb/afqmc_inputs/afqmc_ghf_sf_nomsd.h5") );
     }
   }
   if (phmsd) {
-
+    if (uhf) {
+      // edge case: leading det only
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
+                                          pre + "BH/afqmc_inputs/afqmc_casci_uhf_1phmsd.h5") );
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_uhf_collinear.h5",
+                                          pre + "BH/afqmc_inputs/afqmc_casci_uhf_phmsd.h5") );
+      // may be redundant with above test: good for diversity of inputs
+      files.emplace_back(std::make_tuple(pre + "N2/afqmc_inputs/cas_basis_hamil.h5",
+                                        pre + "N2/afqmc_inputs/cas_wfn.h5"));
+      }
   }
   return files;
 }

@@ -62,6 +62,11 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   using nda::range;
   using matrix_t = memory::array<MEM,ComplexType,2>;
   auto all = range::all;
+  app_log(1, "Running Hamiltonian operations unit test "
+    "with:\n  Hamiltonian file: {}\n  wavefunction file: {}", 
+    hamil_file, wfn_file
+  );
+  
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
   utils::check(utils::file_exists(wfn_file),
