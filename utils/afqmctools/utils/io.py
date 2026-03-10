@@ -406,7 +406,8 @@ def write_model_hamiltonian(
         # write Energies!
         f.create_dataset(
             'Hamiltonian/Energies',
-            data = np.array([0., 0.], dtype=np.float64),
+            data = np.array([0., 0.]),
+            dtype=np.float64
         )
 
         f.create_dataset(
