@@ -29,7 +29,6 @@ void splitDmatrix(A_t const& A, B_t && B, C_t && C, V_t && log_det, S_t const& s
   sfqmc::utils::check(A.shape() == C.shape(), "Size mismatch");
   sfqmc::utils::check(A.extent(0) == log_det.extent(0), "Size mismatch");
   sfqmc::utils::check(A.extent(0) == scl.extent(0), "Size mismatch");
-  sfqmc::utils::check(A.extent(1) == A.extent(2), "Size mismatch");
 
   auto A_b = to_basic_layout(A());
   auto B_b = to_basic_layout(B());

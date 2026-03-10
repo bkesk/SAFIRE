@@ -74,7 +74,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   // Remove file extension.
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   test_wfn = test_wfn.substr(test_wfn.find('_') + 1);
-  std::cout<<test_wfn<<std::endl;
+
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
   // finite-T nup <-- ntau, ndown = 0
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
@@ -139,7 +139,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     }
 
     auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, psi);
-    memory::array<MEM,ComplexType,3> G(nwalk, nel, npol * NMO);
+    memory::array<MEM,ComplexType,3,nda::C_layout> G(nwalk, nel, npol * NMO);
     memory::array<MEM,ComplexType,1> ovlp(nwalk,ComplexType(0.0)); 
 
     // Overlap/GreenFunction
@@ -209,7 +209,8 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
 
     auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
     auto vHS = HOps.vHS(X,dt);
-    REQUIRE( vHS.shape() == std::array<long,4>{nwalk,vHS_nspin,vHS_npol*NMO,NMO} );
+    //REQUIRE( vHS.shape() == std::array<long,4>{nwalk,vHS_nspin,vHS_npol*NMO,NMO} );
+    REQUIRE( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
     auto vHS_h = nda::to_host(vHS);
     ComplexType Vsum = 0;
     for (int i = 0; i < vHS.extent(2); i++)
@@ -243,8 +244,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   }
   else{
 
-    //auto psi = read_nomsd_wavefunction<MEM>(ngrp,ndet,wtype,NMO,ntau,0);
-    auto psi = read_nomsd_wavefunction_ft<MEM>(ngrp,ndet,wtype,NMO,ntau);
+    auto psi = read_nomsd_wavefunction<MEM>(ngrp,ndet,wtype,NMO,ntau);
     utils::check(psi.shape() == std::array<long,3>{ndet,nspin,3}, "Shape mismatch.");
 
     memory::array<MEM,ComplexType,3> UMat(nwalk,npol*NMO,nspin*npol*NMO);
@@ -290,17 +290,20 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     nda::array<PsiT_Matrix<MEM>, 2> Imat(ndet,nspin);
     for(int nd = 0; nd < ndet; ++nd)
       for(int s = 0; s < nspin; ++s)
-        Imat(nd,s) = math::sparse::identity<ComplexType>(npol*NMO);//math::sparse::to_csr(nda::eye<ComplexType>(npol*NMO));
+        Imat(nd,s) = math::sparse::identity<ComplexType>(npol*NMO);
 
     memory::array<MEM,ComplexType,1> sclR(nwalk,ComplexType(0.0));
     memory::array<MEM,ComplexType,1> sclL(1,ComplexType(0.0));
 
     auto HOps=ham.getHamiltonianOperations<MEM>(wtype, mpi, Imat);
-    memory::array<MEM,ComplexType,3> G(nwalk, nspin * npol * NMO, npol * NMO);
+    memory::array<MEM,ComplexType,3,nda::C_layout> G(nwalk, nspin * npol * NMO, npol * NMO);
     memory::array<MEM,ComplexType,1> ovlp(nwalk,ComplexType(0.0)); 
 
-    auto DLup = math::sparse::to_array<ComplexType>(psi(0,0,1));
-    auto DLdn = math::sparse::to_array<ComplexType>(psi(0,1,1));
+    auto DLup = math::sparse::to_array<'N'>(psi(0,0,1));
+    auto DLdn = math::sparse::to_array<'N'>(psi(0,1,1));
+
+    auto ULdense = math::sparse::to_array<'N'>(psi(0,0,0));
+    auto VLdense = math::sparse::to_array<'N'>(psi(0,0,2));
 
     memory::array<MEM,ComplexType,2> Ddiag(nwalk,nspin*npol*NMO);
     for(int i = 0; i < nwalk; ++i){
@@ -309,26 +312,18 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     }
 
     // Overlap/GreenFunction
-    det_ops::MixedDensityMatrix(psi(0,0,0), DLup(nt,all), psi(0,0,2), UMat(all,all,range(npol*NMO)), 
-              Ddiag(all,range(npol*NMO)), VMat(all,all,range(npol*NMO)), G(all,range(npol*NMO),all), ovlp, sclL(0), sclR, false, false);
-    if (wtype == COLLINEAR_FT)
-      det_ops::MixedDensityMatrix(psi(0,1,0), DLdn(nt,all), psi(0,1,2), UMat(all,all,range(NMO,2*NMO)), 
-              Ddiag(all,range(NMO,2*NMO)), VMat(all,all,range(NMO,2*NMO)), G(all,range(NMO,2*NMO),all), ovlp, sclL(0), sclR, false, false);
-    
+    det_ops::MixedDensityMatrix(ULdense, DLup(nt,all), VLdense, UMat(all,all,range(npol*NMO)), 
+              Ddiag(all,range(npol*NMO)), VMat(all,all,range(npol*NMO)), G(all,range(npol*NMO),all), ovlp, sclL, sclR, false, false);
+    if (wtype == COLLINEAR_FT){
+      ULdense = math::sparse::to_array<'N'>(psi(0,1,0));
+      VLdense = math::sparse::to_array<'N'>(psi(0,1,2));
+      det_ops::MixedDensityMatrix(ULdense, DLdn(nt,all), VLdense, UMat(all,all,range(NMO,2*NMO)), 
+              Ddiag(all,range(NMO,2*NMO)), VMat(all,all,range(NMO,2*NMO)), G(all,range(NMO,2*NMO),all), ovlp, sclL, sclR, false, false);
+    }
     //  ARRAY_EQUAL(ovlp,nda::array<ComplexType,1>(nwalk,ComplexType(0.0)));
 
     // 2d views and transposed copies just in case
     auto G2d = nda::reshape(G,std::array<long,2>{nwalk,nspin*NMO*npol*NMO});
-    
-    /*
-    std::cout<<"G2d"<<std::endl;
-    for(int n = 0; n < nwalk; ++n){
-      for(int i = 0; i < nspin*NMO*npol*NMO; ++i){
-          std::cout<<G2d(n,i)<<std::endl;
-        }
-      std::cout<<"********"<<std::endl;
-    }
-    */
 
     // optimize HOps evaluation
     HOps.runtime_optimization(G2d); 
@@ -367,7 +362,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     }
 
     // non-trivial G for vbias
-    memory::array<MEM,ComplexType,2> Gup = {{0.211176380005242,
+    nda::array<ComplexType,2> m_gup = {{0.211176380005242,
                   0.112277523254611,
                   0.177675990138485,
                   0.106142018922236},
@@ -383,7 +378,8 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
                   0.317866002140071,
                   0.348475136358340,
                   0.413798296999333}};
-    memory::array<MEM,ComplexType,2> Gdn = {{0.743065100331070,
+
+    nda::array<ComplexType,2> m_gdn = {{0.743065100331070,
                   4.541184864995010E-002,
                   0.564774241220308,
                   -0.234043532023815},
@@ -399,16 +395,21 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
                   0.254051606400030,
                   9.130354510702411E-002,
                   0.484723224784551}};
+
+    memory::array<MEM,ComplexType,2> Gup(m_gup);
+    memory::array<MEM,ComplexType,2> Gdn(m_gdn);
+
     for(int n = 0; n < nwalk; ++n){
       G2d(n,range(NMO*NMO)) = nda::reshape(Gup,std::array<long,1>{npol*NMO*npol*NMO});
       G2d(n,range(NMO*NMO,2*NMO*NMO)) = nda::reshape(Gdn,std::array<long,1>{npol*NMO*npol*NMO});
     }
-    
+
     memory::array<MEM,ComplexType,2> X(nwalk, nCV);
     X() = ComplexType(0.0);
     HOps.vbias(G2d, X, dt);
     ComplexType Xsum = 0, Xsum2 = 0;
     auto X_h = nda::to_host(X);
+
     for (int i = 0; i < nCV; i++)
     {
       Xsum += X_h(0,i);
@@ -429,14 +430,15 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
     REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
 
+
     auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
     auto vHS = HOps.vHS(X,dt);
-    REQUIRE( vHS.shape() == std::array<long,4>{nwalk,vHS_nspin,vHS_npol*NMO,NMO} );
+    REQUIRE( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
     auto vHS_h = nda::to_host(vHS);
     ComplexType Vsum = 0;
     for (int i = 0; i < vHS.extent(2); i++)
       for (int j = 0; j < vHS.extent(3); j++)
-        Vsum += vHS_h(0,0,i,j);
+        Vsum += vHS_h(0,0,i,j);    
     if (std::abs(file_data.Vsum) > 1e-8)
     {
       REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
@@ -446,6 +448,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     {
       app_log(1," Vsum: {}", Vsum);
     }
+
 
     if (HOps.getHamType() == ModelHamiltonian )
     {
@@ -463,99 +466,6 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     }
 
   }
-
-
-  /*  
-  // optimize HOps evaluation
-  HOps.runtime_optimization(G2d); 
-
-  // Energy
-  memory::array<MEM,ComplexType,2> Eloc(nwalk, 3);
-  HOps.energy(Eloc, G2d, 0);
-  auto eloc_h = nda::to_host(Eloc);
-  if (std::abs(file_data.E0 + file_data.E1) > 1e-8) {
-    ARRAY_EQUAL(eloc_h(all,0), nda::array<ComplexType,1>(nwalk,file_data.E0 + file_data.E1)); 
-  } else
-    app_log(1," E1: {} ", eloc_h(0,0));
-  if (std::abs(file_data.E2) > 1e-8)
-  {
-    ARRAY_EQUAL(eloc_h(all,1), nda::array<ComplexType,1>(nwalk,file_data.E2)); 
-  }
-  else
-  {
-    app_log(1," EJ: {}", eloc_h(0,2));
-    app_log(1," EXX: {}", eloc_h(0,1)); 
-    app_log(1," ETotal: {}", eloc_h(0,0)+eloc_h(0,1)+eloc_h(0,2)); 
-  }
-return;
-
-  double dt = 0.01;
-  auto nCV  = HOps.number_of_cholesky_vectors();
-
-  {
-    nda::array<ComplexType, 1> nMF(2*NMO, ComplexType(1.0));
-    memory::array<MEM,ComplexType, 1> vMF(nCV);
-    HOps.update_potentials(dt,nMF,vMF,true);
-  }
-
-  memory::array<MEM,ComplexType,2> X(nwalk, nCV);
-  X() = ComplexType(0.0);
-  HOps.vbias(G2d, X, dt);
-  ComplexType Xsum = 0, Xsum2 = 0;
-  auto X_h = nda::to_host(X);
-  for (int i = 0; i < nCV; i++)
-  {
-    Xsum += X_h(0,i);
-    Xsum2 += ComplexType(0.5) * X_h(0,i) * X_h(0,i);
-  }
-  if (std::abs(file_data.Xsum) > 1e-8)
-  {
-    REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
-    REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
-  }
-  else
-  {
-    app_log(1," Xsum: {}", Xsum);
-    app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
-  }
-return;
-
-  auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
-  REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
-
-  auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
-  auto vHS = HOps.vHS(X,dt);
-  REQUIRE( vHS.shape() == std::array<long,4>{nwalk,vHS_nspin,vHS_npol*NMO,NMO} );
-  auto vHS_h = nda::to_host(vHS);
-  ComplexType Vsum = 0;
-  for (int i = 0; i < vHS.extent(2); i++)
-    for (int j = 0; j < vHS.extent(3); j++)
-      Vsum += vHS_h(0,0,i,j);
-  if (std::abs(file_data.Vsum) > 1e-8)
-  {
-    REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
-    REQUIRE(imag(Vsum) == Approx(imag(file_data.Vsum)));
-  }
-  else
-  {
-    app_log(1," Vsum: {}", Vsum);
-  }
-
-  if (HOps.getHamType() == ModelHamiltonian )
-  {
-    auto vHS_sparse = HOps.vHS_sparse(X,dt);
-    ComplexType Vsum2 = nda::sum(nda::to_host(vHS_sparse(0).values()))/double(nwalk);
-    if (std::abs(file_data.Vsum) > 1e-8)
-    {
-      REQUIRE(real(Vsum2) == Approx(real(file_data.Vsum)));
-      REQUIRE(imag(Vsum2) == Approx(imag(file_data.Vsum)));
-    }
-    else
-    {
-      app_log(1," Vsum sparse: {}", Vsum2);
-    }
-  }
-  */
 
 /*
   // Generalised Fock matrix. only implemented on Real3IndexFactorization_batched_v2 

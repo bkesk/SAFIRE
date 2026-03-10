@@ -525,7 +525,7 @@ private:
       int n0 = 0;
       for(int iw=0; iw<nwalk; ++iw) 
         nda::blas::gemm(psi,Gc(iw,range(n0,n0+nel[0]),all),Gfull_4d(iw,0,all,all));
-      if( walker_type == COLLINEAR ) {
+      if( walker_type == COLLINEAR or walker_type == COLLINEAR_FT) {
         auto psi_dn = PsiC()(idet,1,all,range(nel[1]));
         n0 = nel[0];
         for(int iw=0; iw<nwalk; ++iw) 
@@ -535,7 +535,7 @@ private:
       auto psi = PsiC()(idet,0,all,range(nel[0]));
       int n0 = 0;
       nda::tensor::contract(psi,"ia",Gc(all,range(n0,n0+nel[0]),all),"waj",Gfull_4d(all,0,all,all),"wij");
-      if( walker_type == COLLINEAR ) {
+      if( walker_type == COLLINEAR or walker_type == COLLINEAR_FT) {
         auto psi_dn = PsiC()(idet,1,all,range(nel[1]));
         n0 = nel[0];
         nda::tensor::contract(psi_dn,"ia",Gc(all,range(n0,n0+nel[1]),all),"waj",Gfull_4d(all,1,all,all),"wij");
