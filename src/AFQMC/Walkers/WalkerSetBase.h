@@ -579,32 +579,6 @@ public:
     return bp_buffer(range::all,range(i0,i0+wlk_desc[6]));
   }
 
-  double getLogOverlapFactor() const { return LogOverlapFactor; }
-
-/**
- * @brief Updates the WalkerSetBase::LogOverlapFactor
- *
- * @details adjustLogOverlapFactor adjusts the LogOverlapFactor. 
- *  If F = e^(-f) is the "linear" overlap to include and nx is a factor described below, 
- *  then the new LogOverlapFactor is updated as LogOverlapFactor = LogOverlapFactor + log(F)/nx.
- *  
- *  nx= {2:CLOSED&&COLLINEAR, 1:NONCOLLINEAR }
- *  before: OV_full = exp( nx*LogOverlapFactor ) * OVold
- *  after: OV_full = exp( nx*LogOverlapFactor+f ) * OVnew
- *  OVnew = OVold * exp( -f )
- *  LogOverlapFactor_new = LogOverlapFactor + f/nx
- * 
- * @param f const double f is factor to include in the current LogOverlapFactor. It is assumed that f = log(F).
- */
-  void adjustLogOverlapFactor(const double f)
-  {
-    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    double nx = (walkerType == NONCOLLINEAR or walkerType == FULLYPOLARIZED ? 1.0 : 2.0);
-    nda::blas::scal(ComplexType(std::exp(-f)), walker_buffer(nda::range(tot_num_walkers), data_displ[OVLP]));
-    LogOverlapFactor += f / nx;
-    mpi->comm.barrier();
-  }
-
   static ptree interpret_inputs(const ptree pt0)
   {
     // read inputs with default options
@@ -683,16 +657,6 @@ protected:
   int targetN_per_rank;
   int targetN;
   int tot_num_walkers;
-
-  // Stores an overall scaling factor for walker weights (assumed to be
-  // consistent over all walker groups).
-  // The actual overlap of a walker is exp(OverlapFactor)*wset[i].weight()
-  // Notice that overlap ratios (which are always what matters) are
-  // independent of this value.
-  // If this value is changed, the overlaps of the walkers must be adjusted
-  // This is needed for stability reasons in large systems
-  // Note that this is stored on a "per spin" capacity
-  double LogOverlapFactor = 0.0;
 
   // Contains main walker data needed for propagation
   memory::array<MEM, ComplexType, 2> walker_buffer;

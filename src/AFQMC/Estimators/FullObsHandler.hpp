@@ -180,12 +180,7 @@ public:
     utils::check(SMA.extent(1) == npol*NMO, "Size mismatch");
     utils::check(SMB.extent(1) == npol*NMO, "Size mismatch");
 
-    memory::buffered_array<MEM,ComplexType,3> RefsA(SMA.shape());
-    memory::buffered_array<MEM,ComplexType,3> RefsB((nspins-1)*nwalk,npol*NMO,ndown);
-
     memory::buffered_array<MEM,ComplexType,4> G4D(nwalk,nspins,npol*NMO,npol*NMO);
-    memory::buffered_array<MEM,ComplexType,3> GA(nwalk,nup,npol*NMO);
-    memory::buffered_array<MEM,ComplexType,3> GB((nspins-1)*nwalk,ndown,npol*NMO);
     memory::buffered_array<MEM,ComplexType,1> Ov(nwalk, ComplexType(0.0)); 
 
     // host copy/view
@@ -217,26 +212,23 @@ public:
 // MAM: no reference overlap is being substracted yet, 
 // find a suitable common reference at this stage
       Xw() = ComplexType(0.0);
-      for (int iref = 0, is = 0; iref < nrefs; iref++, is += nspins)
+      for (int iref = 0; iref < nrefs; iref++)
       {
         Ov() = ComplexType(0.0);
 
         //1. Calculate Green functions
-        nda::tensor::assign(Refs(all,iref,all,range(nup)),RefsA);
-        det_ops::Log_Overlap(RefsA, SMA, Ov(all));
+        det_ops::Log_Overlap(Refs(all,iref,all,range(nup)), SMA, Ov);
 
         if (walker_type == COLLINEAR)
-        {
-          nda::tensor::assign(Refs(all,iref,all,range(nup,nup+ndown)),RefsB);
-          det_ops::Log_Overlap(RefsB, SMB, Ov(all));
-        }
+          det_ops::Log_Overlap(Refs(all,iref,all,range(nup,nup+ndown)), SMB, Ov);
 
         //2.accumulate CI[n] * Ov[n] * R[n]
         ComplexType CIcoeff(std::conj(wfn0->getReferenceWeight(iref)));
         auto Ov_h = nda::to_host(Ov());
         if (walker_type == CLOSED) Ov_h() *= 2.0;
-        Xw() += (CIcoeff * nda::exp(Ov_h) * nda::conj( nda::exp(logdetR_h(all,iref)) ));
+        Xw() += (CIcoeff * nda::exp(Ov_h + nda::conj(logdetR_h(all,iref))));
       }
+std::cout<<" sum(X): " <<nda::sum(scl_wgt) <<" " <<nda::sum(Xw) <<std::endl;
       
       // scale walker weights
       scl_wgt() /= Xw();
@@ -245,49 +237,36 @@ public:
 
     // calculate GF and accumulate
     Xw() = ComplexType(1.0);
-    for (int iref = 0, is = 0; iref < nrefs; iref++, is += nspins)
+    for (int iref = 0; iref < nrefs; iref++)
     {
       Ov() = ComplexType(0.0);
 
       //1. Calculate Green functions
-      nda::tensor::assign(Refs(all,iref,all,range(nup)),RefsA);
-      // compact GF  
-      det_ops::MixedDensityMatrix(RefsA, SMA, GA, Ov(all));
       // Full GF
-      if constexpr (MEM==HOST_MEMORY)
-        for(int iw=0; iw<nwalk; ++iw)
-          nda::blas::gemm(nda::dagger(RefsA(iw,all,all)),GA(iw,all,all),G4D(iw,0,all,all));
-      else
-        nda::tensor::contract(nda::conj(RefsA),"nki",GA,"nkj",G4D(all,0,all,all),"nij");
+      det_ops::MixedDensityMatrix(Refs(all,iref,all,range(nup)), SMA, G4D(all,0,all,all), Ov, false);
 
       if (walker_type == COLLINEAR)
-      {
-        nda::tensor::assign(Refs(all,iref,all,range(nup,nup+ndown)),RefsB);
-        // compact GF  
-        det_ops::MixedDensityMatrix(RefsB, SMB, GB, Ov(all));
-        // Full GF
-        if constexpr (MEM==HOST_MEMORY)
-          for(int iw=0; iw<nwalk; ++iw)
-            nda::blas::gemm(nda::dagger(RefsB(iw,all,all)),GB(iw,all,all),G4D(iw,1,all,all));
-        else
-          nda::tensor::contract(nda::conj(RefsB),"nki",GB,"nkj",G4D(all,1,all,all),"nij");
-      }
+        det_ops::MixedDensityMatrix(Refs(all,iref,all,range(nup,nup+ndown)), SMB, G4D(all,1,all,all), Ov, false);
 
       //2. calculate and accumulate appropriate weights
       Xw() = scl_wgt();
       if (nrefs > 1)
       {
         // conjugated here!
-        ComplexType CIcoeff(std::conj(wfn0->getReferenceWeight(iref)));
+        // MAM: Observables divide by the number of calls to accumulate. 
+        //      We multiply here by nrefs to cancel that term. 
+        //      This way a single interface can be used by all handlers 
+        ComplexType CIcoeff(std::conj(wfn0->getReferenceWeight(iref)) * ComplexType(nrefs));
         auto Ov_h = nda::to_host(Ov());
         if (walker_type == CLOSED) Ov_h() *= 2.0;
-        Xw() *= (CIcoeff * nda::exp(Ov_h) * nda::conj( nda::exp(logdetR_h(all,iref)) ));
+        Xw() *= (CIcoeff * nda::exp(Ov_h + nda::conj(logdetR_h(all,iref))));
       }
 
       if constexpr (MEM == DEVICE_MEMORY) 
         G4D_h() = G4D();
 
       //3. accumulate references
+std::cout<<" sum(G): " <<nda::sum(G4D) <<" " <<nda::sum(Xw) <<std::endl;
       for (auto& v : properties)
         v.accumulate(iav, G4D, G4D_h, Xw, impsamp);
     }

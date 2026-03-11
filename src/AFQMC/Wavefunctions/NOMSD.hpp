@@ -25,11 +25,11 @@
 #include "utilities/check.hpp"
 #include "utilities/check_strides.hpp"
 #include "IO/ptree/ptree_utilities.hpp"
+#include "numerics/sparse/csr_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
-//#include "AFQMC/SlaterDeterminantOperations/
 
 namespace sfqmc
 {
@@ -313,17 +313,25 @@ public:
     if(number_of_references==0) return;
     if(number_of_references < 0) number_of_references = OrbMats.extent(0);
     utils::check(number_of_references > 0 and 
-                 number_of_references < OrbMats.extent(0) and
-                 number_of_references < Refs.extent(0), 
+                 number_of_references <= OrbMats.extent(0) and
+                 number_of_references <= Refs.extent(0), 
                  "Invalid number_of_references:{}", number_of_references);
     utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
     // this is slow and uses too much memory. Improve!!!
 //  write kernel
-//    for(int i=0; i<number_of_references; ++i) {
-//      Refs(i,all,range(nup)) = math::sparse::to_array<'H'>(OrbMats(i,0))();
-//      if(walker_type == COLLINEAR)
-//        Refs(i,all,range(nup,nel)) = math::sparse::to_array<'H'>(OrbMats(i,1))();
-//    }
+    if constexpr (math::sparse::CSRMatrix<devPsiT>) {
+      for(int i=0; i<number_of_references; ++i) {
+        Refs(i,all,range(nup)) = math::sparse::to_array<'H'>(OrbMats(i,0)());
+        if(walker_type == COLLINEAR)
+          Refs(i,all,range(nup,nel)) = math::sparse::to_array<'H'>(OrbMats(i,1)());
+      }
+    } else { 
+      for(int i=0; i<number_of_references; ++i) {
+        Refs(i,all,range(nup)) = nda::dagger(OrbMats(i,0)());
+        if(walker_type == COLLINEAR)
+          Refs(i,all,range(nup,nel)) = nda::dagger(OrbMats(i,1)());
+      }
+    }
   }
 
 protected:

@@ -152,6 +152,7 @@ public:
 
       nda::array<ComplexType,2> wprop(7,nwalk);
       wset.getProperty(WEIGHT, wprop(0,all));
+std::cout<<" Energy w: " <<nda::sum(wprop(0,all)) <<std::endl;
       wset.getProperty(OVLP, wprop(1,all));
       wset.getProperty(PHASE, wprop(2,all));
       wset.getProperty(PHASE1, wprop(3,all));
@@ -159,17 +160,16 @@ public:
       wset.getProperty(PHASE3, wprop(5,all));
       wset.getProperty(THETA, wprop(6,all));
       data() = ComplexType(0.0);
-// OVLP -> exp(OVLP)
       for (int i = 0; i < nwalk; i++)
       {
         if (std::isnan(real(wprop(0,i)))) continue;
         if (importanceSampling)
         {
-          dum = (wprop(0,i)) * ovlp(i) / (wprop(1,i));
+          dum = wprop(0,i) * std::exp( ovlp(i) - wprop(1,i) );
         }
         else
         {
-          dum = (wprop(0,i)) * ovlp(i) * (wprop(2,i));
+          dum = wprop(0,i) * std::exp(ovlp(i)) * wprop(2,i);
         }
         if(truncate) {
           et = wet(0,i); 

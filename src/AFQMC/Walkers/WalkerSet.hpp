@@ -83,7 +83,6 @@ class WalkerSet
     VISITOR(single_walker_bp_size,var,const)
     VISITOR(population_control_parameters,var,const)
     VISITOR(walkerSizeIO,var,const)
-    VISITOR(getLogOverlapFactor,var,const)
     VISITOR(getRNG,var,)
     VISITOR(begin,var,)  
     VISITOR(begin,var,const)  
@@ -110,7 +109,6 @@ class WalkerSet
     VOID_VISITOR_ARGS(getProperty,var,const)
     VOID_VISITOR_ARGS(setProperty,var,)
     VOID_VISITOR_ARGS(storeFields,var,)
-    VOID_VISITOR_ARGS(adjustLogOverlapFactor,var,)
     VOID_VISITOR_ARGS(loadBalance,var,)
 
     auto operator[](int i) { 

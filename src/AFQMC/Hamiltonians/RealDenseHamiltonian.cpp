@@ -280,14 +280,14 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     if constexpr (MEM==HOST_MEMORY) {
       for(int is=0, isp=0; is<nspin_in_H2; ++is)
         for(int ip=0; ip<npol_in_H2; ++ip, ++isp)
-          nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
+          nda::tensor::contract(RealType(-0.5),Likn()(isp,range(n0,n1),all,all),"ijn",
                                               Likn()(isp,all,all,all),"ljn",
                                 RealType(0.0),v0()(isp,range(n0,n1),all),"il");
     } else {
       memory::array<MEM,RealType,2> vt(n1-n0, NMO);
       for(int is=0, isp=0; is<nspin_in_H2; ++is)
         for(int ip=0; ip<npol_in_H2; ++ip, ++isp) {
-          nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
+          nda::tensor::contract(RealType(-0.5),Likn()(isp,range(n0,n1),all,all),"ijn",
                                               Likn()(isp,all,all,all),"ljn",
                                 RealType(0.0),vt,"il");
           v0()(isp,range(n0,n1),all) = vt();

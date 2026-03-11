@@ -105,7 +105,11 @@ public:
     if ((equil_multiplier * _population_control_interval) % max_nback_prop != 0 )
       APP_ABORT("Error in BackPropagatedEstimator user input: 'equil_multiplier' must be evenly divisible by the maximum value in 'measure_interval_multiplier'");
     nblocks_equil = (equil_multiplier *_population_control_interval )/ max_nback_prop; // Note: nback_prop is in steps, so we have to convert equil_multiplier to steps by multiplying by _population_control_interval
-    _measure_interval_for_handler = max_nback_prop;
+
+    // MAM: In principle, this should be the MCD of the nback_prop_steps.
+    //      But it gets complicated if nblocks_equil > 1, so setting this to this
+    //      for simplicity. Should not cause serious performance issues.
+    _measure_interval_for_handler = _population_control_interval; 
 
     average_has_run.reserve(naverages);
     average_has_run.assign(naverages, false);
@@ -135,7 +139,7 @@ public:
     std::vector<int> nback_prop_interval_multipliers;
     path_restoration       = pt0.get<bool>("path_restoration", false);
     extra_path_restoration = pt0.get<bool>("extra_path_restoration", false);
-    ortho         = pt0.get<int>("bp_walker_ortho_interval", 1);
+    ortho         = pt0.get<int>("bp_walker_ortho_interval", 10);
     equil_multiplier = pt0.get<int>("equil_multiplier", 0);
     int nrefs = pt0.get<int>("number_of_references", -1);
      _population_control_interval = pt0.get<int>("_population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL); // only for computing nback_prop_steps!
@@ -202,14 +206,14 @@ public:
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nspin = (walker_type == COLLINEAR ? 2 : 1);
     utils::check(bp_step>0," Error: Found bp_step <=0 in BackPropagate::accumulate_block. ");
-    utils::check(bp_step<max_nback_prop, " Error: max_nback_prop in back propagation estimator must be commensurate with measure_interval.");
+    utils::check(bp_step<=max_nback_prop, " Error: max_nback_prop in back propagation estimator must be commensurate with measure_interval.");
     utils::check(max_nback_prop <= wset.NumBackProp()," Error: max_nback_prop > wset.NumBackProp() ");
 
     // check if measurement is needed
     int iav(-1);
     if( auto it = std::find(nback_prop_steps.begin(), nback_prop_steps.end(), bp_step); 
         it != nback_prop_steps.end() ) {
-      iav = *it;
+      iav = std::distance(nback_prop_steps.begin(),it);
       utils::check(iav==0 || average_has_run[iav-1],
           "Error: missed a measurement in BackPropagate::accumulate_block.\n"
           "Use a number of steps in the back propagation estimator that is divisible\n"
@@ -237,7 +241,7 @@ public:
 
     // 1. allocate memory. Can loop over walkers if nrefs is too large 
     memory::buffered_array<MEM,ComplexType,4> Refs(nwalk, number_of_references, npol*NMO, nel);
-    memory::buffered_array<MEM,ComplexType,2> logdetR(nwalk, number_of_references*nspin);
+    memory::buffered_array<MEM,ComplexType,2> logdetR(nwalk, number_of_references);
 
     // 2. setup back propagated references
     wfn0->getReferences(number_of_references, Refs(0,nda::ellipsis{}));
@@ -246,12 +250,13 @@ public:
     mpi->node_comm.barrier();
 
     //3. propagate backwards the references
-//    prop0->BackPropagate(bp_step, nStabilize, wset, Refs_, logdetR);
+    prop0->BackPropagate(bp_step, nStabilize, wset, Refs, logdetR);
 
     //4. calculate properties
     // adjust weights here is path restoration
     memory::buffered_array<HOST_MEMORY,ComplexType,1> wgt(nwalk);
     wset.getProperty(WEIGHT, wgt);
+std::cout<<" sum(wgt): " <<nda::sum(wgt) <<std::endl;
     if (path_restoration)
     {
       auto factors = nda::to_host(wset.getWeightFactors());
@@ -275,6 +280,7 @@ public:
       for (int i = 0; i < nwalk; i++)
         wgt(i) *= phase[i];
     }
+std::cout<<" sum(wgt(1)): " <<nda::sum(wgt) <<std::endl;
     observ0.accumulate(iav, wset, Refs, wgt, logdetR, importanceSampling);
     average_has_run[iav] = true;
 

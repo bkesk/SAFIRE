@@ -254,7 +254,7 @@ public:
 
     // We are within the BP measurement phase
     // 1. Propagate X, Y matrices forward and accumulate M 
-//    prop0->PropagateOperators(steps_per_block, wset, X, Y, M);
+    prop0->PropagateOperators(steps_per_block, wset, X, Y, M);
 
     // 2. accumulate weights if using path restoration
     utils::check(wgt_factors.extent(0) == wset.extent(), "Size mismatch");

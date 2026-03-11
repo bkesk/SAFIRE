@@ -280,13 +280,14 @@ public:
 
   template<class WlkSet>
   void Propagate(WlkSet& wset, RealType E1, RealType dt);
-/*
-  template<class WlkSet, class CTens, class CMat>
-  void BackPropagate(int steps, int nStabalize, WlkSet& wset, CTens&& Refs, CMat&& logdetR);
 
-  template<class WlkSet, class Mat1, class Mat2, class Mat3> 
-  void PropagateOperators(int steps, WlkSet& wset,  Mat1&& X, Mat2&& Y, Mat3&& M);
-*/
+  template<class WlkSet>
+  void BackPropagate(int nbpsteps, int nStabalize, WlkSet& wset, 
+        nda::MemoryArrayOfRank<4> auto&& Refs, nda::MemoryArrayOfRank<2> auto&& logdetR);           
+  template<class WlkSet> 
+  void PropagateOperators(int steps, WlkSet& wset,  
+        nda::MemoryArrayOfRank<4> auto&& X, nda::MemoryArrayOfRank<4> auto&& Y,
+        nda::MemoryArrayOfRank<4> auto&& M);       
 
   bool hybrid_propagation() { return hybrid; }
 
