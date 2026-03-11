@@ -73,12 +73,29 @@ void ham_factory(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>
   HamFac.push("ham0", ham_pt);
   [[maybe_unused]] Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 }
+
 TEST_CASE("ham_factory", "[hamiltonian_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
-  ham_factory<HOST_MEMORY>(mpi,UTEST_HAMIL);
+
+  if(UTEST_HAMIL!="") {
+    app_log(0,"Hamiltonian factory unit testing. Running user provided test:");
+    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
+    ham_factory<HOST_MEMORY>(mpi,UTEST_HAMIL);
 #if defined(ENABLE_DEVICE)
-  ham_factory<DEVICE_MEMORY>(mpi,UTEST_HAMIL);
+    ham_factory<DEVICE_MEMORY>(mpi,UTEST_HAMIL);
 #endif
+  } else {
+    app_log(0,"Hamiltonian factory unit testing. Running standard tests.");
+    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    for( auto f : files ) { 
+      ham_factory<HOST_MEMORY>(mpi,std::get<0>(f));
+#if defined(ENABLE_DEVICE)
+      ham_factory<DEVICE_MEMORY>(mpi,std::get<0>(f));
+#endif
+    }
+  }
 }
+
+
 } // namespace sfqmc

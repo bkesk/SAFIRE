@@ -293,12 +293,31 @@ TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
-  wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
+  app_log(0,"WavefunctionFactory unit testing.");
+
+  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
+    app_log(0,"WavefunctionFactory unit testing. Running user provided test:");
+    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
+    app_log(0," Wavefunction: {}", UTEST_WFN);
+    wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
+    wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
 #if defined(ENABLE_DEVICE)
-  wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
-  wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
+    wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
+    wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
 #endif
+  } else {
+    app_log(0,"WavefunctionFactory unit testing. Running standard tests.");
+    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    for( auto f : files ) {
+      wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+#if defined(ENABLE_DEVICE)
+      wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+#endif
+    }
+  }
 }
+
 
 } // namespace sfqmc

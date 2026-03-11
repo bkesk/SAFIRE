@@ -175,13 +175,29 @@ TEST_CASE("propg_fac", "[propagator_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  propg_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
-  propg_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
-
+  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
+    app_log(0,"Propagator factory unit testing. Running user provided test:");
+    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
+    app_log(0," Wavefunction: {}", UTEST_WFN);
+    propg_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
+    propg_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
 #if defined(ENABLE_DEVICE)
-  propg_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
-  propg_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
+    propg_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
+    propg_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
 #endif
+  } else {
+    app_log(0,"Propagator factory unit testing. Running standard tests.");
+    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    for( auto f : files ) {
+      propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+#if defined(ENABLE_DEVICE)
+      propg_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      propg_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+#endif
+    }
+  }
 }
+
 
 } // namespace sfqmc

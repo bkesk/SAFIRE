@@ -70,6 +70,9 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
                                           pre + "BH/afqmc_inputs/afqmc_ghf_nomsd.h5") );
       files.emplace_back( std::make_tuple(pre + "Pb/afqmc_inputs/afqmc_H_rhf_basis_noncollinear_sf.h5",
                                           pre + "Pb/afqmc_inputs/afqmc_ghf_sf_nomsd.h5") );
+      // 🚧 Complex-value H1 in Q. Chem Hamiltonian got dropped! Add it back in after consulting with Miguel
+      //files.emplace_back( std::make_tuple(pre + "Pb/afqmc_inputs/afqmc_H_rhf_basis_noncollinear_soc.h5",
+      //                                    pre + "Pb/afqmc_inputs/afqmc_ghf_soc_nomsd.h5") );
     }
   }
   if (phmsd) {
@@ -87,6 +90,32 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
   return files;
 }
 
+
+inline constexpr auto lattice_unit_test_files(bool rhf = true, bool uhf, bool ghf, bool nomsd, bool phmsd) 
+{
+  std::vector< std::tuple<std::string, std::string> > files;
+  auto pre = unit_test_base() + "lattices/";
+  if(nomsd) {
+    if(rhf) {
+      // Closed spin symmetry is not implemented - no tests expected to pass
+    } 
+    if(uhf) {
+      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_collinear.h5",
+                                          pre + "square4x4/afqmc_inputs/afqmc_uhf_nomsd.h5") );
+    }    
+    if(ghf) {
+      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_noncollinear.h5",
+                                          pre + "square4x4/afqmc_inputs/afqmc_ghf_nomsd.h5") );
+    }
+  }
+  if (phmsd) {
+    if (uhf) {
+      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_collinear.h5",
+                                          pre + "square4x4/afqmc_inputs/afqmc_casci_uhf_phmsd.h5") );
+    }
+  }
+  return files;
+}
 
 
 /* Checks if a file exists in the file system */
