@@ -76,7 +76,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   // Remove file extension.
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   test_wfn = test_wfn.substr(test_wfn.find('_') + 1);
-  std::cout<<"test_wfn = "<<test_wfn<<std::endl;
+
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
@@ -146,9 +146,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     wset.resize(nwalk, initial_guess_ft);
   }
 
-
   // Overlap
-  
   if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT)
     wfn.Log_Overlap(wset);
 
@@ -162,7 +160,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     for (auto it = wset.begin(); it != wset.end(); ++it)
     {
       VALUE_EQUAL(it->get_property(E1_), file_data.E0 + file_data.E1);
-      VALUE_EQUAL(it->get_property(EXX_) + it->get_property(EJ_), file_data.E2); 
+      VALUE_EQUAL(it->get_property(EXX_) + it->get_property(EJ_), file_data.E2);
       VALUE_EQUAL(it->energy(), file_data.E0 + file_data.E1 + file_data.E2);
     }
   }
@@ -174,10 +172,11 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     app_log(1," EXX: {}", wset[0].get_property(EXX_));
   }
   
-  memory::array<MEM,ComplexType,1> nMF(2*NMO); 
+  nda::array<ComplexType,1> nMF(2*NMO); 
   // G_MF
   {
-    auto gMF = wfn.G_MF();
+    auto gMF_d = wfn.G_MF();
+    auto gMF = nda::to_host(gMF_d());
     nMF(nda::range(npol*NMO))= nda::diagonal(gMF()(0,nda::range::all,nda::range::all));
     if(type == COLLINEAR_FT)
       nMF(nda::range(npol*NMO,nspin*npol*NMO))= nda::diagonal(gMF()(1,nda::range::all,nda::range::all));
@@ -196,7 +195,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   memory::array<MEM,ComplexType,2> X(nwalk,wfn.number_of_cholesky_vectors());
 
   wfn.vbias(wset, X, dt);
-  std::cout<<"X = "<<X()<<std::endl;
+  //std::cout<<"X = "<<X()<<std::endl;
   {
     auto X_h = nda::to_host(X);
     ComplexType Xsum = 0;
@@ -300,7 +299,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
           app_log(1," Vsum: {}", ComplexType(Vsum));
         }
 */
- // } else { // not a model Hamiltonian
+  } else { // not a model Hamiltonian
 
     /*
     Time.reset();
@@ -323,7 +322,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     }
     */
 
-  //}
+  }
 }
 
 TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")

@@ -147,7 +147,6 @@ public:
   /*
    * Green function of the trial wave-funtion. 
    */
-  template<MEMORY_SPACE M>
   auto G_MF();
 
   template<class... Args>
@@ -247,7 +246,7 @@ public:
    * returns them in the appropriate data structures
    */
   template<class WlkSet,  nda::MemoryMatrix TMat, nda::MemoryVector TVec>
-  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt);
+  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt = 0);
 
   /*
    * Calculates the mixed density matrix for all walkers in the walker set. 
