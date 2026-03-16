@@ -63,7 +63,7 @@ void NOMSD_FT<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int 
 
     for (int id = 0; id < ndet; id++)
     {
-      DensityMatrix(wset, OrbMats(id,all), G, ovlp(id,all)); 
+      DensityMatrix(wset, OrbMats(id,all,all), G, ovlp(id,all),nt); 
       HamOp.energy(eloc(id,all,all), G(), id);
     }
 
@@ -87,6 +87,7 @@ void NOMSD_FT<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int 
     E() = E_h();
     */
   }
+  
 }
 
 /* 
@@ -209,7 +210,7 @@ void NOMSD_FT<MEM,devPsiT>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVe
 
     for(int d=0; d<ndet; ++d) {
 
-      DensityMatrix(wset, OrbMats(d,all), Gt, Ot, compact);     
+      DensityMatrix(wset, OrbMats(d,all,all), Gt, Ot, nt);     
       // G += conj(ci) * exp(Ot-log_m) * Gt
       // Ov += conj(ci) * exp(Ot-log_m)
       // doing in host for now!!!
@@ -240,17 +241,18 @@ void NOMSD_FT<MEM,devPsiT>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVe
   }
 }
 
+/*
 template<MEMORY_SPACE MEM, class devPsiT>
 template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
 void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
 {
     utils::check(false,"Log_Overlap not implemented for finite-T");
 }
+*/
 
-/*
 template<MEMORY_SPACE MEM, class devPsiT>
 template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
+void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
 {
   auto all = nda::range::all;
   memory::check_memory_space<MEM>(Ov);
@@ -261,14 +263,72 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
   Ov() = ComplexType(0.0);
 
   if(ndet == 1) {
-    //det_ops::Log_Overlap(OrbMats(0,0)(),wset.template SlaterMatrices<MEM>(Alpha),Ov);
-    det_ops::Log_Overlap(OrbMats(0,0)(),wset.SlaterMatrices(Alpha),Ov);
+
+    memory::buffered_array<MEM,ComplexType,1> sclR_up(nw);
+    wset.getProperty(LOGSCL_UP, sclR_up(nda::range::all));
+
+    memory::buffered_array<MEM,ComplexType,1> sclL_up(1,ComplexType(getLogScale(Alpha)));
+
+    using T = typename std::decay<decltype(OrbMats(0,0,0))>::type;
+    // MixedDensityMatrix does not accept sparse trial wavefunctions
+    if constexpr (math::sparse::CSRMatrix<T>){
+      auto ULup_dense(math::sparse::to_array<'N'>(OrbMats(0,0,0)()));
+      auto DLup_dense(math::sparse::to_array<'N'>(OrbMats(0,0,1)()));
+      auto VLup_dense(math::sparse::to_array<'N'>(OrbMats(0,0,2)()));
+
+      det_ops::Log_Overlap(ULup_dense,DLup_dense(nt,nda::range::all),VLup_dense,
+                        wset.UMatrices(Alpha),wset.DMatrices(Alpha),wset.VMatrices(Alpha),
+                        sclL_up, sclR_up, Ov);
     //if(walker_type == CLOSED) {
     //  nda::tensor::scale(ComplexType(2.0),Ov);
-    } else if (walker_type == COLLINEAR_FT)  {
-      det_ops::Log_Overlap(OrbMats(0,1)(),wset.SlaterMatrices(Beta),Ov);
+      if (walker_type == COLLINEAR_FT)  {
+        memory::buffered_array<MEM,ComplexType,1> sclR_dn(nw);
+        wset.getProperty(LOGSCL_DN, sclR_dn(nda::range::all));
+
+        memory::buffered_array<MEM,ComplexType,1> sclL_dn(1,ComplexType(getLogScale(Beta)));
+
+        auto ULdn_dense(math::sparse::to_array<'N'>(OrbMats(0,1,0)()));
+        auto DLdn_dense(math::sparse::to_array<'N'>(OrbMats(0,1,1)()));
+        auto VLdn_dense(math::sparse::to_array<'N'>(OrbMats(0,1,2)()));
+
+        det_ops::Log_Overlap(ULdn_dense,DLdn_dense(nt,nda::range::all),VLdn_dense,
+                wset.UMatrices(Beta),wset.DMatrices(Beta),wset.VMatrices(Beta),
+                sclL_dn, sclR_dn, Ov);
+      }
     }
+    else{
+      
+      // FIX: how to pass a view of OrbMats(0,0,1), instead of copying to DLup?
+      auto ULup(OrbMats(0,0,0)());
+      auto DLup(OrbMats(0,0,1)());
+      auto VLup(OrbMats(0,0,2)());
+
+      det_ops::Log_Overlap(ULup,DLup(nt,nda::range::all),VLup,
+                        wset.UMatrices(Alpha),wset.DMatrices(Alpha),wset.VMatrices(Alpha),
+                        sclL_up, sclR_up, Ov);
+    //if(walker_type == CLOSED) {
+    //  nda::tensor::scale(ComplexType(2.0),Ov);
+      if (walker_type == COLLINEAR_FT)  {
+        memory::buffered_array<MEM,ComplexType,1> sclR_dn(nw);
+        wset.getProperty(LOGSCL_DN, sclR_dn(nda::range::all));
+
+        memory::buffered_array<MEM,ComplexType,1> sclL_dn(1,ComplexType(getLogScale(Beta)));
+
+        // FIX: how to pass a view of OrbMats(0,0,1), instead of copying to DLdn?
+        auto ULdn(OrbMats(0,1,0)());
+        auto DLdn(OrbMats(0,1,1)());
+        auto VLdn(OrbMats(0,1,2)());
+
+        det_ops::Log_Overlap(ULdn,DLdn(nt,nda::range::all),VLdn,
+                wset.UMatrices(Beta),wset.DMatrices(Beta),wset.VMatrices(Beta),
+                sclL_dn, sclR_dn, Ov);
+      }
+
+    }
+
   } else {
+    utils::check(false, "multi-determinant Log_Overlap is not implemented for finite-T");
+    /*
     // compute separate, assemble afterwards
     memory::buffered_array<MEM,ComplexType,2> log_ovlps(ndet,nw);
     log_ovlps() = ComplexType(0.0);
@@ -288,10 +348,11 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
     // now assemble avoiding round-off problems 
     // Ov(w) = sum_d log_ovlp(d,w) 
     Ov() = ComplexType(0.0);
-    math::log_of_sum(0,log_ovlps,Ov); 
+    math::log_of_sum(0,log_ovlps,Ov);
+    */ 
   }
 }
-*/
+
 
 
 /*

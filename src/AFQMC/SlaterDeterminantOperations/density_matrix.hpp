@@ -231,7 +231,6 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
   // if running on GPU
   if constexpr (nda::mem::have_device_compatible_addr_space<UL_t>)
   {
-<<<<<<< HEAD
     { // scopes to limit memory usage
       memory::buffered_array<MEM,Type,2> M0(NMO,NMO);
       memory::buffered_array<MEM,Type,3> M1(nbatch,NMO,NMO);

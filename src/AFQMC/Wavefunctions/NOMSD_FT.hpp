@@ -276,15 +276,18 @@ public:
    * Calculates the overlaps of all walkers in the set. Returns values in arrays. 
    */
   template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-  void Log_Overlap(const WlkSet& wset, TVec && Ov);
+  void Log_Overlap(const WlkSet& wset, TVec && Ov, int nt = 0);
 
   /*
    * Calculates the overlaps of all walkers in the set. Updates values in wset. 
    */
   template<class WlkSet>
-  void Log_Overlap(WlkSet& wset)
+  void Log_Overlap(WlkSet& wset, int nt = 0)
   {
-    utils::check(false, "Log_Overlap not implemented for finite-T");
+    int nw = wset.size();
+    memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
+    Log_Overlap(wset, ovlp, nt);
+    wset.setProperty(OVLP, ovlp);
   }
 /*
   template<class... Args>
@@ -340,7 +343,7 @@ protected:
 
   nda::array<ComplexType, 1> ci;
 
-  // OrbMats[ndet][nspin](nel,NMO)
+  // OrbMats[ndet][nspin][3](nel,NMO)
   nda::array<devPsiT,3> OrbMats;
 
   // RefOrbMats[ndet][nspin][nel][NMO]

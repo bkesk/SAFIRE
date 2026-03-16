@@ -147,8 +147,8 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   }
 
   // Overlap
-  if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT)
-    wfn.Log_Overlap(wset);
+  //if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT)
+  wfn.Log_Overlap(wset);
 
   Watch Time;
   Time.reset();
