@@ -333,16 +333,19 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     HOps.energy(Eloc, G2d, 0);
     auto eloc_h = nda::to_host(Eloc);
     nda::array<ComplexType,1> etot(nwalk); 
-    for(int i = 0; i < nwalk; ++i){
-      etot(i) = eloc_h(i,0) + eloc_h(i,2);
-    }
+    //for(int i = 0; i < nwalk; ++i){
+    //  etot(i) = eloc_h(i,0) + eloc_h(i,2);
+    //}
     if (std::abs(file_data.E0 + file_data.E1) > 1e-8) {
-      ARRAY_EQUAL(etot, nda::array<ComplexType,1>(nwalk,file_data.E0 + file_data.E1)); 
+      //ARRAY_EQUAL(etot, nda::array<ComplexType,1>(nwalk,file_data.E0 + file_data.E1)); 
+      ARRAY_EQUAL(eloc_h(all,0), nda::array<ComplexType,1>(nwalk,file_data.E0 + file_data.E1)); 
     } else
       app_log(1," E1: {} ", eloc_h(0,0));
     if (std::abs(file_data.E2) > 1e-8)
     {
-      ARRAY_EQUAL(eloc_h(all,1), nda::array<ComplexType,1>(nwalk,file_data.E2)); 
+      nda::array<ComplexType,1> e2(nwalk); 
+      for(int i = 0; i < nwalk; ++i) e2(i) = eloc_h(i,1) + eloc_h(i,2);
+      ARRAY_EQUAL(e2, nda::array<ComplexType,1>(nwalk,file_data.E2)); 
     }
     else
     {
