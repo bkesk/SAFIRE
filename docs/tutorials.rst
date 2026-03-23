@@ -5,24 +5,24 @@ Tutorials
 
 Auxiliary-field quantum Monte Carlo (AFQMC) for general interacting electron systems.
 
-AuxiliaryFields is a fast, efficient implementation of AFQMC written in C++. It uses a general interacting 2nd quantized Hamiltonian allowing it to be applied to broad classes of interacting-electron systems.
+SAFIRE is a fast, efficient implementation of AFQMC written in C++. It uses a general interacting second-quantized Hamiltonian allowing it to be applied to broad classes of interacting-electron systems.
 
 .. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/software_components.png
    :width: 800px
    :align: center
 
-AuxiliaryFields comes with the afqmctools command line interface (CLI) / Python package to assist the user in both setting up second quantized Hamiltonians and wavefunctions before running AuxiliaryFields, and in post-processing the results after running AuxiliaryFields.
+SAFIRE comes with the afqmctools command line interface (CLI) / Python package to assist the user in both setting up second quantized Hamiltonians and wavefunctions before running SAFIRE, and in post-processing the results after running SAFIRE.
 
 Typical Workflow
 ----------------
 
-A typical calculation using AuxiliaryFields consists of three steps as shown in the flowchart below.
+A typical calculation using SAFIRE consists of three steps as shown in the flowchart below.
 
 .. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/TopLevelFlowChart_v3.png
    :width: 1000px
    :align: center
 
-Running the AuxiliaryFields executable is generic and the details are largely independent of the intended application area. The most variation occurs in the first step, "Setup", since the set of possible starting points is very large. Post processing beyond simple scalar observables similarly has some dependence on the details of the application area. For example, the real-space charge density depends explicitly on the real-space representation of the underlying orbitals.
+Running the SAFIRE executable is generic and the details are largely independent of the intended application area. The most variation occurs in the first step, "Setup", since the set of possible starting points is very large. Post processing beyond simple scalar observables similarly has some dependence on the details of the application area. For example, the real-space charge density depends explicitly on the real-space representation of the underlying orbitals.
 
 Common Application Areas
 ------------------------
