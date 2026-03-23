@@ -16,7 +16,7 @@ Some preliminaries
 
 Typical quantum chemistry calculations are performed in a basis
 of contracted Gaussian-type orbitals (cGTOs), :math:`g_\mu(\vec{r})`;
-however, AFQMC is formulated in the language of 2nd quantization
+however, AFQMC is formulated in the language of second quantization
 and requires an orthonormal basis.
 Some common choices of orthonormal basis are the set of canonical Hartree-Fock orbitals,
 or orthogonalized atomic orbitals.
@@ -121,7 +121,7 @@ Typical Workflow
 .. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00a_molecules_intro/QChemWorkflow_v3.png
    :width: 900
 
-SAFIRE reads :math:`\hat{H}` in generic 2nd-quantized form from an HDF5 file.
+SAFIRE reads :math:`\hat{H}` in generic second-quantized form from an HDF5 file.
 This allows SAFIRE to use any Hamiltonian that can be expressed in this form.
 The `afqmctools` CLI tools / Python package can write a Hamiltonian to the SAFIRE format
 given arrays containing the matrix elements,
