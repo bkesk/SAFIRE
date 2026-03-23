@@ -6,7 +6,7 @@ Auxiliary-Field Quantum Monte Carlo
 Overview
 --------
 
-The AFQMC method is an orbitally-based many-body method which is formulated in terms of a generic, interacting 2nd quantized Hamiltonian.
+The AFQMC method is an orbitally-based many-body method which is formulated in terms of a generic, interacting second-quantized Hamiltonian.
 We refer the reader to one of the review articles on the method :cite:`MaloneGPU2020,AFQMC_review,PhysRevLett.90.136401,PhysRevE.70.056702`
 for a detailed description of the algorithm.
 Here, we provide an overview of AFQMC with a focus on how the formalism and the inputs to the SAFIRE code relate to each other.
