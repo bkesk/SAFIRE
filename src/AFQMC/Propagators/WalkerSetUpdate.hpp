@@ -115,9 +115,6 @@ void hybrid_walker_update(Wlk& w,
   work(5,all) = MFfactor(rng);
   work(6,all) = hybrid_weight(rng);
 
-std::cout<<" before w: " <<work(0,0) <<" " <<work(1,0) <<" " 
-<<nda::sum(work(0,all)) <<" " <<nda::sum(work(1,all)) <<" " <<Eshift <<std::endl;
-
   for (int i = 0; i < nwalk; i++)
   {
     ComplexType old_ovlp = work(2,i);
@@ -131,7 +128,6 @@ std::cout<<" before w: " <<work(0,0) <<" " <<work(1,0) <<" "
     {
       auto dbg_tmp1 = work(4,i);
       ratioOverlaps = std::exp(dbg_tmp1 - old_ovlp);
-if(i==0) std::cout<<" ratioOverlaps: " <<ratioOverlaps <<" " <<std::exp(dbg_tmp1) <<" " <<std::exp(old_ovlp) <<std::endl;
     }
 
     ComplexType ratioOverlaps_ = ratioOverlaps;
@@ -175,7 +171,6 @@ if(i==0) std::cout<<" ratioOverlaps: " <<ratioOverlaps <<" " <<std::exp(dbg_tmp1
 			Eshift + upper_cutoff_scale * std::sqrt(2.0 / dt)), 
 			Eshift - lower_cutoff_scale * std::sqrt(2.0 / dt)), eloc.imag());
     }
-if(i==0) std::cout<<" eloc: " <<eloc_ <<" " <<eloc <<std::endl;
     
     if (debug_verbosity)
     {
@@ -210,8 +205,9 @@ if(i==0) std::cout<<" eloc: " <<eloc_ <<" " <<eloc <<std::endl;
     work(9,i) = scale; // KE: this was originally the cumulative product of "scale"
                         //    changed to just "scale" since this isn't used anywhere 
   }
-std::cout<<" w: " <<work(0,0) <<" " <<work(1,0) <<" " 
-<<nda::sum(work(0,all)) <<" " <<nda::sum(work(1,all)) <<std::endl;
+std::cout<<" w: " <<work(0,0) <<" " <<work(1,0) <<" " <<work(3,0) <<" "
+<<nda::sum(work(0,all)) <<" "
+<<nda::sum(work(1,all)) <<" " <<nda::sum(work(3,all)) <<std::endl;
   w.setProperty(WEIGHT, work(0,all));
   w.setProperty(PSEUDO_ELOC_, work(1,all));
   w.setProperty(OVLP, work(2,all));
@@ -223,9 +219,9 @@ std::cout<<" w: " <<work(0,0) <<" " <<work(1,0) <<" "
   {
     auto pos = w.getHistoryPos();
     auto WFac = w.getWeightFactors();  
-//    WFac(pos,all) = work(3,all);
-    auto WHis = w.getWeightFactors();  
-//    WHis(pos,all) = work(0,all);
+    WFac(all,pos) = work(3,all);
+    auto WHis = w.getWeightHistory();  
+    WHis(all,pos) = work(0,all);
   }
 }
 
@@ -310,9 +306,9 @@ void local_energy_walker_update(Wlk& w,
   {
     auto pos = w.getHistoryPos();
     auto WFac = w.getWeightFactors();
-    WFac(pos,all) = work(6,all);
-    auto WHis = w.getWeightFactors();
-    WHis(pos,all) = work(0,all);
+    WFac(all,pos) = work(6,all);
+    auto WHis = w.getWeightHistory();
+    WHis(all,pos) = work(0,all);
   }
 }
 

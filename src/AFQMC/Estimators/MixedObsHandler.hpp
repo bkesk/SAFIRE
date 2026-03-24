@@ -143,6 +143,7 @@ public:
     int nwalk = wset.size();
     int nspin = ( walker_type == COLLINEAR ? 2 : 1 );
     int npol = ( walker_type == NONCOLLINEAR ? 2 : 1 );    
+    // can read this from input if desired!
     int nrefs = wfn->total_number_of_references();
 
     nda::array<ComplexType, 1> wgt(nwalk);
@@ -168,23 +169,16 @@ public:
       wfn->MixedDensityMatrix(wset,G2D,Ov,false);
 
       //2. accumulate 
-      if constexpr (MEM == HOST_MEMORY) {
-        for (auto& v : properties_1body)
-          v.accumulate(0, G, G, wgt, true);
-        for (auto& v : properties)
-          v.accumulate(0, G, G, wgt, true);
-      } else {
-        auto Gh = nda::to_host(G);
-        for (auto& v : properties_1body)
-          v.accumulate(0, G, Gh, wgt, true);
-        for (auto& v : properties)
-          v.accumulate(0, G, Gh, wgt, true);
-      }
+      auto Gh = nda::to_host(G());
+      for (auto& v : properties_1body)
+        v.accumulate(0, G, Gh, wgt, true);
+      for (auto& v : properties)
+        v.accumulate(0, G, Gh, wgt, true);
 
     }
     else 
     {
-      utils::check(false, "finish");
+      wfn->accumulate_estimators(0,wset,wgt,nrefs,properties_1body,properties);
 /*
       // use the fact that Observables accumulate between calls to print to sum over configurations
       // MAM: UNTESTED!!!

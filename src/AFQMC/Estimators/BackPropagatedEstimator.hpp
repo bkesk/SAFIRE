@@ -198,6 +198,7 @@ public:
 
   void accumulate_block([[maybe_unused]] double time, WalkerSet<MEM>& wset)
   {
+    auto all = nda::range::all;
     if(number_of_references==0) return;
     accumulated_in_last_block = false;
     int bp_step               = wset.getBPPos();
@@ -256,31 +257,28 @@ public:
     // adjust weights here is path restoration
     memory::buffered_array<HOST_MEMORY,ComplexType,1> wgt(nwalk);
     wset.getProperty(WEIGHT, wgt);
-std::cout<<" sum(wgt): " <<nda::sum(wgt) <<std::endl;
     if (path_restoration)
     {
       auto factors = nda::to_host(wset.getWeightFactors());
       int hpos(wset.getHistoryPos()); // position where next step goes... go bach in history...
       int maxpos(wset.HistoryBufferLength());
-      int nbp(max_nback_prop);
+      int nbp(bp_step);
       if (extra_path_restoration)
         nbp *= 2;
       for (int k = 0; k < nbp; k++)
       {
+        // start going back since position is advanced for next step already
         hpos =
-            ((hpos == 0) ? maxpos - 1 : hpos - 1); // start going back since position is advanced for next step already
-        for (int i = 0; i < nwalk; i++)
-          wgt(i) *= factors(hpos,i);
+            ((hpos == 0) ? maxpos - 1 : hpos - 1); 
+        wgt(all) *= factors(all,hpos);
       }
     }
     else if (!importanceSampling)
     {
       memory::buffered_array<HOST_MEMORY,ComplexType,1> phase(nwalk);
       wset.getProperty(PHASE, phase);
-      for (int i = 0; i < nwalk; i++)
-        wgt(i) *= phase[i];
+      wgt() *= phase();
     }
-std::cout<<" sum(wgt(1)): " <<nda::sum(wgt) <<std::endl;
     observ0.accumulate(iav, wset, Refs, wgt, logdetR, importanceSampling);
     average_has_run[iav] = true;
 

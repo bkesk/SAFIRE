@@ -100,7 +100,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     // 4. Propagate walkers
     //std::cout<<" Psi(0): " <<nda::sum(nda::to_host(wset.SlaterMatrices(Alpha)(0,nda::ellipsis{}))) <<std::endl;
     AFQMCTimer.start(propagate_timer);
-    apply_propagators(wset,'N',vHS); 
+    apply_propagators<'N'>(wset,vHS); 
     AFQMCTimer.stop(propagate_timer);
 //    std::cout<<" Psi(1): " <<nda::sum(nda::to_host(wset.SlaterMatrices(Alpha)(0,nda::ellipsis{}))) <<std::endl;
   } else {
@@ -115,7 +115,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
 
     // 4. Propagate walkers
     AFQMCTimer.start(propagate_timer);
-    apply_propagators(wset,'N',vHS);
+    apply_propagators<'N'>(wset,vHS);
     AFQMCTimer.stop(propagate_timer);
   }
 
@@ -225,7 +225,7 @@ void AFQMCBasePropagator<MEM>::BackPropagate(int nbpsteps, int nStabalize, WlkSe
 
 //std::cout<<" S0: " <<nda::sum(wset.SlaterMatrices(Alpha)) <<std::endl;
         // 4. Propagate walkers 
-        apply_propagators(wset,'H',vHS); 
+        apply_propagators<'H'>(wset,vHS); 
 //std::cout<<" S1: " <<nda::sum(wset.SlaterMatrices(Alpha)) <<std::endl;
 
         // always end (n==0) with an orthogonalization
@@ -259,7 +259,7 @@ void AFQMCBasePropagator<MEM>::BackPropagate(int nbpsteps, int nStabalize, WlkSe
           wset.SlaterMatrices(Beta) = Refs(all,nr,all,range(nup,nup+ndown));
         
         // 4. Propagate walkers
-        apply_propagators(wset,'H',vHS); 
+        apply_propagators<'H'>(wset,vHS); 
         
         // always end (n==0) with an orthogonalization
         if (ni == 0 || ni % nStabalize == 0) {
@@ -331,10 +331,10 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
                    "Size mismatch");
 
         // 4. Propagate walkers 
-//        apply_propagators(walker_type,X(all,0,all,all),X(all,nspin-1,all,all),'N',vHS);
+//        apply_propagators<'N'>(walker_type,X(all,0,all,all),X(all,nspin-1,all,all),vHS);
         // scale vHS by -1, since we need ma::H( B^(-1) )
         nda::tensor::scale(ComplexType(-1.0),vHS);
-//        apply_propagators(walker_type,Y(all,0,all,all),Y(all,nspin-1,all,all),'H',vHS,true);
+//        apply_propagators<'H'>(walker_type,Y(all,0,all,all),Y(all,nspin-1,all,all),vHS,true);
       } else {
 
         // 2. Calculate vHS
@@ -345,10 +345,10 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
                  "Size mismatch");
 
         // 4. Propagate walkers 
-//        apply_propagators(walker_type,X(all,0,all,all),X(all,nspin-1,all,all),'N',vHS);
+//        apply_propagators<'N'>(walker_type,X(all,0,all,all),X(all,nspin-1,all,all),vHS);
         // scale vHS by -1, since we need ma::H( B^(-1) )
         nda::tensor::scale(ComplexType(-1.0),vHS);
-//        apply_propagators(walker_type,Y(all,0,all,all),Y(all,nspin-1,all,all),'H',vHS,true);
+//        apply_propagators<'H'>(walker_type,Y(all,0,all,all),Y(all,nspin-1,all,all),vHS,true);
 
       }
 

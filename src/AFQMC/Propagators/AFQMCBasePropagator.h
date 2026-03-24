@@ -382,20 +382,20 @@ protected:
                   nda::MemoryArrayOfRank<1> auto&& HWs,
                   bool addRAND = true);
 
-  template<class WlkSet, typename VHS_t>
-  void apply_propagators(WlkSet& wset, char TA, VHS_t const& v, bool P1inv = false)  
+  template<char TA, class WlkSet, typename VHS_t>
+  void apply_propagators(WlkSet& wset, VHS_t const& v, bool P1inv = false)  
   {
     if(P1inv) {
       if(denseP1) {
-        det_ops::PropagateWlkSet<MEM>(wset,P1d_inv(),v,order,TA);
+        det_ops::PropagateWlkSet<MEM,TA>(wset,P1d_inv(),v,order);
       } else {
-        det_ops::PropagateWlkSet<MEM>(wset,P1s_inv(),v,order,TA);
+        det_ops::PropagateWlkSet<MEM,TA>(wset,P1s_inv(),v,order);
       }
     } else {
       if(denseP1) {
-        det_ops::PropagateWlkSet<MEM>(wset,P1d(),v,order,TA);
+        det_ops::PropagateWlkSet<MEM,TA>(wset,P1d(),v,order);
       } else {
-        det_ops::PropagateWlkSet<MEM>(wset,P1s(),v,order,TA);
+        det_ops::PropagateWlkSet<MEM,TA>(wset,P1s(),v,order);
       }
     }
   }

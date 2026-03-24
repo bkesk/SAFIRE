@@ -228,7 +228,6 @@ public:
         if (walker_type == CLOSED) Ov_h() *= 2.0;
         Xw() += (CIcoeff * nda::exp(Ov_h + nda::conj(logdetR_h(all,iref))));
       }
-std::cout<<" sum(X): " <<nda::sum(scl_wgt) <<" " <<nda::sum(Xw) <<std::endl;
       
       // scale walker weights
       scl_wgt() /= Xw();
@@ -266,7 +265,6 @@ std::cout<<" sum(X): " <<nda::sum(scl_wgt) <<" " <<nda::sum(Xw) <<std::endl;
         G4D_h() = G4D();
 
       //3. accumulate references
-std::cout<<" sum(G): " <<nda::sum(G4D) <<" " <<nda::sum(Xw) <<std::endl;
       for (auto& v : properties)
         v.accumulate(iav, G4D, G4D_h, Xw, impsamp);
     }

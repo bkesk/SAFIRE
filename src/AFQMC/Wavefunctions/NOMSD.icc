@@ -254,6 +254,124 @@ void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
 }
 
 /*
+ * Calculates Green functions and calls Observables.
+ */
+template<MEMORY_SPACE MEM, class devPsiT>
+template<class WlkSet, class Observable>
+void NOMSD<MEM,devPsiT>::accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+      int nrefs, std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
+      nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
+      nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling)
+{
+  using nda::range;
+  auto all = range::all;
+  const int ndet  = ci.size();
+  const int nw    = wset.size();
+  const int nel   = (walker_type==COLLINEAR ? nup+ndown : nup );
+  const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
+  const int npol  = (walker_type==NONCOLLINEAR ? 2 : 1 );
+
+  if(nrefs == 0) return;
+  if(nrefs < 0) nrefs = ndet; 
+  utils::check( ndet >= nrefs, "nrefs > ndets.");
+  if(time_evolved) {
+    utils::check(X!=nullptr and Yc!=nullptr and M!=nullptr,
+      "Error in NOMSD::accumulate_estimators: Found null pointers with time_evolved.");
+    utils::check(X->shape() == std::array<long,4>{nw,nspin,npol*NMO,npol*NMO}, "Size mismatch");
+    utils::check(Yc->shape() == std::array<long,4>{nw,nspin,npol*NMO,npol*NMO}, "Size mismatch");
+    utils::check(M->shape() == std::array<long,4>{nw,nspin,npol*NMO,npol*NMO}, "Size mismatch");
+  }
+
+  memory::buffered_array<MEM,ComplexType,4> Gfull(nw,nspin,npol*NMO,npol*NMO); 
+  memory::buffered_array<MEM,ComplexType,2> Gc(nw,nel*npol*NMO); 
+  auto Gc3d = nda::reshape(Gc,std::array<long,3>{nw,nel,npol*NMO});
+  memory::buffered_array<MEM,ComplexType,1> LogOv(nw); 
+  
+  if(nrefs == 1) {
+
+    Gfull() = ComplexType(0.0);
+    LogOv() = ComplexType(0.0); 
+    DensityMatrix(wset, OrbMats(0,all), Gc, LogOv, true);     
+
+    if(time_evolved) {
+
+    } else {
+      // Gfull = T(OrbMat) * Gc
+      if constexpr (MEM==HOST_MEMORY) {
+        for(int iw=0; iw<nw; ++iw) {
+          if constexpr (math::sparse::CSRMatrix<devPsiT>) {
+            for(int is=0; is<nspin; ++is)
+              math::sparse::csrmm<'T'>(OrbMats(0,is),Gc3d(iw,all,all),Gfull(iw,is,all,all));
+          } else {
+            for(int is=0; is<nspin; ++is)
+              nda::blas::gemm(nda::transpose(OrbMats(0,is)()),Gc3d(iw,all,all),
+                              Gfull(iw,is,all,all));
+          }
+        }
+      } else {
+        if constexpr (math::sparse::CSRMatrix<devPsiT>) {
+          for(int is=0; is<nspin; ++is)
+            math::sparse::csrmm<'T'>(OrbMats(0,is),Gc3d,Gfull(all,is,all,all));
+        } else {
+          for(int is=0; is<nspin; ++is)
+            nda::tensor::contract(OrbMats(0,is)(),"ai",Gc3d,"nak",Gfull(all,is,all,all),"nik");
+        }
+      }
+    }
+
+    auto Gfull_h = nda::to_host(Gfull());
+
+    for (auto& v : properties_1body)
+      v.accumulate(iav, Gfull, Gfull_h, wgt, importanceSampling);
+    for (auto& v : properties)
+      v.accumulate(iav, Gfull, Gfull_h, wgt, importanceSampling);
+  
+  } else {
+/*
+    // use the walker's current log_overlap as reference
+    memory::buffered_array<MEM,ComplexType,1> log_m(nw); 
+    wset.getProperty(OVLP, log_m);
+    memory::buffered_array<MEM,ComplexType,1> Ot(nw); 
+    memory::buffered_array<MEM,ComplexType,2> Gt(G.shape()); 
+
+    for(int d=0; d<ndet; ++d) {
+
+      DensityMatrix(wset, OrbMats(d,all), Gt, Ot, compact);     
+      // G += conj(ci) * exp(Ot-log_m) * Gt
+      // Ov += conj(ci) * exp(Ot-log_m)
+      // doing in host for now!!!
+      
+      nda::tensor::add(ComplexType(-1.0),log_m,"w",ComplexType(1.0),Ot,"w");
+      nda::tensor::scale(std::conj(ci(d)),Ot,nda::tensor::op::EXP);
+      nda::tensor::add(ComplexType(1.0),Ot,"w",ComplexType(1.0),Ov,"w");
+      if constexpr (MEM==HOST_MEMORY) {
+        for(int w=0; w<nw; ++w) 
+          G(w,all) += Gt(w,all) * Ot(w);
+      } else {
+        // is this doing the righ thing???
+        nda::tensor::contract(ComplexType(1.0),Ot,"w",Gt,"wi",ComplexType(1.0),G,"wi");
+      }
+
+    }
+
+    if constexpr (MEM==HOST_MEMORY) {
+      for(int w=0; w<nw; ++w) 
+        G(w,all) /= Ov(w); 
+    } else {
+      Ot() = Ov();
+      nda::tensor::scale(ComplexType(1.0),Ot,nda::tensor::op::RCP);
+      // is this doing the righ thing???
+      nda::tensor::elementwise(ComplexType(1.0),Ot,"w",ComplexType(1.0),G,"wi",nda::tensor::op::MUL);
+    }
+    // Ov(iw) += log_ov(iw)
+    nda::tensor::add(ComplexType(1.0),log_m,"w",ComplexType(1.0),Ov,"w");
+*/
+ 
+  }
+
+}
+
+/*
 template<MEMORY_SPACE MEM, class devPsiT>
 template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
 void NOMSD<MEM,devPsiT>::accumulate_estimators_general_impl(int iav, WlkSet& wset, TVec& wgt,

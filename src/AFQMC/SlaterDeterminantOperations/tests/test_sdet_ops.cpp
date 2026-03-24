@@ -249,21 +249,21 @@ void SDetOps()
       V2(nda::range(i*NMO,(i+1)*NMO),nda::range(i*NMO,(i+1)*NMO)) = utils::make_random<Type>(NMO,NMO); 
     auto Vcsr = math::sparse::to_csr<MEM,int,int>(V2);
 
-    det_ops::Propagate(SM, P, V, 4, 'N');
-    det_ops::Propagate(SM, P, V, 4, 'T');
-    det_ops::Propagate(SM, P, V, 4, 'H');
+    det_ops::Propagate<'N'>(SM, P, V, 4);
+    det_ops::Propagate<'T'>(SM, P, V, 4);
+    det_ops::Propagate<'H'>(SM, P, V, 4);
 
-    det_ops::Propagate(SM, Pcsr, V, 4, 'N');
-    det_ops::Propagate(SM, Pcsr, V, 4, 'T');
-    det_ops::Propagate(SM, Pcsr, V, 4, 'H');
+    det_ops::Propagate<'N'>(SM, Pcsr, V, 4);
+    det_ops::Propagate<'T'>(SM, Pcsr, V, 4);
+    det_ops::Propagate<'H'>(SM, Pcsr, V, 4);
 
-    det_ops::Propagate(SM, P, Vcsr, 4, 'N');
-    det_ops::Propagate(SM, P, Vcsr, 4, 'T');
-    det_ops::Propagate(SM, P, Vcsr, 4, 'H');
+    det_ops::Propagate<'N'>(SM, P, Vcsr, 4);
+    det_ops::Propagate<'T'>(SM, P, Vcsr, 4);
+    det_ops::Propagate<'H'>(SM, P, Vcsr, 4);
 
-    det_ops::Propagate(SM, Pcsr, Vcsr, 4, 'N');
-    det_ops::Propagate(SM, Pcsr, Vcsr, 4, 'T');
-    det_ops::Propagate(SM, Pcsr, Vcsr, 4, 'H');
+    det_ops::Propagate<'N'>(SM, Pcsr, Vcsr, 4);
+    det_ops::Propagate<'T'>(SM, Pcsr, Vcsr, 4);
+    det_ops::Propagate<'H'>(SM, Pcsr, Vcsr, 4);
   }
 
   // Propagate noncollinear with diagonal V
@@ -280,13 +280,13 @@ void SDetOps()
     V() = Vt(); 
     auto Pcsr = math::sparse::to_csr<MEM,int,int>(P);
   
-    det_ops::Propagate_pol(2, SM, P, V, 4, 'N');
-    det_ops::Propagate_pol(2, SM, P, V, 4, 'T');
-    det_ops::Propagate_pol(2, SM, P, V, 4, 'H');
+    det_ops::Propagate_pol<'N'>(2, SM, P, V, 4);
+    det_ops::Propagate_pol<'T'>(2, SM, P, V, 4);
+    det_ops::Propagate_pol<'H'>(2, SM, P, V, 4);
     
-    det_ops::Propagate_pol(2, SM, Pcsr, V, 4, 'N');
-    det_ops::Propagate_pol(2, SM, Pcsr, V, 4, 'T');
-    det_ops::Propagate_pol(2, SM, Pcsr, V, 4, 'H');
+    det_ops::Propagate_pol<'N'>(2, SM, Pcsr, V, 4);
+    det_ops::Propagate_pol<'T'>(2, SM, Pcsr, V, 4);
+    det_ops::Propagate_pol<'H'>(2, SM, Pcsr, V, 4);
 
     // now with separate spin up/down csr_matrix
   }

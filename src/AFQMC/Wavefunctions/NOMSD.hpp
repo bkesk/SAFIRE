@@ -285,16 +285,27 @@ public:
     Log_Overlap(wset, ovlp);
     wset.setProperty(OVLP, ovlp);
   }
-/*
-  template<class... Args>
-  void accumulate_estimators(Args&&... args)
+
+  /*
+   * Calculates Green functions and calls Observables.
+   */
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        int nrefs, std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
+        nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
+        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true);
+
+  /*
+   * Calculates Green functions and calls Observables.
+   */
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        int nrefs, std::vector<Observable>& properties_1body,
+        std::vector<Observable>& properties, bool importanceSampling = true)
   {
-    if(ci.size()>1)
-      accumulate_estimators_general_impl(std::forward<Args>(args)...);
-    else
-      accumulate_estimators_single_ref_impl(std::forward<Args>(args)...);    
+    memory::buffered_array<MEM,ComplexType,4> *X = nullptr;
+    accumulate_estimators(iav,wset,wgt,nrefs,properties_1body,properties,X,X,X,false,importanceSampling);
   }
-*/
 
   ComplexType getReferenceWeight(int i) const { return ci[i]; }
 
@@ -351,16 +362,6 @@ protected:
 
 /*
   void recompute_ci();
-
-  template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
-  void accumulate_estimators_general_impl(int iav, WlkSet& wset, TVec& wgt, 
-        std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
-        Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
-
-  template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
-  void accumulate_estimators_single_ref_impl(int iav, WlkSet& wset, TVec& wgt, 
-        std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
-        Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
 */
 };
 
