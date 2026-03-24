@@ -181,9 +181,9 @@ and that you are familiar with its basic use.
 Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
-1. `Hello SAFIRE <https://colab.research.google.com/drive/1idMenY_xhqim7QSoG5z9ryzZThoxi-cl>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Understanding the input file <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`_ `🧑‍💻 ready for edits 🧑‍💻` (note: this is the same as for molecules, lattice models)
-3. `Writing a Hamiltonian file and a Trial Wavefunction using CoQuí <https://colab.research.google.com/drive/1PTEkhUqMEDvvuJ7taCURlXSX7KcoLy0w>`_ `🧑‍💻 ready for edits 🧑‍💻`
+1. `Hello SAFIRE <01_hello_afqmc_solids/01_hello_afqmc_solids.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`_ `🧑‍💻 ready for edits 🧑‍💻` (note: this is the same as for molecules, lattice models)
+3. `Writing a Hamiltonian file and a Trial Wavefunction using CoQuí <03_Si_writing_H_and_wfn_coqui/03_Si_writing_H_and_wfn_coqui>`_ `🧑‍💻 ready for edits 🧑‍💻`
 4. `Computing Observables <https://colab.research.google.com/drive/1WcqjGNOHFhQ5F3vYSEfmYQ-Om10_B6Sv>`_ `🧑‍💻 ready for edits 🧑‍💻`
 
 
