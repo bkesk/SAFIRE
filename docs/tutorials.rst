@@ -32,8 +32,6 @@ While AFQMC can handle any interacting electron system, it is most commonly appl
 Quantum Chemistry
 ~~~~~~~~~~~~~~~~~
 
-`Quantum Chemistry Tutorial (online) <https://colab.research.google.com/drive/1jIkX2CwbH8FwUqt1sTtsuivu1k_d4OKY>`_
-
 :ref:`molecules_overview`.
 
 Molecules using standard quantum chemistry basis sets
@@ -45,11 +43,9 @@ Molecules using standard quantum chemistry basis sets
 Ab initio solids
 ~~~~~~~~~~~~~~~~
 
-`Ab initio solids Tutorial (online) <https://colab.research.google.com/drive/1QXT5fVZGBncWV1o0uedmx2fOFefLOjN4>`_
-
 :ref:`solids_overview`.
 
-Ab initio solids using Khon-Sham orbital basis sets
+Ab initio solids using Kohn-Sham orbital basis sets
 
 .. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/solid.png
    :width: 500px
@@ -57,8 +53,6 @@ Ab initio solids using Khon-Sham orbital basis sets
 
 Lattice models
 ~~~~~~~~~~~~~~
-
-`Lattice models Tutorial (online) <https://colab.research.google.com/drive/1iYHp1BzVjCs2nil8wmVO9OZtDUeHOFCc>`_
 
 :ref:`lattice_model_overview`
 
