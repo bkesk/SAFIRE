@@ -101,12 +101,14 @@ def write_sparse_basic(filename, hcore, e0, nelec, real_chol=False):
         fh5['Hamiltonian/occups'] = numpy.array(occups)
 
 
-def write_to_hdf5(f,dataset,data):
+def write_to_hdf5(f,dataset,data,dtype=None):
+    if dtype is None:
+        dtype = data.dtype
     if not isinstance(f,h5.File):
         raise ValueError("[Developer Error] called write_to_hdf5 on a non-h5py.File instance")
     if dataset in f:
         del f[dataset]
-    f.create_dataset(dataset,data=data)
+    f.create_dataset(dataset,data=data.astype(dtype), dtype=dtype)
 
 def write_dense(
         hcore,
