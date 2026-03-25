@@ -194,10 +194,10 @@ We provide the following worked examples in which we
 go through the entire workflow. We use Quantum Espresso to perform
 DFT calculations, and Coquí to generate a Hamiltonian and write trial wavefunctions.
 
-1. `Charge density in Si - CoQuí interface <https://colab.research.google.com/drive/1V2qDFA5PJkM2xeliDLsKuTrWR1FpqTal>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Carbon diamond PySCF interface <https://colab.research.google.com/drive/172tZtwLFCHI-bW6eIVXuLRgnJqPun8z6>`_ `🛠️ Under construction 🛠️` 
-3. `Solid Na momentum distribution <https://colab.research.google.com/drive/1qNBPcToh58UJPeg9Qx6YxcIS6RPL5a2o>`_ `🛠️ Under construction 🛠️ :  Paul is working on this`
-4. `Bulk modulous of MnO <https://colab.research.google.com/drive/1oJRRBTptrW_66NRWs7CdQix68Qgz9WuX>`_ `🛠️ Under construction 🛠️` 
-5. `Band gap of LiH <https://colab.research.google.com/drive/17x0SnUEhi-yEuyk_gMFbIGNr_SWGUi9g>`_ `🛠️ Under construction 🛠️` 
-6. `Magnetization of ? <https://colab.research.google.com/drive/1In-gtDJ6Ud3MwHJEJdQS-c66Y6F7wpud>`_ `🛠️ Under construction 🛠️` 
+1. `Charge density in Si - CoQuí interface <examples/solids/01_Si_density_coqui_interface/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+2. `Carbon diamond PySCF interface <examples/solids/02_C_diamond_pyscf_interface/index.html>`_ `🛠️ Under construction 🛠️` 
+3. `Solid Na momentum distribution <examples/solids/03_Na_momentum_distribution/index.html>`_ `🛠️ Under construction 🛠️ :  Paul is working on this`
+4. `Bulk modulous of MnO <examples/solids/04_NaCl_bulk_modulus/index.html>`_ `🛠️ Under construction 🛠️` 
+5. `Band gap of LiH <examples/solids/05_LiH_band_gap/index.html>`_ `🛠️ Under construction 🛠️` 
+6. `Magnetization of ? <examples/solids/06_magnetization/index.html>`_ `🛠️ Under construction 🛠️` 
 
