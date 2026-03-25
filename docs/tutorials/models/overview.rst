@@ -151,11 +151,11 @@ We provide the following worked examples in which we
 go through the entire workflow. We use autoHF to perform
 HF calculations, and afqmctools to generate Hamiltonians and write trial wavefunctions.
 
-1. `4x4 Hubbard Model with open shell <https://colab.research.google.com/drive/1s9bdH7XgEj4qP982ZZTOGSsQkeMgAJdX>`_
-2. `Stripe Ordering <https://colab.research.google.com/drive/1HrfXBp0SkiGzYWvKKJvKBQwdL-psWV-n>`_ `🧑‍💻 ready for edits 🧑‍💻`
-3. `Hubbard at half-filling <https://colab.research.google.com/drive/1MjA5PnZC5V1qRjINxXdqbs1majV_FTWf>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `pair correlation functions <https://colab.research.google.com/drive/1rI5zbAB6tMAFJWRGOp1zxIpDAZIh9LTW>`_ `🛠️ Under construction 🛠️`
-5. `Multi-Slater determinant trial wavefunction <https://colab.research.google.com/drive/1yTDk1u8Ww-c1t6kUKhBkEAKUIsnmGm3e>`_ `🧑‍💻 ready for edits 🧑‍💻`
-6. `Hubbard on a Honeycomb lattice <https://colab.research.google.com/drive/1g9_84kc92vAyDfKHTjDiuWHXeJsp12vZ>`_  `🛠️ Under construction 🛠️`
-7. `Hubbard with t-prime <https://colab.research.google.com/drive/1eR1RNS-BiMToOswQ4OyJWeijcpW21a4J>`_ `🛠️ Under construction 🛠️`
-8. `Emery Model <https://colab.research.google.com/drive/1-zKd4kHd6Pu8WrDFbQzv3MqeyC4tiiQz>`_ `🛠️ Under construction 🛠️`
+1. `4x4 Hubbard Model with open shell <examples/models/01_4x4_hubbard_model/index.html>`_
+2. `Stripe Ordering <examples/models/02_stripes/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+3. `Hubbard at half-filling <examples/models/03_half_filling_hubbard/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+4. `pair correlation functions <examples/models/04_pair_correlators/index.html>`_ `🛠️ Under construction 🛠️`
+5. `Multi-Slater determinant trial wavefunctio/index.htmln <n>`_ `🧑‍💻 ready for edits 🧑‍💻`
+6. `Hubbard on a Honeycomb lattice <examples/models/06_honeycomb_hubbard/index.html>`_  `🛠️ Under construction 🛠️`
+7. `Hubbard with t-prime <examples/models/07_tprime_hubbard/index.html>`_ `🛠️ Under construction 🛠️`
+8. `Emery Model <examples/models/08_lieb_lattice_emery/index.html>`_ `🛠️ Under construction 🛠️`

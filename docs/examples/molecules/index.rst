@@ -29,6 +29,6 @@ ubiquitous in modern quantum chemistry codes.
 7. :ref:`3d Transition Metal Oxides benchmark <example_molecule_3d_tmo_benchmark>`
 8. :doc:`Local embedding </examples/molecules/08_local_embedding/08_local_embedding>`
 
-.. 3. `Charge density of the water molecule <https://colab.research.google.com/drive/1uiF2R6CE_cSQ7m9uj2R2aS0KB1Un3Bn_>`_ 
+.. 3. :doc:`Charge density of the water molecule </examples/molecules/tbd_H2O_charge_density/index>` 
 
 

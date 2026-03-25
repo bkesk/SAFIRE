@@ -81,7 +81,7 @@ format is given as follows:
 
 .. seealso::
 
-   See the `Writing a Hamiltonian tutorial <https://colab.research.google.com/drive/1qQmWtMg5aoWdLeG33jaqS0saIWJ94MTL>`_  from the :ref:`molecules_overview` tutorials.
+   See the `Writing a Hamiltonian tutorial <../tutorials/molecules/03_writing_a_hamiltonian/03_writing_a_hamiltonian.html>`_  from the :ref:`molecules_overview` tutorials.
 
 
 .. _k_point_factorized:
@@ -405,9 +405,9 @@ are inlcuded in the specific Hamiltonian given to AFQMC).
 
    See the following from the :ref:`lattice_model_overview` tutorials.
 
-   * `Setting up a Lattice <https://colab.research.google.com/drive/1fefjMiXED0shSl4RJKv3Zu93l9FOw5sj>`_
-   * `Building and writing a Hamiltonian <https://colab.research.google.com/drive/1LMxAtaSkE1-zIKAlEBu66MFarzgHZ-8i>`_
-   * `Finer control of the Hamiltonian <https://colab.research.google.com/drive/1iUBLuxhuvfbNOYgT-K63_HrL-pzVq25g>`_
+   * `Setting up a Lattice <../tutorials/models/03_setting_up_a_lattice/03_setting_up_a_lattice.html>`_
+   * `Building and writing a Hamiltonian <../tutorials/models/04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian.html>`_
+   * `Finer control of the Hamiltonian <../tutorials/models/05_hamiltonian_builder/05_hamiltonian_builder.html>`_
 
 .. _thc_hamiltonian:
 
