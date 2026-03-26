@@ -23,8 +23,8 @@ Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
 ## What you will learn
 
-1.  How to write a Hamiltonian to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation </font>
-2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation </font>
+1.  How to write a Hamiltonian to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation
+2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation
 
 
 
@@ -579,8 +579,8 @@ Your steps:
 
 In this tutorial we have learned,
 
-1.  How to write a Hamiltonian to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation </font>
-2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation </font>
+1.  How to write a Hamiltonian to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation 
+2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation 
 
 
 

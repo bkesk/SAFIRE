@@ -239,10 +239,10 @@ td, th {
 }
 </style>
   
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>Parameter</b>   |  Default | Description |
 |--:|---|:--|
-| <b>        id</b></font> |  <font size="4">"afqmc"</font> | <font size="4">The base name for the `[id].s[series].scalar.dat` and `[id].s[series].stat.h5` files </font> |
-| <b>        series</b></font> |<font size="4">0</font> | <font size="4"> The series number for the `[id].s[series].scalar.dat` and `[id].s[series].stat.h5` files. The filename will print as width three, padded with 0s if needed </font> |
+| <b>id</b> |  "afqmc" | The base name for the `[id].s[series].scalar.dat` and `[id].s[series].stat.h5` files  |
+| <b>series</b> |0 |  The series number for the `[id].s[series].scalar.dat` and `[id].s[series].stat.h5` files. The filename will print as width three, padded with 0s if needed  |
 
 
 
@@ -255,10 +255,10 @@ td, th {
 }
 </style>
   
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-| <b>mixed_precision</b></font> | <font size="4">false</b> | <font size="4">Turn on mixed precision mode</font> |
-| <b>ncores</b></font> | <font size="4">1</font> | <font size="4">Set the number of cores to use per MPI task</font>
+| <b>mixed_precision</b> | `false` | Turn on mixed precision mode |
+| <b>ncores</b> | `1` | Set the number of cores to use per MPI task |
 
 
 
@@ -326,14 +326,14 @@ td, th {
 </style>
   
 
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-| <b>timestep</b></font> | <font size="4"> 0.01 </font> | <font size="4"> The trotter step size in units of inverse energy (depending on the Hamiltonian's units) </font> |
-| <b>steps</b></font> | <font size="4"> 1 </font> |  <font size="4"> The number of imaginary time steps to take </font> |
-| <b>n_walkers_per_mpi_task</b></font> | <font size="4"> 10 </font> |  <font size="4"> number of Slater determinant random walkers to use per MPI task </font> |
-| <b>measure_interval_multiplier</b></font> | <font size="4"> 20 </font> | <font size="4"> Used to determine the number of projection steps between measurements using the formula below. Measurement is the most expensive operation in AFQMC. A larger "measure_interval_multiplier" will reduce the CPU time necessary to perform AFQMC calculations. </font> |
-| <b>population_control_interval</b></font> | <font size="4"> 10 </font> | <font size="4"> Interval to perform population control at in units of steps. </font> |
-| <b>walker_ortho_interval</b></font> |<font size="4"> 10 </font> | <font size="4"> Interval to stabilize walkers at via a modified Gram-Schmidt procedure in units of steps</font> |
+| <b>timestep</b> |  0.01  |  The trotter step size in units of inverse energy (depending on the Hamiltonian's units)  |
+| <b>steps</b> |  1  |   The number of imaginary time steps to take  |
+| <b>n_walkers_per_mpi_task</b> |  10  |   number of Slater determinant random walkers to use per MPI task  |
+| <b>measure_interval_multiplier</b> |  20  |  Used to determine the number of projection steps between measurements using the formula below. Measurement is the most expensive operation in AFQMC. A larger "measure_interval_multiplier" will reduce the CPU time necessary to perform AFQMC calculations.  |
+| <b>population_control_interval</b> |  10  |  Interval to perform population control at in units of steps.  |
+| <b>walker_ortho_interval</b> | 10  |  Interval to stabilize walkers at via a modified Gram-Schmidt procedure in units of steps |
 
 
 
@@ -353,12 +353,12 @@ td, th {
 }
 </style>
 
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-|  <b>seed</b></font> | <font size="4"> n/a </font> | <font size="4">Random seed for auxiliary fields. A seed is generated if not provided. </font> |
-| <b>checkpoint_interval </b></font> | <font size="4"> -1 </font> |<font size="4"> Interval at which to write to checkpoint file in units of steps. An interval less than 0 will result in no checkpointing </font> |
-| <b>hdf_write_file</b></font> | <font size="4"> "" </font> |<font size="4"> Name of checkpoint HDF5 file to write. No checkpoint is written if the name is "" </font> |
-| <b>hdf_read_file</b></font> | <font size="4"> "" </font> |<font size="4"> Name of checkpoint HDF5 file to restart from. No checkpoint is read if the name is "" </font>
+|  <b>seed</b> |  n/a  | Random seed for auxiliary fields. A seed is generated if not provided.  |
+| <b>checkpoint_interval </b> |  -1  | Interval at which to write to checkpoint file in units of steps. An interval less than 0 will result in no checkpointing  |
+| <b>hdf_write_file</b> |  ""  | Name of checkpoint HDF5 file to write. No checkpoint is written if the name is ""  |
+| <b>hdf_read_file</b> |  ""  | Name of checkpoint HDF5 file to restart from. No checkpoint is read if the name is "" |
 
 +++ {"id": "c9d95fca"}
 
@@ -408,11 +408,11 @@ td, th {
 }
 </style>
   
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-|<b>filename</b></font> | <font size="4"> n/a </font> | <font size="4">**Required** The name of the file (possibly including a path) to the HDF5 file containing the trial wavefunction, and possibly containing the Hamiltonian as well</font> |
-| <b>name</b></font> |  <font size="4"> n/a </font> | <font size="4">The name to assign to the current wavefunction block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here. </font>
-| <b>ndets_to_read</b></font> |  <font size="4"> -1 </font> | <font size="4">The number of Slater determinants to read and from the HDF5 file and use in the trial wavefunction. If less than 0, all Slater determinants in the HDF5 file will be read and used. Must be less than or equal to the number of Slater determinants in the input HDF5 file </font>|
+|<b>filename</b> |  n/a  | **Required** The name of the file (possibly including a path) to the HDF5 file containing the trial wavefunction, and possibly containing the Hamiltonian as well |
+| <b>name</b> |   n/a  | The name to assign to the current wavefunction block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here. |
+| <b>ndets_to_read</b> |   -1  | The number of Slater determinants to read and from the HDF5 file and use in the trial wavefunction. If less than 0, all Slater determinants in the HDF5 file will be read and used. Must be less than or equal to the number of Slater determinants in the input HDF5 file |
 
 
 
@@ -516,10 +516,10 @@ td, th {
 }
 </style>
   
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-|<b>walker_type</b></font> | <font size="4"> Collinear </font> | <font size="4">The type of walker to use in AFQMC. Options are Closed, Collinear, Noncollinear, Fullypolarized</font> |
-|<b>name</b></font> |<font size="4"> n/a </font> | <font size="4">The name to assign to the current walker_set block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here. </font>
+|<b>walker_type</b> |  Collinear  | The type of walker to use in AFQMC. Options are Closed, Collinear, Noncollinear, Fullypolarized |
+|<b>name</b> | n/a  | The name to assign to the current walker_set block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here. |
 
 
 
@@ -533,12 +533,12 @@ td, th {
 }
 </style>
 
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-| <b>load_balance_type</b></font> | <font size="4"> "async" </font> | <font size="4"> Choose which load balancing algorithm to use, Choices are "async" for the asynchronous non-block swap load balancing algorithm and "simple" for a a blocking (1-1) swap load balancing algorithm. </font> |
-| <b>pop_control_type</b></font> |<font size="4">"pair" </font> |  <font size="4"> choose population control algorithm to use. Choices are "pair", AND "serial_comb". The "pair" algorithm uses paired walker branching. The "serial_comb" algorithm uses the comb method from Booth, Gubernatis, PRE 2009.</font> |
-| <b>min_weight</b></font> | <font size="4">0.05</font> | <font size="4">  Minimum walker weight for population control </font> |
-| <b>max_weight</b></font> |<font size="4">4</font> | <font size="4"> Maximum walker weight for population control </font> |
+| <b>load_balance_type</b> |  "async"  |  Choose which load balancing algorithm to use, Choices are "async" for the asynchronous non-block swap load balancing algorithm and "simple" for a a blocking (1-1) swap load balancing algorithm.  |
+| <b>pop_control_type</b> |"pair"  |   choose population control algorithm to use. Choices are "pair", AND "serial_comb". The "pair" algorithm uses paired walker branching. The "serial_comb" algorithm uses the comb method from Booth, Gubernatis, PRE 2009. |
+| <b>min_weight</b> | 0.05 |   Minimum walker weight for population control  |
+| <b>max_weight</b> |4 |  Maximum walker weight for population control  |
 
 
 +++ {"id": "b003de2e"}
@@ -589,10 +589,10 @@ td, th {
 }
 </style>
   
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-| <b>filename</b></font> | <font size="4"> n/a </font> | <font size="4"> The name of the file (possibly including a path) to the HDF5 file containing the Hamiltonian </font> |
-| <b>name</b></font> | <font size="4"> n/a </font> | <font size="4"> The name to assign to the current hamiltonian block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here. </font> |
+| <b>filename</b> |  n/a  |  The name of the file (possibly including a path) to the HDF5 file containing the Hamiltonian  |
+| <b>name</b> |  n/a  |  The name to assign to the current hamiltonian block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here.  |
 
 
 +++ {"id": "72f853ff"}
@@ -694,7 +694,7 @@ The estimator type is selected using the "name" parameter.
 The available "name" / types are:
 
 
-- **"energy"** : this is a specialized mixed-estimator which specifically evaluates the energy. It also provides some granular control over what details of the energy are printed. For example, you can print the 1-body, exchange, and direct Coulomb interaction energies, in addition to the total energy, by setting `"print_components" : true` within an energy estimator input block.</font>
+- **"energy"** : this is a specialized mixed-estimator which specifically evaluates the energy. It also provides some granular control over what details of the energy are printed. For example, you can print the 1-body, exchange, and direct Coulomb interaction energies, in addition to the total energy, by setting `"print_components" : true` within an energy estimator input block.
 
 - **"mixed"** : This adds a generic mixed estimator where the user may select which obsevables to compute. For observable, $\hat{O}$. the mixed estimator is given by
 $$
@@ -744,11 +744,11 @@ td, th {
 }
 </style>
 
-| <b>        Parameter</b></font>   |  <font size="4">Default</font> | <font size="4">Description</font> |
+| <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-| <b>name</b></font> | <font size="4"> n/a </font> | <font size="4"> The type of estimator to use. Choices are  "energy", "mixed", and "back_propagated" (see brief descriptions above) </font> |
-| <b> print_components </b></font> | <font size="4"> false </font> | <font size="4">(energy estimator) If true, print the one-body, direct Coulomb, and exchange energy components to the *.scalar.dat file in addition to the total energy. </font>  |
-| <b> equil </b></font> | <font size="4"> 0 </font> |<font size="4"> The number of initial steps to skip (i.e. the size of the Equilibration phase)  </font> |
+| <b>name</b> |  n/a  |  The type of estimator to use. Choices are  "energy", "mixed", and "back_propagated" (see brief descriptions above)  |
+| <b> print_components </b> |  false  | (energy estimator) If true, print the one-body, direct Coulomb, and exchange energy components to the *.scalar.dat file in addition to the total energy.   |
+| <b> equil </b> |  0  | The number of initial steps to skip (i.e. the size of the Equilibration phase)   |
 
 +++ {"id": "2e46faa0"}
 

@@ -41,7 +41,7 @@ Each estimator corresponds to a formal method for computing an observable - i.e.
 As we mentioned in the
 
 
-[understanding the Input file tutorial</font>](../02_understanding_the_input_file/02_understanding_the_input_file.html),
+[understanding the Input file tutorial](../02_understanding_the_input_file/02_understanding_the_input_file.html),
 
 
 you can add estimators to an AFQMC calculation using an "estimator" input block.
@@ -254,11 +254,11 @@ td, th {
 }
 </style>
   
-|<b>setting</b></font>|<font size="4"><b>default</b></font>|<font size="4"><b>description</b></font>|
+|<b>setting</b>|<b>default</b>|<b>description</b>|
 |--:|:-:|:--|
-| <b>        print_components</b></font> |  <font size="4">False</font> | <font size="4"> If True, print the one-body, two-body coulomb, and two-body exchange contributions to the energy in the `*.scalar.dat` file </font> |
-| <b> equil_multiplier </b></font> | <font size="4">0</font> |  <font size="4">The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $(equilibration\_length) = (equil\_multiplier) * (population\_control\_inveral)$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. </font>|
-| <b>        overwrite</b></font> | <font size="4">False</font> |  <font size="4"> If True, overwrite the default energy estimator with the explicitly defined energy estimator </font>|
+| <b>        print_components</b> |  False |  If True, print the one-body, two-body coulomb, and two-body exchange contributions to the energy in the `*.scalar.dat` file  |
+| <b> equil_multiplier </b> | 0 |  The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $(equilibration\_length) = (equil\_multiplier) * (population\_control\_inveral)$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. |
+| <b>        overwrite</b> | False |   If True, overwrite the default energy estimator with the explicitly defined energy estimator |
 
 
 
@@ -271,11 +271,11 @@ td, th {
 }
 </style>
   
-|<b>setting</b></font>|<font size="4"><b>default</b></font>|<font size="4"><b>description</b></font>|
+|<b>setting</b>|<b>default</b>|<b>description</b>|
 |--:|:-:|:--|
-| <b>        print_sign</b></font> | <font size="4">False</font> | <font size="4"> If True, print verious quantities related to the sign/phase of random walkers in the `*.scalar.dat` file </font> |
-| <b>        remove</b></font> |  <font size="4">False</font> |  <font size="4"> If True, remove the default energy estimator. **Note that the explicitly defined energy estimator will not be used in the calculation!** </font>|
-| <b>        truncate</b></font> |  <font size="4">False</font> |  <font size="4"> If True, truncate the energy such that data that fall outisde of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer </font>|
+| <b>        print_sign</b> | False |  If True, print verious quantities related to the sign/phase of random walkers in the `*.scalar.dat` file  |
+| <b>        remove</b> |  False |   If True, remove the default energy estimator. **Note that the explicitly defined energy estimator will not be used in the calculation!** |
+| <b>        truncate</b> |  False |   If True, truncate the energy such that data that fall outisde of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer |
 
 
 
@@ -843,13 +843,13 @@ td, th {
 }
 </style>
   
-|<b>setting</b></font>|<font size="4"><b>default</b></font>|<font size="4"><b>description</b></font>|
+|<b>setting</b>|<b>default</b>|<b>description</b>|
 |--:|:-:|:--|
-| <b>        measure_interval_multiplier</b></font> |  <font size="4"> 1 </font> | <font size="4"> controls the number of back propagation steps which are determined as $(\textrm{number of BP steps}) = (\textrm{measure\_interval\_multiplier}) \times (\textrm{population\_control\_interval})$. Can be either a single value or multiple values. If multiple values are provided, BP will be performed with each corresponding number of BP steps and observables are accumulated and saved for each distinct BP length. </font> |
-| <b> equil_multiplier </b></font> | <font size="4">0</font> |  <font size="4">The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $(\textrm{equilibration\_length}) = (\textrm{equil\_multiplier}) * (\textrm{population\_control\_inveral})$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. </font>|
-| <b>        bp_walker_ortho_interval</b></font> |  <font size="4"> 1 </font> | <font size="4">  interval for performing walker orthonormalization during back-propagation (i.e. for the left-hand side Walkers) </font> |
-| <b>        path_restoration</b></font> |  <font size="4"> false </font> | <font size="4"> If true, perform path restoration. </font> |
-| <b>        extra_path_restoration</b></font> |  <font size="4"> false </font> | <font size="4">  If true, perform an extra path restoration. </font> |
+| <b>        measure_interval_multiplier</b> |   1  |  controls the number of back propagation steps which are determined as $(\textrm{number of BP steps}) = (\textrm{measure\_interval\_multiplier}) \times (\textrm{population\_control\_interval})$. Can be either a single value or multiple values. If multiple values are provided, BP will be performed with each corresponding number of BP steps and observables are accumulated and saved for each distinct BP length.  |
+| <b> equil_multiplier </b> | 0 |  The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $(\textrm{equilibration\_length}) = (\textrm{equil\_multiplier}) * (\textrm{population\_control\_inveral})$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. |
+| <b>        bp_walker_ortho_interval</b> |   1  |   interval for performing walker orthonormalization during back-propagation (i.e. for the left-hand side Walkers)  |
+| <b>        path_restoration</b> |   false  |  If true, perform path restoration.  |
+| <b>        extra_path_restoration</b> |   false  |   If true, perform an extra path restoration.  |
 
 
 ### Demonstraiton of BP
