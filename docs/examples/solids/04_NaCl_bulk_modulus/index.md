@@ -7,6 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   name: python3
+  language: python
   display_name: Python 3
 ---
 
@@ -48,12 +49,9 @@ In addition to SAFIRE and afqmctools, we will be using the following software pa
 We use ASE to generate the geometries to use.
 Other approaches can, of coruse, be used instead if desired.
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: UtOIurUTrTNJ
-outputId: eea55726-cdde-4c3e-f941-6b3b58542571
 ---
 from ase.build import bulk
 from ase.visualize import view
@@ -104,12 +102,9 @@ K_POINTS automatic
 print(get_qe_input(10.0,2))
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: EvnWwyMwnoNq
-outputId: e9dbdc9a-f548-4ffe-83f8-86c0baf98527
 ---
 
 print(qe_posotions_card)
@@ -611,7 +606,7 @@ If you are running locallay, the `-t` option will cause a plot of the scalar dat
 If you are running remotely, you can add the `--savefig [filename].png` option to save the figure.
 Note, you must still use `-t` to generate the plot.
 
-```{code-cell}
+```{code-cell} ipython3
 ---
 colab:
   base_uri: https://localhost:8080/

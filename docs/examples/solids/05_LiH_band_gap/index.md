@@ -7,6 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   name: python3
+  language: python
   display_name: Python 3
 ---
 
@@ -529,10 +530,8 @@ If you are running locallay, the `-t` option will cause a plot of the scalar dat
 If you are running remotely, you can add the `--savefig [filename].png` option to save the figure.
 Note, you must still use `-t` to generate the plot.
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: pmR1rRGJAenu
 outputId: 7466d116-0938-47e7-ef6a-87d8e736010a
 ---
