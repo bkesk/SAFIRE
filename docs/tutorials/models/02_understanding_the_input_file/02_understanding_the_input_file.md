@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "16a2dc3c-fe26-455b-bade-b59769494e25"}
 
 # Understanding the input file
----
 
 <b>Goal:</b>
 Understand how to control SAFIRE via the input file.
@@ -26,7 +25,6 @@ Previous Tutorial: [Hello SAFIRE](../01_hello_auxiliary_fields/hello_auxiliary_f
 
 ## What you will learn
 
----
 
 
 1. The structure of the json input file for SAFIRE
@@ -41,7 +39,6 @@ Previous Tutorial: [Hello SAFIRE](../01_hello_auxiliary_fields/hello_auxiliary_f
 +++ {"id": "5DZWyTSwFaBI"}
 
 ## Introduction
----
 
 
 
@@ -66,7 +63,6 @@ We will explore the most common settings in each input block as well.
 
 ## Input block hierarchy
 
----
 
 
 
@@ -126,7 +122,6 @@ First, let's look at a sample input file for a typical calculation.
 
 ## Sample input file - typical calculation
 
----
 
 
 
@@ -196,7 +191,6 @@ first AFQMC calculation.
 
 
 ### Minimal information needed to run.
----
 
 The bare minimum input blocks to run is
 
@@ -217,7 +211,6 @@ Usually, one will also often provide:
 
 ## The "project" block
 
----
 
 
 
@@ -238,7 +231,6 @@ files as `[id].s[series].scalar.dat` and `[id].s[series].stat.h5`.
 ### Most Common Settings
 
 
----
 
 
 <style>
@@ -256,7 +248,6 @@ td, th {
 
 ### Less Common Settings
 
----
 
 <style>
 td, th {
@@ -276,7 +267,6 @@ td, th {
 
 ## The "execute" block
 
----
 
 
 
@@ -328,7 +318,6 @@ Here is a sample execute block with options exposed and default values where app
 
 ### Most Common Settings
 
----
 
 <style>
 td, th {
@@ -357,7 +346,6 @@ $$
 
 ### Less Common Settings
 
----
 
 <style>
 td, th {
@@ -378,7 +366,6 @@ td, th {
 
 ## The "wavefunction" block
 
----
 
 
 
@@ -414,7 +401,6 @@ Here is a sample wavefunction block with options exposed and default values wher
 
 ### Most Common Settings
 
----
 
 <style>
 td, th {
@@ -437,7 +423,6 @@ td, th {
 
 ## The "walker_set" block
 
----
 
 
 
@@ -524,7 +509,6 @@ Here is a sample walker_set block with options exposed and default values where 
 
 ### Most Common Settings
 
----
 
 <style>
 td, th {
@@ -542,7 +526,6 @@ td, th {
 
 ### Less Common Settings
 
----
 
 <style>
 td, th {
@@ -563,7 +546,6 @@ td, th {
 
 ## The "hamiltonian" block
 
----
 
 
 
@@ -600,7 +582,6 @@ options exposed and default values where appropriate.
 
 ### Most Common Settings
 
----
 
 <style>
 td, th {
@@ -623,7 +604,6 @@ td, th {
 
 ## The "projector" block
 
----
 
 
 
@@ -657,7 +637,6 @@ See the [input file description](https://users.flatironinstitute.org/~beskridge/
 
 ## The "estimator" block
 
----
 
 
 
@@ -709,7 +688,6 @@ Valid names include "energy", "mixed", and "back_propagated".
 
 
 ### Estimator types
----
 
 
 The estimator type is selected using the "name" parameter.
@@ -743,7 +721,6 @@ and $m$ is the back-propagated step index.
 
 
 ### Observables
----
 
 For the "mixed" and "back-propagated" estimators, specific observables are selected by defining the corresponding input block within the desired estimator block.
 For example, one can define a mixed estimator which computes the one-body reduces density matrix as
@@ -760,7 +737,6 @@ For example, one can define a mixed estimator which computes the one-body reduce
 
 
 ### Most Common Settings
----
 
 <style>
 td, th {
@@ -781,7 +757,6 @@ td, th {
 
 ## Some input file recipes
 
----
 
 While there are many possible ways to set up an input file,
 some structures will come up more often than others.
@@ -800,7 +775,6 @@ We recommend taking a look at them to complete the information provided here.
 
 ## Summary
 
----
 
 
 

@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "W94B8DFIE6lu"}
 
 # $H_2O$ Molecule: Charge Density
----
 
 <b>Goal:</b>
 In this example, we compute the electronic charge density of
@@ -26,7 +25,6 @@ the water molecule at its equilibrium geometry.
 
 
 ## In Development!!
--------------------
 
 - need to figure out how to get the unit volume from PySCF.
 
@@ -60,7 +58,6 @@ scratch_dir = get_scratch_dir("example_h2o_density",home / ".scratch")
 +++ {"id": "6ZBVQf-6E6lv"}
 
 ## The Water Molecule
----------------------
 
 ```{code-cell} ipython3
 ---

@@ -209,7 +209,6 @@ autohf_to_afqmc(
 +++ {"id": "f21331fb-142c-42e4-87d5-40a61cd7757b"}
 
 ##  Analyze the HF results
---------------------------
 
 Before proceeding, it's imporant to check that the HF solution is correct.
 First, check that AutoHF actually converged.
@@ -405,7 +404,6 @@ io.write_model_hamiltion(
 +++ {"id": "uGiiaPd0K_YG"}
 
 ### Tilted Lieb Lattice : Annealing
----------------------------------
 
 ```{code-cell} ipython3
 ---

@@ -13,7 +13,6 @@ kernelspec:
 +++ {"id": "NudwCmJzZWxz"}
 
 # Magnetization of ???
-----------------------
 
 
 In this example, we will compute the magnetization of ???
@@ -36,7 +35,6 @@ STATUS: Kyle is assigned the example content.
 +++ {"id": "wqDpVPxzZT62"}
 
 ## External Software
---------------------
 
 
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
@@ -47,7 +45,6 @@ In addition to SAFIRE and afqmctools, we will be using the following software pa
 +++ {"id": "TGWpFn73aPAi"}
 
 ## Setup
---------
 
 First, we need an orthonormal basis to express the second quantized Hamiltonian in.
 We will run Quantum Espresso (QE) to generate a set of Kohn-Sham orbitals to use as a basis.
@@ -69,7 +66,6 @@ We will perform the following calculations with QE:
 
 
 ### Step 1 : self-consitent DFT
--------------------------------
 
 To generate the Hamiltonian for SAFIRE, we need
 to set `force_symmorphic=.true.` in the `&system` input card.
@@ -97,7 +93,6 @@ You should see a final energy of,
 ```
 
 ### Step 2 : One-shot DFT
--------------------------
 
 The goal here is generate the orbitals we need to generate the second
 quantized Hamiltonian for AFQMC.
@@ -148,7 +143,6 @@ Band Structure Calculation
 +++ {"id": "_uliHCdtig7m"}
 
 ### Step 3: QE post-processing utilites
----------------------------------------
 
 CoQuí reads some of the details of the psuedopotential from QE.
 We need to dump the relevant data to a file using the QE post-processing utilities.
@@ -176,7 +170,6 @@ pwscf.save  pwscf.xml  VKB  VLTOT  VSC
 +++ {"id": "qELxzaWcjjlh"}
 
 ## Writting the 2nd-quantized Hamiltonian and Trial wavefunction
-----------------------------------------------------------------
 
 CoQuí is able to directly generate a Hamiltonian HDF5 file for SAFIRE using the data output by QE.
 Additionally, it can write a trial wavefunction based on the DFT solution from QE.
@@ -357,7 +350,6 @@ directly read in SAFIRE to get the Hamiltonian and the trial wavefunction.
 +++ {"id": "-QQPlGsMnzeJ"}
 
 ## Run AFQMC
-------------
 
 Next, we'll run SAFIRE using the Hamiltonian and trial wavefunction that we wrote using CoQuí.
 We've provided an input file in `3_afqmc` for this example.
@@ -541,11 +533,9 @@ afqmc.json  afqmc.out  qmc.s000.scalar.dat  qmc.s000.stat.h5
 +++ {"id": "KLWinWxMscWQ"}
 
 ## Analyze
-----------
 
 
 ### Ground state energy
------------------------
 
 `afmqmctools` includes a command line tool for analyzing the scalar data output.
 Fun the following command.
@@ -571,7 +561,6 @@ Your plot should look similar to the following.
 +++ {"id": "NYRwlRYYEh79"}
 
 ### Charge Density
-------------------
 
 `afmqctools` provides a function for generating the real-space charge density
 given the one-body reduced density matrix (1rdm), and its stochacastic uncertainty from AFQMC, as well as the orbitals from Quantum Espresso.

@@ -13,7 +13,6 @@ kernelspec:
 +++ {"id": "P8_OXxiRE_dA"}
 
 # Generating and Writing a Trial Wavefunction
----
 
 
 <b>Goal:</b>
@@ -23,7 +22,6 @@ Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 form
 
 
 ## What you will learn
----
 
 
 
@@ -433,7 +431,6 @@ write_wfn(
 +++ {"id": "FoovlUVcFqxX"}
 
 ## Summary
----
 
 
 
@@ -444,7 +441,6 @@ In this tutorial, you became acquainted with how to write a Trial wavefunction t
 
 
 ### What you learned
----
 
 
 

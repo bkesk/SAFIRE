@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "m5yYPGDk-NIu"}
 
 # Observables: Pair Correlation functions
----
 
 <b>Goal:</b>
 At the end of this tutorial, you will know how to measure pair correlation functions using SAFIRE for a lattice models.
@@ -22,7 +21,6 @@ At the end of this tutorial, you will know how to measure pair correlation funct
 
 ## What you will learn
 
----
 
 
 
@@ -34,7 +32,6 @@ At the end of this tutorial, you will know how to measure pair correlation funct
 
 ## Prerequisites
 
----
 
 
 
@@ -54,7 +51,6 @@ In this tutorial, we assume that you have already completed all of the basic SAF
 
 ## Introduction
 
----
 
 
 
@@ -111,7 +107,6 @@ We will explore this in more detail below.
 +++ {"id": "Np-zIkGusNIP"}
 
 ## Saving index offsets in the HDF5 input
----
 
 The Lattice class from afqmctools can be directly used to find the pairs that we need via the `.get_directed_pairs()` function.
 `.get_directed_pairs()` needs a list of "directions", and it will return a dictionary where the keys are the requested directions, and the values are a list of index offsets, $\bar{i}_\alpha [i]$, such that $\bar{i}_{\alpha} [i] = i + e_\alpha$.
@@ -161,7 +156,6 @@ write_pair_correlators("afqmc.h5",pair_dict)
 ```
 
 ### Adding Custom Pairings
----
 
 We note that custom pairings can be added by simply inserting a list of offsets with a new key.
 For example, we can manually add "+x+y" pairing to the `pairs_dict` dictionary as
@@ -190,7 +184,6 @@ for key,value in pairs_dict.items():
 +++ {"id": "iwp3CeLownyV"}
 
 ## Requesting the pair correlation function in the json input file
----
 
 
 
@@ -242,7 +235,6 @@ instead of the above.
 
 
 ### Full sample input file
----
 
 ```json
 {
@@ -288,13 +280,11 @@ instead of the above.
 +++ {"id": "SrM8syoYzUeS"}
 
 ## You Turn
----
 Run SAFIRE on a 4x4 Hubbard model with U=4, and $N_{\uparrow}=N_{⇓} = 7$ using the full sample input file above.
 
 +++ {"id": "WIxdjnH-zopo"}
 
 ## Post-processing pair correlations functions
----
 
 
 ...

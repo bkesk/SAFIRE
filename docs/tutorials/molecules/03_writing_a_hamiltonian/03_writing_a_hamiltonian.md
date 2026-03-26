@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "ETj3fTltyCNc"}
 
 # Writing a Hamiltonian File
----
 
 <b>Goal:</b>
 Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
@@ -23,7 +22,6 @@ Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
 
 ## What you will learn
----
 
 
 1.  How to write a Hamiltonian to the SAFIRE HDF5 format starting from one-body, and two-body integrals </font>
@@ -36,7 +34,6 @@ Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
 ## Introduction
 
----
 
 
 In previous tutorials, we learned how to run SAFRIE, and how
@@ -102,7 +99,6 @@ scratch_dir = get_scratch_dir("writing_a_hamiltonian",scratch_rootdir)
 
 
 ##  Setting up
----
 
 
 
@@ -129,7 +125,6 @@ from RHF as a basis.
 
 ## The Hamiltonian
 
----
 
 
 
@@ -229,7 +224,6 @@ Sij = np.array([[1.,         0.65931821],
 
 
 ### Save the Hamiltonian
----
 
 `afqmctools` provides Python functions for writting Hamiltonians in an HDF5 file that can be read by the SAFIRE executable as
 shown in the code block below.
@@ -271,7 +265,6 @@ write_hamiltonian_generic(
 
 
 ## The Trial Wavefunction
----
 
 
 We will explore how to write trial wavefunctions in the [writing trial wavefunctions](../04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction.html)
@@ -325,7 +318,6 @@ write_json(scratch_dir / "afqmc.json", scratch_dir / "wfn.h5", scratch_dir / "ha
 
 
 ## Your Turn: Compute the AFQMC energy
----
 
 At this point, you should run an AFQMC calculation using SAFIRE
 as we covered earlier in the [Hello SAFIRE](../01_hello_auxiliary_fields/hello_auxiliary_fields.html) tutorial,
@@ -384,7 +376,6 @@ _ = analyze_scalar_data(settings)
 
 
 ### Check your result
----
 
 Your AFQMC energy should agree with $-1.137024 \pm 0.000195 E_{Hartree}$
 to within 1-2 $\sigma$.
@@ -398,7 +389,6 @@ is well within chemical accuracy.
 
 ## Starting from a FCIDUMP
 
----
 
 `afqmctools` provides tools to convert from a Hamiltonian in a standard
 FCIDUMP file to the format used by SAFIRE.
@@ -423,7 +413,6 @@ For simplicity, we provide a FCIDUMP file which, starting from the GitHub repo r
 
 
 ## CLI: Covert from FCIDUMP to the SAFIRE format.
----
 
 The `fcidump_to_afqmc` CLI script can be used to directly convert
 from a FCIDUMP file to the HDF5 format used by SAFIRE.
@@ -451,7 +440,6 @@ Additionally, you can use the `--help` option to see what other options are avai
 +++ {"id": "pX0yckNd2j9A"}
 
 ### CLI: Also write a trial wavefunction
----
 
 The next input that we will need for AFQMC is a trial wavefunction.
 The `fcidump_to_afqmc` CLI script can also write either an RHF- or ROHF-like
@@ -465,7 +453,6 @@ It is also possible to explicitly specify orbital occcupancies with the `--occ_u
 
 
 ### Your Turn
----
 Run the following codeblock to output the Wavefunction to an HDF5 file via the CLI.
 
 ```{code-cell} ipython3
@@ -480,7 +467,6 @@ Run the following codeblock to output the Wavefunction to an HDF5 file via the C
 
 
 ## Python: Covert from FCIDUMP to the SAFIRE format.
----
 
 The `afmctools` Python package provides the following functions which allow us to convert form FCIDUMP to
 the SAFIRE format.
@@ -491,7 +477,6 @@ the SAFIRE format.
 
 
 ### read_fcidump()
----
 
 The `read_fcidump()` function reads the Hamiltonian from the FCIDUMP file
 with name `filename`, and separately returns the 1-body, 2-body, and constant Hamiltonian
@@ -510,7 +495,6 @@ see the [API documentation for more](https://users.flatironinstitute.org/~beskri
 
 
 ### write_hamiltonian_generic()
----
 
 As we saw above, the `write_hamiltonian_generic()` funciton will generate an HDF5 file that can
 be read by the SAFIRE executable containing the Hamiltonian.
@@ -543,7 +527,6 @@ see the [API documentation for more]().
 
 
 ### Your Turn: Run the following code block to convert from the provided FCIDUMP file to the SAFIRE format
----
 
 ```{code-cell} ipython3
 :id: 6ej77YPU2JmI
@@ -574,7 +557,6 @@ write_hamiltonian_generic(
 
 ## Generate and write the Hamiltonian using PySCF and afqmctools
 
----
 
 
 Instead of defining the Hamiltonian and the wavefunction from scratch, one can also utilize `PySCF` to obtain the Hamiltonian in a given basis (in this case, the molecular orbital basis) and the trial wavefunction.
@@ -631,14 +613,12 @@ write_wfn_mol(
 
 
 ## Summary
----
 
 In this tutorial, you set up and ran a quantum chemistry AFQMC calculation in which we computed the ground state energy of the Hydrogen dimer at a fixed bondlength.
 
 The AFQMC code needs a Hamiltonian, a trial wavefunction, and a file containing settings as input, and it outputs stochastic samples as specified in the input file.
 
 ### What you learned
----
 
 1. How to write a Hamiltonian to the SAFIRE HDF5 format starting from one-body, and two-body integrals
 2. How to convert from a FCIDUMP file to the SAFIRE HDF5 format both using the CLI tools and within a Python script
@@ -646,7 +626,6 @@ The AFQMC code needs a Hamiltonian, a trial wavefunction, and a file containing 
 +++ {"id": "NaDbzk1jSEB1"}
 
 ### Sample Script - Full workflow
---------------------------------
 
 Below is a single script based on what you have learned.
 
