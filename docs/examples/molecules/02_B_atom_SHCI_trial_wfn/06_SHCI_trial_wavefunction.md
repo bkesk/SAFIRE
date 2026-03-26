@@ -12,8 +12,7 @@ kernelspec:
 
 +++ {"id": "UwuNT7DqI_rN"}
 
-# Example: Semistochastic heatbath CI (SHCI) trial wavefunction
----------------------------------------------------------------
+# B atom – Semistochastic heatbath CI (SHCI) trial wavefunction
 
 In this example, we will compute the ground state energy of the Boron (B) atom.
 This is an open-shell atom with a single p-electron.
@@ -26,7 +25,6 @@ References:
 1. https://pubs.acs.org/doi/10.1021/acs.jctc.2c00802
 
 ## Example
-----------
 
 Begin by generating a SAFIRE Hamiltonian HDF5 file.
 See the [sample script below](#sample-script-for-generating-the-safire-hamiltonian-file).

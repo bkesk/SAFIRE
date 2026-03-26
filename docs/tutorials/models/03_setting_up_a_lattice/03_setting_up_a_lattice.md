@@ -391,9 +391,9 @@ vis.plot_lattice(
 
 +++ {"id": "c6c6bd33-4fce-439d-bc76-c6663031b838"}
 
-# Archive of Possible Examples
+## Archive of Possible Examples
 
-## a water molecule:
+### a water molecule:
 
 TODO: write an intro. The goal here is to shift everyone's brains to thinking
 about mapping atoms in a solid onto a lattice model without the complication of multiple sites.
@@ -420,7 +420,7 @@ vis.plot_lattice(lattice,title="Water Molecule",show_labels=False)
 
 +++ {"id": "2fafdcad-d356-47a6-80a4-930ba8a3a840"}
 
-## Lieb Lattice
+### Lieb Lattice
 
 The Cuprates are a class of high-temperature superconductors which consiste of 2-dimensional layers of CuO$_2$ and other materials.
 The Cu and O atoms are arranged in the Leib lattice as shown below.
@@ -447,7 +447,7 @@ vis.plot_lattice(lattice,title="Lieb Lattice",show_labels=False)
 
 +++ {"id": "325db840-f820-4f10-bb2f-c346f51e8b63"}
 
-## Kagome Lattice
+### Kagome Lattice
 
 ```{code-cell} ipython3
 :id: 3eac1b2a-f2e9-4416-81bb-88d02fb5952b

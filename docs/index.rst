@@ -7,7 +7,6 @@ Getting Started with SAFIRE
   :maxdepth: 3
   :hidden:
 
-  index
   installation
   user_manual
   tutorials

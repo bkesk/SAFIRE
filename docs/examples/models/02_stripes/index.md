@@ -13,9 +13,7 @@ kernelspec:
 
 +++ {"id": "af3003d3-6a86-4f3b-aedd-d2fcc19a22bc"}
 
-# AFQMC Tutorial - The Role of the trial wave function
-
-Stripes and the square Hubbard Model
+# Stripes and the square Hubbard Model
 
 Author: Ryan Levy
 
@@ -106,21 +104,9 @@ lattice_params = {
     'boundary1' : 'Open',
     'boundary2' : 'PBC'
 }
-```
-
-```{code-cell} ipython3
-:id: 5bfb983b-2d62-4b97-a4aa-ee9afaa8cf74
 
 import afqmctools.systems.lattice as lat
-```
 
-```{code-cell} ipython3
----
-id: ce8304fc-88e8-4673-b6ac-88a8b123f681
-outputId: 1223e109-2fd9-4e8f-a559-f2bd94afcc45
-colab:
-  base_uri: https://localhost:8080/
----
 lattice = lat.get_lattice(params=lattice_params)
 
 Ne = int(lattice.N_sites*(1-0.2))//2
@@ -129,20 +115,7 @@ nelec
 ```
 
 ```{code-cell} ipython3
----
-id: e707a3b8-91b2-4345-a984-b8b9a5e2a870
-outputId: 74cb8482-acba-4f89-caa1-002e3b330bd9
-colab:
-  base_uri: https://localhost:8080/
-  height: 855
----
 vis.plot_lattice(lattice)
-```
-
-```{code-cell} ipython3
-:id: 088455ef-85f6-4b60-85de-099226c751f7
-
-
 ```
 
 +++ {"id": "a02dd178-90bb-463e-b5d6-75fccb288272"}
@@ -150,12 +123,10 @@ vis.plot_lattice(lattice)
 The Hamiltonian will be simple,
 
 $$
-\begin{align}
-H = H_t + H_U + H_{pin} \\
-H_t = -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
-H_U = U\sum_i n_{i\uparrow}n_{i\downarrow}\\
-H_{pin} = \sum_{i\in \text{edge}} (-1)^{i_x+i_y} h_i S^z_i
-\end{align}
+H &= H_t + H_U + H_{pin} \\
+H_t &= -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
+H_U &= U\sum_i n_{i\uparrow}n_{i\downarrow}\\
+H_{pin} &= \sum_{i\in \text{edge}} (-1)^{i_x+i_y} h_i S^z_i
 $$
 
 and we have a convenience function to add the edge pinning as well. We'll assume $t=1$, $h_i=0.5$ just like in the paper
@@ -385,15 +356,13 @@ plt.show()
 
 +++ {"id": "e9fbcc21-8216-4f25-a64e-54f84dc4023c"}
 
-# Self Consistency w/ Hartree-Fock
+## Self Consistency w/ Hartree-Fock
 
-+++ {"id": "fe5ae2a9-2a45-4758-8028-ce527a788c96"}
 
 The idea behind self-consistent AFQMC is to have the trial wave function match as much as possible the output of AFQMC. [cite me]
 
 For this model, we can do this by introducing an effective Hubbard model, where $U$ is replaced with $U_{eff}$. By solving Hartree-Fock (mean field theory) for this effective model and using the result as a trial wave function, we can scan through different $U_{eff}$ to find the one that matches the best.
 
-+++ {"id": "40955a47-3c1c-4815-bb11-5f39ba297391"}
 
 We'll use AutoHF to explore creating a trial wave function for AFQMC. Let's do a few between $U_{eff}=1$ and $U_{eff}=4$
 
@@ -635,7 +604,9 @@ In our original study, we found the optimal $U_{eff} \approx 2.77$
 
 +++ {"id": "672d9ba4-f659-466d-be57-8fa082fcfb0e"}
 
-# Your Turn Part 1 - Recreate Fig 1
+## Your Turn
+
+### Part 1 – Recreate Fig 1.
 
 +++ {"editable": true, "id": "0ac955ea-ab2d-49fb-b9dd-9a0fafdaf159"}
 
@@ -647,19 +618,14 @@ In our original study, we found the optimal $U_{eff} \approx 2.77$
 
 Let's recreate figure 1 from Xu et al, by changing
 
-- 10x4 -> 20x4
+- Lattice size 10 × 4 to 20 × 4
 - Doping 0.2 to 0.1 hole doping
-- U=6 ✓
+- $U = 6$ ✓
 
-```{code-cell} ipython3
-:id: 3d9972e6-9d17-4fdb-95b8-d0d3459bf233
-
-
-```
 
 +++ {"id": "edc3a318-40a1-40cb-86bf-b85ae366fc9b"}
 
-# Your Turn Part 2
+### Part 2 - Try different settings
 
 Lets use this as a test bed to explore how AFQMC responds to different settings. Some questions to consider
 
@@ -669,8 +635,3 @@ Lets use this as a test bed to explore how AFQMC responds to different settings.
 - The free electron trial isn't a valid RHF state (why?). What would be the corresponding RHF solution? What does that output look like?
 - Explore the parameters of backpropagation, how does the 1rdm change as a function of `nsteps`? you can include `naverages` to see the results converge
 
-```{code-cell} ipython3
-:id: 3576dbfd-46a3-45a2-923b-c6e253e7ec21
-
-
-```

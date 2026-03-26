@@ -1,7 +1,7 @@
 .. _setup_ex_4:
 
-04 Hubbard with nth-order hopping
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Hubbard with nth-order hopping
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers building a Hubbard model Hamiltonian on square Lattice with a t' (i.e next-nearest neighbor hopping), 
 and generating a free-electron trial wavefunction.

@@ -1,7 +1,7 @@
 .. _setup_ex_9:
 
-09 Hartree-Fock trial wavefunctions with autoHF
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Hartree-Fock trial wavefunctions with autoHF
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers generating a Hartree-Fock trial wavefunction
 using autoHF on a Hubbard model Hamiltonian on square lattice as a test case.

@@ -1,7 +1,7 @@
 .. _setup_ex_11:
 
-11 Adding Custom Terms to the Hamiltonian
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Adding Custom Terms to the Hamiltonian
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This advanced example covers adding a manually-constructed one-body term to a
 lattice model Hamiltonian by directly invoking the hamiltonianBuilder.

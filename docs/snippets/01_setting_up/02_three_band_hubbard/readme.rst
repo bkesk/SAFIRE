@@ -1,7 +1,7 @@
 .. _setup_ex_2:
 
-02 Three-Band Hubbard Model
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Three-Band Hubbard Model
+^^^^^^^^^^^^^^^^^^^^^^^^
 This example covers building a three-band Hubbard model Hamiltonian on a square Lattice, 
 and generating a free-electron trial wavefunction.
 

@@ -101,7 +101,7 @@ scratch_dir = get_scratch_dir("writing_a_hamiltonian",scratch_rootdir)
 
 
 
-#  Setting up
+##  Setting up
 ---
 
 
@@ -270,7 +270,7 @@ write_hamiltonian_generic(
 
 
 
-## Trial Wavefunction
+## The Trial Wavefunction
 ---
 
 
@@ -383,7 +383,7 @@ _ = analyze_scalar_data(settings)
 
 
 
-## Check your result
+### Check your result
 ---
 
 Your AFQMC energy should agree with $-1.137024 \pm 0.000195 E_{Hartree}$
@@ -630,26 +630,22 @@ write_wfn_mol(
 
 
 
-# Summary
+## Summary
 ---
 
 In this tutorial, you set up and ran a quantum chemistry AFQMC calculation in which we computed the ground state energy of the Hydrogen dimer at a fixed bondlength.
 
 The AFQMC code needs a Hamiltonian, a trial wavefunction, and a file containing settings as input, and it outputs stochastic samples as specified in the input file.
 
-## What you learned
+### What you learned
 ---
-
-
 
 1. How to write a Hamiltonian to the SAFIRE HDF5 format starting from one-body, and two-body integrals
 2. How to convert from a FCIDUMP file to the SAFIRE HDF5 format both using the CLI tools and within a Python script
 
-
-
 +++ {"id": "NaDbzk1jSEB1"}
 
-## Sample Script - Full workflow
+### Sample Script - Full workflow
 --------------------------------
 
 Below is a single script based on what you have learned.

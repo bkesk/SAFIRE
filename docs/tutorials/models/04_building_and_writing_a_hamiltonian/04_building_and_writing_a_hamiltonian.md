@@ -74,7 +74,7 @@ We will explore the possible input parameters and their respective meanings/conv
 
 +++ {"id": "pGSnNnm7Rr54"}
 
-# ▶️ Setup : Run me
+## ▶️ Setup : Run me
 -------------------
 
 Run the cell below to setup a scratch directory.
@@ -94,8 +94,7 @@ scratch_dir = get_scratch_dir("lattice_04_hamiltonian_director",scratch_rootdir)
 
 +++ {"id": "WcOH6y7xOK_V"}
 
-# Hamiltonian Director Tutorial
----
+## Hamiltonian Director Tutorial
 
 The `afqmctools` Python package provides a framework for generating lattice model Hamiltonians as described in the Building Lattice Model Hamiltonians overview [here](#building-lattice-model-hamiltonians-tutorial).
 The Hamiltonian Director is the highest-level interface to this framework.
@@ -114,8 +113,6 @@ We will also cover the details of the input conventions for each of the terms ne
 +++ {"id": "DvPH8LBbOK_V"}
 
 ## Invoking the Hamiltonian Director via the CLI
-
----
 
 In addition to the ability to invoke the Hamiltonian director directly within a Python script, afqmctools provides a command line tool that invokes the Hamiltonian director.
 If you installed `afqmctools` using the official instructions, you can run the following to see possible options
@@ -213,7 +210,7 @@ For the remainder of the tutorial, we will be working directly with Python withi
 
 +++ {"id": "uincH8ATOK_X"}
 
-## ✨ Example : Standard Hubbard Model
+### ✨ Example : Standard Hubbard Model
 ---------------------------------------
 
 Below, we construct a Hubbard model on a 4x4 square lattice with both nearest, and next-nearest neighbor hopping by providing a list of values for "t".
@@ -258,8 +255,7 @@ hamiltonian = HamiltonianDirector(source=params, lattice=lattice).build()
 
 +++ {"id": "_7Wg-_UGQuXr"}
 
-# Writing Hamiltonians to HDF5
---------------------------------------------
+## Writing Hamiltonians to HDF5
 
 In the code block below, we demonstrate how to save a lattice model Hamiltonian
 to an HDF5 file that can be read by SAFIRE.
@@ -293,12 +289,9 @@ outputId: bfe2522e-2996-43d9-88b3-ed2cd7b84350
 
 +++ {"id": "HEbY-vNOOK_W"}
 
-# Adding more terms to the Hamiltonian
---------------------------------------
+## Adding more terms to the Hamiltonian
 
-## Adding Hopping
-
----
+### Adding Hopping
 
 The Hamiltonian Director supports nth-order neighbor hopping and band-dependent hopping.
 $n$ is limited by the condition that sites are not allowed to be their own neighbors via
@@ -348,7 +341,7 @@ where $\langle i,j \rangle^n$ indicates that the sum is constrained to run over 
 
 +++ {"id": "Tk2-PveROK_X"}
 
-## ✨ Example : Hubbard Model with $t^{`}$
+#### ✨ Example : Hubbard Model with $t'$
 --------------------------------------
 
 Below, we construct a Hubbard model on a 4x4 square lattice with both nearest, and next-nearest neighbor hopping by providing a list of values for "t".
@@ -394,7 +387,7 @@ plt.show()
 
 +++ {"id": "09Ir9dWeOK_W"}
 
-## Adding onsite Hubbard U
+### Adding onsite Hubbard U
 
 ---
 
@@ -409,7 +402,7 @@ where, again, the combined index $\mu$ may include both lattice site and band in
 We've already seen how to add a basic nearest-neighbor onsite Hubbard U, now we see see how to provide a site-, and/or band-dependent onsite interaction.
 <b>This input parameter, $U$, is in general an array. The band/site dependence of the interaction is deduced based on the shape of the $U$ array</b>.
 
-### Band- / site-dependence deduction rules
+#### Band- and site-dependence deduction rules
 
 ---
 
@@ -423,8 +416,7 @@ We've already seen how to add a basic nearest-neighbor onsite Hubbard U, now we 
 
 +++ {"id": "BskmJL_Kn9Fm"}
 
-## ✨ Example: site-dependent U
--------------------------------
+#### ✨ Example: site-dependent U
 
 In the example below, we build a site-dependent U with a checkerboard pattern.
 
@@ -478,7 +470,7 @@ plot_lattice(
 
 +++ {"id": "r53E1XbMoJM8"}
 
-## ✨ Example: band-dependent U
+#### ✨ Example: band-dependent U
 ----
 
 Now we will construct a band-dependent U which is *uniform* accross lattice sites.
@@ -602,7 +594,7 @@ plot_lattice(
 
 +++ {"id": "pqLN_brHOK_X"}
 
-## Adding Density-Density interaction
+### Adding Density-Density interaction
 -------------------------------------
 
 SAFIRE supports general interactions of the form,
@@ -619,7 +611,7 @@ the user provides.
 specifically, it handles the following cases.
 
 
-### Case 1: Uniform intrasite interaction
+#### Case 1: Uniform intrasite interaction
 -----------------------------------------
 
 The user provides a single value for $U^1$ and keeps the default $n=0$.
@@ -633,7 +625,7 @@ $$
 where we have replaced the composite indicies with site and band indices for clarity.
 
 
-### Case 2: Band-dependent intrasite interaction
+#### Case 2: Band-dependent intrasite interaction
 ------------------------------------------------
 
 The user provides a matrix with shape $nbands \times nbands$,
@@ -652,11 +644,11 @@ $$
 
 where we have replaced the composite indicies with site and band indices for clarity.
 
-### Case 3: Uniform nth-order neighbor interaction
+#### Case 3: Uniform nth-order neighbor interaction
 --------------------------------------------------
 
 
-### Case 4: Band-dependent nth-order neighbor interaction
+#### Case 4: Band-dependent nth-order neighbor interaction
 ----------------------------------------------------------------
 
 The user provides the neighor order, $n$, and a
@@ -674,7 +666,7 @@ $$
 
 where we have replaced the composite indicies with site and band indices for clarity.
 
-### Case 5: a list of inputs from the cases above
+#### Case 5: a list of inputs from the cases above
 -------------------------------------------------
 
 If a user provides a list of valid inputs, then afqmctools will generate each
@@ -696,7 +688,7 @@ Hamiltonian.
 
 +++ {"id": "_BXfk70iudQJ"}
 
-## Adding Spin-Spin interaction
+### Adding Spin-Spin interaction
 -------------------------------------
 
 SAFIRE supports general interactions of the form,
@@ -714,7 +706,7 @@ See the density-density section above for more details.
 
 +++ {"id": "L-D4VJuBOK_X"}
 
-## Adding a Hund's J term
+### Adding a Hund's J term
 -------------------------
 
 SAFIRE supports general interactions of the form,
@@ -737,7 +729,7 @@ See the density-density section above for more details.
 
 +++ {"id": "CIbAdbiaOK_X"}
 
-## ✨ Example: 3-band Hubbard-Kanamori Hamiltonian
+#### ✨ Example: 3-band Hubbard-Kanamori Hamiltonian
 --------------------------------------------------
 
 Below we construct a 3-band Hubbard kanamor model using uniform values for U,U1,U2, and J as in Table I of [PRB 99, 235142 (2019)](https://doi.org/10.1103/PhysRevB.99.235142)
@@ -784,7 +776,7 @@ hamiltonian = HamiltonianDirector(source=params, lattice=lattice).build()
 
 +++ {"id": "W-TfLNDJOK_W"}
 
-## Adding an extended Hubbard V interaction
+### Adding an extended Hubbard V interaction
 -------------------------------------------
 
 The $n^{th}$-order neighbor extended Hubbard interaction,
@@ -814,7 +806,7 @@ same input conventions as for $\hat{H}_{U1}$, and $\hat{H}_{U2}$.
 
 +++ {"id": "_MEnzhH0OK_X"}
 
-## ✨ Example: Extended Hubbard Model
+#### ✨ Example: Extended Hubbard Model
 -------------------------------------
 
 Below, we build an extended Hubbard model including nearest-neighbor V.

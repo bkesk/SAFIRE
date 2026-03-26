@@ -17,16 +17,23 @@ These show how multiple features fit together in real-world scenarios,
 making them useful for understanding context and best practices.
 The walkthroughs are organized based on their application domain.
 
+
+.. _examples_molecules:
+
 Quantum Chemistry / Molecules
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. include:: examples/molecules/index.rst
 
 
+.. _examples_solids:
+
 Ab initio solids
 ~~~~~~~~~~~~~~~~
 
 .. include:: examples/solids/index.rst
+
+.. _examples_models:
 
 Lattice models
 ~~~~~~~~~~~~~~
@@ -43,7 +50,6 @@ Snippets are designed as quick references — you’ll find exactly how to do it
 
 .. toctree::
   :maxdepth: 1
-  :caption: Examples:
 
   snippets/01_setting_up/setup_examples
   snippets/02_running_afqmc/afqmc_examples
