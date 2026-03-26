@@ -14,22 +14,15 @@ kernelspec:
 
 # Generating and Writing a Trial Wavefunction
 
-
 <b>Goal:</b>
 Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 format.
 
-
-
-
 ## What you will learn
-
-
 
 1. How to write a single Slater determinant trial wavefunction given the Slater Matrix
 2. How to write a single Slater determinant given orbtial occupancies
 3. How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices
 4. How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings
-
 
 +++ {"id": "kj82RGwRNJRe"}
 
@@ -432,26 +425,14 @@ write_wfn(
 
 ## Summary
 
-
-
 In this tutorial, you became acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 format.
 
-
-
-
-
 ### What you learned
-
-
 
 1. How to write a single Slater determinant trial wavefunction given the Slater Matrix
 2. How to write a single Slater determinant given orbtial occupancies
 3. How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices
 4. How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings
-
-
-
-
 
 ```{code-cell}
 :id: qVBQ6CAhF3Xn

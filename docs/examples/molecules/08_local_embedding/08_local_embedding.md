@@ -19,7 +19,6 @@ Following the methodlogy presented in:
 
 https://pubs.acs.org/doi/10.1021/acs.jctc.8b01244
 
-
 ## Additional Software
 
 This example uses the freely available [embeddingAFQMC](https://github.com/bkesk/embeddingAFQMC) Python package
@@ -52,7 +51,6 @@ MPI_TASKS = 64
 ### Automate the AFQMC
 
 We can automate the local embedding workflow, for a given O atom hieght, $h$, and localization radii $R_o$, and $R_v$, using a Python function. The workflow consists of the following steps.
-
 
 1. define the atomic positions
 2. run ROHF to obtain both a trial wavefunction, and a basis

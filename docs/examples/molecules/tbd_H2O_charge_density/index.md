@@ -19,11 +19,6 @@ kernelspec:
 In this example, we compute the electronic charge density of
 the water molecule at its equilibrium geometry.
 
-
-
-
-
-
 ## In Development!!
 
 - need to figure out how to get the unit volume from PySCF.

@@ -155,15 +155,12 @@ results = lattice_hf(hamiltonian=autohf_hamiltonian,settings=settings)
 
 ## Construct and Save the trial wavefunction
 
-
 A trial wavefunction can be written to AuxiliaryField's HDF5 format using the `write_wfn()` function from the `afqmctools.wavefunction.common` submodule of afqmctools.
 In general, the trial wavefunction in AFQMC is a linear combination of Slater determinants,
-
 
 $$
 |\Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle,
 $$
-
 
 where
 
@@ -174,8 +171,6 @@ and $|\Phi_n\rangle$ are Slater determinants which are not necessarily
 orthogonal to each other.
 Here, we will specify Slater determinants as Slater matrices
 
-
-
 $$
 \Phi_{ip} ≐ \begin{bmatrix}
     \bar{C}_{00} &\bar{C}_{01} & \bar{C}_{02} & \dots  & \bar{C}_{0N} \\
@@ -185,17 +180,13 @@ $$
 \end{bmatrix},
 $$
 
-
-
 where $i$ is the basis index, $p$ is the electron index, and
  $M,N$ are the number of basis functions and electrons, respectively.
 <b>
 AuxiliaryFields uses the convention that orbitals are columns of the Slater matrices.</b>
 For collinear Slater determinants, the first $N_{\uparrow}$ columns are the spin-up electrons and the last $N_{\downarrow}$ are the spin-down electrons.
 
-
 In the code block below, we manually construct Slater matrices from the UHF orbitals that we got from autohf above.
-
 
 ```{code-cell}
 ---

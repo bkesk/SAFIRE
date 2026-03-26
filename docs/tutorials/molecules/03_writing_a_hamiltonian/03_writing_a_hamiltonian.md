@@ -18,30 +18,17 @@ kernelspec:
 <b>Goal:</b>
 Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
-
-
-
 ## What you will learn
-
 
 1.  How to write a Hamiltonian to the SAFIRE HDF5 format starting from one-body, and two-body integrals
 2.  How to convert from a FCIDUMP file to the SAFIRE HDF5 format both using the CLI tools and within a Python script
 3.  (For convenience) How to use PySCF and afqmctools to generate and write the Hamiltonian
 
-
-
-
-
 ## Introduction
-
-
 
 In previous tutorials, we learned how to run SAFRIE, and how
 to post process the results to arrive at the AFQMC energy.
 Now, we will learn how to write a Hamiltonian in SAFRIE's HDF5 format.
-
-
-
 
 <!--
 <div>
@@ -52,7 +39,6 @@ Now, we will learn how to write a Hamiltonian in SAFRIE's HDF5 format.
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/TopLevelFlowChart_v3.png" width="1000">
 </div>
-
 
 In this tutorial,
 we will compute the ground state energy of
@@ -67,10 +53,6 @@ the minimal basis hydrogen dimer with a bondlength of 1.4 Bohr radii.
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/03_writing_a_Hamiltonian/HyrdogenMolecule.png" width="500">
 </div>
-
-
-
-
 
 +++ {"id": "Xg9PlaJByCNd"}
 
@@ -96,12 +78,7 @@ scratch_dir = get_scratch_dir("writing_a_hamiltonian",scratch_rootdir)
 
 +++ {"id": "J8ieYi3YyCNe"}
 
-
-
 ##  Setting up
-
-
-
 
 As we have seen in previous tutorials, the SAFIRE executable is implemented for generic second quantized Hamiltonians, and wavefunctions.
 Before we can run an AFQMC calculation, we must generate:
@@ -117,16 +94,9 @@ and to represent the trial wavefunction in terms of.
 In this tutorial, we will use the set of canonical Hartree-Fock orbitals
 from RHF as a basis.
 
-
-
 +++ {"id": "RsbyXg-OyCNe"}
 
-
-
 ## The Hamiltonian
-
-
-
 
 We are often interested in the electronic ground state of the Born-Oppenheimer Hamiltonian which is given in first quantization
 by
@@ -171,8 +141,6 @@ bondlength of $\delta_{H-H} = 1.4$ Bohr radii in a standard sto-3g basis.
 **Run the code block below to load the Hamiltonian into memory**
 
 1. Szabo, A., & Ostlund, N. S. (1996). Modern quantum chemistry: Introduction to advanced electronic structure theory. Dover Publications.
-
-
 
 ```{code-cell} ipython3
 :id: gCidZeInyCNe
@@ -220,9 +188,6 @@ Sij = np.array([[1.,         0.65931821],
 
 +++ {"id": "grY1VTDdyCNe"}
 
-
-
-
 ### Save the Hamiltonian
 
 `afqmctools` provides Python functions for writting Hamiltonians in an HDF5 file that can be read by the SAFIRE executable as
@@ -262,10 +227,7 @@ write_hamiltonian_generic(
 
 +++ {"id": "FL2jWTrTyCNf"}
 
-
-
 ## The Trial Wavefunction
-
 
 We will explore how to write trial wavefunctions in the [writing trial wavefunctions](../04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction.html)
 tutorial.
@@ -276,7 +238,6 @@ $$
 where $C_n$ is a cofficient,
 and $|\Phi_n\rangle$ are Slater determinants which are not necessarily
 orthogonal to each other.
-
 
 **For now, simply run the next code block to save the RHF ground state
 in the same HDF5 file as the Hamiltonian.**
@@ -313,9 +274,6 @@ write_json(scratch_dir / "afqmc.json", scratch_dir / "wfn.h5", scratch_dir / "ha
 ```
 
 +++ {"id": "CXQ3jT_pyCNf"}
-
-
-
 
 ## Your Turn: Compute the AFQMC energy
 
@@ -373,8 +331,6 @@ _ = analyze_scalar_data(settings)
 
 +++ {"id": "U9KLdBoByCNg"}
 
-
-
 ### Check your result
 
 Your AFQMC energy should agree with $-1.137024 \pm 0.000195 E_{Hartree}$
@@ -388,7 +344,6 @@ is well within chemical accuracy.
 +++ {"id": "jnupX3Uz1l4q"}
 
 ## Starting from a FCIDUMP
-
 
 `afqmctools` provides tools to convert from a Hamiltonian in a standard
 FCIDUMP file to the format used by SAFIRE.
@@ -409,8 +364,6 @@ For simplicity, we provide a FCIDUMP file which, starting from the GitHub repo r
 ```
 
 +++ {"id": "qYRe4bEt1xSN"}
-
-
 
 ## CLI: Covert from FCIDUMP to the SAFIRE format.
 
@@ -450,8 +403,6 @@ orbitals are occupied.
 $N_{\uparrow}$ and $N_{\downarrow}$ are determined by the information in the header of the FCIDUMP file.
 It is also possible to explicitly specify orbital occcupancies with the `--occ_up` and `--occ_down` swithces.
 
-
-
 ### Your Turn
 Run the following codeblock to output the Wavefunction to an HDF5 file via the CLI.
 
@@ -464,8 +415,6 @@ Run the following codeblock to output the Wavefunction to an HDF5 file via the C
 
 +++ {"id": "7NLzntps2CS7"}
 
-
-
 ## Python: Covert from FCIDUMP to the SAFIRE format.
 
 The `afmctools` Python package provides the following functions which allow us to convert form FCIDUMP to
@@ -473,8 +422,6 @@ the SAFIRE format.
 
 - `read_fcidump()` in the `afqmctools.hamiltonian.converter` module
 - `write_hamiltonian_generic()` in the `afqmctools.hamiltonian.mol` module
-
-
 
 ### read_fcidump()
 
@@ -491,8 +438,6 @@ terms as well as the number of electrons.
 ```
 
 see the [API documentation for more](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/api/afqmctools.hamiltonian.html#afqmctools.hamiltonian.converter.read_fcidump)
-
-
 
 ### write_hamiltonian_generic()
 
@@ -524,8 +469,6 @@ Exactly one of `cholesky_vectors` or `coulomb_repuslion_tensor` must be provided
 
 see the [API documentation for more]().
 
-
-
 ### Your Turn: Run the following code block to convert from the provided FCIDUMP file to the SAFIRE format
 
 ```{code-cell} ipython3
@@ -553,11 +496,7 @@ write_hamiltonian_generic(
 
 +++ {"id": "jNDV-Ersu9ul"}
 
-
-
 ## Generate and write the Hamiltonian using PySCF and afqmctools
-
-
 
 Instead of defining the Hamiltonian and the wavefunction from scratch, one can also utilize `PySCF` to obtain the Hamiltonian in a given basis (in this case, the molecular orbital basis) and the trial wavefunction.
 Here, we use `PySCF` to run RHF for the hydrogen dimer and export to a chkfile `h2_rhf.h5`, then use `afqmctools` to obtain the Hamiltonian and the trial wavefunction from the chkfile.
@@ -608,9 +547,6 @@ write_wfn_mol(
 ```
 
 +++ {"id": "ZX0-iQdzyCNg"}
-
-
-
 
 ## Summary
 

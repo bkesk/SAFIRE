@@ -18,29 +18,15 @@ kernelspec:
 <b>Goal:</b>
 Understand how to control SAFIRE via the input file.
 
-Previous Tutorial: [Hello SAFIRE](../01_hello_auxiliary_fields/hello_auxiliary_fields.ipynb)
-
-
-
-
 ## What you will learn
-
-
 
 1. The structure of the json input file for SAFIRE
 2. The minimal amount of information needed to run an AFQMC calculation using SAFIRE
 3. The most common parameters that you will interact with as a user
 
-
-
-
-
-
 +++ {"id": "5DZWyTSwFaBI"}
 
 ## Introduction
-
-
 
 SAFIRE uses a json-based input file with modular input blocks to control AFQMC calculations.
 The input file is organized into several hierarchical input blocks.
@@ -51,20 +37,9 @@ We will begin with a brief explanation of how the blocks relate to each other, f
 of each individual input block type.
 We will explore the most common settings in each input block as well.
 
-
-
-
-
-
 +++ {"id": "30febdd4"}
 
-
-
-
 ## Input block hierarchy
-
-
-
 
 <!--
 <div>
@@ -102,8 +77,6 @@ They consist of both AFQMC runtime parameters and references to the following fi
 4. projector
 5. estimator
 
-
-
 The wavefunction, hamiltonian, and walker_set blocks can be defined either directly within
 an execute block, by providing a json input block,
 or defined in the "afqmc" block and referenced by "name" within one
@@ -116,24 +89,14 @@ including the most common settings that you will use.
 For completeness, we will describe additional settings.
 First, let's look at a sample input file for a typical calculation.
 
-
-
 +++ {"id": "15c30cf5"}
 
 ## Sample input file - typical calculation
-
-
-
-
-
-
 
 In a typical calculation. you will only need to set a few parameters.
 In the input file below, we include the default value of each common parameter where possible.
 We use  ellipses ( `...`) for the "estimaor" input block for visual simplicity.
 This input block will be explored in more detail in later tutorials.
-
-
 
 ```json
 {
@@ -165,9 +128,6 @@ This input block will be explored in more detail in later tutorials.
   }
 ```
 
-
-
-
 Note that we did not define a "hamiltonian" block at all.
 In this case, SAFIRE will look for the Hamiltonian in the same
 file as the trial wavefunction.
@@ -187,9 +147,6 @@ first AFQMC calculation.
   set to the name of the HDF5 file containing the trial wavefunction.
 </div>
 
-
-
-
 ### Minimal information needed to run.
 
 The bare minimum input blocks to run is
@@ -202,18 +159,9 @@ Usually, one will also often provide:
 1. a "walker_set" block
 2. an "estimator" block (for any observables beside the energy)
 
-
-
-
-
 +++ {"id": "d79cb60c"}
 
-
 ## The "project" block
-
-
-
-
 
 The project block is used to set some project-level information.
 For example, "id" and "series" are used to make the prefix of output
@@ -230,9 +178,6 @@ files as `[id].s[series].scalar.dat` and `[id].s[series].stat.h5`.
 
 ### Most Common Settings
 
-
-
-
 <style>
 td, th {
    border: none!important;
@@ -244,10 +189,7 @@ td, th {
 | <b>id</b> |  "afqmc" | The base name for the `[id].s[series].scalar.dat` and `[id].s[series].stat.h5` files  |
 | <b>series</b> |0 |  The series number for the `[id].s[series].scalar.dat` and `[id].s[series].stat.h5` files. The filename will print as width three, padded with 0s if needed  |
 
-
-
 ### Less Common Settings
-
 
 <style>
 td, th {
@@ -260,16 +202,9 @@ td, th {
 | <b>mixed_precision</b> | `false` | Turn on mixed precision mode |
 | <b>ncores</b> | `1` | Set the number of cores to use per MPI task |
 
-
-
 +++ {"id": "6981f73f"}
 
-
 ## The "execute" block
-
-
-
-
 
 <!--
 <div>
@@ -281,7 +216,6 @@ td, th {
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_02_execute.png" width="800">
 </div>
 
-
 The execute block is used to define an AFQMC calculation.
 As described earlier, it needs a wavefunction, walker_set, hamiltonian,
 projector, and estimator.
@@ -292,7 +226,6 @@ outside and referenced by name.
 In addition to these blocks, the "execute" block is used to define several AFQMC methodological parameters.
 
 Here is a sample execute block with options exposed and default values where appropriate.
-
 
 ```json
 "execute" : {
@@ -314,10 +247,7 @@ Here is a sample execute block with options exposed and default values where app
 }
 ```
 
-
-
 ### Most Common Settings
-
 
 <style>
 td, th {
@@ -335,17 +265,11 @@ td, th {
 | <b>population_control_interval</b> |  10  |  Interval to perform population control at in units of steps.  |
 | <b>walker_ortho_interval</b> | 10  |  Interval to stabilize walkers at via a modified Gram-Schmidt procedure in units of steps |
 
-
-
 $$
 measure\_interval = measure\_interval\_multiplier \times population\_control\_interval
 $$
 
-
-
-
 ### Less Common Settings
-
 
 <style>
 td, th {
@@ -362,12 +286,7 @@ td, th {
 
 +++ {"id": "c9d95fca"}
 
-
-
 ## The "wavefunction" block
-
-
-
 
 <!--
 <div>
@@ -378,7 +297,6 @@ td, th {
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_03_wavefunction.png" width="800">
 </div>
-
 
 The wavefunction block is the only of the 5 low-level blocks
 that must always be specified.
@@ -397,10 +315,7 @@ Here is a sample wavefunction block with options exposed and default values wher
 }
 ```
 
-
-
 ### Most Common Settings
-
 
 <style>
 td, th {
@@ -414,17 +329,9 @@ td, th {
 | <b>name</b> |   n/a  | The name to assign to the current wavefunction block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here. |
 | <b>ndets_to_read</b> |   -1  | The number of Slater determinants to read and from the HDF5 file and use in the trial wavefunction. If less than 0, all Slater determinants in the HDF5 file will be read and used. Must be less than or equal to the number of Slater determinants in the input HDF5 file |
 
-
-
-
-
 +++ {"id": "67898650"}
 
-
 ## The "walker_set" block
-
-
-
 
 <!--
 <div>
@@ -436,15 +343,10 @@ td, th {
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_04_walker.png" width="800">
 </div>
 
-
-
-
 The walker_set block is used to set general properties of the random walkers.
 The most common setting that you will change is the "walker_type" keyword
 which allows you to specify the type of walker to use.
 The possible walker types are as follows:
-
-
 
 <b>Closed (i.e. RHF-like) </b>
 
@@ -455,14 +357,11 @@ $$
 where $\downarrow = \uparrow$ indicates that the $\beta$-sector is identical to the
 $\alpha$-sector.
 
-
 <b>Collinear (i.e. UHF-like) </b>
 
 $$
 | \Phi_k \rangle = | \Phi^\uparrow \rangle \otimes | \Phi^\downarrow \rangle
 $$
-
-
 
 <b>Noncollinear (i.e. GHF-like) </b>
 
@@ -472,8 +371,6 @@ $$
 \Phi^{\downarrow \uparrow} & \Phi^{\downarrow \downarrow} \\
 \end{bmatrix}
 $$
-
-
 
 <b>FullyPolarized (similar to Collinear) </b>
 
@@ -504,11 +401,7 @@ Here is a sample walker_set block with options exposed and default values where 
     walkers.
 </div>
 
-
-
-
 ### Most Common Settings
-
 
 <style>
 td, th {
@@ -521,11 +414,7 @@ td, th {
 |<b>walker_type</b> |  Collinear  | The type of walker to use in AFQMC. Options are Closed, Collinear, Noncollinear, Fullypolarized |
 |<b>name</b> | n/a  | The name to assign to the current walker_set block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here. |
 
-
-
-
 ### Less Common Settings
-
 
 <style>
 td, th {
@@ -540,15 +429,9 @@ td, th {
 | <b>min_weight</b> | 0.05 |   Minimum walker weight for population control  |
 | <b>max_weight</b> |4 |  Maximum walker weight for population control  |
 
-
 +++ {"id": "b003de2e"}
 
-
 ## The "hamiltonian" block
-
-
-
-
 
 <!--
 <div>
@@ -559,10 +442,6 @@ td, th {
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_05_hamiltonian.png" width="800">
 </div>
-
-
-
-
 
 The hamiltonian block is used to provide settings related to the Hamiltonian.
 This mostly entails pointing to the input HDF5 file containing
@@ -578,10 +457,7 @@ options exposed and default values where appropriate.
 }
 ```
 
-
-
 ### Most Common Settings
-
 
 <style>
 td, th {
@@ -594,18 +470,9 @@ td, th {
 | <b>filename</b> |  n/a  |  The name of the file (possibly including a path) to the HDF5 file containing the Hamiltonian  |
 | <b>name</b> |  n/a  |  The name to assign to the current hamiltonian block. This allows it to be referenced by name in execute blocks. A name is generated internally if not set here.  |
 
-
 +++ {"id": "72f853ff"}
 
-
-
-
-
-
 ## The "projector" block
-
-
-
 
 <!--
 <div>
@@ -613,14 +480,9 @@ td, th {
 </div>
 -->
 
-
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_06_propagator.png" width="800">
 </div>
-
-
-
-
 
 The projector block is used to set properties of the AFQMC projector.
 A typical user will not need to interact with this input block;
@@ -628,17 +490,9 @@ however, we include it here for completeness.
 
 See the [input file description](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/input_description_afqmc.html) of the User manual for more information.
 
-
-
 +++ {"id": "a59c54b9"}
 
-
-
-
 ## The "estimator" block
-
-
-
 
 <!--
 <div>
@@ -646,13 +500,9 @@ See the [input file description](https://users.flatironinstitute.org/~beskridge/
 </div>
 -->
 
-
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_07_estimator.png" width="800">
 </div>
-
-
-
 
 The estimator block is used to specify which
 estimator type(s) to use during a calculation
@@ -666,8 +516,6 @@ in order to give you a sense of how they work.
 
 Here is a sample input block for the energy estimator with
 options exposed and default values where appropriate.
-
-
 
 ```json
 "estimator" : {
@@ -685,14 +533,10 @@ In the later cases, "name" is used as an identifier to refer to blocks within a 
 For estimators, "name" is used to define the type of estimator being used.
 Valid names include "energy", "mixed", and "back_propagated".
 
-
-
 ### Estimator types
-
 
 The estimator type is selected using the "name" parameter.
 The available "name" / types are:
-
 
 - **"energy"** : this is a specialized mixed-estimator which specifically evaluates the energy. It also provides some granular control over what details of the energy are printed. For example, you can print the 1-body, exchange, and direct Coulomb interaction energies, in addition to the total energy, by setting `"print_components" : true` within an energy estimator input block.
 
@@ -716,10 +560,6 @@ $$
 The index $n$ corresponds to the current forward projection step,
 and $m$ is the back-propagated step index.
 
-
-
-
-
 ### Observables
 
 For the "mixed" and "back-propagated" estimators, specific observables are selected by defining the corresponding input block within the desired estimator block.
@@ -733,8 +573,6 @@ For example, one can define a mixed estimator which computes the one-body reduce
     }
 }
 ```
-
-
 
 ### Most Common Settings
 
@@ -752,11 +590,7 @@ td, th {
 
 +++ {"id": "2e46faa0"}
 
-
-
-
 ## Some input file recipes
-
 
 While there are many possible ways to set up an input file,
 some structures will come up more often than others.
@@ -765,18 +599,9 @@ includes
 several input file "recipes" / templates that you can use as a starting point for your calculations.
 We recommend taking a look at them to complete the information provided here.
 
-
-
 +++ {"id": "17b6510b"}
 
-
-
-
-
 ## Summary
-
-
-
 
 In this tutorial, you learned
 
@@ -785,8 +610,6 @@ In this tutorial, you learned
 3. The most common parameters that you will interact with as a user
 
 See the [input file description](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/input_description_afqmc.html) of the User manual for more information on the input file.
-
-
 
 ```{code-cell} ipython3
 :id: 7rqqHZirH3zt

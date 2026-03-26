@@ -65,7 +65,6 @@ We'll explore the available options individually, but possible lattice parameter
 - `twist` : the twist angle to apply, given as $\vec{\theta} = (\theta_1,\theta_2)$ in units of radians. Defaults to (0.0,0.0)
 - `basis` : the set of lattice basis vectors, $\delta_{n}$. Defaults to {(0.0,0.0)}
 
-
 Below is a minimal example of building a lattice allowing most parameters to take on default values.
 We also use `afqmctool`'s `plot_lattice()` function so that we can visualize what we have made.
 
@@ -470,8 +469,6 @@ vis.plot_lattice(lattice,title="Kagome Lattice",show_labels=False)
 ```
 
 +++ {"id": "1b5087cf-9c61-4bb5-9792-15a9524676cd"}
-
-
 
 ```{code-cell} ipython3
 :id: ae7e9e7c-896b-4ce4-86c7-98f6951756f7

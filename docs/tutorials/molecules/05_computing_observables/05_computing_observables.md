@@ -18,38 +18,24 @@ kernelspec:
 <b>Goal:</b>
 Become acquainted with how to compute general observables with SAFIRE.
 
-
-
-
 ## What you will learn
-
-
 
 1. What an "estimator" is and how to set one up in the json input file
 2. What a mixed estimator is and when to use one to compute an observable
 3. What a back-propagated estimator is and when to use one to compute an observable
 4. How to compute observables in post-processing with afqmctools
 
-
-
-
 ## Introduction
-
 
 AuxiliaryFiels uses "estimators" to compute observables.
 Each estimator corresponds to a formal method for computing an observable - i.e. mixed estimators, back-propagated estimators, etc. - We will explain each of the these in the next section.
 As we mentioned in the
 
-
 [understanding the Input file tutorial](../02_understanding_the_input_file/02_understanding_the_input_file.html),
-
 
 you can add estimators to an AFQMC calculation using an "estimator" input block.
 By default, an "energy" estimator is included which is a specialized mixed estimator.
 Other estimators allow you to specify one or more additional observables to compute.
-
-
-
 
 ## Formal Background
 
@@ -90,7 +76,6 @@ It is important to note that the two Slater determinants are
 distinct from each other since the propagator $B(x - \bar{x})$ is applied differently to each.
 i.e. the propagator is applied to different Slater determinants when moving in the forward-, and backward-directions.
 
-
 ### ▶️ Run the cell below to setup the tutorial
 
 ```{code-cell} ipython3
@@ -109,8 +94,6 @@ scratch_dir = get_scratch_dir("observables_mols", home)
 
 +++ {"id": "4d4d8135-bc2d-4caa-bbaf-c88ab045176c"}
 
-
-
 ## Setup the Test System
 
 In this tutorial, we will use PySCF for convenience; however, you can use the knowledge that you've gained in the previous tutorials to use a different quantum chemistry code if desired.
@@ -125,7 +108,6 @@ The code block below will:
 *   generate and save the Hamiltonian to the SAFIRE HDF5 format
 
 These were all covered in previous tutoirals.
-
 
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/NitrogenDimer.png" width="300">
@@ -218,8 +200,6 @@ write_hamil_mol(
 
 +++ {"id": "dSJ9e4tRBxxx"}
 
-
-
 ## The "Energy" Estimator
 
 By default, SAFIRE will include an "energy estimator" in the calculation.
@@ -244,8 +224,6 @@ We are setting the "print_components" and "overwrite" flags to true.
 "overwrite" tells SAFIRE to overwrite the default energy estimator
 with the one that we have defined.
 
-
-
 ### Most Common Settings
 
 <style>
@@ -260,10 +238,7 @@ td, th {
 | <b> equil_multiplier </b> | 0 |  The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $(equilibration\_length) = (equil\_multiplier) * (population\_control\_inveral)$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. |
 | <b>        overwrite</b> | False |   If True, overwrite the default energy estimator with the explicitly defined energy estimator |
 
-
-
 ### Less Common Settings
-
 
 <style>
 td, th {
@@ -276,8 +251,6 @@ td, th {
 | <b>        print_sign</b> | False |  If True, print verious quantities related to the sign/phase of random walkers in the `*.scalar.dat` file  |
 | <b>        remove</b> |  False |   If True, remove the default energy estimator. **Note that the explicitly defined energy estimator will not be used in the calculation!** |
 | <b>        truncate</b> |  False |   If True, truncate the energy such that data that fall outisde of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer |
-
-
 
 +++
 
@@ -356,8 +329,6 @@ outputId: acb22087-0747-4430-8dc9-03ef1ff115a2
 
 +++ {"id": "rrop2GLPGDmQ"}
 
-
-
 ## Extracting and Analyzing the AFQMC energy.
 
 We learned about basic energy analysis using the CLI and the `analyze_scalar_data()` Python function in the Hello SAFIRE tutorial.
@@ -415,8 +386,6 @@ plt.show()
 
 +++ {"id": "yzpB-AJrAZ24"}
 
-
-
 ## Computing Observables using a "Mixed" Estimator
 
 SAFIRE also includes a mixed estimator that periodically evaluates,
@@ -434,7 +403,6 @@ and the two-body reduced density matrix (2rdm), given by,
 $$\hat{O} = \hat{\rho}^2 = \sum_{ijkl}\sum_{\sigma \sigma'}\hat{c}^\dagger_{i\sigma}\hat{c}^\dagger_{j\sigma'}\hat{c}_{k\sigma'}\hat{c}_{l\sigma}$$
 
 are common observables.
-
 
 <div class="alert alert-block alert-info">
 <b>Note:</b>
@@ -477,7 +445,6 @@ and compare with the results from the energy estimator.
 
 We note that computing the 2rdm is very memory intensive since many samples of the 2rdm will be saved.
 It is not typically computed unless absolutely necessary.
-
 
 ### ▶️ Run the code block below to write an input file with mixed estimator
 
@@ -645,7 +612,6 @@ plt.show()
 As we can see, the energy computed using the one-body reduced density matrix with a mixed estimator yeilds the exact same one-body energies as the energy estimator to very high precision.
 This is no surprise since the energy estimator is simply a specialized mixed estimator.
 
-
 ### 📝 Your Turn : Extract the 2rdm and compute the 2-body energy
 
 Note: You can skip this section if you chose to not compute the "twordm"
@@ -801,8 +767,6 @@ $$
 m = (\textrm{measure\_interval\_multiplier}) \times (\textrm{population\_control\_interval})
 $$
 
-
-
 ### Multiple BP Lengths
 
 SAFIRE implements the capability of running BP with multiple BP measurement lengths.
@@ -850,7 +814,6 @@ td, th {
 | <b>        bp_walker_ortho_interval</b> |   1  |   interval for performing walker orthonormalization during back-propagation (i.e. for the left-hand side Walkers)  |
 | <b>        path_restoration</b> |   false  |  If true, perform path restoration.  |
 | <b>        extra_path_restoration</b> |   false  |   If true, perform an extra path restoration.  |
-
 
 ### Demonstraiton of BP
 
@@ -1084,27 +1047,15 @@ The plots above show how the BP estimator converges with increasing BP length. F
 
 This demonstrates why BP is essential for computing unbiased estimates of observables like charge densities, spin densities, and other quantities derived from the one-body reduced density matrix.
 
-
-
 +++ {"id": "PginJzpCI28-"}
-
-
 
 ## Summary
 
-
 In this tutorial, you were acquainted with how to compute general observables with SAFIRE.
 
-
-
-
 ## What you learned
-
-
 
 1. What a mixed estimator is and when to use one to compute an observable
 2. What a back-propagated estimator is and when to use one to compute an observable
 3. How to compute observables in post-processing with afqmctools
-
-
 
