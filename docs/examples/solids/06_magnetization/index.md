@@ -8,6 +8,7 @@ jupytext:
 kernelspec:
   name: python3
   display_name: Python 3
+  language: python
 ---
 
 +++ {"id": "NudwCmJzZWxz"}
@@ -530,12 +531,9 @@ If you are running locallay, the `-t` option will cause a plot of the scalar dat
 If you are running remotely, you can add the `--savefig [filename].png` option to save the figure.
 Note, you must still use `-t` to generate the plot.
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: pmR1rRGJAenu
-outputId: 7466d116-0938-47e7-ef6a-87d8e736010a
 ---
 !scalar_stats 3_afqmc/qmc.s000.scalar.dat -s time -t -e 5.0 --savefig 3_afqmc/energy_vs_beta.png
 ```
@@ -556,7 +554,7 @@ software packages.
 
 The provided script `analysis.py` demonstrates how to call the `charge_density()` function.
 
-```python
+```{code-cell} ipython3
 from pathlib import Path
 
 from afqmctools.analysis.rdm import average_afqmc_rdm

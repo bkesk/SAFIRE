@@ -7,6 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   name: python3
+  language: python
   display_name: Python 3
 ---
 
@@ -16,7 +17,7 @@ kernelspec:
 
 ## Set up the Hamiltonian
 
-```{code-cell}
+```{code-cell} ipython3
 :id: G8BN6a14EL83
 
 # setup scratch dir
@@ -29,15 +30,10 @@ scratch_rootdir.mkdir(exist_ok=True)
 scratch_dir = get_scratch_dir("honeycomb_hubbard",scratch_rootdir)
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
-  height: 877
 id: djut2ei2D6d-
-outputId: 024de36e-f9af-4009-c2a7-9981d6c01a39
 ---
-# set up Hamiltonain
 # setup the Hamiltonian
 import numpy as np
 
@@ -78,12 +74,9 @@ hamiltonian = HamiltonianDirector(
 io.write_model_hamiltonian(hamiltonian,fname=scratch_dir/"afqmc.h5")
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: bYkD4o3sHwP9
-outputId: 877b0a3a-869b-49cb-a0b2-c13233a2baa8
 ---
 # run autoHF and save wavefunction as trial wavefunction
 from autohf import lattice_hf
@@ -134,7 +127,7 @@ autohf_to_afqmc(results,output_fname=scratch_dir/"afqmc.h5")
 
 For more information about the input file, see the [Understanding the input file](../../../tutorials/models/02_understanding_the_input_file/02_understanding_the_input_file.html) tutorial.
 
-```{code-cell}
+```{code-cell} ipython3
 :id: pm-N_EFxInNK
 
 from afqmctools.inputs.from_hdf import write_json
@@ -162,12 +155,9 @@ write_json(
 
 ## run AFQMC
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: xvJVj1DGJeW0
-outputId: 2127c777-b4a8-4b14-b74e-08f4aab97659
 ---
 # run AuxiliaryFields
 run_afqmc(
@@ -183,13 +173,9 @@ run_afqmc(
 
 ## Analyze the results
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
-  height: 904
 id: eADuTKxlJgfx
-outputId: 14caad1a-1465-4d39-bfaa-07d91d0d92b7
 ---
 # analyze results
 from stats.scalar_dat import analyze_scalar_data
@@ -201,11 +187,6 @@ _ = analyze_scalar_data(dict(
     trace = True
 ))
 ```
-
-```{code-cell}
-:id: 3tywEbD9Ow2u
-
-
 
 
 

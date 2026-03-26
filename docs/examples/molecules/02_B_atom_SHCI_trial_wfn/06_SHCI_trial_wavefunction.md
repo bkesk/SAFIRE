@@ -210,7 +210,7 @@ This will also generate the following plot within the `energy_vs_beta.png`. The 
 
 Simply run this python script to generate a SAFIRE Hamiltonian file for the B atom.
 
-```{code-cell}
+```{code-cell} ipython3
 :id: OX7sSXv5U7KH
 
 # sample script to generate a SAFIRE HDF5 Hamiltonian
