@@ -25,8 +25,8 @@ Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 form
 ## What you will learn
 
 1.  How to write a single Slater determinant trial wavefunction given the Slater Matrix
-2.  How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices </font>
-3.  How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings </font>
+2.  How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices
+3.  How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings
 
 
 
