@@ -125,24 +125,14 @@ and some of the main features of SAFIRE.
 Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
-.. toctree::
-   :hidden:
-
-   01_hello_safire/01_hello_safire_executed.ipynb
-   02_understanding_the_input_file/02_understanding_the_input_file_executed.ipynb
-   03_setting_up_a_lattice/03_setting_up_a_lattice_executed.ipynb
-   04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.ipynb
-   06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.ipynb
-   07_computing_observables/07_computing_observables_executed.ipynb
-
-1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | 🧑‍💻
-2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | 🧑‍💻
-3. `Setting up a Lattice <03_setting_up_a_lattice/03_setting_up_a_lattice_executed.html>`__ | 🧑‍💻
-4. `Building and writing a Hamiltonian <04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.html>`__ | 🧑‍💻
-5. `(optional) Finer control of the Hamiltonian <05_hamiltonian_builder/05_hamiltonian_builder.html>`_ |🛠️
-6. `Writing a Trial wavefunction <06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.html>`__ | 🧑‍💻
-7. `AutoHF crash course <07_autohf_crash_course/07_autohf_crash_course.html>`_ | 🛠️
-8. `Computing Observables <08_computing_observables/08_computing_observables_executed.html>`__ | 🧑‍💻
+1. :doc:`01_hello_safire/01_hello_safire`  | 🧑‍💻
+2. :doc:`02_understanding_the_input_file/02_understanding_the_input_file`  | 🧑‍💻
+3. :doc:`03_setting_up_a_lattice/03_setting_up_a_lattice`  | 🧑‍💻
+4. :doc:`04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian`  | 🧑‍💻
+5. :doc:`05_hamiltonian_builder/05_hamiltonian_builder` |🛠️
+6. :doc:`06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction`  | 🧑‍💻
+7. :doc:`07_autohf_crash_course/07_autohf_crash_course` | 🛠️
+8. :doc:`08_computing_observables/08_computing_observables`  | 🧑‍💻
 
 Worked Examples
 ===============
