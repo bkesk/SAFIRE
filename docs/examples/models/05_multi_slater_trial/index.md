@@ -7,11 +7,11 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   name: python3
+  language: python
   display_name: Python 3
 ---
 
-```{code-cell}
-:id: 8DGOTpw7bscv
+```{code-cell} ipython3
 
 # setup scratch dir
 from pathlib import Path
@@ -51,11 +51,8 @@ $$.
 
 Since the Hamiltonian is spin-independent, this trial wavefunction should have the same energy as the UHF ground state.
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
-  height: 1000
 id: 1rz5sWn3Ecsc
 outputId: 51107f5c-4186-4817-9e97-990b46c79acc
 ---
@@ -98,12 +95,9 @@ hamiltonian = HamiltonianDirector(
 io.write_model_hamiltonian(hamiltonian,fname=scratch_dir/"afqmc.h5")
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: dCFJvp57FBV6
-outputId: 415c564d-cf73-4df4-a03f-a6700ae811a5
 ---
 # run autoHF to get UHF solution
 from autohf.hamiltonian import AutoHFHamiltonian
@@ -129,12 +123,9 @@ effective_hamiltonian = HamiltonianDirector(
 autohf_hamiltonian = AutoHFHamiltonian(effective_hamiltonian)
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: ZitUaYnfV2p8
-outputId: f50862a5-0546-4a20-efe6-89673ba56509
 ---
 from autohf import lattice_hf
 
@@ -188,10 +179,8 @@ For collinear Slater determinants, the first $N_{\uparrow}$ columns are the spin
 
 In the code block below, we manually construct Slater matrices from the UHF orbitals that we got from autohf above.
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: amcCyPWmBtoW
 outputId: 7849db3e-aaec-42e5-dfb0-fafe361b3a39
 ---
@@ -235,7 +224,7 @@ write_wfn(
 )
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 :id: OgN60HHqFJlO
 
 from afqmctools.inputs.from_hdf import write_json
@@ -259,12 +248,9 @@ write_json(
 )
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
 id: SJ-EP0itFLgE
-outputId: 89a3c1c8-b6dd-4a4c-b550-4ac16e91a1aa
 ---
 # run AuxiliaryFields
 run_afqmc(
@@ -276,13 +262,9 @@ run_afqmc(
 )
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 ---
-colab:
-  base_uri: https://localhost:8080/
-  height: 904
 id: IZizKYGAFNvS
-outputId: 116ff010-891e-4d47-d8e3-7965249104f6
 ---
 # analyze results
 from stats.scalar_dat import analyze_scalar_data

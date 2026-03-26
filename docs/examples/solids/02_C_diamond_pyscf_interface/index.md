@@ -7,6 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   name: python3
+  language: python
   display_name: Python 3
 ---
 
@@ -38,7 +39,7 @@ In addition to SAFIRE and afqmctools, we will be using the following software pa
 - [PySCF](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, intergrals, and some post-processing tools.
 - [VESTA](https://jp-minerals.org/vesta/en/) for visualizing the final density.
 
-```{code-cell}
+```{code-cell} ipython3
 :id: XMwg4gsktpJ3
 
 """Example of setting up a solids calculation starting
@@ -331,7 +332,7 @@ If you are running locallay, the `-t` option will cause a plot of the scalar dat
 If you are running remotely, you can add the `--savefig [filename].png` option to save the figure.
 Note, you must still use `-t` to generate the plot.
 
-```{code-cell}
+```{code-cell} ipython3
 ---
 colab:
   base_uri: https://localhost:8080/
@@ -412,9 +413,3 @@ would allow you to see large changes between each successive run.
 More points can be added in between these if needed.
 
 DEV TODO: add in results form this.
-
-```{code-cell}
-:id: nsGailAIsfel
-
-
-```

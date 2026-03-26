@@ -51,17 +51,12 @@ We will explore the most common settings in each input block as well.
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_01_all.png" width="800">
 </div>
 
-
-
-
-
-
 The name of the highest level block tells SAFIRE which "driver" to run.
 In this case, we are running with the "afqmc" driver.
 
 Below the "afqmc" block are the "project" block and
 one or more "execute" block(s).
-We saw the "project" block in the previous tutorial, [Hello SAFIRE](../01_hello_auxiliary_fields/hello_auxiliary_fields.ipynb),
+We saw the "project" block in the previous tutorial,
 where we used it to set the names of the output files via the "id" and "series" parameters.
 As a reminder, the output files are named:
 
