@@ -170,23 +170,14 @@ and that you are familiar with using it.
 Each tutorial builds on the previous one.
 We recommend going through them in order.
 
-.. toctree::
-   :hidden:
-
-   01_hello_safire/01_hello_safire_executed.ipynb
-   02_understanding_the_input_file/02_understanding_the_input_file_executed.ipynb
-   03_writing_a_hamiltonian/03_writing_a_hamiltonian_executed.ipynb
-   04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction_executed.ipynb
-   05_computing_observables/05_computing_observables.ipynb
-
 Online copies of tutorials
 ==========================
 
-1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-3. `Writing a Hamiltonian <03_writing_a_hamiltonian/03_writing_a_hamiltonian_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-4. `Writing a trial wavefunction <04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-5. `Computing Observables <05_computing_observables/05_computing_observables.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
+1. :doc:`01_hello_safire/01_hello_safire` | `🧑‍💻 ready for edits 🧑‍💻`
+2. :doc:`02_understanding_the_input_file/02_understanding_the_input_file` | `🧑‍💻 ready for edits 🧑‍💻`
+3. :doc:`03_writing_a_hamiltonian/03_writing_a_hamiltonian` | `🧑‍💻 ready for edits 🧑‍💻`
+4. :doc:`04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction` | `🧑‍💻 ready for edits 🧑‍💻`
+5. :doc:`05_computing_observables/05_computing_observables` | `🧑‍💻 ready for edits 🧑‍💻`
 
 Worked Examples
 ===============
