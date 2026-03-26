@@ -24,9 +24,9 @@ Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 ## What you will learn
 
 
-1.  How to write a Hamiltonian to the SAFIRE HDF5 format starting from one-body, and two-body integrals </font>
-2.  How to convert from a FCIDUMP file to the SAFIRE HDF5 format both using the CLI tools and within a Python script </font>
-3.  (For convenience) How to use PySCF and afqmctools to generate and write the Hamiltonian </font>
+1.  How to write a Hamiltonian to the SAFIRE HDF5 format starting from one-body, and two-body integrals
+2.  How to convert from a FCIDUMP file to the SAFIRE HDF5 format both using the CLI tools and within a Python script
+3.  (For convenience) How to use PySCF and afqmctools to generate and write the Hamiltonian
 
 
 
