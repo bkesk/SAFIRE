@@ -1,7 +1,7 @@
 .. _setup_ex_5:
 
-05 Hubbard with Pinning Fields
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Hubbard with Pinning Fields
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers building a Hubbard model Hamiltonian on square Lattice with 
 an anitferromagnetic pinning field and a charge pinning field, 

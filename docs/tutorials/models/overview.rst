@@ -40,7 +40,7 @@ and,
         +\hat{c}^\dagger_{\nu\uparrow}\hat{c}^\dagger_{\nu\downarrow}\hat{c}_{\mu\downarrow}\hat{c}_{\mu\uparrow}
         ).
 
-:math:`\mu` / :math:`\nu` are compound indices, :math:`\mu = (i,p,m)` / :math:`\mu = (j,q,n)`, that include the lattice site index, (:math:`i` / :math:`j`), sublattice, (:math:`p` / :math:`q`) and band (:math:`m` / :math:`n`) indices.
+:math:`\mu`, :math:`\nu` are compound indices, :math:`\mu = (i,p,m)`, :math:`\nu = (j,q,n)`, that include the lattice site index, (:math:`i`, :math:`j`), sublattice, (:math:`p`, :math:`q`) and band (:math:`m`, :math:`n`) indices.
 This is known as the Hubbard-Kanamori Hamiltonian.
 Many standard model Hamiltonians can be written in this language including the standard Hubbard model,
 extended Hubbard with nearest-neighbor :math:`V`, etc.
@@ -125,16 +125,13 @@ and some of the main features of SAFIRE.
 Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
-1. :doc:`01_hello_safire/01_hello_safire`  | 🧑‍💻
-2. :doc:`02_understanding_the_input_file/02_understanding_the_input_file`  | 🧑‍💻
-3. :doc:`03_setting_up_a_lattice/03_setting_up_a_lattice`  | 🧑‍💻
-4. :doc:`04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian`  | 🧑‍💻
-5. :doc:`05_hamiltonian_builder/05_hamiltonian_builder` |🛠️
-6. :doc:`06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction`  | 🧑‍💻
-7. :doc:`07_autohf_crash_course/07_autohf_crash_course` | 🛠️
-8. :doc:`08_computing_observables/08_computing_observables`  | 🧑‍💻
+.. toctree::
+   :numbered:
+   :glob:
+   :maxdepth: 1
+   :titlesonly:
 
-Worked Examples
-===============
+   */*
 
-.. include:: ../../examples/models/index.rst
+.. seealso::
+   Worked examples for :ref:`examples_models`

@@ -3,6 +3,13 @@
 Tutorials
 =========
 
+.. toctree::
+   :hidden:
+
+   tutorials/molecules/overview
+   tutorials/solids/overview
+   tutorials/models/overview
+
 Auxiliary-field quantum Monte Carlo (AFQMC) for general interacting electron systems.
 
 SAFIRE is a fast, efficient implementation of AFQMC written in C++. It uses a general interacting second-quantized Hamiltonian allowing it to be applied to broad classes of interacting-electron systems.

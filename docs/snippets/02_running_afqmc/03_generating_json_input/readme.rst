@@ -1,7 +1,7 @@
 .. _run_afqmc_ex_3:
 
-03 Generating a JSON input file
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Generating a JSON input file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 SAFIRE uses an input file in .json format to set parameters 
 in calculations.

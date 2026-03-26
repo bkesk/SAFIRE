@@ -25,7 +25,7 @@ scratch_dir = get_scratch_dir("multi_slater_trial_lattice",scratch_rootdir)
 
 +++ {"id": "0WrZ0hFmBbdm"}
 
-# Example: Multi-Slater determinant trial wavefunction
+# Multi-Slater determinant trial wavefunction
 ---
 
 In this example, we will compute the AFQMC energy of the Hubbard model with U=8 on a 6x6x square lattice with open boundary conditions

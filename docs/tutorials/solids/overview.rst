@@ -181,13 +181,12 @@ and that you are familiar with its basic use.
 Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
-1. :doc:`01_hello_afqmc_solids/01_hello_afqmc_solids` `🧑‍💻 ready for edits 🧑‍💻`
-2. :doc:`02_understanding_the_input_file/02_understanding_the_input_file` `🧑‍💻 ready for edits 🧑‍💻`
-3. :doc:`03_Si_writing_H_and_wfn_coqui/03_Si_writing_H_and_wfn_coqui` `🧑‍💻 ready for edits 🧑‍💻`
-4. :doc:`04_computing_observables/04_computing_observables` `🧑‍💻 ready for edits 🧑‍💻`
+.. toctree::
+   :numbered:
+   :glob:
+   :maxdepth: 1
 
+   */*
 
-Worked Examples
-===============
-
-.. include:: ../../examples/solids/index.rst
+.. seealso::
+   Worked examples for :ref:`examples_solids`

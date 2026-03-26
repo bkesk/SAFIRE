@@ -33,13 +33,11 @@ Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 form
 4. How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings
 
 
-
-
-
-
 +++ {"id": "kj82RGwRNJRe"}
 
-The trial wavefunction used in lattice models is still constructed as a combination of Slater determinants. In this section, we begin by demonstrating how to manually generate wavefunction inputs and examine the structure of the resulting HDF5 files. This helps build an understanding of what is actually done behind the scenes when preparing a trial wavefunction.
+## Interacting with the trial wavefunction HDF5 format
+
+In this section, we begin by demonstrating how to manually generate wavefunction inputs and examine the structure of the resulting HDF5 files. This helps build an understanding of what is actually done behind the scenes when preparing a trial wavefunction.
 
 While this manual approach provides clarity and flexibility—especially useful for customizing your own trial wavefunction or performing self-consistent calculations—it is **not** the only method and **not** the recommended way for most practical purposes. In fact, there are several much simpler and more elegant ways to generate trial wavefunctions for certain lattice systems. For example, one can automatically construct free-electron trial states or mean-field trial wavefunctions using the `autoHF` utility, **which will be introduced later.**
 
@@ -53,7 +51,9 @@ from afqmctools.wavefunction.model import write_wfn
 
 +++ {"id": "v_pr4nnnTgqA"}
 
-1. Generate a wavefunction of the form $\Psi = \Psi^\uparrow \otimes \Psi^\downarrow$ with $\Psi^\downarrow_{ij} = \Psi^\uparrow_{ij}$. This means the two spin sectors are identical. Such a wavefunction is commonly referred to as an "RHF" (Restricted Hartree-Fock) wavefunction, and the corresponding walker is called an "RHF walker."
+### RHF wavefunction
+
+Generate a wavefunction of the form $\Psi = \Psi^\uparrow \otimes \Psi^\downarrow$ with $\Psi^\downarrow_{ij} = \Psi^\uparrow_{ij}$. This means the two spin sectors are identical. Such a wavefunction is commonly referred to as an "RHF" (Restricted Hartree-Fock) wavefunction, and the corresponding walker is called an "RHF walker."
 
 ```{code-cell}
 :id: TdBbEZh8TeCS
@@ -104,7 +104,9 @@ In summary, to generate an RHF wavefunction, you need to provide an array `A[0, 
 
 +++ {"id": "o6ZmCwG4XFM_"}
 
-2. Generate a wavefunction of the form $\Psi = \Psi^\uparrow \otimes \Psi^\downarrow$, where $\Psi^\downarrow_{ij}$ can differ from $\Psi^\uparrow_{ij}$. This means the two spin sectors are separate and may have distinct wavefunctions. Such a wavefunction is commonly referred to as a "UHF" (Unrestricted Hartree-Fock) wavefunction, and the corresponding walker is called a "UHF walker."
+### UHF wavefunction
+
+Generate a wavefunction of the form $\Psi = \Psi^\uparrow \otimes \Psi^\downarrow$, where $\Psi^\downarrow_{ij}$ can differ from $\Psi^\uparrow_{ij}$. This means the two spin sectors are separate and may have distinct wavefunctions. Such a wavefunction is commonly referred to as a "UHF" (Unrestricted Hartree-Fock) wavefunction, and the corresponding walker is called a "UHF walker."
 
 ```{code-cell}
 :id: EakDm--aMwYt
@@ -171,6 +173,8 @@ In summary, to generate a UHF wavefunction, you need to provide an array `A` of 
 ```
 
 +++ {"id": "G5IzcYloYL8Z"}
+
+### GHF wavefunction
 
 Generate a wavefunction of the general form $\Psi = \Psi^{\uparrow,\downarrow}$, where the spin sectors are mixed. This form typically arises in systems with spin-orbit coupling or magnetic order in the $xy$ plane. Such wavefunctions are commonly referred to as "GHF" (Generalized Hartree-Fock) wavefunctions, and the associated walkers are called "GHF walkers."
 
@@ -248,7 +252,9 @@ In summary, to generate a GHF wavefunction, you need to provide an array `A[0, i
 
 +++ {"id": "-SQvyVx0gZm_"}
 
-4. Multi-Slater trial wavefunctions are also supported in lattice models. To enable this, the input variable `ci` is provided, which is a 1D array representing the coefficients of the Slater determinants. Correspondingly, the Slater determinant inputs include an extra dimension to stack multiple Slater matrices. To generate a multi-Slater trial wavefunction, simply supply the `ci` array as the list of coefficients and stack the individual Slater matrices along the first dimension—everything else will be handled automatically.
+### Multi-Slater wavefunction
+
+Multi-Slater trial wavefunctions are also supported in lattice models. To enable this, the input variable `ci` is provided, which is a 1D array representing the coefficients of the Slater determinants. Correspondingly, the Slater determinant inputs include an extra dimension to stack multiple Slater matrices. To generate a multi-Slater trial wavefunction, simply supply the `ci` array as the list of coefficients and stack the individual Slater matrices along the first dimension—everything else will be handled automatically.
 
 ```{code-cell}
 :id: gchHR_d5jhPN
@@ -354,9 +360,7 @@ In the `write_wfn` function, there is an `init` parameter that accepts the initi
 
 +++ {"id": "NYbUINg6HQyx"}
 
-## Writing a trial wavefunction
-
----
+## Example: free electron trial wavefunction
 
 We can generate a free-electron trial wavefunction using the `free_electron` function within `afqmctools`. First, we set up the lattice using the `get_lattice` function (in this case a square 4 x 4 lattice with periodic boundary conditions in both directions) and then define other relevant parameters (`nelec`, `Uhubb`, `hopping`). We then build the Hamiltonian that we will simulate with AFQMC. Finally, the trial wavefunction is computed from the one-body part of the Hamiltonian and written in HDF5 format to the file "wfn.h5".
 
@@ -428,7 +432,7 @@ write_wfn(
 
 +++ {"id": "FoovlUVcFqxX"}
 
-# Summary
+## Summary
 ---
 
 
@@ -439,7 +443,7 @@ In this tutorial, you became acquainted with how to write a Trial wavefunction t
 
 
 
-## What you learned
+### What you learned
 ---
 
 

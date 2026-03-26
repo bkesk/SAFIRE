@@ -14,7 +14,7 @@ kernelspec:
 +++ {"id": "bxazkxe2X9Wx"}
 
 
-# Electron Affinity of Pb : spin-orbit coupling (SOC) in ab initio AFQMC
+# Electron Affinity of Pb: spin-orbit coupling (SOC) in ab initio AFQMC
 ------------------------------------------------------------------------
 
 At the end of this example, you will know how to include SOC in ab initio AFQMC calculations.
@@ -35,7 +35,7 @@ where SOC effects are important.
 ## References
 --------------
 
-[1] Brandon Eskridge, Henry Krakauer, Hao Shi, Shiwei Zhang; Ab initio calculations in atoms, molecules, and solids, treating spin–orbit coupling and electron interaction on an equal footing. J. Chem. Phys. 7 January 2022; 156 (1): 014107. https://doi.org/10.1063/5.0075900   
+[1] B. Eskridge, H. Krakauer, H. Shi, S. Zhang; Ab initio calculations in atoms, molecules, and solids, treating spin–orbit coupling and electron interaction on an equal footing. J. Chem. Phys. 7 January 2022; 156 (1): 014107. https://doi.org/10.1063/5.0075900   
 [2] K. A. Peterson, D. Figgen, E. Goll, H. Stoll, and M. Dolg, J. Chem. Phys. 119, 11113 (2003). https://doi.org/10.1063/1.1622924   
 [3] K. A. Peterson, B. C. Shepler, D. Figgen, and H. Stoll, J. Phys. Chem. A 110, 13877 (2006). https://doi.org/10.1021/jp065887l    
 [4] B. Metz, H. Stoll, and M. Dolg, J. Chem. Phys. 113, 2563 (2000). https://doi.org/10.1063/1.1305880    
@@ -43,14 +43,14 @@ where SOC effects are important.
 
 +++ {"id": "PjMcWau9i2Xa"}
 
-# Set Up Input for SAFIRE
+## Set Up Input for SAFIRE
 -------------------------
 
 We we will use the relativistic Stuttgart effective core potentials (ECPs), in order to
 capture both spin-orbit coupling (SOC) and scalar relativistic effects, as
 well as the corresponding augmented cGTO basis sets [2-5].
 
-## ▶️ Run the code block below to load the ECP and basis definitions
+### ▶️ Run the code block below to load the ECP and basis definitions
 --------------------------------------------------------------------
 
 ```{code-cell} ipython3
@@ -131,12 +131,12 @@ END
 
 +++ {"id": "WFTquom2i2Xb"}
 
-# Generate inputs for the Neutral atom
+## Generate inputs for the Neutral atom
 ---------------------------------------
 
 We will begin by generating the Hamiltonian and trial wavefunction for the neutral Pb atom.
 
-## ▶️ Run PySCF for the neutral atom to generate a basis and SOC-GHF trial wavefunction
+### ▶️ Run PySCF for the neutral atom to generate a basis and SOC-GHF trial wavefunction
 ----------------------------------------------------------------------------------------
 
 ```{code-cell} ipython3
@@ -203,7 +203,7 @@ print(f"SOC-GHF electronic energy: {mf.energy_elec()}")
 
 +++ {"id": "H-m_KAsri2Xc"}
 
-## ▶️ Generate and Write Hamiltonian and Trial wavefunction for Neutral Atom
+### ▶️ Generate and Write Hamiltonian and Trial wavefunction for Neutral Atom
 -----------------------------------------------------------------------------
 
 We generate the Hamiltonian and trial wavefunction in the usual way
@@ -280,8 +280,7 @@ write_wfn_mol(
 
 +++ {"id": "atWbeuX8i2Xd"}
 
-## ▶️ Run SAFIRE
-----------------
+### ▶️ Run SAFIRE
 
 ```{code-cell} ipython3
 :id: PsAy09S7i2Xd
@@ -328,10 +327,9 @@ E,dE = analyze_scalar_data(settings)
 
 +++ {"id": "QnNlY3KVi2Xd"}
 
-# Repeat for Charged $Pb^-$ ion
---------------------------------
+## Repeat for Charged $Pb^-$ ion
 
-## ▶️ Run PySCF
+### ▶️ Run PySCF
 ----------------
 
 ```{code-cell} ipython3
@@ -401,7 +399,7 @@ print(f"SOC-GHF electronic energy: {mf.energy_elec()}")
 
 +++ {"id": "ivaijztJi2Xe"}
 
-## ▶️ Generate and Write Hamiltonian and trial wavefunction
+### ▶️ Generate and Write Hamiltonian and trial wavefunction
 ------------------------------------------------------------
 
 ```{code-cell} ipython3
@@ -481,7 +479,7 @@ fout_soc = local_scratch_dir / 'afqmc_soc.h5'
 
 +++ {"id": "6RUWlygXi2Xe"}
 
-## ▶️ Run SAFIRE
+### ▶️ Run SAFIRE
 -----------------
 
 ```{code-cell} ipython3
@@ -529,7 +527,7 @@ E_charged,dE_charged = analyze_scalar_data(settings)
 
 +++ {"id": "bM8pXy_ui2Xe"}
 
-# ✅ Compute the Final Result
+## Compute the Final Result
 ------------------------------
 
 Run the codeblock below to get the final result.

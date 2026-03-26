@@ -13,7 +13,7 @@ kernelspec:
 
 +++ {"id": "W94B8DFIE6lu"}
 
-# $N_2$ Molecule: bond stretching and multi-Slater determinant trial wavefunctions
+# N₂ molecule: bond stretching and multi-Slater trial wavefunctions
 
 ---
 
@@ -28,13 +28,8 @@ using an appropriate trial wavefuncton.
 
 ---
 
-
-
 1. How to select the number of Slater determinants to include in the trial wavefunction, balancing computational cost and accuracy
 2. How to automate the computation of a potential energy curve using afqmctools within Python
-
-
-
 
 
 ## Run the code block below (shift+enter or click the play button) to set up the example
@@ -642,14 +637,14 @@ Compare this with the PEC generated using the data from the original paper.
 
 +++ {"id": "89Ml1OB9E6lx"}
 
-# Summary
+## Summary
 
 ---
 
 You have computed the potential energy curve (PEC) of the $N_2$ molecule, which is a standard benchmarking system in quantum chemistry.
 
 
-## What you learned
+### What you learned
 ---
 
 
