@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "m5yYPGDk-NIu"}
 
 # Hello SAFIRE
----
 
 <b>Goal:</b>
 At the end of this tutorial, you will know how to run an AFQMC calculation using SAFIRE and extract the AFQMC energy from the output
@@ -23,7 +22,6 @@ given all necessary inputs.
 
 ## What you will learn
 
----
 
 
 
@@ -383,7 +381,6 @@ You will learn more about this in the [Estimators and post-processing tutorial](
 
 ## Running SAFIRE
 
----
 
 
 
@@ -393,7 +390,6 @@ we are ready to learn how to run the SAFIRE executable given the inputs.
 
 
 ### Running SAFIRE in serial
----
 
 AuxiliaryFields can be invoked from the command line as
 
@@ -440,7 +436,6 @@ Usage:
 
 ### Exercise: Try Running SAFIRE.
 
----
 
 
 
@@ -487,7 +482,6 @@ outputId: 97e5782f-d892-4426-e6d5-e7bbb118cab2
 
 ### Post-excercise
 
----
 
 You should see the following a the top of the
 output after running AuxiliaryFields.
@@ -537,13 +531,11 @@ We will return to how to use the tools in `afqmctools` to extract the AFQMC ener
 
 ## Running SAFIRE in parallel
 
----
 
 
 
 ### Using MPI
 
----
 
 SAFIRE can be run with MPI in the usual ways.
 For example, using mpirun, we could run SAFIRE with 64 MPI tasks as
@@ -569,7 +561,6 @@ and for calculations that run on a CPU only build of SAFIRE,
 
 ### GPU Builds
 
----
 
 To run on GPUs, you must compile SAFIRE for the GPU.
 See the [documentation](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/getting_started.html#gpu-accelerated-build-at-ccq) for instructions on compiling for GPU.
@@ -586,7 +577,6 @@ For very large systems, this may mean on the order of 10 walkers per MPI task.
 
 ## Basic post-processing
 
----
 
 Now that we've learned how to invoke the SAFIRE executable from the command line in serial, using MPI, and using GPU(s),
 we are ready to learn how to extract the AFQMC energy from the outputs using afqmctools.
@@ -672,7 +662,6 @@ On the other hand, the equilibration length should not be so large that it disca
 
 ### Exercise: Try Running scalar_stats
 
----
 
 
 
@@ -703,7 +692,6 @@ outputId: 74fb0dab-3f45-4fac-ea34-2931de197dcb
 
 ## Post Exercise
 
----
 
 If you play around with the equilbration length, you will see that, for very small equilibration length,
 the predicted energy will be incorrect.
@@ -716,7 +704,6 @@ On the other hand, the average energy should be stable if you use too large of a
 
 ## Some Tutorial Helper Python Functions
 
----
 
 Now that we have learned how to extract the AFQMC energy from the outputs of AuxiliaryFields using afqmctools,
 we will introduce several tutorial helper functions to invoke AuxiliaryFields and extract the AFQMC energy
@@ -736,7 +723,6 @@ We explain each function below.
 
 ### get_scratch_dir()
 
----
 
 `get_scratch_dir()` will return a reference to the Path of a scratch directory that you get to set.
 By default, it will create the directory if it does not already exits.
@@ -770,7 +756,6 @@ You can tell `get_scratch_dir()` to not attempt to create the directory with
 
 ### The run AFQMC convenience function
 
----
 
 `run_afqmc(input_file=input_file, np=np)` runs the SAFIRE executable as
 
@@ -812,7 +797,6 @@ Where the `np` parameter is forwarded directly to `-np [np]` and
 
 
 ### (afqmctools) the analyze scalar data function
----
 
 The same functionality as `$ scalar_stats`, from `afqmctools`, can
 be accessed directly in a Python script via the `analyze_scalar_data()` function.
@@ -828,7 +812,6 @@ We will make use of this feature during the tutorials to visualize results.
 
 
 ### Exercise: Run the full sample calculation using the convenience wrappers.
----
 
 
 Use the code block below to run the entire calculation again.
@@ -897,7 +880,6 @@ _ = analyze_scalar_data(dict(
 
 ## Summary
 
----
 
 
 

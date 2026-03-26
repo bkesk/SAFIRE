@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "eglSrlxk2Ip8"}
 
 # Local Embedding
------------------
 
 Following the methodlogy presented in:
 
@@ -22,13 +21,11 @@ https://pubs.acs.org/doi/10.1021/acs.jctc.8b01244
 
 
 ## Additional Software
-----------------------
 
 This example uses the freely available [embeddingAFQMC](https://github.com/bkesk/embeddingAFQMC) Python package
 which, among other things, provides tools to analyze the locality of a set of orbitals.
 
 ## O adsorption on $H_{20}$ chain
----------------------------------
 
 ```{code-cell} ipython3
 :id: v08YqIkR2r02
@@ -53,7 +50,6 @@ MPI_TASKS = 64
 +++ {"id": "vDrFukfq5u0t"}
 
 ### Automate the AFQMC
-----------------------
 
 We can automate the local embedding workflow, for a given O atom hieght, $h$, and localization radii $R_o$, and $R_v$, using a Python function. The workflow consists of the following steps.
 
@@ -289,7 +285,6 @@ def get_afqmc_energy(h, Ro=np.inf, Rv=np.inf, N_energetic_core=0, rhf_guess_rdm=
 +++ {"id": "siRKdtkN9GVZ"}
 
 ## AFQMC Potential Energy Curve
--------------------------------
 
 Let's use the function that we defined to compute $E[h]$ for $(R_o,R_v) = (3.8,6.2)$ Bohr.
 

@@ -15,7 +15,6 @@ kernelspec:
 
 
 # Electron Affinity of Pb: spin-orbit coupling (SOC) in ab initio AFQMC
-------------------------------------------------------------------------
 
 At the end of this example, you will know how to include SOC in ab initio AFQMC calculations.
 
@@ -33,7 +32,6 @@ must be sampled - making it an ideal tool for the study of systems and observabl
 where SOC effects are important.
 
 ## References
---------------
 
 [1] B. Eskridge, H. Krakauer, H. Shi, S. Zhang; Ab initio calculations in atoms, molecules, and solids, treating spin–orbit coupling and electron interaction on an equal footing. J. Chem. Phys. 7 January 2022; 156 (1): 014107. https://doi.org/10.1063/5.0075900   
 [2] K. A. Peterson, D. Figgen, E. Goll, H. Stoll, and M. Dolg, J. Chem. Phys. 119, 11113 (2003). https://doi.org/10.1063/1.1622924   
@@ -44,14 +42,12 @@ where SOC effects are important.
 +++ {"id": "PjMcWau9i2Xa"}
 
 ## Set Up Input for SAFIRE
--------------------------
 
 We we will use the relativistic Stuttgart effective core potentials (ECPs), in order to
 capture both spin-orbit coupling (SOC) and scalar relativistic effects, as
 well as the corresponding augmented cGTO basis sets [2-5].
 
 ### ▶️ Run the code block below to load the ECP and basis definitions
---------------------------------------------------------------------
 
 ```{code-cell} ipython3
 :id: XSXP8e2IYxFb
@@ -132,12 +128,10 @@ END
 +++ {"id": "WFTquom2i2Xb"}
 
 ## Generate inputs for the Neutral atom
----------------------------------------
 
 We will begin by generating the Hamiltonian and trial wavefunction for the neutral Pb atom.
 
 ### ▶️ Run PySCF for the neutral atom to generate a basis and SOC-GHF trial wavefunction
-----------------------------------------------------------------------------------------
 
 ```{code-cell} ipython3
 :id: FZrF4OuWi2Xc
@@ -204,7 +198,6 @@ print(f"SOC-GHF electronic energy: {mf.energy_elec()}")
 +++ {"id": "H-m_KAsri2Xc"}
 
 ### ▶️ Generate and Write Hamiltonian and Trial wavefunction for Neutral Atom
------------------------------------------------------------------------------
 
 We generate the Hamiltonian and trial wavefunction in the usual way
 with the exception that `write_hamil_mol()` must be explicitly
@@ -330,7 +323,6 @@ E,dE = analyze_scalar_data(settings)
 ## Repeat for Charged $Pb^-$ ion
 
 ### ▶️ Run PySCF
-----------------
 
 ```{code-cell} ipython3
 ---
@@ -400,7 +392,6 @@ print(f"SOC-GHF electronic energy: {mf.energy_elec()}")
 +++ {"id": "ivaijztJi2Xe"}
 
 ### ▶️ Generate and Write Hamiltonian and trial wavefunction
-------------------------------------------------------------
 
 ```{code-cell} ipython3
 ---
@@ -480,7 +471,6 @@ fout_soc = local_scratch_dir / 'afqmc_soc.h5'
 +++ {"id": "6RUWlygXi2Xe"}
 
 ### ▶️ Run SAFIRE
------------------
 
 ```{code-cell} ipython3
 :id: JWAr64xIi2Xe
@@ -528,7 +518,6 @@ E_charged,dE_charged = analyze_scalar_data(settings)
 +++ {"id": "bM8pXy_ui2Xe"}
 
 ## Compute the Final Result
-------------------------------
 
 Run the codeblock below to get the final result.
 It should be 0.48(3) eV for the aug-cc-pVDZ basis set.

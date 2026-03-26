@@ -23,7 +23,6 @@ Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 form
 
 
 ## What you will learn
----
 
 1.  How to write a single Slater determinant trial wavefunction given the Slater Matrix
 2.  How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices </font>
@@ -34,7 +33,6 @@ Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 form
 +++
 
 ## ▶️ Run the cell below to setup the tutorial
-----------------------------------------------
 
 ```{code-cell} ipython3
 # Run me (shift+enter or click the play button) to setup the tutorial!
@@ -53,7 +51,6 @@ scratch_dir = get_scratch_dir("04_mols_writing_a_trial", home)
 
 
 ## Introduction
----
 
 
 
@@ -138,7 +135,6 @@ Use ph-mSD for orthogonal expansions of Slater determinants.
 
 
 ## Single Slater determinant trial wavefunction
----
 
 We've already seen examples of writing a single Slater determinant trial wavefunction in previous tutorials.
 Here, we will explain the code blocks that you have already seen which we have reproduced below.
@@ -248,7 +244,6 @@ details on the expected data.
 
 ## NOMSD Trial Wavefunction
 
----
 
 In the previous example, we learned how to specify a trial wavefunctional with a single Slater determinant. Here, we will see how to we can write a suitable non-orthogonal multi-Slater trial wavefunction for the AFQMC code.
 
@@ -345,7 +340,6 @@ corresponding to up (down) sector Slater determinants.
 
 
 ## ph-mSD Trial Wavefunctions.
----
 
 In the previous sections, we learned (i) how to construct trial wavefunctions with a single Slater determinant, (ii) how to construct non-orthogonal multi-Slater determinant trial wavefunctions (NOMSD). Here, we will look at how to use CI-like expansions, also called particle-hole multi Slater (ph-mSD) wavefunctions, as trial wavefunctions for AFQMC.
 
@@ -426,7 +420,6 @@ the CI coefficients in `/Wavefunction/PHMSD/ci_coeffs`.
 +++ {"id": "FoovlUVcFqxX"}
 
 ## Summary
----
 
 
 
@@ -437,7 +430,6 @@ In this tutorial, you became acquainted with how to write a Trial wavefunction t
 
 
 ### What you learned
----
 
 
 

@@ -13,10 +13,8 @@ kernelspec:
 +++ {"id": "jFoBNSA0D-an"}
 
 # Hubbard model on a honeycomb lattice
----
 
 ## Set up the Hamiltonian
----
 
 ```{code-cell}
 :id: G8BN6a14EL83
@@ -133,7 +131,6 @@ autohf_to_afqmc(results,output_fname=scratch_dir/"afqmc.h5")
 +++ {"id": "vYmHYe-nIm_Q"}
 
 ## Write input file
----
 
 For more information about the input file, see the [Understanding the input file](../../../tutorials/models/02_understanding_the_input_file/02_understanding_the_input_file.html) tutorial.
 
@@ -164,7 +161,6 @@ write_json(
 +++ {"id": "2umfVnQDJcfa"}
 
 ## run AFQMC
----
 
 ```{code-cell}
 ---
@@ -186,7 +182,6 @@ run_afqmc(
 +++ {"id": "9YE2JAdlJesB"}
 
 ## Analyze the results
----
 
 ```{code-cell}
 ---

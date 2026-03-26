@@ -13,7 +13,6 @@ kernelspec:
 +++ {"id": "NudwCmJzZWxz"}
 
 # C ground state energy and Density
------------------------------------
 
 
 In this example, we will compute the ground state energy and charge density
@@ -21,7 +20,6 @@ of C diamond in the primitive cell cell.
 
 
 ## DEV TODO
------------
 
 - update image to C primitive cell.
 - update the following sections to use C / PySCF
@@ -38,7 +36,6 @@ of C diamond in the primitive cell cell.
 +++ {"id": "wqDpVPxzZT62"}
 
 ## External Software
---------------------
 
 
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
@@ -150,7 +147,6 @@ print(f"Charge per grid point = {np.sum(rho)/ngrids}")
 +++ {"id": "-QQPlGsMnzeJ"}
 
 ## Run AFQMC
-------------
 
 Next, we'll run SAFIRE using the Hamiltonian and trial wavefunction that we wrote using CoQuí.
 We've provided an input file in `3_afqmc` for this example.
@@ -334,11 +330,9 @@ afqmc.json  afqmc.out  qmc.s000.scalar.dat  qmc.s000.stat.h5
 +++ {"id": "KLWinWxMscWQ"}
 
 ## Analyze
-----------
 
 
 ### Ground state energy
------------------------
 
 `afmqmctools` includes a command line tool for analyzing the scalar data output.
 Fun the following command.
@@ -364,7 +358,6 @@ Your plot should look similar to the following.
 +++ {"id": "NYRwlRYYEh79"}
 
 ### Charge Density
-------------------
 
 `afmqctools` provides a function for generating the real-space charge density
 given the one-body reduced density matrix (1rdm), and its stochacastic uncertainty from AFQMC, as well as the orbitals from Quantum Espresso.
@@ -407,7 +400,6 @@ Here we used Vesta to make the following isosurface plot (using an isosurface va
 +++ {"id": "Fm5vwrfIodNf"}
 
 ## Converging in the basis set size
------------------------------------
 
 Accurately capturing electron correlation effects requires a large basis.
 Here, we are working the basis of Kohn-Sham bands.

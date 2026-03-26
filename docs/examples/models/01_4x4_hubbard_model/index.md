@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "-CSom7nd5xcl"}
 
 # 4x4 Square Lattice Hubbard Model
----------------------------------------------------
 
 Author: Kyle Eskridge
 
@@ -594,7 +593,6 @@ Let's rerun with a smaller $\tau = 0.005$
 +++ {"id": "Q-t-66BmVVn5"}
 
 ## Rerun AFQMC with a smaller Tau
----------------------------------
 
 When we decrease the step size, we will
 also need to increase the number of steps, and

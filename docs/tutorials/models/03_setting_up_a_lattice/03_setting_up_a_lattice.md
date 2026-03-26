@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "e9d26b92-e165-4baf-8fc1-dd312330f9d0"}
 
 # Lattice class tutorial
-------------------------
 
 <!--
 [All tutorials](../the_joy_of_AFQMC.ipynb)
