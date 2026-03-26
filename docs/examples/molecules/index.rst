@@ -10,16 +10,6 @@ from other quantum chemistry codes so long as they can write a FCIDUMP,
 and can print wavefunction information. Both of these features are
 ubiquitous in modern quantum chemistry codes.
 
-.. use hidden toctree to compile the jupyter notebooks in the examples/molecules folder
-
-.. toctree::
-   :hidden:
-
-   02_B_atom_SHCI_trial_wfn/06_SHCI_trial_wavefunction.ipynb
-   03_n2-phmsd/03_nitrogen_dimer_pec.ipynb
-   06_Pb-spin-orbit/06_Electron_affinity_of_Pb.ipynb
-   08_local_embedding/08_local_embedding.ipynb
-
 1. :ref:`Oxygen atom - simple AFQMC run <example_molecule_o_atom>`
 2. :doc:`B atom - SHCI trial wavefunction </examples/molecules/02_B_atom_SHCI_trial_wfn/06_SHCI_trial_wavefunction>`
 3. :doc:`N2 molecule PEC using ph-MSD trial wavefunction </examples/molecules/03_n2-phmsd/03_nitrogen_dimer_pec>`
