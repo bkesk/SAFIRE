@@ -200,11 +200,9 @@ $ scalar_stats qmc.s000.scalar.dat -s time -t -e 20.0 -t --savefig energy_vs_bet
 AFQMC Energy   -24.602724 +/-   0.000208 9.08 20.0/100.0
 ```
 
-
 This will also generate the following plot within the `energy_vs_beta.png`. The plot will also open in a new interactive window if run locally.
 
 ![Energy vs Beta](energy_vs_beta.png)
-
 
 +++
 

@@ -385,8 +385,6 @@ plt.show()
 
 ### Adding onsite Hubbard U
 
-
-
 SAFIRE supports arbitrary onsite interactions of the from
 
 $$
@@ -398,7 +396,6 @@ We've already seen how to add a basic nearest-neighbor onsite Hubbard U, now we 
 <b>This input parameter, $U$, is in general an array. The band/site dependence of the interaction is deduced based on the shape of the $U$ array</b>.
 
 #### Band- and site-dependence deduction rules
-
 
 1. if U is a scalar (or an array with a single entry), then the onsite Hubbard interaction term is included with strength U and applied to all sites and bands unformly.
 
@@ -602,7 +599,6 @@ The $U_{\mu\nu}^1$ matrix is constructed based on what information
 the user provides.
 specifically, it handles the following cases.
 
-
 #### Case 1: Uniform intrasite interaction
 
 The user provides a single value for $U^1$ and keeps the default $n=0$.
@@ -614,7 +610,6 @@ $$
 $$
 
 where we have replaced the composite indicies with site and band indices for clarity.
-
 
 #### Case 2: Band-dependent intrasite interaction
 
@@ -635,7 +630,6 @@ $$
 where we have replaced the composite indicies with site and band indices for clarity.
 
 #### Case 3: Uniform nth-order neighbor interaction
-
 
 #### Case 4: Band-dependent nth-order neighbor interaction
 
@@ -785,7 +779,6 @@ for $n^{th}$-order neighbors.e
 
 afqmctools is able to generate a subset of interactions of this type using the
 same input conventions as for $\hat{H}_{U1}$, and $\hat{H}_{U2}$.
-
 
 +++ {"id": "_MEnzhH0OK_X"}
 

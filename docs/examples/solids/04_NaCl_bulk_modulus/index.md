@@ -14,17 +14,12 @@ kernelspec:
 
 # Bulk modulous of NaCl
 
-
 In this example, we will compute the cold curve of MnO.
 DEV TODO:
 - Replace image with solid NaCl
 - Update QE, Coqui, and SAFIRE sections with the new content.
 
-
-
 STATUS: Kyle is assigned the example content.
-
-
 
 See this paper:
 
@@ -39,7 +34,6 @@ Remember to apply one-body finite size corrections!!
 +++ {"id": "wqDpVPxzZT62"}
 
 ## External Software
-
 
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
 
@@ -140,18 +134,15 @@ We will perform the following calculations with QE:
     - run pp.x to generate `VLOT` and `VSC` which are potentials that will be read later by CoQuí
     - run pw2bgw.x to generate `VKB` which will also be read by Coquí later
 
-
 <div class="alert alert-block alert-info">
   <b>Note:</b> CoQuí expects to find all of `VLOT`, `VSC`, and `VKB` in the same QE output directory. Double check that the output paths of the post-processing tools are all set to the same directory.
 </div>
-
 
 ### Step 1 : self-consitent DFT
 
 To generate the Hamiltonian for SAFIRE, we need
 to set `force_symmorphic=.true.` in the `&system` input card.
 Run self-consistent DFT with the provided input file and pseudopotential.
-
 
 ```bash
 $ pw.x -inp scf.inp > scf.out
@@ -283,7 +274,6 @@ The key details to note are:
 - In the `interaction` input block, we are using the "cholesky" decomposed form for the ineraciton and have set a tolerance of `tol = 1e-5`. We have set the `output` to a file called "hamiltonian.h5` to tell CoQuí to save the interaction there.
 - The `hamiltonian` block is used to write the one-body part of the Hamiltonian to HDF5. **We need to set this to the same file as the interaction.**
 - Finally, we can save a single Salter determinant wavefunction to the Hamiltonian setting the `add_wavefunction = "default"` parameter in the `hamiltonian` block. The Slater determinant is constructed by occupying the Kohn-Sham orbitals with the largest occuancy.
-
 
 Now, run Coquí.
 
@@ -511,7 +501,6 @@ $ mpirun -np [number of processes] /path/to/safire afqmc.json &> afqmc.out &
 
 where `[number of processes]` depends on how many tasks can be run on your local machine.
 
-
 We've included some of the output below.
 You should see similar numbers in your output.
 
@@ -603,7 +592,6 @@ debug_verbosity: false
 
 ```
 
-
 When SAFIRE has finished running, you should see the `qmc.s000.scalar.dat`, and `qmc.s000.stat.h5` output data files.
 
 ```
@@ -614,7 +602,6 @@ afqmc.json  afqmc.out  qmc.s000.scalar.dat  qmc.s000.stat.h5
 +++ {"id": "KLWinWxMscWQ"}
 
 ## Analyze
-
 
 ### Ground state energy
 
@@ -637,7 +624,6 @@ outputId: 7466d116-0938-47e7-ef6a-87d8e736010a
 +++ {"id": "tq9vNkeZDhw2"}
 
 Your plot should look similar to the following.
-
 
 +++ {"id": "NYRwlRYYEh79"}
 

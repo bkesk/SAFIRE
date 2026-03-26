@@ -15,20 +15,14 @@ kernelspec:
 
 # N₂ molecule: bond stretching and multi-Slater trial wavefunctions
 
-
 <b>Goal:</b>
 This example demonstrates how to compute the potential energy curve (PEC) of a diatomic molecule
 using an appropriate trial wavefuncton.
 
-
-
-
 ## What you will learn
-
 
 1. How to select the number of Slater determinants to include in the trial wavefunction, balancing computational cost and accuracy
 2. How to automate the computation of a potential energy curve using afqmctools within Python
-
 
 ## Run the code block below (shift+enter or click the play button) to set up the example
 
@@ -61,8 +55,6 @@ scratch_dir = get_scratch_dir("n2_pec",home / ".scratch")
 
 ## The Nitrogen dimer
 
-
-
 Diatomic molecules display strong static electron correlation effects (i.e. correlation due to many energetically proximate electron configurations)
 in the intermediate bond length regime.
 The $N_2$ molecule is a notorious example and has historically been used to benchmark the accuracy of quantum chemistry approaches [1].
@@ -91,27 +83,15 @@ Still, for all nearly all bond lengths, AFQMC with a UHF trial wavefunction prod
 in terms of absolute error, than either the quantum chemistry "gold standard" method CCSD(T) or CCSDT.
 AFQMC with a CASSCF(12o,6e) trial wavefunction outperforms both CCSD(T) and CCSDT in terms of accuracy at all bond lengths.
 
-
 Next, we will reproduce the PEC of the Nitrogen dimer using AFQMC / CASSCF(12o,6e) trial wavefunctions.
-
-
-
-
 
 ### References:
 
-
 [1] W. A. Al-Saidi, S. Zhang, H. Krakauer. "Bond breaking with auxiliary-field quantum Monte Carlo." *J. Chem. Phys.* **127**, 144101 (2007).  
-
-
-
-
 
 +++ {"id": "ESezCWGWE6lv"}
 
 ## Converging AFQMC in the quality of the trial wavefunction
-
-
 
 As we saw in [ Using CI trial wavefunctions as a trial wavefunction ](),
 AFQMC trial wavefunctions are typically multi-Slater determinant expansions with form,
@@ -127,8 +107,6 @@ Typically, CI trial wavefunctions are truncated CASSCF or selected CI (SCI) wave
 For quantum chemistry, AFQMC uses the phaseless approximation in order to control the fermionic sign / phase problem at the cost of introducing a removable bias.
 This bias can be systematically removed by using a better trial wavefunction.
 If we start with a decent CASSCF or SCI wavefunction, then we can characterize the "quality" of a trial wavefunction by the number of Slater determinants that are included in the trial wavefunction, $N_{det}$.
-
-
 
 <b>A critical step in achieving high-accuracy results, therefore, is to converge the AFQMC energy in $N_{det}$</b>
 
@@ -164,14 +142,9 @@ written to the file.
 We will save significantly more Slater determinants to the wavefunction HDF5 file than we expect to need.
 This allows us to reuse the same wavefunction file while controlling the trial wavefunction quality via the "ndets_to_read" parameter.
 
-
-
-
-
 +++ {"id": "IQBeUJTghyNm"}
 
 ### Getting an orthonormal basis and a trial wavefunction
-
 
 We will now setup an AFQMC calculation. As you should now be familiar with from previous tutorials, we will need to choose an orthonormal orbital basis to work within.
 Since we will be using CASSCF trial wavefunctions, it is convenient to use the set of optimized CASSCF orbitals,
@@ -252,7 +225,6 @@ afqmctools provides a helper function, `load_from_pyscf_chk_mol()`,  to read all
     By default, load_from_pyscf_chk_mol() will try to read data from an "scf" group in a PySCF checkpoint file. Set the "base" parameter to "mcscf" to read a CASSCF wavefunction.
 </div>
 
-
 ```{code-cell} ipython3
 ---
 colab:
@@ -279,14 +251,11 @@ write_hamil_mol(
 
 ### Checkpoint
 
-
 In addition to the trial wavefunction HDF5 file from before, you should also now have a Hamiltonian HDF5 file. We saved both the trial wavefunction and the Hamiltonian into a file called "afqmc.h5", but you can use whatever file name(s) you would like. Simply update the code blocks based on your filenames.
 
 +++ {"id": "hDAoo29kE6lv"}
 
 ### Run SAFIRE
-
-
 
 Before we move on to computing the PEC, we need to converge the AFQMC energy in $N_{det}$.
 To avoid doing this for every point on the PEC, we will simply choose a point on the PEC where we expect the most static correlation, converge the AFQMC energy in $N_{det}$ at that point, and use that converged $N_{det}$ value uniformly accross the entire PEC.
@@ -336,12 +305,8 @@ will generate a "wavefunction" block that points to the wavefunction file, with 
 }
 ```
 
-
-
 <b>Run the code block below in order to compute $E_{AFQMC}$ vs $N_{det}$</b>
 Note: This might take some time. You might want to run this on a computing cluster instead.
-
-
 
 ```{code-cell} ipython3
 ---
@@ -439,12 +404,9 @@ Since we performed this test at a point on the PEC where there are strong static
 value to provide converged results across the PEC.
 Now, we can automate the calculation of the PEC using this value for $N_{det}$.
 
-
-
 +++ {"id": "c4MDXZD3E6lw"}
 
 ## Automating the computation of the PEC using Python / afqmctools
-
 
 Now that we have converged $E_{AFQMC}$ in $N_{det}$, we are ready to compute the PEC.
 In the code block below, we have included a function that performs all of the steps that we have already performed (excluding converging $E_{AFQMC}$ in $N_{det}$) given a value of the $N_2$ bond length, $\delta_{N-N}$.
@@ -456,14 +418,9 @@ Sepcifically, given $\delta_{N-N}$ and `ndets_to_read`, the function automates:
 3. writing the json input file, with our choosen value of `ndets_to_read`, and running SAFIRE.
 4. Extracting the AFQMC energy using the stats module.
 
-
 <b>
 Run the cell block below in order to load the "run_afqmc_on_dimer()" function into memory.
 </b>
-
-
-
-
 
 ```{code-cell} ipython3
 :id: 8u68vNTFE6lw
@@ -598,7 +555,6 @@ for delta in bondlengths:
 
 ### Plot the PEC
 
-
 Now, we are ready to plot the PEC to see our results.
 
 ```{code-cell} ipython3
@@ -624,16 +580,11 @@ Compare this with the PEC generated using the data from the original paper.
 
 ## Summary
 
-
 You have computed the potential energy curve (PEC) of the $N_2$ molecule, which is a standard benchmarking system in quantum chemistry.
 
-
 ### What you learned
-
-
 
 1. How to select the number of Slater determinants to include in the trial wavefunction, balancing computational cost and accuracy
 2. How to automate the computation of a potential energy curve using afqmctools within Python
 3. (optional) How to perform task 2 using bash and afqmctools instead
-
 

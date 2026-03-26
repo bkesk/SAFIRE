@@ -15,20 +15,14 @@ kernelspec:
 
 # Writing a Trial Wavefunction
 
-
 <b>Goal:</b>
 Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 format.
-
-
-
 
 ## What you will learn
 
 1.  How to write a single Slater determinant trial wavefunction given the Slater Matrix
 2.  How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices
 3.  How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings
-
-
 
 +++
 
@@ -48,20 +42,13 @@ scratch_dir = get_scratch_dir("04_mols_writing_a_trial", home)
 
 +++ {"id": "vt9PbuQhpw4u"}
 
-
-
 ## Introduction
 
-
-
-
 In general, the trial wavefunction in AFQMC is a linear combination of Slater determinants,
-
 
 $$
 |\Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle,
 $$
-
 
 where
 
@@ -78,8 +65,6 @@ where $\{\phi_i\}$ are the chosen orthonormal basis
 set orbitals.
 Slater determinants can either be represented explicitly as a Slater matrix,  
 
-
-
 $$
 \Phi ≐ \begin{bmatrix}
     \bar{C}_{00} &\bar{C}_{01} & \bar{C}_{02} & \dots  & \bar{C}_{0N} \\
@@ -89,18 +74,11 @@ $$
 \end{bmatrix},
 $$
 
-
-
 where $M,N$ are the number of basis functions and electrons, respectively,
 or in terms of an "occupation vector", which is simply a list of orbital indices which should be occupied.
     
 
-
-
-
-
 SAFIRE implements two basic types of trial wavefunction.
-
 
 1. <b>"particle-hole" multi-Slater determinant (ph-mSD) trial wavefunctions</b>
 which is a configuration interaction-like wavefunction
@@ -112,9 +90,6 @@ of $C_n$ and corresponding occupancy vectors.
 where **strictly** $\langle \Phi_n |\Phi_m\rangle \neq 0 \forall n,m$.
 In this case, the Slater determinants are specified as a list
 of $C_n$ and corresponding Slater matrices. 
-
-
-
 
 We'll explore each of these wavefunction types in more detail below.
 
@@ -129,10 +104,7 @@ Use ph-mSD for orthogonal expansions of Slater determinants.
 
 -->
 
-
 +++ {"id": "RXzexuh_sQyL"}
-
-
 
 ## Single Slater determinant trial wavefunction
 
@@ -240,10 +212,7 @@ details on the expected data.
 
 +++ {"id": "VJfGuez4rsE-"}
 
-
-
 ## NOMSD Trial Wavefunction
-
 
 In the previous example, we learned how to specify a trial wavefunctional with a single Slater determinant. Here, we will see how to we can write a suitable non-orthogonal multi-Slater trial wavefunction for the AFQMC code.
 
@@ -337,8 +306,6 @@ corresponding to up (down) sector Slater determinants.
 
 +++ {"id": "YtBpL-q8rlGT"}
 
-
-
 ## ph-mSD Trial Wavefunctions.
 
 In the previous sections, we learned (i) how to construct trial wavefunctions with a single Slater determinant, (ii) how to construct non-orthogonal multi-Slater determinant trial wavefunctions (NOMSD). Here, we will look at how to use CI-like expansions, also called particle-hole multi Slater (ph-mSD) wavefunctions, as trial wavefunctions for AFQMC.
@@ -421,26 +388,14 @@ the CI coefficients in `/Wavefunction/PHMSD/ci_coeffs`.
 
 ## Summary
 
-
-
 In this tutorial, you became acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 format.
 
-
-
-
-
 ### What you learned
-
-
 
 1. How to write a single Slater determinant trial wavefunction given the Slater Matrix
 2. How to write a single Slater determinant given orbtial occupancies
 3. How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices
 4. How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings
-
-
-
-
 
 ```{code-cell} ipython3
 :id: qVBQ6CAhF3Xn

@@ -18,18 +18,12 @@ kernelspec:
 <b>Goal:</b>
 Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
-
-
-
 ## What you will learn
 
 1.  How to write a Hamiltonian to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation
 2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation
 
-
-
 ## External Software
-
 
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
 
@@ -37,14 +31,11 @@ In addition to SAFIRE and afqmctools, we will be using the following software pa
 - [CoQuí](https://github.com/AbInitioQHub/coqui) for generating the SAFIRE Hamiltonian and Trial wavefunction HDF5 files from the output of QE.
 - [pw2coqui.x](https://github.com/AbInitioQHub/coqui/tree/main/qe_converter) see the instructions there for adding this to your QE build.
 
-
-
 <div class="alert alert-block alert-info">
   <b>Note:</b> This tutorial assumes familiarity with Quantum Espresso (QE); we will point out some
     specific settings that are necessary for the workflow, but a general tutorial on QE
     is beyond the scope of this tutorial.
 </div>
-
 
 ## Tutorial Files
 
@@ -69,8 +60,6 @@ $ tree -a
 
 ## Introduction
 
-
-
 In previous tutorials, we learned how to run SAFIRE, and how
 to post process the results to arrive at the AFQMC energy.
 Now, we will learn how to write a Hamiltonian and a trial wavefunction in SAFIRE's HDF5 format.
@@ -78,9 +67,6 @@ CoQuí (Correlated Quantum ínterface), is a software project designed for ab in
 It implements several many-body perturbation theory (MBPT) approaches as well as performing supporting operations for other methods such as dynamical mean-field theory (DMFT) as well as AFQMC.
 For AFQMC, and SAFIRE specifically, CoQuí can be used to directly generate
 a second-qauntized Hamiltonian from an electronic structure calculation.
-
-
-
 
 <!--
 <div>
@@ -91,7 +77,6 @@ a second-qauntized Hamiltonian from an electronic structure calculation.
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/TopLevelFlowChart_v3.png" width="1000">
 </div>
-
 
 In this tutorial,
 we will compute the ground state energy of
@@ -107,12 +92,8 @@ the minimal basis hydrogen dimer with a bondlength of 1.4 Bohr radii.
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/solids/Si_primitive.png" width="500">
 </div>
 
-
-
-
 In this tutoroial, we will generate the Hamiltonian and trial wavefunction for
 Si in the primitive cell.
-
 
 +++ {"id": "TGWpFn73aPAi"}
 
@@ -136,7 +117,6 @@ We will perform the following calculations with QE:
 <div class="alert alert-block alert-info">
   <b>Note:</b> CoQuí expects to find `[prefix].coqui.h5` in the QE output directory. Double check that the output path of the post-processing tools are all set to the same directory.
 </div>
-
 
 ### Step 1 : self-consitent DFT
 
@@ -272,7 +252,6 @@ Additionally, it can write a trial wavefunction based on the DFT solution from Q
 These steps can be performed either separately or in a single input file.
 We will use the former approach and generate each separately for pedagogical reasons.
 In general, it is recommended to to use a single CoQuí input file.
-
 
 ### Writing the Hamiltonian
 
@@ -560,9 +539,6 @@ Your steps:
 2. Run SAFIRE using that input file
 3. use `scalar_data` to obtain the AFQMC energy
 
-
-
-
 <details>
 <summary>Hint:</summary>
   <p>This is the same calculation as in Tutorial 1: Hello Safire. Your energy should match the result there, `-0.729271 +/- 0.000532`, to within stochastic uncertainty.</p>
@@ -570,19 +546,12 @@ Your steps:
 
 +++ {"id": "QybItZ2_98uJ"}
 
-
-
 ## Summary
-
-
-
 
 In this tutorial we have learned,
 
 1.  How to write a Hamiltonian to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation 
 2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation 
-
-
 
 ```{code-cell} ipython3
 :id: wF2XOkh7-D5X
