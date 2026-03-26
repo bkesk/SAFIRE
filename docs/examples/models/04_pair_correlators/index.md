@@ -18,41 +18,20 @@ kernelspec:
 <b>Goal:</b>
 At the end of this tutorial, you will know how to measure pair correlation functions using SAFIRE for a lattice models.
 
-
 ## What you will learn
-
-
-
 
 1. How to set up the HDF5 and json input files to request pair correlation functions
 2. how to post process the correlation functions
 
-
-
-
 ## Prerequisites
-
-
-
 
 In this tutorial, we assume that you have already completed all of the basic SAFIRE tutorials, but especially the following tutorials:
 
 1. ...
 
-
-
-
-
-
-
-
 +++ {"id": "7FBZ0COY-NIw"}
 
-
 ## Introduction
-
-
-
 
 By pair correlation functions, we mean
 
@@ -92,17 +71,11 @@ $$
 P^{\alpha \beta}_{ij} ≡ \frac{1}{2} ⟨ \left(c^{\dagger}_{i⇑} c^{†}_{\bar{i}_α ⇓} -  c^{\dagger}_{i⇓} c^{†}_{\bar{i}_α ⇑} \right)  \left( c_{\bar{j}_\beta⇓} c_{j ⇑}  - c_{\bar{j}_\beta ⇑} c_{j ⇓} \right) ⟩.
 $$
 
-
 SAFIRE implements this form of pair correlation function.
 It requires a set of $\bar{i}_\alpha = i + e_\alpha$, in the HDF5 input file.
 Additionally, specific pairings may be selected in the json input file.
 This allows the user to skip some of the offsets saved in the HDF5 file if desired.
 We will explore this in more detail below.
-
-
-
-
-
 
 +++ {"id": "Np-zIkGusNIP"}
 
@@ -110,8 +83,6 @@ We will explore this in more detail below.
 
 The Lattice class from afqmctools can be directly used to find the pairs that we need via the `.get_directed_pairs()` function.
 `.get_directed_pairs()` needs a list of "directions", and it will return a dictionary where the keys are the requested directions, and the values are a list of index offsets, $\bar{i}_\alpha [i]$, such that $\bar{i}_{\alpha} [i] = i + e_\alpha$.
-
-
 
 ```{code-cell} ipython3
 ---
@@ -146,7 +117,6 @@ for key,value in pairs_dict.items():
 
 +++ {"id": "lkkZMHMWvFAU"}
 
-
 afqmctools also provides a function for saving these pairs to HDF5 in the appropriate format.
 
 ```python
@@ -166,8 +136,6 @@ pairs_dict["xy"] = [ 5, 6 , 7, 4, 9, 10, 11, 8, 13, 14, 15, 12, 1, 2, 3, 0]
 
 As we are about to see, this will allow us to request "xy" pairing by name in the json input file. First, let's add this type of pairing to the dictionary by running the following code block.
 
-
-
 ```{code-cell} ipython3
 ---
 colab:
@@ -184,8 +152,6 @@ for key,value in pairs_dict.items():
 +++ {"id": "iwp3CeLownyV"}
 
 ## Requesting the pair correlation function in the json input file
-
-
 
 The pair correlation function observable may be requested as any other observable within an estimator block.
 However, the pair correlation function observable has a few unique parameters that must be set.
@@ -230,9 +196,6 @@ If we decided we only wanted s-wave pair correlatios, we could use
 ```
 
 instead of the above.
-
-
-
 
 ### Full sample input file
 
@@ -286,7 +249,6 @@ Run SAFIRE on a 4x4 Hubbard model with U=4, and $N_{\uparrow}=N_{⇓} = 7$ using
 
 ## Post-processing pair correlations functions
 
-
 ...
 
 ```{code-cell} ipython3
@@ -337,12 +299,9 @@ plot_lattice(
 
 +++ {"id": "gGT0fdst-NIz"}
 
-
-
 ## Summary
 
 ### What you learned
-
 
 1. How to set up the HDF5 and json input files to request pair correlation functions
 2. how to post process the correlation functions

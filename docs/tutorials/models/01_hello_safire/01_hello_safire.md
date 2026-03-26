@@ -19,34 +19,20 @@ kernelspec:
 At the end of this tutorial, you will know how to run an AFQMC calculation using SAFIRE and extract the AFQMC energy from the output
 given all necessary inputs.
 
-
 ## What you will learn
-
-
-
 
 1. what the inputs and outputs of SAFIRE are and what their high level purposes are
 2. how to invoke the SAFIRE executable from the command line in serial, using MPI, and using GPU(s)
 3. how to extract the AFQMC energy from the outputs of SAFIRE using afqmctools
 4. how to use the tutorial helper functions to do 2 and 3 from within an interactive Python notebook
 
-
-
-
-
-
 +++ {"id": "7FBZ0COY-NIw"}
-
-
 
 <b>
 Inputs and outputs of SAFIRE.
 </b>
 
-
 ---
-
-
 
 For this tutorial, we provide all of the inputs needed to run an AFQMC calculation.
 You can find them in "files" relative to the
@@ -59,8 +45,6 @@ AFQMC algorithmic parameters in a json-based input file.
 
 Below is a schematic of the inputs and outputs of SAFIRE.
 
-
-
 <!---
 <div>
 <img src="./figs/inputs_and_outputs_all.png" width="800"/>
@@ -71,37 +55,21 @@ Below is a schematic of the inputs and outputs of SAFIRE.
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_all.png" width="800">
 </div>
 
-
-
-
-
-
 **We will learn more about the details of all of these files in future tutorials.**
 For now, we will explain the purpose of each of these files at a high level
 without going into the details.
 
 +++ {"id": "tMJ2Y4re-NIw"}
 
-
-
-
-
 <b>The Inputs
 </b>
 
-
 ---
-
-
-
 
 <b> Hamiltonian file : "hamil.h5"
 </b>
 
-
 ---
-
-
 
 <!--
 <div>
@@ -112,10 +80,6 @@ without going into the details.
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_hamil.png" width="800">
 </div>
-
-
-
-
 
 An HDF5 file containing the second-quantized Hamiltonian $\hat{H}$. As we will see later, the json input file is used to select a Hamiltonian in a calculation.
 
@@ -128,24 +92,12 @@ and $U/t = 4$ in "hamil.h5".
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/Hubbard_4x4_tutorial.png" width="500">
 </div>
 
-
-
-
-
 For technical details on the hamiltonian HDF5 format, see [the User Guide](https://users.flatironinstitute.org/~beskridge/safire/user_manual/hamiltonians.html#lattice-model-hamiltonian).
-
-
-
-
-
 
 <b> Wavefunction file : "wfn.h5"
 </b>
 
-
 ---
-
-
 
 <!--
 <div>
@@ -157,11 +109,7 @@ For technical details on the hamiltonian HDF5 format, see [the User Guide](https
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
 </div>
 
-
-
 An HDF5 file containing the trial wavefunction, $| \Psi_T \rangle$. As we will see later, the json input file is used to select a trial wavefunction in a calculation.
-
-
 
 We will learn how to generate this file in later tutorials.
 For this tutorial, we have supplied an HDF5 file containing the RHF
@@ -173,17 +121,10 @@ $$
 
 For technical details on the wavefunction HDF5 format, see [the User Guide](http://users.flatironinstitute.org/~beskridge/safire/user_manual/wavefunctions.html).
 
-
-
-
-
 <b> Input file (json format) : "input.json"
 </b>
 
-
 ---
-
-
 
 <!--
 <div>
@@ -194,9 +135,6 @@ For technical details on the wavefunction HDF5 format, see [the User Guide](http
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_json.png" width="800">
 </div>
-
-
-
 
 **We will learn about the input file in more detail in the next tutorial,
 ["Understanding the input file"](../02_input_file/input_file.html).**
@@ -244,28 +182,15 @@ state and second quantized Hamiltonian, respectively.
 
 +++ {"id": "dWRr3WmB-NIw"}
 
-
-
-
-
-
-
 <b>The Outputs
 </b>
-
 
 Now that we have seen what the inputs of SAFIRE are, we move on to what it outputs.
 
 ---
 
-
-
-
-
-
 <b> stdout
 </b>
-
 
 ---
 
@@ -273,8 +198,6 @@ SAFIRE prints information about the setup of the AFQMC calculation to stdout alo
 
 We will see the output from SAFIRE throughout the tutorials. Here is a sample header which is printed at the beginning of
 the output.
-
-
 
 ```log
 ███████╗ █████╗ ███████╗██╗██████╗ ███████╗
@@ -299,25 +222,14 @@ app git commit: 6a251b811061707f9dceb3804e146148bf58e90f
     -- MPI tasks      : 1
 ```
 
-
-
-
 You can see git information from when SAFIRE was compiled.
 You can also see MPI / parallelization information.
 We will explore the output further in later tutorials.
 
-
-
-
-
-
 <b> scalar data file : [id].s[series].scalar.dat
 </b>
 
-
 ---
-
-
 
 <!--
 <div>
@@ -328,10 +240,6 @@ We will explore the output further in later tutorials.
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_scalar.png" width="800">
 </div>
-
-
-
-
 
 A text-based file where stochastic samples of scalar data, such as the energy are printed by SAFIRE.
 
@@ -344,27 +252,14 @@ The name of file comes from the "id" and "series" parameters set in the json inp
 They are used so that multiple AFQMC calculations can be performed in a single directory without
 output file collisions.
 
-
-
-
-
-
 <b> observables output HDF5 file : [id].s[series].stat.h5
 </b>
 
-
 ---
-
-
 
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_hdf5.png" width="800">
 </div>
-
-
-
-
-
 
 An HDF5 file where stochastic samples of non-scalar data, such as the one-body reduced density matrix, are printed by SAFIRE
 when requested.
@@ -373,19 +268,9 @@ Similarly to the [id].s[series].scalar.dat file, this file is not meant to be di
 Instead, afqmctools provides tools to extract data from this file for you.
 You will learn more about this in the [Estimators and post-processing tutorial](../04_using_estimators/04_using_estimators.html).
 
-
-
-
-
-
 +++ {"id": "Yhdjs78S-NIx"}
 
-
-
 ## Running SAFIRE
-
-
-
 
 Now that we have learned what the inputs and outputs of SAFIRE are,
 we are ready to learn how to run the SAFIRE executable given the inputs.
@@ -394,11 +279,9 @@ we are ready to learn how to run the SAFIRE executable given the inputs.
 
 SAFIRE can be invoked from the command line as
 
-
 ```bash
     $ /path/to/SAFIRE/build/bin/safire input.json
 ```
-
 
 where `input.json` is the json input file.
 The input file can be called whatever you would like, so
@@ -406,17 +289,10 @@ long as its name ends in .json.
 When you run this, an AFQMC calculation will be performed based on the contents of input.json,
 using the Hamiltonian and trial wavefunction specified there.
 
-
-
 **For brevity, we will abreviate `/path/to/SAFIRE/build/bin/safire` as `safire` in this tutorial**.
 There are many standard ways to make `safire` accessible from the command line in this way.
 
-
-
 You can see the possible command line options for SAFIRE by using the `-h`/`--help` switch.
-
-
-
 
 ```bash
   $ safire --help
@@ -432,14 +308,7 @@ You can see the possible command line options for SAFIRE by using the `-h`/`--he
         --filenames arg  input filenames
 ```
 
-
-
-
-
 ### Exercise: Try Running SAFIRE
-
-
-
 
 Run SAFIRE with the provided input files.
 You may use either the code block below, or run SAFIRE in a terminal
@@ -449,8 +318,6 @@ In either case, you can find the json input file here
 ```bash
    /path/to/SAFIRE/tutorials/lattices/01_hello_safire/files/input.json
 ```
-
-
 
 where `/path/to/SAFIRE` should be replaced with the path where
 you have installed SAFIRE.
@@ -467,8 +334,6 @@ see what changes.
     a shell instead of in Python.
 </div>
 
-
-
 ```{code-cell} ipython3
 ---
 colab:
@@ -482,7 +347,6 @@ outputId: 6cfa041d-1239-4cd5-bfac-31dcdd6aee8f
 +++ {"id": "eShMF9Ab-NIy"}
 
 ### Post-excercise
-
 
 You should the following a the top of the
 output after running SAFIRE.
@@ -510,27 +374,16 @@ app git commit: 6a251b811061707f9dceb3804e146148bf58e90f
     -- MPI tasks      : 1
 ```
 
-
-
-
 Congratulations, you have now run an AFQMC calculation using SAFIRE!
 In the directory that you ran this notebook from, you should see a file called
 `qmc.s000.scalar.dat`.
 We will return to how to use the tools in `afqmctools` to extract the AFQMC energy later in this tutorial.
 
-
-
-
-
 +++ {"id": "L0YADhMN-NIy"}
 
 ## Running SAFIRE in parallel
 
-
-
-
 ### Using MPI
-
 
 SAFIRE can be run with MPI in the usual ways.
 For example, using mpirun, we could run SAFIRE with 64 MPI tasks as
@@ -552,10 +405,7 @@ For the sample inputs, this is significantly more walkers than is necessary,
 and for calculations that run on a CPU only build of SAFIRE,
 `n_walkers_per_mpi_task` will typically be on the order of 10-50.
 
-
-
 ### GPU Builds
-
 
 To run on GPUs, you must compile SAFIRE for the GPU. See the [documentation](https://users.flatironinstitute.org/~beskridge/safire/installation.html) for instructions on compiling for GPU.
 
@@ -565,10 +415,7 @@ The specific number of walkers needed to achieve this depends on how large the s
 For small systems, this could mean using on the order of 1000 walkers or more per task.
 For very large systems, this may mean on the order of 10 walkers per MPI task.
 
-
-
 ### Your Turn
-
 
 Try running SAFIRE with MPI! To get the same numbers as us, you will need to use the same number of MPI processes as we did, 16.
 
@@ -582,7 +429,6 @@ Try running SAFIRE with MPI! To get the same numbers as us, you will need to use
 +++ {"id": "ifrwtXzA-NIy"}
 
 ## Basic post-processing
-
 
 Now that we've learned how to invoke the SAIFRE executable from the command line in serial, using MPI, and using GPU(s),
 we are ready to learn how to extract the AFQMC energy from the outputs of SAIFRE using afqmctools.
@@ -643,8 +489,6 @@ will generate the plot,
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/Equil_hubbard_4x4_U4_hello_safire.png" width="800">
 </div>
 
-
-
 One should check the equlibration curve to ensure that the the equilibration
 time, `-x time -e 2.0` is large enough to discard the samples where AFQMC is not
 sampling from the target many-body wavefunction yet.
@@ -654,12 +498,7 @@ equilbrated samples.
 We will learn how to post-process AFQMC results from SAFIRE
 in more detail in the ["Post processing"](../03_post_processing/post_processing.html) Tutorial.
 
-
-
 ### Exercise: Try Running energy_stats
-
-
-
 
 Use the code block below to run energy_stats on the data that we generated
 in the last exercise.
@@ -668,8 +507,6 @@ if you did not change any settings.
 
 Now, try to changing the equilbration length such that only un-equilibrated samples
 are discarded.
-
-
 
 ```{code-cell} ipython3
 :id: -Ej94zXY-NIz
@@ -680,22 +517,16 @@ are discarded.
 
 +++ {"id": "Q7NGQf5v-NIz"}
 
-
-
 ## Post Exercise
-
 
 If you play around with the equilbration length, you will see that, for very small equilibration length,
 the predicted energy will be incorrect.
 This is due to the inclusion of un-equilibrated samples in the average.
 On the other hand, the average energy should be stable if you use too large of a value for the equilibration length.
 
-
-
 +++ {"id": "HxaTJ4Rd-NIz"}
 
 ## Some Tutorial Helper Python Functions
-
 
 Now that we have learned how to extract the AFQMC energy from the outputs of SAFIRE using afqmctools,
 we are ready to how to use the tutorial helper functions to invoke SAFIRE and extract the AFQMC energy
@@ -710,11 +541,7 @@ we described previously, depending on the `run_mode` parameter.
 Together, these functions make it possible to complete the tutorials without leaving the interactive Python notebooks.
 We explain each function below.
 
-
-
-
 ### get_scratch_dir()
-
 
 `get_scratch_dir()` will return a reference to the Path of a scratch directory that you get to set.
 By default, it will create the directory if it does not already exits.
@@ -739,15 +566,9 @@ You can tell `get_scratch_dir()` to not attempt to create the directory with
     scratch_dir = get_scratch_dir('/path/to/my/scratch/hello_safire',create=False)
 ```
 
-
-
-
 +++ {"id": "N9bQJxCM-NIz"}
 
-
-
 ### The run AFQMC convenince function
-
 
 `run_afqmc(input_file=input_file, np=np)` runs the SAFIRE executable as
 
@@ -785,11 +606,7 @@ Where the `np` parameter is forwarded directly to `-np [np]` and
     directly in the command line other than convenience.
 </div>
 
-
-
-
 ### (afqmctools) the analyze scalar data function
-
 
 The same functionality as `$ energy_stats`, from `afqmctools`, can
 be accessed directly in a Python script via the `analyze_scalar_data()` function.
@@ -801,19 +618,12 @@ the CLI.
 `energy_stats` can generate plots of the data, both from the CLI and from within Python.
 We will make use of this feature during the tutorials to visualize the results.
 
-
-
-
 ### Exercise: Run the full sample calculation using the convenience wrappers.
-
-
-
 
 Use the code block below to run the entire calculation again.
 
 Just as before, at the end, you should get an AFQMC energy of `-19.580880 +/-   0.000697`
 if you did not change any settings.
-
 
 <div class="alert alert-block alert-info">
 <b>Note:</b>
@@ -821,7 +631,6 @@ if you did not change any settings.
     greatly simplifies the process of specifying, and creating directories. We recommend using it
     in these tutorials. See the code block below!
 </div>
-
 
 ```{code-cell} ipython3
 :id: lFXM3f_c-NIz
@@ -866,14 +675,7 @@ _ = analyze_scalar_data(dict(
 
 +++ {"id": "gGT0fdst-NIz"}
 
-
-
 ## Summary
-
-
-
-
-
 
 In this tutorial, you learned
 
@@ -883,8 +685,6 @@ In this tutorial, you learned
 4. how to use the tutorial helper functions to do 2 and 3 from within an interactive Python notebook
 
 Next, you learn more about the input file in ["Understanding the input file"](../02_understanding_the_input_file/02_understanding_the_input_file.html).
-
-
 
 ```{code-cell} ipython3
 :id: A7PZhquUTyVr

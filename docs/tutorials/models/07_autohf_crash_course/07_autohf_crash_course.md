@@ -163,7 +163,6 @@ we will focus on a few key settings which are as follows.
 - `steps`
 - `batch_size`
 
-
 When you run AutoHF, it will echo the settings. See sample output below.
 
 ```log

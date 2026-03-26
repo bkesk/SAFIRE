@@ -13,7 +13,6 @@ kernelspec:
 
 +++ {"id": "bxazkxe2X9Wx"}
 
-
 # Electron Affinity of Pb: spin-orbit coupling (SOC) in ab initio AFQMC
 
 At the end of this example, you will know how to include SOC in ab initio AFQMC calculations.

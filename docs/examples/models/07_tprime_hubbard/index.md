@@ -267,7 +267,6 @@ I'm currently at
 
 Let's double check the paper.
 
-
 ```{code-cell} ipython3
 :id: 4d782d47-030b-4baa-97f7-d5727575dca7
 :outputId: 9141e891-875b-46db-9a23-ed9581f6442e

@@ -76,7 +76,6 @@ In the paper _Stripes and spin-density waves in the doped two-dimensional Hubbar
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/ex02_stripes/fig9.png" width="500 px"/>
 </div>
 
-
 We'll explore how to see this with AFQMC and the role of the trial wave function
 
 +++ {"editable": true, "id": "8dc800f8-72bf-4591-911f-7d99b692c8f4"}
@@ -358,11 +357,9 @@ plt.show()
 
 ## Self Consistency w/ Hartree-Fock
 
-
 The idea behind self-consistent AFQMC is to have the trial wave function match as much as possible the output of AFQMC. [cite me]
 
 For this model, we can do this by introducing an effective Hubbard model, where $U$ is replaced with $U_{eff}$. By solving Hartree-Fock (mean field theory) for this effective model and using the result as a trial wave function, we can scan through different $U_{eff}$ to find the one that matches the best.
-
 
 We'll use AutoHF to explore creating a trial wave function for AFQMC. Let's do a few between $U_{eff}=1$ and $U_{eff}=4$
 
@@ -621,7 +618,6 @@ Let's recreate figure 1 from Xu et al, by changing
 - Lattice size 10 × 4 to 20 × 4
 - Doping 0.2 to 0.1 hole doping
 - $U = 6$ ✓
-
 
 +++ {"id": "edc3a318-40a1-40cb-86bf-b85ae366fc9b"}
 

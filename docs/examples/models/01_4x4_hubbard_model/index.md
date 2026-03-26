@@ -44,8 +44,6 @@ We will end with an excercise where you will be asked to compute the ground stat
 charge density, and spin density of the the Hubbard model on the 4x4 lattice at a different value
 of U than in the walk through.
 
-
-
 ```{code-cell} ipython3
 :id: d3YMrpqs5xcm
 
@@ -729,8 +727,6 @@ however, unlike the default estimator, the BP estimator accepts multiple integr 
 In this case, BP will be run with each of the BP lengths provided and saved in an output HDF5 file separately.
 This simplifies checking for convergence in the BP length by allowing us to re-use the "forward" propagation run for each BP length.
 
-
-
 +++ {"id": "ZjxOUIHUQeuD"}
 
 ### Run AFQMC with Back-propagation
@@ -808,7 +804,6 @@ The AFQMC code inlcudes tools to analyze both.
 We have already analyzed the energy in the `qmc.s000.scalar.dat` file using `analyze_scalar_data()`.
 We will now focus on analyzing observables saved in the HDF5 output file, `qmc.s000.stat.h5`.
 
-
 +++ {"id": "-Y7bGG0xwFOh"}
 
 ## Average Observables
@@ -819,7 +814,6 @@ At the core of the module is the `average_observable()` function which extacts s
 Additionally, it users may provide one or more "transform" functions which are applied to the data samples immediately after reading from HDF5.
 afqmctools provides a few transform function "factories"for generating common transforms.
 We will use the `hermitize_factory()` to hermitize the one-rdm samples since SAFIRE measures only the upper-triangular part of the one-rdm.
-
 
 In the code block below, we will plot the diagonal of the one-rdm for each BP average (i.e. for each BP length) in order to check for convergence in BP length.
 
