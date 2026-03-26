@@ -13,9 +13,7 @@ kernelspec:
 
 +++ {"id": "a9e290f7-823f-4240-8398-1e11040ab402"}
 
-# AFQMC Tutorial - The Role of the trial wave function part 2: Half Filling
-
-The square Hubbard Model at half filling - exact!
+# The square Hubbard Model at half filling
 
 Author: Ryan Levy
 
@@ -31,18 +29,11 @@ os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 # use x64 numbers
 from jax import config
 config.update("jax_enable_x64", True)
-```
-
-```{code-cell} ipython3
-:id: 145bf651-80d5-4d4a-9ccf-1fd986c96711
+import jax
+import jax.numpy as jnp
 
 import matplotlib.pyplot as plt
 import numpy as np
-```
-
-```{code-cell} ipython3
-:id: 7f5f9c06-69d4-4e7c-bcb6-7c197b89e1b3
-:outputId: cd208e76-84ee-4712-a828-0c069ded5d90
 
 # all the imports used later in the tutorial, but put here for convenience
 
@@ -55,28 +46,13 @@ from afqmctools.wavefunction.converter import read_wavefunction
 from afqmctools.wavefunction.model import write_free_electron_wfn, make_free_elec,write_wfn
 from afqmctools.inputs.from_hdf import write_json
 from afqmctools.analysis.rdm import average_afqmc_rdm
-```
-
-```{code-cell} ipython3
-:id: a846cfc0-5995-4a5a-b45f-a99fa8ce100d
 
 from afqmctools.observables.greens import greens_1body
 import afqmctools.observables.spin as spobs
 
 from stats.scalar_dat import analyze_scalar_data
-```
-
-```{code-cell} ipython3
-:id: 36f745f1-9208-4140-9af4-eb1f61d7e5c7
 
 import autohf
-```
-
-```{code-cell} ipython3
-:id: 49a129d2-8dfe-4ee3-9fd4-fbbceac7fbf1
-
-import jax
-import jax.numpy as jnp
 ```
 
 +++ {"editable": true, "id": "f91cf26c-5663-416e-9802-aeb1aa5a77c6"}
@@ -91,7 +67,7 @@ DOI: https://doi.org/10.1103/PhysRevB.94.085103
 
 +++ {"id": "678e6d9b-4d8f-4f74-87ee-2420b8588c57"}
 
-# Lattice and Hamiltonian Setup
+## Lattice and Hamiltonian Setup
 
 ```{code-cell} ipython3
 :id: 132741fa-48b2-46a2-a980-3d58740b78d3
@@ -139,11 +115,9 @@ plt.show()
 The Hamiltonian will be simple,
 
 $$
-\begin{align}
-H = H_t + H_U \\
-H_t = -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
-H_U = U\sum_i n_{i\uparrow}n_{i\downarrow}
-\end{align}
+H &= H_t + H_U \\
+H_t &= -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
+H_U &= U\sum_i n_{i\uparrow}n_{i\downarrow}
 $$
 
 ```{code-cell} ipython3
@@ -183,7 +157,7 @@ T = builderHF.hamiltonian.get_one_body().toarray().reshape(2,lattice.N_sites,lat
 
 +++ {"id": "d96b5df9-c26f-4dcc-87f6-bee7ed16e205"}
 
-# Version 1: GHF trial
+## Version 1: GHF trial
 
 +++ {"id": "1f18437f-875d-486e-8ecc-22c8ec5f5ca8"}
 
@@ -196,7 +170,7 @@ where $M_i= (-1)^i\Delta_i$
 
 +++ {"id": "95189cf3-a880-41d1-aa34-dfd8a9af4713"}
 
-## Aside: custom Hartree-Fock solver
+### Aside: custom Hartree-Fock solver
 
 We'll want to optimize $M$ directly, and to do this we'll use AutoHF's custom ansatz power to build a modification of the `DIAG` ansatz
 
@@ -406,7 +380,7 @@ So we see we've reached a minimunm, and that a constant $M$ is the same as our n
 
 +++ {"id": "5afb0278-218c-4d88-9bea-b1c0f2ce8b15"}
 
-## Constructing the input file
+### Constructing the input file
 
 +++ {"id": "6a2b6690-bb9c-4704-bd6c-91979a34c480"}
 
@@ -514,7 +488,7 @@ plt.show()
 
 +++ {"id": "70543110-d3bc-44ab-a30b-0bff04ba81ea"}
 
-## For further thinking
+### For further thinking
 
 * What if we didn't use the correct signs ($M_i = (-1)^i\Delta_i$) for the HF ansatz? Could we construct an even more constrained wave function?
 * What do the local spin/charge observables of the optimized ansatz look like?
@@ -523,7 +497,7 @@ plt.show()
 
 +++ {"id": "f7eab26a-3624-402e-83de-00ee38daf267"}
 
-# Alternative 1 - multi-slater trial
+## Version 2: multi-Slater trial
 
 +++ {"id": "ec6849d2-44e2-4e02-89c1-826a54fe9719"}
 
@@ -537,7 +511,7 @@ To take advantage of particle hole symmetry at half filling with a spin decompos
 
 +++ {"id": "382b53bd-c986-497e-b362-e72bcd29fc23"}
 
-# Alternative 2 - Charge decomposition
+## Version 3: Charge decomposition
 
 +++ {"id": "27b1d4ad-ffd1-47ff-b31a-ac2bb5a40f37"}
 

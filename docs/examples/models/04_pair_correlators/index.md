@@ -17,7 +17,7 @@ kernelspec:
 ---
 
 <b>Goal:</b>
-At the end of this tutorial, you will know how to measure pair correlation functions using AuxiliaryFields for a lattice models.
+At the end of this tutorial, you will know how to measure pair correlation functions using SAFIRE for a lattice models.
 
 
 ## What you will learn
@@ -38,7 +38,7 @@ At the end of this tutorial, you will know how to measure pair correlation funct
 
 
 
-In this tutorial, we assume that you have already completed all of the basic AuxiliaryFields tutorials, but especially the following tutorials:
+In this tutorial, we assume that you have already completed all of the basic SAFIRE tutorials, but especially the following tutorials:
 
 1. ...
 
@@ -52,7 +52,7 @@ In this tutorial, we assume that you have already completed all of the basic Aux
 +++ {"id": "7FBZ0COY-NIw"}
 
 
-## Introduction.
+## Introduction
 
 ---
 
@@ -203,7 +203,7 @@ They are:
 
 <div class="alert alert-block alert-info">
 <b>Note:</b>
-  AuxiliaryFields will measure all combinations of pairings that you request.
+  SAFIRE will measure all combinations of pairings that you request.
   i.e. it will compute $P^{\alpha \beta}_{ij}$ where both $\alpha$ and $\beta$ run over the full set of pairing definitions.
 </div>
 
@@ -287,9 +287,9 @@ instead of the above.
 
 +++ {"id": "SrM8syoYzUeS"}
 
-## You Turn:
+## You Turn
 ---
-Run AuxiliaryFields on a 4x4 Hubbard model with U=4, and $N_{\uparrow}=N_{⇓} = 7$ using the full sample input file above.
+Run SAFIRE on a 4x4 Hubbard model with U=4, and $N_{\uparrow}=N_{⇓} = 7$ using the full sample input file above.
 
 +++ {"id": "WIxdjnH-zopo"}
 
@@ -349,25 +349,11 @@ plot_lattice(
 
 
 
-# Summary
+## Summary
 
----
-
-
-
-## What you learned
-
----
-
+### What you learned
 
 
 1. How to set up the HDF5 and json input files to request pair correlation functions
 2. how to post process the correlation functions
 
-
-
-```{code-cell} ipython3
-:id: LZC89g6dn4qn
-
-
-```

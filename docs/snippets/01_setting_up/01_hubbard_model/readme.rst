@@ -1,7 +1,7 @@
 .. _setup_ex_1:
 
-01 Rectangular Hubbard Model
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Rectangular Hubbard Model
+^^^^^^^^^^^^^^^^^^^^^^^^^
 This example covers building a Hubbard model Hamiltonian on square Lattice, 
 and generating a free-electron trial wavefunction.
 

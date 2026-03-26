@@ -183,7 +183,7 @@ pwscf.coqui.h5 pwscf.save
 
 +++ {"id": "qELxzaWcjjlh"}
 
-## Writting the 2nd-quantized Hamiltonian and Trial wavefunction
+## Writing the second-quantized Hamiltonian and Trial wavefunction
 ----------------------------------------------------------------
 
 CoQuí is able to directly generate a Hamiltonian HDF5 file for SAFIRE using the data output by QE.
@@ -614,7 +614,7 @@ Here we used Vesta to make the following isosurface plot (using an isosurface va
 
 +++ {"id": "msihLT4tchs0"}
 
-# Removing Systematic Errors
+## Removing Systematic Errors
 ----------------------------
 
 There are several systematic errors, each controlled by a specific parameter, in AFQMC that we will need to remove for high-quality results.
@@ -629,7 +629,7 @@ These errors are formally interdependent; however, good values for each paramter
 
 +++ {"id": "Fm5vwrfIodNf"}
 
-## Converging in the basis set size
+### Converging in the basis set size
 -----------------------------------
 
 Accurately capturing electron correlation effects requires a large basis.

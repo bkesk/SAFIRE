@@ -146,8 +146,9 @@ To use SAFIRE, you will need a quantum chemistry code that can:
 
 1. generate / output Hamiltonian matrix elements, :math:`H^0`, :math:`H^1_{ij}`, and :math:`H^2_{ijjkl}`. SAFIRE comes with a converter from the commmon FCIDUMP format to its internal format via afqmctools.
 2. compute / output wavefunctions to use as trial wavefunctions. This can either be:
-    - a list of CI coefficients, :math:`C_n`, and occupation strings :math:`O_\sigma = [o_0, o_1, ..., o_{N_\sigma}]`
-    - a set of CI coefficients, :math:`C_n`, with corresponding non-orthogonal Slater determinant Slater matrices, :math:`[\Phi^\sigma_n]_{ip}`.
+
+   - a list of CI coefficients, :math:`C_n`, and occupation strings :math:`O_\sigma = [o_0, o_1, ..., o_{N_\sigma}]`
+   - a set of CI coefficients, :math:`C_n`, with corresponding non-orthogonal Slater determinant Slater matrices, :math:`[\Phi^\sigma_n]_{ip}`.
 
 For all of tutorials excpet for Hello SAFIRE we assume that you have access to a quantum
 chemisty code that can do all of this.
@@ -170,17 +171,12 @@ and that you are familiar with using it.
 Each tutorial builds on the previous one.
 We recommend going through them in order.
 
-Online copies of tutorials
-==========================
+.. toctree::
+   :numbered:
+   :glob:
+   :maxdepth: 1
 
-1. :doc:`01_hello_safire/01_hello_safire` | `🧑‍💻 ready for edits 🧑‍💻`
-2. :doc:`02_understanding_the_input_file/02_understanding_the_input_file` | `🧑‍💻 ready for edits 🧑‍💻`
-3. :doc:`03_writing_a_hamiltonian/03_writing_a_hamiltonian` | `🧑‍💻 ready for edits 🧑‍💻`
-4. :doc:`04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction` | `🧑‍💻 ready for edits 🧑‍💻`
-5. :doc:`05_computing_observables/05_computing_observables` | `🧑‍💻 ready for edits 🧑‍💻`
+   */*
 
-Worked Examples
-===============
-
-.. include:: ../../examples/molecules/index.rst
-
+.. seealso::
+   Worked examples for :ref:`examples_molecules`

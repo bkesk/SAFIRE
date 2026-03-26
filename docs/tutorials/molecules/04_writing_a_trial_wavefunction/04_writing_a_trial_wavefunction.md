@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "P8_OXxiRE_dA"}
 
 # Writing a Trial Wavefunction
----
 
 
 <b>Goal:</b>
@@ -26,8 +25,7 @@ Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 form
 ## What you will learn
 ---
 
-1. 
- How to write a single Slater determinant trial wavefunction given the Slater Matrix 
+1.  How to write a single Slater determinant trial wavefunction given the Slater Matrix
 2.  How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices </font>
 3.  How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings </font>
 
@@ -54,7 +52,7 @@ scratch_dir = get_scratch_dir("04_mols_writing_a_trial", home)
 
 
 
-## Introduction.
+## Introduction
 ---
 
 
@@ -114,7 +112,7 @@ the Slater determinants are specified in terms of a set of orbitals, and a list
 of $C_n$ and corresponding occupancy vectors. 
 
 2. <b> non-orthogonal multi-slater Determinant (NOMSD) trial wavefunction </b>
-where ***strictly*** $\langle \Phi_n |\Phi_m\rangle \neq 0 \forall n,m$.
+where **strictly** $\langle \Phi_n |\Phi_m\rangle \neq 0 \forall n,m$.
 In this case, the Slater determinants are specified as a list
 of $C_n$ and corresponding Slater matrices. 
 
@@ -427,7 +425,7 @@ the CI coefficients in `/Wavefunction/PHMSD/ci_coeffs`.
 
 +++ {"id": "FoovlUVcFqxX"}
 
-# Summary
+## Summary
 ---
 
 
@@ -438,7 +436,7 @@ In this tutorial, you became acquainted with how to write a Trial wavefunction t
 
 
 
-## What you learned
+### What you learned
 ---
 
 

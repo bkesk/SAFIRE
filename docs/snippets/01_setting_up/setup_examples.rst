@@ -15,6 +15,7 @@ cases illustrated in other snippets.
 .. toctree::
   :maxdepth: 3
   :caption: Lattice Model Setup Snippets:
+  :numbered:
 
   01_hubbard_model/readme
   02_three_band_hubbard/readme
