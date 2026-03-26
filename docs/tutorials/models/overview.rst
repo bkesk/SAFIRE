@@ -137,15 +137,4 @@ We recommend going through them in order.
 Worked Examples
 ===============
 
-We provide the following worked examples in which we
-go through the entire workflow. We use autoHF to perform
-HF calculations, and afqmctools to generate Hamiltonians and write trial wavefunctions.
-
-1. `4x4 Hubbard Model with open shell <examples/models/01_4x4_hubbard_model/index.html>`_
-2. `Stripe Ordering <examples/models/02_stripes/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
-3. `Hubbard at half-filling <examples/models/03_half_filling_hubbard/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `pair correlation functions <examples/models/04_pair_correlators/index.html>`_ `🛠️ Under construction 🛠️`
-5. `Multi-Slater determinant trial wavefunctio/index.htmln <n>`_ `🧑‍💻 ready for edits 🧑‍💻`
-6. `Hubbard on a Honeycomb lattice <examples/models/06_honeycomb_hubbard/index.html>`_  `🛠️ Under construction 🛠️`
-7. `Hubbard with t-prime <examples/models/07_tprime_hubbard/index.html>`_ `🛠️ Under construction 🛠️`
-8. `Emery Model <examples/models/08_lieb_lattice_emery/index.html>`_ `🛠️ Under construction 🛠️`
+.. include:: ../../examples/models/index.rst
