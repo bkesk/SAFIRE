@@ -15,7 +15,6 @@ kernelspec:
 
 # N₂ molecule: bond stretching and multi-Slater trial wavefunctions
 
----
 
 <b>Goal:</b>
 This example demonstrates how to compute the potential energy curve (PEC) of a diatomic molecule
@@ -26,7 +25,6 @@ using an appropriate trial wavefuncton.
 
 ## What you will learn
 
----
 
 1. How to select the number of Slater determinants to include in the trial wavefunction, balancing computational cost and accuracy
 2. How to automate the computation of a potential energy curve using afqmctools within Python
@@ -62,7 +60,6 @@ scratch_dir = get_scratch_dir("n2_pec",home / ".scratch")
 +++ {"id": "6ZBVQf-6E6lv"}
 
 ## The Nitrogen dimer
----
 
 
 
@@ -103,7 +100,6 @@ Next, we will reproduce the PEC of the Nitrogen dimer using AFQMC / CASSCF(12o,6
 
 ### References:
 
----
 
 [1] W. A. Al-Saidi, S. Zhang, H. Krakauer. "Bond breaking with auxiliary-field quantum Monte Carlo." *J. Chem. Phys.* **127**, 144101 (2007).  
 
@@ -114,7 +110,6 @@ Next, we will reproduce the PEC of the Nitrogen dimer using AFQMC / CASSCF(12o,6
 +++ {"id": "ESezCWGWE6lv"}
 
 ## Converging AFQMC in the quality of the trial wavefunction
----
 
 
 
@@ -177,7 +172,6 @@ This allows us to reuse the same wavefunction file while controlling the trial w
 
 ### Getting an orthonormal basis and a trial wavefunction
 
----
 
 We will now setup an AFQMC calculation. As you should now be familiar with from previous tutorials, we will need to choose an orthonormal orbital basis to work within.
 Since we will be using CASSCF trial wavefunctions, it is convenient to use the set of optimized CASSCF orbitals,
@@ -238,7 +232,6 @@ write_cas_wfn(
 +++ {"id": "iIgGy3gjiv0l"}
 
 ### Checkpoint
----
 
 At this point, you should have a CASSCF trial wavefunction saved in an AuxliaryFields HDF5 file (we used "afqmc.h5" as our filename, but you are free to use whatever name you would like).
 
@@ -248,7 +241,6 @@ In PySCF, these are simply saved within the Checkpoint (*.chk) file.
 +++ {"id": "90fQdnFHHAWP"}
 
 ## Save the Hamiltonian
----
 
 We have already chosen the set of CASSCF orbitals as a trial wavefunction.
 We will now build the Hamiltonian in the basis of CASSCF orbitals, and save it to an SAFIRE HDF5 Hamiltonian file.
@@ -287,14 +279,12 @@ write_hamil_mol(
 
 ### Checkpoint
 
-----
 
 In addition to the trial wavefunction HDF5 file from before, you should also now have a Hamiltonian HDF5 file. We saved both the trial wavefunction and the Hamiltonian into a file called "afqmc.h5", but you can use whatever file name(s) you would like. Simply update the code blocks based on your filenames.
 
 +++ {"id": "hDAoo29kE6lv"}
 
 ### Run SAFIRE
---------------
 
 
 
@@ -421,7 +411,6 @@ for ndet in ndets:
 +++ {"id": "1Fvs5Vbm1Ko0"}
 
 ### Plot $E_{AFQMC}$ vs $N_{det}$
----------------------------------
 
 ```{code-cell} ipython3
 ---
@@ -444,7 +433,6 @@ plt.show()
 +++ {"id": "WNfHDpRIE6lw"}
 
 ### Result
----
 
 From the plot of energy vs $N_{det}$, we have converged the AFQMC energy to within our target stochastic uncertainty of less than 1.6 $mE_{Ha}$ at about $N_{det} = 500$.
 Since we performed this test at a point on the PEC where there are strong static correlation effects, we expect this
@@ -456,7 +444,6 @@ Now, we can automate the calculation of the PEC using this value for $N_{det}$.
 +++ {"id": "c4MDXZD3E6lw"}
 
 ## Automating the computation of the PEC using Python / afqmctools
----
 
 
 Now that we have converged $E_{AFQMC}$ in $N_{det}$, we are ready to compute the PEC.
@@ -586,7 +573,6 @@ def run_afqmc_on_dimer(delta,ndets_to_read=None,scratch_root_dir=home / ".scratc
 +++ {"id": "cF6ZNhWBfkHE"}
 
 ### Compute the PEC
--------------------
 
 Now we can use the `run_afqmc_on_dimer()` function to compute the PEC of the $N_2$ molcule.
 
@@ -612,7 +598,6 @@ for delta in bondlengths:
 
 ### Plot the PEC
 
----
 
 Now, we are ready to plot the PEC to see our results.
 
@@ -639,13 +624,11 @@ Compare this with the PEC generated using the data from the original paper.
 
 ## Summary
 
----
 
 You have computed the potential energy curve (PEC) of the $N_2$ molecule, which is a standard benchmarking system in quantum chemistry.
 
 
 ### What you learned
----
 
 
 

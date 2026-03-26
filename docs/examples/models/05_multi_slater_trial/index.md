@@ -26,7 +26,6 @@ scratch_dir = get_scratch_dir("multi_slater_trial_lattice",scratch_rootdir)
 +++ {"id": "0WrZ0hFmBbdm"}
 
 # Multi-Slater determinant trial wavefunction
----
 
 In this example, we will compute the AFQMC energy of the Hubbard model with U=8 on a 6x6x square lattice with open boundary conditions
 at half-filling.
@@ -155,7 +154,6 @@ results = lattice_hf(hamiltonian=autohf_hamiltonian,settings=settings)
 +++ {"id": "BQRI3y5nygEF"}
 
 ## Construct and Save the trial wavefunction
----
 
 
 A trial wavefunction can be written to AuxiliaryField's HDF5 format using the `write_wfn()` function from the `afqmctools.wavefunction.common` submodule of afqmctools.

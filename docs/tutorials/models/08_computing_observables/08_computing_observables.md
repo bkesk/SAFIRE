@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "82e12143-bd3a-4c82-9a51-bcf96abd6950"}
 
 # Computing general observables
----
 
 <b>Goal:</b>
 Become acquainted with how to compute general observables with SAFIRE.
@@ -23,7 +22,6 @@ Become acquainted with how to compute general observables with SAFIRE.
 
 
 ## What you will learn
----
 
 
 
@@ -36,7 +34,6 @@ Become acquainted with how to compute general observables with SAFIRE.
 
 
 ## Introduction
----
 
 
 SAFIRE uses "estimators" to compute observables.
@@ -55,7 +52,6 @@ Other estimators allow you to specify one or more additional observables to comp
 
 
 ## Formal Background
----
 
 Although we have not seen this explicitly, we have, so far, computed the ground state energy with AFQMC using a so-called
 mixed estimator of the form
@@ -96,7 +92,6 @@ i.e. the propagator is applied to different Slater determinants when moving in t
 
 
 ## ▶️ Run the cell below to setup the tutorial
---------------------------------------------
 
 ```{code-cell} ipython3
 :id: 616ca764-f070-434a-8146-e1511f273342
@@ -117,7 +112,6 @@ scratch_dir = get_scratch_dir("08_observables_lattice", home)
 
 
 ## Setup the Test System
----
 
 In this tutorial, we will use afqmctools to generate a Hamiltonian and AutoHF to generate a trial wavefunction.
 We will again use the Hubbard model with $U/t = 4$ on a 4x4 lattice with periodic boundary conditions and $n_\uparrow = n_\downarrow = 5$ to perform concerete calculations on.
@@ -252,7 +246,6 @@ write_wfn(filename=scratch_dir/"uhf_wfn_noise.h5",
 
 
 ## The "Energy" Estimator
----
 
 By default, SAFIRE will include an "energy estimator" in the calculation.
 This is formally a mixed estimator where $\hat{O} = \hat{H}$.
@@ -279,7 +272,6 @@ with the one that we have defined.
 
 
 ### Most Common Settings
----
 
 <style>
 td, th {
@@ -297,7 +289,6 @@ td, th {
 
 ### Less Common Settings
 
----
 
 <style>
 td, th {
@@ -349,7 +340,6 @@ write_json(
 +++ {"id": "Yr39jGz1DCyk"}
 
 ### **Your Turn:** Run SAFIRE with an explicit energy estimator block
----------------------------------------------------------------------
 
 Now you can run AFQMC, and you should see the following column headers in the `*scalar.dat` file.
 
@@ -391,7 +381,6 @@ outputId: 7512ec28-72d3-47be-d34a-4bc9fe34bb8a
 
 
 ## Extracting and Analyzing the AFQMC energy.
----
 
 We learned about basic energy analysis using the CLI and the `analyze_scalar_data()` Python function in the [Hello SAFIRE](../01_hello_safire/01_hello_safire.html) tutorial.
 We can use the same tools here to get the average AFQMC energy and the stochastic uncertainty.
@@ -452,7 +441,6 @@ plt.show()
 
 
 ## Computing Observables using a "Mixed" Estimator
----
 
 SAFIRE also includes a mixed estimator that periodically evaluates,
 
@@ -484,7 +472,6 @@ $$
 This requires signficantly less compute time and memory usage than the full 2-rdm and should be preferred whenever possible!
 
 ### Specifying Observables to Measure
----------------------------------------
 
 You can specify which observables you want to compute by
 adding a corresponding observable block to an estimator
@@ -507,7 +494,6 @@ As we will see later, this is exactly how observables are specified for the BP e
 See the [User Manual](https://users.flatironinstitute.org/~beskridge/safire/user_manual/observables.html#observables) for a complete list of currently implemented observables.
 
 ### Pedagogical Demonstration
------------------------------
 
 Below, we will use a mixed estimator to compute the 1-rdm, and the diagonal 2-rdm.
 We can then directly compute each contribution to the AFQMC energy,
@@ -588,7 +574,6 @@ run_afqmc(
 +++ {"id": "fgJ_Pp2EA7oA"}
 
 ### Data Extraction and Analysis
----
 
 afqmctools provides several tools for extracting data - i.e. retrieving data from the SAFIRE output files - and analyzing data - ariving at a final average with stochastic uncertainty.
 
@@ -684,7 +669,6 @@ This is no surprise since the energy estimator is simply a specialized mixed est
 
 
 ### Your Turn : Extract the 2rdm and compute the 2-body energy
----
 
 Repeat the same excercise for the two-body energy.
 As we saw in the energy estimator section, the exchange and direct coulomb energies are printed to file separately by the energy estimator.
@@ -760,7 +744,6 @@ Once again, we see that the two body energy computed from the two-body reduced d
 +++ {"id": "9bKC3Q6G5Mx9"}
 
 ## Averaging Observables
----
 
 Averaging observables computed using AFQMC requires some care.
 
@@ -826,12 +809,10 @@ _ = analyze_scalar_data(dict(
 +++ {"id": "6a1baf12-288e-4f8f-afaf-6f9d83e899d4"}
 
 ## Back-Propagation (BP) in SAFIRE
----
 
 Mixed estimators are biased for observables $\hat{O}$ such that $[\hat{O},\hat{H}] \neq 0$, which requires the use of pure estimators. The Back-Propagation (BP) algorithm is used to compute pure estimators efficiently in SAFIRE.
 
 ### Basic BP Configuration
----
 
 BP is invoked in SAFIRE by including a "back_propagation" estimator in the input file:
 
@@ -853,7 +834,6 @@ BP is invoked in SAFIRE by including a "back_propagation" estimator in the input
 Observables are added to the BP block in the same way as for mixed estimators.
 
 ### Measurement Intervals
----
 
 Since BP involves an additional projection, the measurement interval controls the number of back-propagated steps.
 Just as in the execute block or a mixed estimator block, the input file includes a measurement interval "multiplier", and the actual measurement interval, $m$, is determined as:
@@ -861,7 +841,6 @@ Just as in the execute block or a mixed estimator block, the input file includes
 $$m = (\text{measure\_interval\_multiplier}) \times (\text{population\_control\_interval})$$
 
 ### Multiple BP Lengths
----
 
 SAFIRE implements the capability of running BP with multiple BP measurement lengths.
 We call each measurement with a different BP length an "average".
@@ -884,7 +863,6 @@ To define multiple BP lengths/averages, simply provide a JSON array for measure_
 ```
 
 ### Equilibration Phase
----
 
 The BP estimator implements an equilibration phase at the beginning of the AFQMC calculation where no BP is performed.
 This is recommended since computing observables is expensive and since AFQMC needs to equilibrate before samples can meaningfully contribute to the average.
@@ -894,7 +872,6 @@ $$\text{equil\_time} = (\text{equil\_multiplier}) \times (\text{population\_cont
 
 
 ### All Settings
-----------------
 
 <style>
 td, th {
@@ -912,7 +889,6 @@ td, th {
 
 
 ### Demonstraiton of BP
------------------------
 
 For the sake of execution time, we will compute only the one-rdm using the back-propagation estimator.
 We will find that the one-body energy computed using the BP one-rdm will *not* agree with the one computed using a mixed estimator.
@@ -1137,7 +1113,6 @@ print(f"\nDifference between longest BP and mixed estimator: {abs(means[-1] - mi
 +++ {"id": "d0f6abfa"}
 
 ### Key Takeaways from Back-Propagation Analysis
----
 
 **When to Use BP vs Mixed Estimators:**
 
@@ -1160,7 +1135,6 @@ print(f"\nDifference between longest BP and mixed estimator: {abs(means[-1] - mi
 
 
 ## Summary
----
 
 
 In this tutorial, you were acquainted with how to compute general observables with SAFIRE.
@@ -1169,7 +1143,6 @@ In this tutorial, you were acquainted with how to compute general observables wi
 
 
 ## What you learned
----
 
 
 

@@ -14,7 +14,6 @@ kernelspec:
 +++ {"id": "NudwCmJzZWxz"}
 
 # Writing a Hamiltonian file and a Trial Wavefunction using CoQuí
------------------------------------------------------------------
 
 <b>Goal:</b>
 Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
@@ -23,7 +22,6 @@ Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
 
 ## What you will learn
----
 
 1.  How to write a Hamiltonian to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation </font>
 2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation </font>
@@ -31,7 +29,6 @@ Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
 
 ## External Software
---------------------
 
 
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
@@ -50,7 +47,6 @@ In addition to SAFIRE and afqmctools, we will be using the following software pa
 
 
 ## Tutorial Files
------------------
 
 We provide sample input files for each step of this tutorial
 within the directory of this tutorial.
@@ -73,7 +69,6 @@ $ tree -a
 
 ## Introduction
 
----
 
 
 In previous tutorials, we learned how to run SAFIRE, and how
@@ -122,7 +117,6 @@ Si in the primitive cell.
 +++ {"id": "TGWpFn73aPAi"}
 
 ## Setup
---------
 
 First, we need an orthonormal basis to express the second quantized Hamiltonian in.
 We will run Quantum Espresso (QE) to generate a set of Kohn-Sham orbitals to use as a basis.
@@ -145,7 +139,6 @@ We will perform the following calculations with QE:
 
 
 ### Step 1 : self-consitent DFT
--------------------------------
 
 To generate the Hamiltonian for SAFIRE, we need
 to set `force_symmorphic=.true.` in the `&system` input card.
@@ -175,7 +168,6 @@ highest occupied, lowest unoccupied level (ev):     6.2533    6.8167
 ```
 
 ### Step 2 : One-shot DFT
--------------------------
 
 The goal here is generate the orbitals we need to generate the second
 quantized Hamiltonian for AFQMC.
@@ -226,7 +218,6 @@ You should see something like the following,
 +++ {"id": "_uliHCdtig7m"}
 
 ### Step 3: QE post-processing utilites
----------------------------------------
 
 CoQuí reads some of the details of the psuedopotential from QE.
 We need to dump the relevant data to a file using the pw2coqui.x QE post-processing utility.
@@ -268,7 +259,6 @@ pwscf.coqui.h5 pwscf.save
 +++ {"jp-MarkdownHeadingCollapsed": true, "id": "H2qrKFX29jMg"}
 
 ### Your Turn
--------------
 
 If you have not already, run Quantum Espresso with the sample inputs provided in the `files/qe` directory
 within this tutorial's directory before moving on.
@@ -276,7 +266,6 @@ within this tutorial's directory before moving on.
 +++ {"id": "qELxzaWcjjlh"}
 
 ## Writing the second-quantized Hamiltonian and Trial wavefunction
-----------------------------------------------------------------
 
 CoQuí is able to directly generate a Hamiltonian HDF5 file for SAFIRE using the data output by QE.
 Additionally, it can write a trial wavefunction based on the DFT solution from QE.
@@ -286,7 +275,6 @@ In general, it is recommended to to use a single CoQuí input file.
 
 
 ### Writing the Hamiltonian
-----------------------------
 
 CoQuí is controlled via a TOML-based input file.
 **A sample CoQuí input file demonstrating how to generate a Hamiltonian is provided**.
@@ -451,7 +439,6 @@ directly read in SAFIRE to get the Hamiltonian.
 +++ {"id": "233lFNEV9jMg"}
 
 ### More Information
---------------------
 
 For larger supercells, it is highly recommended that you use the [tensor hypercontraction (THC) form of the interaciton](https://users.flatironinstitute.org/~beskridge/safire/user_manual/hamiltonians.html#tensor-hyper-contraction-thc) instead.
 **CoQuí can also generate these integrals** by using an input block such as the following.
@@ -474,7 +461,6 @@ storage         = "incore"
 +++ {"id": "t0fL-8B49jMg"}
 
 ## Writing the Trial Wavefunction
----------------------------------
 
 Finally, we can save a single Salter determinant wavefunction to HDF5 using a "wavefunction" block.
 The Slater determinant is constructed by occupying the Kohn-Sham orbitals with the largest occuancy.
@@ -563,7 +549,6 @@ output = 'wfn.h5'
 +++ {"id": "-QQPlGsMnzeJ"}
 
 ## Your Turn : Run SAFIRE
--------------------------
 
 You now have all the ingredients for an AFQMC calculation.
 Next, we'll run SAFIRE using the Hamiltonian and trial wavefunction that we wrote using CoQuí.
@@ -588,7 +573,6 @@ Your steps:
 
 
 ## Summary
----
 
 
 
