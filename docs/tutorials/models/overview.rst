@@ -51,15 +51,15 @@ to ensure that consistent index conventions are used.
 
 ``afqmctools`` provides a framework for building lattice model Hamiltonians that can generate broad classes of lattice model Hamiltonians
 on a variety of lattices, using consistent conventions for indexing.
-The framework consists of a Lattice class which is responsible for geometry (see the `lattice tutorial <https://colab.research.google.com/drive/1fefjMiXED0shSl4RJKv3Zu93l9FOw5sj>`_),
-a Hamiltonian builder which is responsible for generating specific Hamiltonian terms on demand given a specific Lattice instance (See the `Hamiltonian Builder <https://colab.research.google.com/drive/1iUBLuxhuvfbNOYgT-K63_HrL-pzVq25g>`_),
-and a Hamiltonian "Director" which is responsible for choosing which build steps to perfrom based on
+The framework consists of a Lattice class which is responsible for geometry (see the `lattice tutorial <03_setting_up_a_lattice/03_setting_up_a_lattice_executed.html>`_),
+a Hamiltonian builder which is responsible for generating specific Hamiltonian terms on demand given a specific Lattice instance,
+and a Hamiltonian *Director* which is responsible for choosing which build steps to perfrom based on
 a set of input Hamiltonian parameters.
 Each component of the framework can be used directly; however
 the Director class represents the highest-level interface of the lattice Hamiltonian framework and
 can manage the underlying Lattice instance and Builder instance.
 Users who want direct control over the Hamiltonian build steps can directly
-use the Hamiltonian "Builder". See the `Hamiltonian Builder <https://colab.research.google.com/drive/1iUBLuxhuvfbNOYgT-K63_HrL-pzVq25g>`_ for
+use the Hamiltonian *Builder*. See the `Hamiltonian Builder <05_hamiltonian_builder/05_hamiltonian_builder.html>`_ for
 more detail.
 It is recommended to use the Director whenever possible.
 
@@ -135,14 +135,14 @@ We recommend going through them in order.
    06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.ipynb
    07_computing_observables/07_computing_observables_executed.ipynb
 
-1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1zfdEh-c1mClzhXGOVdzANNzyhG1gBMBG>`__ 🧑‍💻
-2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`__ 🧑‍💻
-3. `Setting up a Lattice <03_setting_up_a_lattice/03_setting_up_a_lattice_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1fefjMiXED0shSl4RJKv3Zu93l9FOw5sj>`__ 🧑‍💻
-4. `Building and writing a Hamiltonian <04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1LMxAtaSkE1-zIKAlEBu66MFarzgHZ-8i>`__ 🧑‍💻
-5. *(optional) Finer control of the Hamiltonian* | `Colab <https://colab.research.google.com/drive/1iUBLuxhuvfbNOYgT-K63_HrL-pzVq25g>`__ 🛠️
-6. `Writing a Trial wavefunction <06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1OxejnAc2_3a5OsCFligaHTwOkZJduMea>`__ 🧑‍💻
-7. *autoHF crash course* | `Colab <https://colab.research.google.com/drive/1M9j2Hud7omJPCIkd9mdeL53K62KiMntu#scrollTo=d3YMrpqs5xcm>`__ 🛠️
-8. `Computing Observables <07_computing_observables/07_computing_observables_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1XlSH9RKjSpcd_CmNWgFT6MQmAVqMXCM8>`__ 🧑‍💻
+1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | 🧑‍💻
+2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | 🧑‍💻
+3. `Setting up a Lattice <03_setting_up_a_lattice/03_setting_up_a_lattice_executed.html>`__ | 🧑‍💻
+4. `Building and writing a Hamiltonian <04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.html>`__ | 🧑‍💻
+5. `(optional) Finer control of the Hamiltonian <05_hamiltonian_builder/05_hamiltonian_builder.html>`_ |🛠️
+6. `Writing a Trial wavefunction <06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.html>`__ | 🧑‍💻
+7. `AutoHF crash course <07_autohf_crash_course/07_autohf_crash_course.html>`_ | 🛠️
+8. `Computing Observables <08_computing_observables/08_computing_observables_executed.html>`__ | 🧑‍💻
 
 Worked Examples
 ===============
@@ -151,11 +151,11 @@ We provide the following worked examples in which we
 go through the entire workflow. We use autoHF to perform
 HF calculations, and afqmctools to generate Hamiltonians and write trial wavefunctions.
 
-1. `4x4 Hubbard Model with open shell <https://colab.research.google.com/drive/1s9bdH7XgEj4qP982ZZTOGSsQkeMgAJdX>`_
-2. `Stripe Ordering <https://colab.research.google.com/drive/1HrfXBp0SkiGzYWvKKJvKBQwdL-psWV-n>`_ `🧑‍💻 ready for edits 🧑‍💻`
-3. `Hubbard at half-filling <https://colab.research.google.com/drive/1MjA5PnZC5V1qRjINxXdqbs1majV_FTWf>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `pair correlation functions <https://colab.research.google.com/drive/1rI5zbAB6tMAFJWRGOp1zxIpDAZIh9LTW>`_ `🛠️ Under construction 🛠️`
-5. `Multi-Slater determinant trial wavefunction <https://colab.research.google.com/drive/1yTDk1u8Ww-c1t6kUKhBkEAKUIsnmGm3e>`_ `🧑‍💻 ready for edits 🧑‍💻`
-6. `Hubbard on a Honeycomb lattice <https://colab.research.google.com/drive/1g9_84kc92vAyDfKHTjDiuWHXeJsp12vZ>`_  `🛠️ Under construction 🛠️`
-7. `Hubbard with t-prime <https://colab.research.google.com/drive/1eR1RNS-BiMToOswQ4OyJWeijcpW21a4J>`_ `🛠️ Under construction 🛠️`
-8. `Emery Model <https://colab.research.google.com/drive/1-zKd4kHd6Pu8WrDFbQzv3MqeyC4tiiQz>`_ `🛠️ Under construction 🛠️`
+1. `4x4 Hubbard Model with open shell <examples/models/01_4x4_hubbard_model/index.html>`_
+2. `Stripe Ordering <examples/models/02_stripes/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+3. `Hubbard at half-filling <examples/models/03_half_filling_hubbard/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+4. `pair correlation functions <examples/models/04_pair_correlators/index.html>`_ `🛠️ Under construction 🛠️`
+5. `Multi-Slater determinant trial wavefunctio/index.htmln <n>`_ `🧑‍💻 ready for edits 🧑‍💻`
+6. `Hubbard on a Honeycomb lattice <examples/models/06_honeycomb_hubbard/index.html>`_  `🛠️ Under construction 🛠️`
+7. `Hubbard with t-prime <examples/models/07_tprime_hubbard/index.html>`_ `🛠️ Under construction 🛠️`
+8. `Emery Model <examples/models/08_lieb_lattice_emery/index.html>`_ `🛠️ Under construction 🛠️`

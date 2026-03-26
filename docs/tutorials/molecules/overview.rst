@@ -10,17 +10,17 @@ SAFIRE for Quantum Chemistry
 .. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/molecule.png
    :width: 500
 
+This document is the entry point for learning how to use SAFIRE for quantum chemistry calculations. We will first go over the basics of setting up a calculation before branching out to more specific applications at the end.
 
-Some preliminaries
-==================
+Preliminaries
+=============
 
 Typical quantum chemistry calculations are performed in a basis
 of contracted Gaussian-type orbitals (cGTOs), :math:`g_\mu(\vec{r})`;
-however, AFQMC is formulated in the language of 2nd quantization
+however, AFQMC is formulated in the language of second quantization
 and requires an orthonormal basis.
 Some common choices of orthonormal basis are the set of canonical Hartree-Fock orbitals,
-or orthogonalized atomic orbitals.
-Any set of orthonormal orbitals can be used.
+or orthogonalized atomic orbitals, but in principle any set of orthonormal orbitals can be used.
 An orbital from the orthonormal orbital basis, :math:`\phi_i(\vec{r})`,
 is represented in the basis of cGTOs as,
 
@@ -43,17 +43,17 @@ All standard forms of quantum chemistry Hamiltonians can be written in this form
 The Hamiltonian
 ---------------
 
-In these tutorials, we will be using the standard Born-openheimer Hamiltonian, unless otherwise stated, which is given in first quantization
+In these tutorials, we will be using the standard Born-Oppenheimer Hamiltonian, unless otherwise stated, which is given in first quantization
 by
 
 .. math::
 
-   H_{Born-Oppenheimer} = \sum_p^{N_e}\left(  -\frac{1}{2} \nabla^2_p + \sum_A^{N_{atom}} \frac{Z_A}{ | \vec{R}_A - \vec{r}_p | }  \right) + \frac{1}{2} \sum^{N_e}_{q \neq p} \left(\frac{1}{r_{pq}}\right) + \frac{1}{2}\sum_{A' \neq A}^{N_A} \frac{Z_{A} Z_{A'}}{| R_A - R_{A'} |},
+   H_\mathrm{Born-Oppenheimer} = \sum_p^{N_e}\left(  -\frac{1}{2} \nabla^2_p + \sum_A^{N_\mathrm{atom}} \frac{Z_A}{ | \vec{R}_A - \vec{r}_p | }  \right) + \frac{1}{2} \sum^{N_e}_{q \neq p} \left(\frac{1}{r_{pq}}\right) + \frac{1}{2}\sum_{A' \neq A}^{N_A} \frac{Z_{A} Z_{A'}}{| R_A - R_{A'} |},
 
 where,
 :math:`N_e` is the number of electrons,
 :math:`\vec{r}_p` is the position of electron :math:`p`,
-:math:`N_{atom}` is the number of atomic nuclei,
+:math:`N_\mathrm{atom}` is the number of atomic nuclei,
 and :math:`Z_A` and :math:`\vec{R}_A` are the atomic number and position, respectively, of atomic nuclei, :math:`A`.
 This Hamiltonian can be expressed in the language of second quantization by making the idenfications,
 
@@ -65,7 +65,7 @@ is the constant nuclear repulsion energy,
 
 .. math::
 
-   H^1_{ij} = \int d\vec{r}_p  \phi^*_i (\vec{r}_p) \left(  -\frac{1}{2} \nabla^2_p + \sum_A^{N_{atom}} \frac{Z_A}{ | \vec{R}_A - \vec{r}_p | }  \right) \phi_j (\vec{r}_p),
+   H^1_{ij} = \int d\vec{r}_p  \phi^*_i (\vec{r}_p) \left(  -\frac{1}{2} \nabla^2_p + \sum_A^{N_\mathrm{atom}} \frac{Z_A}{ | \vec{R}_A - \vec{r}_p | }  \right) \phi_j (\vec{r}_p),
 
 contains the "one-body" kinetic term and electron-nuclei interactions,
 and
@@ -88,7 +88,7 @@ combination of Slater determinants,
 
 where :math:`|\Phi_m\rangle` are Slater determinants,
 and :math:`C_n` is a coefficient.
-This can either by a configuration interaction-type expansion,
+This can either be a configuration interaction-type expansion
 or a linear combination of nonorthogonal Slater determiants.
 
 In the former case, it is convenient to specify Slater determinants in terms of occupation vectors as,
@@ -121,7 +121,7 @@ Typical Workflow
 .. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00a_molecules_intro/QChemWorkflow_v3.png
    :width: 900
 
-SAFIRE reads :math:`\hat{H}` in generic 2nd-quantized form from an HDF5 file.
+SAFIRE reads :math:`\hat{H}` in generic second-quantized form from an HDF5 file.
 This allows SAFIRE to use any Hamiltonian that can be expressed in this form.
 The `afqmctools` CLI tools / Python package can write a Hamiltonian to the SAFIRE format
 given arrays containing the matrix elements,
@@ -182,11 +182,11 @@ We recommend going through them in order.
 Online copies of tutorials
 ==========================
 
-1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1112A9uavLLuzUYKMss8n-FSDyAn7uXvV>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`_ `🧑‍💻 ready for edits 🧑‍💻`
-3. `Writing a Hamiltonian <03_writing_a_hamiltonian/03_writing_a_hamiltonian_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1qQmWtMg5aoWdLeG33jaqS0saIWJ94MTL>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `Writing a trial wavefunction <04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction_executed.html>`__ | `Open in Colab <https://colab.research.google.com/drive/11C6SWJVSMy_BrXhGGpdIIG_DYpI6I7ig>`_ `🧑‍💻 ready for edits 🧑‍💻`
-5. `Computing Observables <05_computing_observables/05_computing_observables.html>`__ | `Open in Colab <https://colab.research.google.com/drive/1fQvrANCxxetELZnCFOWfxB6JsQBIe3jp>`_ `🧑‍💻 ready for edits 🧑‍💻`
+1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
+2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
+3. `Writing a Hamiltonian <03_writing_a_hamiltonian/03_writing_a_hamiltonian_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
+4. `Writing a trial wavefunction <04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
+5. `Computing Observables <05_computing_observables/05_computing_observables.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
 
 Worked Examples
 ===============

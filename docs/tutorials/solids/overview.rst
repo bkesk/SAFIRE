@@ -181,10 +181,10 @@ and that you are familiar with its basic use.
 Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
-1. `Hello SAFIRE <https://colab.research.google.com/drive/1idMenY_xhqim7QSoG5z9ryzZThoxi-cl>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Understanding the input file <https://colab.research.google.com/drive/1rWeqD-DVQNMN8ILqelEZ56OURmCYpozp>`_ `🧑‍💻 ready for edits 🧑‍💻` (note: this is the same as for molecules, lattice models)
-3. `Writing a Hamiltonian file and a Trial Wavefunction using CoQuí <https://colab.research.google.com/drive/1PTEkhUqMEDvvuJ7taCURlXSX7KcoLy0w>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `Computing Observables <https://colab.research.google.com/drive/1WcqjGNOHFhQ5F3vYSEfmYQ-Om10_B6Sv>`_ `🧑‍💻 ready for edits 🧑‍💻`
+1. `Hello SAFIRE <01_hello_afqmc_solids/01_hello_afqmc_solids.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+3. `Writing a Hamiltonian file and a Trial Wavefunction using CoQuí <03_Si_writing_H_and_wfn_coqui/03_Si_writing_H_and_wfn_coqui.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+4. `Computing Observables <04_computing_obserables/04_computing_observables.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
 
 
 Worked Examples
@@ -194,10 +194,10 @@ We provide the following worked examples in which we
 go through the entire workflow. We use Quantum Espresso to perform
 DFT calculations, and Coquí to generate a Hamiltonian and write trial wavefunctions.
 
-1. `Charge density in Si - CoQuí interface <https://colab.research.google.com/drive/1V2qDFA5PJkM2xeliDLsKuTrWR1FpqTal>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Carbon diamond PySCF interface <https://colab.research.google.com/drive/172tZtwLFCHI-bW6eIVXuLRgnJqPun8z6>`_ `🛠️ Under construction 🛠️` 
-3. `Solid Na momentum distribution <https://colab.research.google.com/drive/1qNBPcToh58UJPeg9Qx6YxcIS6RPL5a2o>`_ `🛠️ Under construction 🛠️ :  Paul is working on this`
-4. `Bulk modulous of MnO <https://colab.research.google.com/drive/1oJRRBTptrW_66NRWs7CdQix68Qgz9WuX>`_ `🛠️ Under construction 🛠️` 
-5. `Band gap of LiH <https://colab.research.google.com/drive/17x0SnUEhi-yEuyk_gMFbIGNr_SWGUi9g>`_ `🛠️ Under construction 🛠️` 
-6. `Magnetization of ? <https://colab.research.google.com/drive/1In-gtDJ6Ud3MwHJEJdQS-c66Y6F7wpud>`_ `🛠️ Under construction 🛠️` 
+1. `Charge density in Si - CoQuí interface <examples/solids/01_Si_density_coqui_interface/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+2. `Carbon diamond PySCF interface <examples/solids/02_C_diamond_pyscf_interface/index.html>`_ `🛠️ Under construction 🛠️` 
+3. `Solid Na momentum distribution <examples/solids/03_Na_momentum_distribution/index.html>`_ `🛠️ Under construction 🛠️ :  Paul is working on this`
+4. `Bulk modulous of MnO <examples/solids/04_NaCl_bulk_modulus/index.html>`_ `🛠️ Under construction 🛠️` 
+5. `Band gap of LiH <examples/solids/05_LiH_band_gap/index.html>`_ `🛠️ Under construction 🛠️` 
+6. `Magnetization of ? <examples/solids/06_magnetization/index.html>`_ `🛠️ Under construction 🛠️` 
 
