@@ -146,8 +146,9 @@ To use SAFIRE, you will need a quantum chemistry code that can:
 
 1. generate / output Hamiltonian matrix elements, :math:`H^0`, :math:`H^1_{ij}`, and :math:`H^2_{ijjkl}`. SAFIRE comes with a converter from the commmon FCIDUMP format to its internal format via afqmctools.
 2. compute / output wavefunctions to use as trial wavefunctions. This can either be:
-    - a list of CI coefficients, :math:`C_n`, and occupation strings :math:`O_\sigma = [o_0, o_1, ..., o_{N_\sigma}]`
-    - a set of CI coefficients, :math:`C_n`, with corresponding non-orthogonal Slater determinant Slater matrices, :math:`[\Phi^\sigma_n]_{ip}`.
+
+   - a list of CI coefficients, :math:`C_n`, and occupation strings :math:`O_\sigma = [o_0, o_1, ..., o_{N_\sigma}]`
+   - a set of CI coefficients, :math:`C_n`, with corresponding non-orthogonal Slater determinant Slater matrices, :math:`[\Phi^\sigma_n]_{ip}`.
 
 For all of tutorials excpet for Hello SAFIRE we assume that you have access to a quantum
 chemisty code that can do all of this.
@@ -171,25 +172,11 @@ Each tutorial builds on the previous one.
 We recommend going through them in order.
 
 .. toctree::
-   :hidden:
+   :numbered:
+   :glob:
+   :maxdepth: 1
 
-   01_hello_safire/01_hello_safire_executed.ipynb
-   02_understanding_the_input_file/02_understanding_the_input_file_executed.ipynb
-   03_writing_a_hamiltonian/03_writing_a_hamiltonian_executed.ipynb
-   04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction_executed.ipynb
-   05_computing_observables/05_computing_observables.ipynb
+   */*
 
-Online copies of tutorials
-==========================
-
-1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-3. `Writing a Hamiltonian <03_writing_a_hamiltonian/03_writing_a_hamiltonian_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-4. `Writing a trial wavefunction <04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction_executed.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-5. `Computing Observables <05_computing_observables/05_computing_observables.html>`__ | `🧑‍💻 ready for edits 🧑‍💻`
-
-Worked Examples
-===============
-
-.. include:: ../../examples/molecules/index.rst
-
+.. seealso::
+   Worked examples for :ref:`examples_molecules`

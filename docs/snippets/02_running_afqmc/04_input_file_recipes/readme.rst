@@ -1,7 +1,7 @@
 .. _run_afqmc_ex_4:
 
-04 Input File Recipes
-^^^^^^^^^^^^^^^^^^^^^
+Input File Recipes
+^^^^^^^^^^^^^^^^^^
 
 This example shows a few recipes for input files to run SAFIRE.
 

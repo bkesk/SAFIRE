@@ -40,7 +40,7 @@ and,
         +\hat{c}^\dagger_{\nu\uparrow}\hat{c}^\dagger_{\nu\downarrow}\hat{c}_{\mu\downarrow}\hat{c}_{\mu\uparrow}
         ).
 
-:math:`\mu` / :math:`\nu` are compound indices, :math:`\mu = (i,p,m)` / :math:`\mu = (j,q,n)`, that include the lattice site index, (:math:`i` / :math:`j`), sublattice, (:math:`p` / :math:`q`) and band (:math:`m` / :math:`n`) indices.
+:math:`\mu`, :math:`\nu` are compound indices, :math:`\mu = (i,p,m)`, :math:`\nu = (j,q,n)`, that include the lattice site index, (:math:`i`, :math:`j`), sublattice, (:math:`p`, :math:`q`) and band (:math:`m`, :math:`n`) indices.
 This is known as the Hubbard-Kanamori Hamiltonian.
 Many standard model Hamiltonians can be written in this language including the standard Hubbard model,
 extended Hubbard with nearest-neighbor :math:`V`, etc.
@@ -126,36 +126,12 @@ Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
 .. toctree::
-   :hidden:
+   :numbered:
+   :glob:
+   :maxdepth: 1
+   :titlesonly:
 
-   01_hello_safire/01_hello_safire_executed.ipynb
-   02_understanding_the_input_file/02_understanding_the_input_file_executed.ipynb
-   03_setting_up_a_lattice/03_setting_up_a_lattice_executed.ipynb
-   04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.ipynb
-   06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.ipynb
-   07_computing_observables/07_computing_observables_executed.ipynb
+   */*
 
-1. `Hello SAFIRE <01_hello_safire/01_hello_safire_executed.html>`__ | 🧑‍💻
-2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`__ | 🧑‍💻
-3. `Setting up a Lattice <03_setting_up_a_lattice/03_setting_up_a_lattice_executed.html>`__ | 🧑‍💻
-4. `Building and writing a Hamiltonian <04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian_executed.html>`__ | 🧑‍💻
-5. `(optional) Finer control of the Hamiltonian <05_hamiltonian_builder/05_hamiltonian_builder.html>`_ |🛠️
-6. `Writing a Trial wavefunction <06_writing_a_trial_wavefunction/06_writing_a_trial_wavefunction_executed.html>`__ | 🧑‍💻
-7. `AutoHF crash course <07_autohf_crash_course/07_autohf_crash_course.html>`_ | 🛠️
-8. `Computing Observables <08_computing_observables/08_computing_observables_executed.html>`__ | 🧑‍💻
-
-Worked Examples
-===============
-
-We provide the following worked examples in which we
-go through the entire workflow. We use autoHF to perform
-HF calculations, and afqmctools to generate Hamiltonians and write trial wavefunctions.
-
-1. `4x4 Hubbard Model with open shell <examples/models/01_4x4_hubbard_model/index.html>`_
-2. `Stripe Ordering <examples/models/02_stripes/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
-3. `Hubbard at half-filling <examples/models/03_half_filling_hubbard/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `pair correlation functions <examples/models/04_pair_correlators/index.html>`_ `🛠️ Under construction 🛠️`
-5. `Multi-Slater determinant trial wavefunctio/index.htmln <n>`_ `🧑‍💻 ready for edits 🧑‍💻`
-6. `Hubbard on a Honeycomb lattice <examples/models/06_honeycomb_hubbard/index.html>`_  `🛠️ Under construction 🛠️`
-7. `Hubbard with t-prime <examples/models/07_tprime_hubbard/index.html>`_ `🛠️ Under construction 🛠️`
-8. `Emery Model <examples/models/08_lieb_lattice_emery/index.html>`_ `🛠️ Under construction 🛠️`
+.. seealso::
+   Worked examples for :ref:`examples_models`

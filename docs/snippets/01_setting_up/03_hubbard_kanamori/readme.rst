@@ -1,7 +1,7 @@
 .. _setup_ex_3:
 
-03 Hubbard-Kanamori Model
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Hubbard-Kanamori Model
+^^^^^^^^^^^^^^^^^^^^^^
 This example covers building a two-band Hubbard-Kanamori model Hamiltonian on a square Lattice, 
 and generating a free-electron trial wavefunction.
 The lattice is 1-d with periodic boundary conditions only

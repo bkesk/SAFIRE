@@ -1,7 +1,7 @@
 .. _analysis_ex_1:
 
-01 Analyzing Scalar Data
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Analyzing Scalar Data
+^^^^^^^^^^^^^^^^^^^^^
 This example covers analyzing the scalar stochastic data output by SAFIRE.
 
 This example assumes that you have already run an AFQMC calculation using

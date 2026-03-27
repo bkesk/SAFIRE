@@ -1,7 +1,7 @@
 .. _setup_ex_8:
 
-08 Triangular Hubbard Model
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Triangular Hubbard Model
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers building a Hubbard model Hamiltonian on a triangular lattice, 
 and generating a free-electron trial wavefunction.

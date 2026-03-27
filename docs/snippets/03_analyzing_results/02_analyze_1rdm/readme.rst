@@ -1,7 +1,7 @@
 .. _analysis_ex_2:
 
-02 Analyzing One-Body Reduced Densitry Matrix Data
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Analyzing One-Body Reduced Densitry Matrix Data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers analyzing the one-rdm stochastic data output by SAFIRE
 when back-propagation or mixed estimators are used.

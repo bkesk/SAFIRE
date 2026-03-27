@@ -1,7 +1,7 @@
 .. _setup_ex_7:
 
-07 Hubbard-Stratonovich Transformation Type Overrride
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Hubbard-Stratonovich Transformation Type Overrride
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 WARNING: This functionality is for experts only. Use at your own risk.
 

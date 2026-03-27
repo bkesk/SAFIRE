@@ -1,7 +1,7 @@
 .. _setup_ex_12:
 
-12 Adding Rashba SOC to the Hamiltonian
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Adding Rashba SOC to the Hamiltonian
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers adding Rashba SOC to the Hamiltonian.
 Currently, this is only supported when working directly with the Hamiltonian Builder

@@ -71,10 +71,10 @@ afqmctools.utils.pyscf\_utils module
 afqmctools.utils.qe\_driver module
 ----------------------------------
 
-.. automodule:: afqmctools.utils.qe_driver
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: afqmctools.utils.qe_driver
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
 
 afqmctools.utils.qe\_tools module
 ---------------------------------

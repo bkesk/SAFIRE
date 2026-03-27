@@ -181,23 +181,12 @@ and that you are familiar with its basic use.
 Each "basic" tutorial builds on the previous one.
 We recommend going through them in order.
 
-1. `Hello SAFIRE <01_hello_afqmc_solids/01_hello_afqmc_solids.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Understanding the input file <02_understanding_the_input_file/02_understanding_the_input_file_executed.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
-3. `Writing a Hamiltonian file and a Trial Wavefunction using CoQuí <03_Si_writing_H_and_wfn_coqui/03_Si_writing_H_and_wfn_coqui.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
-4. `Computing Observables <04_computing_obserables/04_computing_observables.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
+.. toctree::
+   :numbered:
+   :glob:
+   :maxdepth: 1
 
+   */*
 
-Worked Examples
-===============
-
-We provide the following worked examples in which we
-go through the entire workflow. We use Quantum Espresso to perform
-DFT calculations, and Coquí to generate a Hamiltonian and write trial wavefunctions.
-
-1. `Charge density in Si - CoQuí interface <examples/solids/01_Si_density_coqui_interface/index.html>`_ `🧑‍💻 ready for edits 🧑‍💻`
-2. `Carbon diamond PySCF interface <examples/solids/02_C_diamond_pyscf_interface/index.html>`_ `🛠️ Under construction 🛠️` 
-3. `Solid Na momentum distribution <examples/solids/03_Na_momentum_distribution/index.html>`_ `🛠️ Under construction 🛠️ :  Paul is working on this`
-4. `Bulk modulous of MnO <examples/solids/04_NaCl_bulk_modulus/index.html>`_ `🛠️ Under construction 🛠️` 
-5. `Band gap of LiH <examples/solids/05_LiH_band_gap/index.html>`_ `🛠️ Under construction 🛠️` 
-6. `Magnetization of ? <examples/solids/06_magnetization/index.html>`_ `🛠️ Under construction 🛠️` 
-
+.. seealso::
+   Worked examples for :ref:`examples_solids`

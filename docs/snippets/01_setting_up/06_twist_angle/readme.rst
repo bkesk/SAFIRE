@@ -1,7 +1,7 @@
 .. _setup_ex_6:
 
-06 Adding twist angles
-^^^^^^^^^^^^^^^^^^^^^^
+Adding twist angles
+^^^^^^^^^^^^^^^^^^^
 
 This example covers building a Hubbard model Hamiltonian on square Lattice with 
 twist angles applied and generating a free-electron trial wavefunction.

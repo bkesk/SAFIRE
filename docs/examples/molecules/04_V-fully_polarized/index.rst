@@ -1,7 +1,7 @@
 .. _example_molecule_v_fully_polarized:
 
 Vanadium Atom (Fully Polarized)
-================================
+===============================
 
 This example demonstrates a fully polarized AFQMC calculation on an isolated vanadium atom
 which has a ground state with :math:`S=3/2` (quartet state).
