@@ -113,17 +113,8 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   // KE: Some special walker_types must match the wavefunction type;
   //     if an explicit walker type is provided to this test, use it!
   if (walker_type != UNDEFINED_WALKER_TYPE) {
-    auto toStr = [](WALKER_TYPES wt) -> std::string {
-      if (wt == CLOSED)          return "closed";
-      if (wt == COLLINEAR)       return "collinear";
-      if (wt == NONCOLLINEAR)    return "noncollinear";
-      if (wt == FULLYPOLARIZED)  return "fullypolarized";   // like Collinear but with ndown=0
-      if (wt == COLLINEAR_FT)    return "collinear-ft";     // finite temperature collinear
-      if (wt == NONCOLLINEAR_FT) return "noncollinear-ft";  // finite temperature noncollinear
-      return "collinear";
-    };
-    wlk_full.put("walker_type", toStr(walker_type));
-    wlk_min.put("walker_type", toStr(walker_type));
+    wlk_full.put("walker_type", walkerTypeToString(walker_type));
+    wlk_min.put("walker_type", walkerTypeToString(walker_type));
   }
 
   WSetFac.push("wlk0", wlk_full);
