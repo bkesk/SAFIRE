@@ -119,6 +119,7 @@ int main(int argc, char** argv)
 
   // setup output loggers
   sfqmc::arch::init(root,output_level,debug_level);
+  sfqmc::set_test_mode(false);
 
   std::string welcome(
     std::string("") + 

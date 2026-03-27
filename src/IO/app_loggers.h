@@ -35,6 +35,7 @@ void setup_loggers(bool root=true, int output_level=2, int debug_level=0);
 void set_output_level(bool root, int output_level);
 void set_debug_level(bool root, int debug_level);
 void set_stacktrace(bool stk);
+void set_test_mode(bool t);
 
 template<class... Args>
 void app_log(int level, const std::string_view string_format, Args&&... args)

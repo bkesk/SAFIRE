@@ -32,6 +32,7 @@
 #include "nda/nda.hpp"
 #include "utilities/mpi_context.h"
 #include "AFQMC/config.h"
+#include "IO/app_loggers.h"
 
 namespace sfqmc {
 namespace utils {
@@ -53,7 +54,7 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
 {
   std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> > files;
   auto pre = unit_test_base() + "molecules/";
-  if(nomsd) { 
+  if(nomsd) {
     if(rhf) {
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_closed.h5", 
                                           pre + "BH/afqmc_inputs/afqmc_rhf_nomsd.h5",
@@ -69,7 +70,7 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
       files.emplace_back( std::make_tuple(pre + "Li/afqmc_inputs/hamil_closed.h5",
                                           pre + "Li/afqmc_inputs/rohf_nomsd_fullypolarized.h5",
                                           afqmc::FULLYPOLARIZED) );
-    }    
+    }
     if(ghf) {
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_noncollinear.h5",
                                           pre + "BH/afqmc_inputs/afqmc_ghf_nomsd.h5",
@@ -144,7 +145,6 @@ inline std::shared_ptr<mpi_context_t<mpi3::communicator>>& make_unit_test_mpi_co
   if(not detail::__unit_test_mpi_context__) {
     detail::__unit_test_mpi_context__ =
          std::make_shared<mpi_context_t<boost::mpi3::communicator>>(make_mpi_context());
-
   }
   return detail::__unit_test_mpi_context__;
 }
