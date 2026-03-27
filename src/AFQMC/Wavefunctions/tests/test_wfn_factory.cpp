@@ -120,7 +120,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   //nwalk=nw;
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
   auto initial_guess = WfnFac.getInitialGuess("wfn0");
-  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+  CHECK(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
 
   wset.resize(nwalk, initial_guess);
 

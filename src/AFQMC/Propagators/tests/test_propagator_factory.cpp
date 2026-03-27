@@ -113,7 +113,7 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 
   auto initial_guess = WfnFac.getInitialGuess("wfn0");
-  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+  CHECK(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
   wset.resize(nwalk, initial_guess);
 
   ptree prop_pt;
@@ -189,11 +189,27 @@ TEST_CASE("propg_fac", "[propagator_factory]")
     app_log(0,"Propagator factory unit testing. Running standard tests.");
     auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
     for( auto f : files ) {
-      propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
-      propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      try {
+        propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in propg_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
+      }
+      try {
+        propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in propg_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
+      }
 #if defined(ENABLE_DEVICE)
-      propg_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
-      propg_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      try {
+        propg_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in propg_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
+      }
+      try {
+        propg_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in propg_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
+      }
 #endif
     }
   }

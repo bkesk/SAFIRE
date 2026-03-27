@@ -140,18 +140,18 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     // wfn only - this is invalid unless wfn file and hamil file are the same
     if (hamil_file == wfn_file) {
       app_log(0,"[driver_fac] TEST: wfn only (inline); walker_type={}", int(walker_type));
-      REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+      CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
     }
     
     // wfn and ham
     exec.put_child("hamiltonian",ham_min);
     app_log(0,"[driver_fac] TEST: wfn+ham (inline); walker_type={}", int(walker_type));
-    REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
     // wfn, ham, prop
     exec.put_child("propagator",prop_min);
     app_log(0,"[driver_fac] TEST: wfn+ham+prop (inline); walker_type={}", int(walker_type));
-    REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   }
 
   // wfn, ham, prop, wlk
@@ -161,7 +161,7 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put_child("propagator",prop_min);
   exec.put_child("walker_set",wlk_min);
   app_log(0,"[driver_fac] TEST: wfn+ham+prop+wlk (all inline); walker_type={}", int(walker_type));
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
   if (default_walker) {
     // external wfn 
@@ -169,18 +169,18 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     exec.put("wavefunction","wfn0");
     if (hamil_file == wfn_file) {
       app_log(0,"[driver_fac] TEST: wfn only (external); walker_type={}", int(walker_type));
-      REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+      CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
     }
 
     // wfn and ham
     exec.put("hamiltonian","ham0");
     app_log(0,"[driver_fac] TEST: wfn+ham (external); walker_type={}", int(walker_type));
-    REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
     // wfn, ham, prop
     exec.put("propagator","prop0");
     app_log(0,"[driver_fac] TEST: wfn+ham+prop (external); walker_type={}", int(walker_type));
-    REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   }
 
   // wfn, ham, prop, wlk (all external)
@@ -190,7 +190,7 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put("propagator","prop0");
   exec.put("walker_set","wlk0");
   app_log(0,"[driver_fac] TEST: wfn+ham+prop+wlk (all external); walker_type={}", int(walker_type));
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
   // mixed external internal
   exec.clear();
@@ -198,7 +198,7 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put("walker_set","wlk0");
   if (hamil_file == wfn_file) {
     app_log(0,"[driver_fac] TEST: wfn(inline)+wlk(external); walker_type={}", int(walker_type));
-    REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   }
 
   if (default_walker) {
@@ -206,7 +206,7 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     exec.put_child("wavefunction",wfn_min);
     exec.put("hamiltonian","ham0");
     app_log(0,"[driver_fac] TEST: wfn(inline)+ham(external); walker_type={}", int(walker_type));
-    REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
   }
 
   exec.clear();
@@ -214,14 +214,14 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put_child("hamiltonian",ham_min);
   exec.put("walker_set","wlk0");
   app_log(0,"[driver_fac] TEST: wfn(external)+ham(inline)+wlk(external); walker_type={}", int(walker_type));
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
+  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
 
   exec.clear();
   exec.put("wavefunction","wfn0");
   exec.put_child("hamiltonian",ham_min);
   exec.put_child("walker_set",wlk_min);
   app_log(0,"[driver_fac] TEST: wfn(external)+ham(inline)+wlk(inline); walker_type={}", int(walker_type));
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
  
   // many more possibilities (combinatorial...) Add any problematic ones if needed
 }
@@ -241,10 +241,18 @@ TEST_CASE("driver_fac", "[driver_factory]")
    } else {
     app_log(0,"Driver factory unit testing. Running standard tests.");
     auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
-    for( auto f : files ) { 
-      driver_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
+    for( auto f : files ) {
+      try {
+        driver_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in driver_fac<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+      }
 #if defined(ENABLE_DEVICE)
-      driver_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
+      try {
+        driver_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in driver_fac<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+      }
 #endif
     }
   }
