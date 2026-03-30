@@ -48,7 +48,7 @@ public:
         int NMO_,
         int nup_,
         int ndown_,
-        memory::shared_array<HOST_MEMORY,RealType,3>&& hij_,
+        memory::shared_array<HOST_MEMORY,ComplexType,3>&& hij_,
         memory::shared_array<MEM,ComplexType,3>&& haj_,
         memory::shared_array<MEM,RealType,4>&& vik,
         nda::array<memory::shared_array<MEM,ComplexType,5>,1>&& vnak_,
@@ -798,7 +798,7 @@ private:
   long max_memory_MB = 2000;
 
   // bare one body hamiltonian
-  memory::shared_array<HOST_MEMORY,RealType,3> hij;
+  memory::shared_array<HOST_MEMORY,ComplexType,3> hij;
 
   // (potentially half rotated) one body hamiltonian
   memory::shared_array<MEM,ComplexType,3> haj;

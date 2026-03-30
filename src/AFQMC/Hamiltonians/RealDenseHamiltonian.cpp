@@ -103,10 +103,18 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
           npol_in_H1 = l.lengths[0]/NMO;
         }
       } else if(l.rank() == 3) {
-        nspin_in_H1=l.lengths[0];
-        utils::check(l.lengths[1] == l.lengths[2], base_error + "Size mismatch");
-        utils::check(l.lengths[1]==NMO or l.lengths[1]==2*NMO, base_error + "Size mismatch");
-        npol_in_H1 = l.lengths[1]/NMO;
+        if (l.lengths[0]==2*NMO and l.lengths[1]==2*NMO)
+        {
+          nspin_in_H1=1;
+          npol_in_H1=2;
+          // checking l.lengths[0] == l.lengths[1] is unnecessary, see condition above
+          utils::check(l.lengths[2]==2, base_error + "Incorrect tailing dimension of hcore in h5 file. Expected 2, got {}",l.lengths[2]);
+        } else {
+          nspin_in_H1=l.lengths[0];
+          utils::check(l.lengths[1] == l.lengths[2], base_error + "Size mismatch");
+          utils::check(l.lengths[1]==NMO or l.lengths[1]==2*NMO, base_error + "Size mismatch");
+          npol_in_H1 = l.lengths[1]/NMO;
+        }
       } else {
         utils::check(false, base_error + "Invalid hcore rank:{}",l.rank());
       }
@@ -148,7 +156,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   int ncv = Idata[7];
   
   // allocate shared arrays
-  auto H1 = memory::make_shared_array<HOST_MEMORY,RealType,3>(mpi,
+  auto H1 = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
                       {nspin_in_H1,npol_in_H1*NMO,npol_in_H1*NMO});
   auto Likn = memory::make_shared_array<MEM,RealType,4>(mpi,
                       {nspin_in_H2*npol_in_H2,NMO,NMO,ncv});
@@ -162,8 +170,14 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         auto h_ = nda::reshape(H1(),std::array<long,2>{nspin_in_H1*npol_in_H1*NMO,npol_in_H1*NMO});
         nda::h5_read(g,"hcore",h_);
       } else if(l.rank() == 3) {
-        auto h_ = H1();
-        nda::h5_read(g,"hcore",h_);
+        if (l.lengths[2] == 2) // complex hcore
+        {
+          auto h_ = nda::reshape(H1(),std::array<long,2>{nspin_in_H1*npol_in_H1*NMO,npol_in_H1*NMO});
+          nda::h5_read(g,"hcore",h_);
+        } else {
+          auto h_ = H1();
+          nda::h5_read(g,"hcore",h_);
+        }
       }
     }
     {
