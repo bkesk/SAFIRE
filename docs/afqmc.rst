@@ -31,8 +31,8 @@ in its most general form, is given by
     + \sum\limits_{ijkl\sigma\sigma'\sigma'\sigma} v_{ijkl}^{\sigma\sigma'\sigma'\sigma} \hat{c}^\dagger_{i\sigma}
       \hat{c}^\dagger_{j\sigma'}\hat{c}_{k\sigma'}\hat{c}_{l\sigma}
 
-and :math:`\hat{c}^\dagger_{i\sigma}`/ :math:`\hat{c}_{i\sigma}` are fermionic creation/anihilation operators which
-create/anihilate a particle in orbital :math:`i` with spin :math:`\sigma`,
+and :math:`\hat{c}^\dagger_{i\sigma}`/ :math:`\hat{c}_{i\sigma}` are fermionic creation/annihilation operators which
+create/annihilate a particle in orbital :math:`i` with spin :math:`\sigma`,
 :math:`H_0` contains all constant contributions to the Hamiltonian,  
 :math:`\hat{H}_1` contains all one-body Hamiltonian terms (for example, the kinetic energy in *ab initio*
 calculations, or the hoping matrix in lattice models ), and :math:`\hat{H}_2` contains all two-body interactions
@@ -44,7 +44,7 @@ In specific calculations, the general form of the Hamiltonian simplifies conside
 The different forms of Hamiltonian implement in SAFIRE are described in 
 the :ref:`The Hamiltonian file formats <Hamiltonian-classes>` section.
 
-Imaginary-time projeciton
+Imaginary-time projection
 -------------------------
 
 Thoulesses' theorem :cite:`Thouless` states that the operation of the exponential of a one-body operator on a Slater 

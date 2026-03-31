@@ -24,7 +24,7 @@ $$
 \hat{H} = -t \sum_{\langle i,j\rangle} \hat{c}^\dagger_i \hat{c}_j + U \sum_{i} \hat{n}^{\uparrow}_i \hat{n}^{\downarrow}_i,
 $$
 where $i,j$ are lattice site indices, angle brackets indicate nearest-neighbors,
-$\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/anihilation operators,
+$\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/annihilation operators,
 and $\hat{n}^{\sigma}_i$ are spin-resolved number operators corresponding to site $i$.
 The 4x4 lattice is small enough to make exact diagonaliztion possible.
 We will use exact results for this system as reference data throughout

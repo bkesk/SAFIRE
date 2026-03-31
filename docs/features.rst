@@ -72,7 +72,7 @@ Supported Wavefunction Types
 
 **NOMSD (Non-Orthogonal Multi-Slater Determinant)**
    Single and multi-determinant trial wavefunctions represented 
-   in terms of explicit Salter matrices.
+   in terms of explicit Slater matrices.
    Compatible with all Hamiltonian types and acceleration modes.
 **PHMSD (Particle-Hole Multi-Slater Determinant)**
    Single and (typically) multi-determinant trial wavefunctions built from 
@@ -93,7 +93,7 @@ Supported Walker Types
    Uses separate :math:`\alpha` and :math:`\beta` Slater determinants per walker.
 **NONCOLLINEAR (GHF/Noncollinear)**
    For systems with noncollinear spin arrangements.
-   Uses a single Slater matrix reprented in an explicit spin-orbital basis.
+   Uses a single Slater matrix represented in an explicit spin-orbital basis.
    Essential for systems with spin-orbit coupling or frustrated magnetism.
 **FULLYPOLARIZED**
    For fully spin-polarized systems - i.e. for :math:`N^\downarrow = 0`.
@@ -174,7 +174,7 @@ We indicate in parentheses whether the combination supports CPU, GPU, or is in t
 **THC Hamiltonian**
     **NOMSD Wavefunction**
         * CLOSED walkers (CPU, GPU) ‼️ DEV TODO : turn on test for GPU ‼️
-        * COLLINEAR walkers (CPUm GPU) ‼️ DEV TODO : turn on test GPU ‼️
+        * COLLINEAR walkers (CPU, GPU) ‼️ DEV TODO : turn on test GPU ‼️
 
 Not Currently Supported
 ^^^^^^^^^^^^^^^^^^^^^^^
