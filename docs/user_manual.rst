@@ -135,7 +135,7 @@ See the :ref:`Walker classes <Walker-classes>` reference for more details.
 Observables
 -----------
 
-In AFQMC, physical observables are computed only the fly using a Monte Carlo representation of the many-body wavefunction.
+In AFQMC, physical observables are computed on the fly using a Monte Carlo representation of the many-body wavefunction.
 Both mixed estimators of the form, 
 
 .. math::
@@ -154,7 +154,7 @@ and pure estimators using the Back-Propagation (BP) algorithm of the form,
   \langle \hat{O} \rangle_{BP} = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle},
 
 
-where :math:`| \tilde{\Phi}_{m,k} \rangle` are the back-propgated walkers given by,
+where :math:`| \tilde{\Phi}_{m,k} \rangle` are the back-propagated walkers, given by
 
 .. math::
 

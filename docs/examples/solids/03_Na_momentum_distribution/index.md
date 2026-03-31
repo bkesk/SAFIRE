@@ -160,7 +160,7 @@ pwscf.save  pwscf.xml  VKB  VLTOT  VSC
 
 +++ {"id": "qELxzaWcjjlh"}
 
-## Writting the 2nd-quantized Hamiltonian and Trial wavefunction
+## Writing the 2nd-quantized Hamiltonian and Trial wavefunction
 
 CoQuí is able to directly generate a Hamiltonian HDF5 file for SAFIRE using the data output by QE.
 Additionally, it can write a trial wavefunction based on the DFT solution from QE.

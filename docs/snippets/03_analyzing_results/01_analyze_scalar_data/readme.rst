@@ -25,7 +25,7 @@ We assume this name for the remainder of the example.
 
 The scalar data file is organized as a series of columns, corresponding to scalar data, 
 and rows, corresponding to samples to taken at each measurement.
-There are many columns inlcuded in the scalar datafile.
+There are many columns included in the scalar datafile.
 A typical user will usually be most interested in the following columns.
 
 * "time" gives the total projection time, in units of inverse energy, at which the current sample was taken.

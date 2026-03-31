@@ -123,7 +123,7 @@ Settings
         - **Description**
     * - print_sign
       - false
-      - if ture, print detailed information about the phase and constraint in the scalar.dat output file.
+      - if true, print detailed information about the phase and constraint in the scalar.dat output file.
     * - truncate
       - false
       - 

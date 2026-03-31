@@ -220,7 +220,7 @@ Complex integrals should be written as an array with an additional dimension, e.
 
    See the following from the :ref:`solids_overview` tutorials.
 
-   * (under construction) `Writting a Hamiltonian with CoQuí <#>`_
+   * (under construction) `Writing a Hamiltonian with CoQuí <#>`_
 
 
 
@@ -247,7 +247,7 @@ The HK Hamiltonian has the general form,
 
 where :math:`i`,\ :math:`j` are combined lattice and band indices,
 :math:`\hat{c}^\dagger_{i\sigma}`, :math:`\hat{c}_{j\sigma'}`
-create/anihilate and electron on the site (and band) corresponding to
+create/annihilate and electron on the site (and band) corresponding to
 :math:`i`/:math:`j` with spin :math:`\sigma`/:math:`\sigma'`,
 :math:`\hat{n}_{i\sigma}` is the number operator,
 :math:`t^{\sigma \sigma'}_{ij}` includes all one-body terms
@@ -387,9 +387,9 @@ The following Conventions apply to the CSR matrix representations of each model 
    one-body terms if desired; for example, a pinning field.
 
    the CSR matrix may have dimension :math:`M x M`, or :math:`2M x M`. If the dimension
-   is :math:`2M x M`, then the upper half of the array is intepreted as :math:`U_{ii}+U1_{ij}`
+   is :math:`2M x M`, then the upper half of the array is interpreted as :math:`U_{ii}+U1_{ij}`
    with :math:`i,j` running over all basis set functions, and the lower half 
-   is intepreted as :math:`U2_{ij}`with :math:`i,j` running over all basis set functions.
+   is interpreted as :math:`U2_{ij}`with :math:`i,j` running over all basis set functions.
    If :math:`U2_{ij}` is desired without :math:`U_{ii}` or :math:`U1_{ij}`, the matrix must
    still have dimension :math:`2M x M`, but the upper half should have no non-zero elements.
    If dimension is :math:`M x M`, then the CSR matrix is interpretd as :math:`U_{ii}+U1_{ij}`.
@@ -398,7 +398,7 @@ The following Conventions apply to the CSR matrix representations of each model 
    the :math:`J_{ij}` from the Hubbard-Kanamori term.
 
 The other groups and datasets represent the Hamiltonian "components" (i.e. the terms which
-are inlcuded in the specific Hamiltonian given to AFQMC).
+are included in the specific Hamiltonian given to AFQMC).
 
 
 .. seealso::
@@ -487,7 +487,7 @@ The THC representation provides substantial memory and computational savings com
 
    See the following from the :ref:`solids_overview` tutorials.
 
-   * (under construction) `Writting a Hamiltonian with CoQuí <#>`_
+   * (under construction) `Writing a Hamiltonian with CoQuí <#>`_
 
 Final Notes on Hamiltonians
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
