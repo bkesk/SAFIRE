@@ -698,7 +698,7 @@ In this tutorial we have learned,
 
 ---
 
-Next, we will take a more detailed look at the input file in [Understanding the input file](../02_understanding_the_input_file/02_understanding_the_input_file.html).
+Next, we will take a more detailed look at the input file in {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.
 
 ```{code-cell} ipython3
 :id: hOyKTzP5tm1N

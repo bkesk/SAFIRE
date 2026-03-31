@@ -137,7 +137,7 @@ For technical details on the wavefunction HDF5 format, see [the User Guide](http
 </div>
 
 **We will learn about the input file in more detail in the next tutorial,
-["Understanding the input file"](../02_input_file/input_file.html).**
+{doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.**
 For now, we provide just the details you need to understand this tutorial.
 
 The json input file is used to set AFQMC run parameters,
@@ -266,7 +266,7 @@ when requested.
 
 Similarly to the [id].s[series].scalar.dat file, this file is not meant to be directly read by a user.
 Instead, afqmctools provides tools to extract data from this file for you.
-You will learn more about this in the [Estimators and post-processing tutorial](../04_using_estimators/04_using_estimators.html).
+You will learn more about this in {doc}`../08_computing_observables/08_computing_observables`.
 
 +++ {"id": "Yhdjs78S-NIx"}
 
@@ -496,7 +496,7 @@ On the other hand, the equilibration length should not be so large that it disca
 equilbrated samples.
 
 We will learn how to post-process AFQMC results from SAFIRE
-in more detail in the ["Post processing"](../03_post_processing/post_processing.html) Tutorial.
+in more detail in {doc}`../08_computing_observables/08_computing_observables`.
 
 ### Exercise: Try Running energy_stats
 
@@ -519,7 +519,7 @@ are discarded.
 
 ## Post Exercise
 
-If you play around with the equilbration length, you will see that, for very small equilibration length,
+If you play around with the equilibration length, you will see that, for very small equilibration length,
 the predicted energy will be incorrect.
 This is due to the inclusion of un-equilibrated samples in the average.
 On the other hand, the average energy should be stable if you use too large of a value for the equilibration length.
@@ -684,7 +684,7 @@ In this tutorial, you learned
 3. how to extract the AFQMC energy from the outputs of SAFIRE using afqmctools
 4. how to use the tutorial helper functions to do 2 and 3 from within an interactive Python notebook
 
-Next, you learn more about the input file in ["Understanding the input file"](../02_understanding_the_input_file/02_understanding_the_input_file.html).
+Next, you learn more about the input file in {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.
 
 ```{code-cell} ipython3
 :id: A7PZhquUTyVr
