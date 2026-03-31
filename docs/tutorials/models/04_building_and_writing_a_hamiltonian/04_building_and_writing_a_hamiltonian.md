@@ -52,7 +52,7 @@ This provides great flexibilty in specifying Hamiltonians, however care must be 
 
 afqmctools provides a framework for building lattice model Hamiltonians that can generate broad classes of lattice model Hamiltonians
 on a variety of lattices, using consistent conventions for indexing.
-The framework consists of a Lattice class which is responsible for geometry (see the [Lattice class tutorial](../03_setting_up_a_lattice/03_setting_up_a_lattice.html)),
+The framework consists of a Lattice class which is responsible for geometry (see {doc}`../03_setting_up_a_lattice/03_setting_up_a_lattice`),
 a Hamiltonian builder which is responsible for generating specific Hamiltonian terms on demand given a specific Lattice instance,
 and a Hamiltonian "Director" which is responsible for choosing which build steps to perfrom based on
 a set of input Hamiltonian parameters.
@@ -60,7 +60,7 @@ Each component of the framework can be used directly; however
 the Director class represents the highest-level interface of the lattice Hamiltonian framework and
 can manage the underlying Lattice instance and Builder instance.
 Users who want direct control over the Hamiltonian build steps can directly
-use the Hamiltonian "Builder". See the [Hamiltonian Builder tutorial](../05_hamiltonian_builder/05_hamiltonian_builder.html) for
+use the Hamiltonian "Builder". See {doc}`../05_hamiltonian_builder/05_hamiltonian_builder` for
 more detail.
 It is recommended to use the Director whenever possible.
 
@@ -101,9 +101,9 @@ We will briefly demonstrate the command line tool, but we will focus on using th
 
 The Hamiltonian Director is meant to handle building Hamiltonians which can be expressed in terms of a few simple parameters on relatively simple lattices.
 While SAFIRE supports any combinaiton of lattice, sublattice, and band degrees-of-freedom in the Hamiltonian, it is not always feasible to map such general models onto a few simple parameters.
-For these cases, we provide lower-level classes to assist as much as possible. See the [Lattice class tutorial](../03_setting_up_a_lattice/03_setting_up_a_lattice.html) for example.
+For these cases, we provide lower-level classes to assist as much as possible. See {doc}`../03_setting_up_a_lattice/03_setting_up_a_lattice` for example.
 For example, the Hubbard model only needs a single parameter, $U/t$, and a lattice / boundary conditions in order to be fully specified.
-More general Hamiltonians can also be built using the Director; however, it may be useful to some users to work directly with the Lattice and Hamiltonian Builder in a Python script. See the [Hamiltonian Builder tutorial](../05_hamiltonian_builder/05_hamiltonian_builder.html) for more advance uses.
+More general Hamiltonians can also be built using the Director; however, it may be useful to some users to work directly with the Lattice and Hamiltonian Builder in a Python script. See {doc}`../05_hamiltonian_builder/05_hamiltonian_builder` for more advance uses.
 
 In this tutorial, we will cover how to request specific Hamiltonian terms from the Hamiltonian Director.
 We will also cover the details of the input conventions for each of the terms needed to build these Hamiltonians.

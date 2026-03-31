@@ -229,8 +229,7 @@ write_hamiltonian_generic(
 
 ## The Trial Wavefunction
 
-We will explore how to write trial wavefunctions in the [writing trial wavefunctions](../04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction.html)
-tutorial.
+We will explore how to write trial wavefunctions in {doc}`../04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction`.
 In general, the trial wavefunction is a linear combination of Slater determinants,
 $$
 | \Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle,
@@ -278,8 +277,8 @@ write_json(scratch_dir / "afqmc.json", scratch_dir / "wfn.h5", scratch_dir / "ha
 ## Your Turn: Compute the AFQMC energy
 
 At this point, you should run an AFQMC calculation using SAFIRE
-as we covered earlier in the [Hello SAFIRE](../01_hello_auxiliary_fields/hello_auxiliary_fields.html) tutorial,
-and use `afqmctools` to obtain the AFQMC energy as we learned in the [post-processing](../05_computing_observables) tutorial.
+as we covered earlier in {doc}`../01_hello_safire/01_hello_safire`,
+and use `afqmctools` to obtain the AFQMC energy.
 
 As a reminder, you can run SAFIRE in any of the following ways:
 

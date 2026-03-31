@@ -354,7 +354,7 @@ directly read in SAFIRE to get the Hamiltonian and the trial wavefunction.
 
 Next, we'll run SAFIRE using the Hamiltonian and trial wavefunction that we wrote using CoQuí.
 We've provided an input file in `3_afqmc` for this example.
-To learn more about the input file, see the [understanding the input file tutorial](../../../tutorials/solids/02_understanding_the_input_file/02_understanding_the_input_file.html).
+To learn more about the input file, see {doc}`../../../tutorials/solids/02_understanding_the_input_file/02_understanding_the_input_file`.
 
 The input file assumes that you ran CoQuí within the `2_hamiltonian_coqui` directory.
 If you ran it elsewhere, you will need to update the path to the HDF5 file
