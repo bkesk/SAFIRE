@@ -1062,7 +1062,7 @@ def get_lattice(params:dict, build=None):
         elif boundary_type.lower() in {'pbc','periodic'}:
             return PBCBoundary
         else:
-            raise ValueError("Uknown boundary type")
+            raise ValueError("Unknown boundary type")
 
     def _get_lattice(lattice_type):
         """
@@ -1211,7 +1211,7 @@ def get_directed_pairs(lattice:Lattice,directions=None):
                 coord[0] -= 1
                 coord[1] -= 1
             else:
-                raise ValueError("Uknown 'direction' in 'directions'")
+                raise ValueError("Unknown 'direction' in 'directions'")
 
             # For now, we assume that both boundaries are periodic
             if not lattice.is_image(coord):
