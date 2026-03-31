@@ -125,7 +125,7 @@ autohf_to_afqmc(results,output_fname=scratch_dir/"afqmc.h5")
 
 ## Write input file
 
-For more information about the input file, see the [Understanding the input file](../../../tutorials/models/02_understanding_the_input_file/02_understanding_the_input_file.html) tutorial.
+For more information about the input file, see {doc}`../../../tutorials/models/02_understanding_the_input_file/02_understanding_the_input_file`.
 
 ```{code-cell} ipython3
 :id: pm-N_EFxInNK

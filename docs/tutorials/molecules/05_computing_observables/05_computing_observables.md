@@ -29,9 +29,7 @@ Become acquainted with how to compute general observables with SAFIRE.
 
 AuxiliaryFiels uses "estimators" to compute observables.
 Each estimator corresponds to a formal method for computing an observable - i.e. mixed estimators, back-propagated estimators, etc. - We will explain each of the these in the next section.
-As we mentioned in the
-
-[understanding the Input file tutorial](../02_understanding_the_input_file/02_understanding_the_input_file.html),
+As we mentioned in {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`,
 
 you can add estimators to an AFQMC calculation using an "estimator" input block.
 By default, an "energy" estimator is included which is a specialized mixed estimator.
@@ -694,7 +692,7 @@ This is known as "autocorrelation".
 Care must be take to remove autocorrelation effects or the stochastic uncertainty will be underestimated.
 
 The former can be achieved by visualizing the observable over imaginary time, and finding the equilibration time by inspection.
-We saw this in the [Hello SAFIRE](../01_hello_safire/01_hello_safire.html) tutorial.
+We saw this in {doc}`../01_hello_safire/01_hello_safire`.
 afqmctools provides tools for automatically computing the auto-correlation time - i.e. the time interval at which measurments are no longer autocorrelated - and adjusting the number of effective samples accordingly.
 
 In the code cell below, we demonstrate how to use the provided tools to automatically compute averages.

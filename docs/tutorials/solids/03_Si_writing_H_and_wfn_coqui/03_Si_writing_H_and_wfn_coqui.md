@@ -531,7 +531,7 @@ output = 'wfn.h5'
 
 You now have all the ingredients for an AFQMC calculation.
 Next, we'll run SAFIRE using the Hamiltonian and trial wavefunction that we wrote using CoQuí.
-To learn more about the input file, see the [Understanding the input file tutorial](../02_understanding_the_input_file/02_understanding_the_input_file.html).
+To learn more about the input file, see {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.
 
 Your steps:
 
