@@ -143,7 +143,7 @@ PHMSD
    describing the determinant occupancies. For example if :math:`(N_\alpha=N_\beta=2)` and
    :math:`N_D=2`, :math:`M=4`, and if :math:`|\Psi_T\rangle = |0,1\rangle|0,1\rangle + |0,1\rangle|0,2\rangle>` then
    occs = :math:`[0, 1, 4, 5, 0, 1, 4, 6]`. Note that :math:`\beta` occupancies are
-   displacd by :math:`M`.
+   displaced by :math:`M`.
 -  ``/Wavefunction/PHMSD/type`` integer 0/1. 1 implies trial wavefunction is written in
    different basis than the underlying basis used for the integrals. If so a matrix of
    orbital coefficients is required to be written in the NOMSD format. If 0 then assume

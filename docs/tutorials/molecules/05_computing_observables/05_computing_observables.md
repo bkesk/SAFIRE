@@ -64,7 +64,7 @@ $$
 $$
 
 where $| \Phi_{n,k} \rangle$ are the usual forward-projected Slater determinant random walkers,
-and $| \tilde{\Phi}_{m,k} \rangle$ are the back-propgated walkers given by,
+and $| \tilde{\Phi}_{m,k} \rangle$ are the back-propagated walkers given by,
 $$
 | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_T \rangle
 $$.
