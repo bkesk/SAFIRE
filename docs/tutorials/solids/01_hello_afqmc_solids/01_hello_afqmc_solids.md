@@ -500,7 +500,7 @@ in the last exercise.
 You should get an AFQMC energy of `-1.135742 +/-   0.000286`
 if you did not change any settings.
 
-Now, try to changing the equilbration length such that only un-equilibrated samples
+Now, try to changing the equilibration length such that only un-equilibrated samples
 are discarded.
 
 ```{code-cell} ipython3
