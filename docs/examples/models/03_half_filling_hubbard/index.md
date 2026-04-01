@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: ceph_afqmccode
-  language: python
+  language: ipython3
   name: ceph_afqmccode
 ---
 

@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: afqmc_dev_py3.12
-  language: python
+  language: ipython3
   name: python3
 ---
 
