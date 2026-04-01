@@ -125,6 +125,6 @@ myst_enable_extensions = [
 # required to have equations inside of text cells.
 myst_dmath_double_inline = True
 
-
 nb_execution_mode = "off"
 
+myst_heading_anchors = 3
