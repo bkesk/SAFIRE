@@ -202,7 +202,7 @@ if they are set.
 
 All of the following are valid twist inputs:
 
-```pyython
+```python
 twist = [0.0,0.0]
 twist = [3.14,0.0]
 twist = [0.0, 0.5]

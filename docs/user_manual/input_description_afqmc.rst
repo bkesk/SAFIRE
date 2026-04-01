@@ -227,23 +227,23 @@ For example, in the input file below, the walker_set is defined outside of the e
       "execute": {
         "walker_set" : "my_walker_set",
         "wavefunction": {
-          ...
+          /* ... */
         },
         "hamiltonian": {
-          ...
+          /* ... */
         },
         "timestep": 0.01,
         "steps": 10000,
         "population_control_interval" : 10,
         "measure_interval_multiplier": 1,
-        "walker_ortho_interval" : 10 ,
-        "n_walkers_per_mpi_task": 10 ,
+        "walker_ortho_interval": 10,
+        "n_walkers_per_mpi_task": 10,
         "seed" : 42,
         "estimator": {
-          ...
+          /* ... */
         },
         "estimator": {
-          ...
+          /* ... */
         }
       }
     }

@@ -694,25 +694,25 @@ Here is a sample input file where an ellipsis has been used to hide the rest of 
 {
   "afqmc": {
     
-      ...
+    /* ... */
       
     "execute": {
 
-      ...
+      /* ... */
 
       "population_control_interval" : 10,
 
-      ...
+      /* ... */
 
-	  "estimator": {
-          "name": "back_propagation",
-          "path_restoration": true,
-          "extra_path_restoration": true,
-          "bp_walker_ortho_interval": 5,
-          "measure_interval_multipliers": [10,15,20],
-          "equil_multiplier": 50,
-          "onerdm": {
-              "name": "one_rdm"
+      "estimator": {
+        "name": "back_propagation",
+        "path_restoration": true,
+        "extra_path_restoration": true,
+        "bp_walker_ortho_interval": 5,
+        "measure_interval_multipliers": [10,15,20],
+        "equil_multiplier": 50,
+        "onerdm": {
+            "name": "one_rdm"
         }
       }
     }

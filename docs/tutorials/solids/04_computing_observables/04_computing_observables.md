@@ -131,9 +131,9 @@ For example, in the input block,
 
 ```json
 "estimator" : {
-  "name" : "energy",
-  "print_components" : True,        
-  "overwrite" : True
+  "name": "energy",
+  "print_components": true,
+  "overwrite": true
 }
 ```
 
