@@ -171,12 +171,12 @@ In this case, the random walkers accumulate random signs — i.e., :math:`\theta
 
 The sign/phase problem is controlled using importance sampling, as shown above, and by imposing
 a constraint based on the trial wavefunction, :math:`| \Psi_T \rangle`.
-For the phase problem, the so-called "phaseless" approximation :cite:`Zhang2003` is used.
+For the phase problem, the so-called "phaseless" approximation :cite:`PhysRevLett.90.136401` is used.
 At each step, walkers are individually projected onto an
 evolving line in the complex plane defined by :math:`\langle \Psi_T | \Phi^s_n \rangle` by multiplying
 the walker weights by :math:`\max\{0, \cos(\Delta \theta)\}`, where 
 :math:`\Delta \theta = \arg\left[\frac{\langle\Psi_T|\hat{B}(\mathbf{\sigma} - \bar{\mathbf{\sigma}})|\Phi^s_n \rangle}{\langle\Psi_T|\Phi^s_n \rangle}\right]`.
-For the sign problem, the "constrained path" approximation :cite:`Zhang1997` is used,
+For the sign problem, the "constrained path" approximation :cite:`ZhangConstrained1997` is used,
 where walkers are eliminated if :math:`\langle \Psi_T | \Phi^s_n \rangle < 0`.
 This can be viewed as a special case of the phaseless approximation.
 In both cases, the constraint introduces a bias that can be reduced based on the quality of the trial wavefunction.
