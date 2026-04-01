@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: auxiliary_fields_kernel
-  language: python
+  language: ipython3
   name: auxiliary_fields_kernel
 ---
 
