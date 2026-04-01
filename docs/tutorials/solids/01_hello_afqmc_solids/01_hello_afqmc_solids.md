@@ -331,19 +331,13 @@ see what changes.
 </div>
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-id: o-XSiSD_-NIx
-outputId: 97e5782f-d892-4426-e6d5-e7bbb118cab2
----
 %%time
 !safire files/input.json
 ```
 
 +++ {"id": "eShMF9Ab-NIy"}
 
-### Post-excercise
+### Post-exercise
 
 You should see the following a the top of the
 output after running AuxiliaryFields.
