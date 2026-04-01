@@ -199,7 +199,7 @@ SAFIRE prints information about the setup of the AFQMC calculation to stdout alo
 We will see the output from SAFIRE throughout the tutorials. Here is a sample header which is printed at the beginning of
 the output.
 
-```log
+```
 ███████╗ █████╗ ███████╗██╗██████╗ ███████╗
 ██╔════╝██╔══██╗██╔════╝██║██╔══██╗██╔════╝
 ███████╗███████║█████╗  ██║██████╔╝█████╗  
@@ -351,7 +351,7 @@ outputId: 6cfa041d-1239-4cd5-bfac-31dcdd6aee8f
 You should the following a the top of the
 output after running SAFIRE.
 
-```log
+```
 ███████╗ █████╗ ███████╗██╗██████╗ ███████╗
 ██╔════╝██╔══██╗██╔════╝██║██╔══██╗██╔════╝
 ███████╗███████║█████╗  ██║██████╔╝█████╗  

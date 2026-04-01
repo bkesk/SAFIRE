@@ -133,7 +133,7 @@ $ pw.x -inp scf.in > scf.out
 where we have redirected output to scf.out.
 You should see a final energy of,
 
-```log
+```
 highest occupied, lowest unoccupied level (ev):     6.2533    6.8167
 
 !    total energy              =     -15.75925947 Ry
@@ -298,7 +298,7 @@ $ /path/to/coqui --verbosity=2 --filenames hamil.toml &> hamil.out
 
 You should see the following output in `hamil.out`.
 
-```log
+```
  ---------------------------------
      ____ ___   ___  _   _ ___
     / ___/ _ \ / _ \| | | |_ _|
@@ -470,7 +470,7 @@ $ coqui wfn.toml &> wfn.out
 
 You should see the following output
 
-```log
+```
  ---------------------------------
      ____ ___   ___  _   _ ___
     / ___/ _ \ / _ \| | | |_ _|
