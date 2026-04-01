@@ -24,7 +24,7 @@ General Features
 
 **Numerical Features**
   - Mixed precision arithmetic support - see :ref:`the Input File reference <project_block>` for more.
-  - GPU acceleration - see :ref:`the installation guide <installation>` for instructions on enabling GPU acceleration.
+  - GPU acceleration - see :doc:`installation` for instructions on enabling GPU acceleration.
   - Fast Woodbury updates for multi-Slater determinant trial wavefunctions - see :ref:`list of Supported Combinations <supported-combinations>` for which Hamiltonians and computational architectures are supported.
 
 **AFQMC Methodological Features**

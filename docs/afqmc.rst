@@ -24,7 +24,7 @@ where :math:`\beta` is the total projection time, and :math:`\hat{H}` is the int
 in its most general form, is given by 
 
 .. math::
-  :label: eq-h012
+  :label: eq-h012-af
 
   H =& H_0 + \hat{H}_1 + \hat{H}_2 \\
     =& E_0 + \sum\limits_{il\sigma\sigma'} h^{\sigma \sigma'}_{il} \hat{c}^\dagger_{i\sigma}\hat{c}_{l\sigma'}
@@ -113,8 +113,6 @@ Observables are computed on the fly to achieve low-order polynomial scaling with
 For example, the energy is evaluated as
 
 .. math::
-  :name: energyEstimator
-
   E = \frac{\langle \Psi_T | \hat{H} | \Psi^s \rangle}{\langle \Psi_T | \Psi^s \rangle} \approx 
   \frac{1}{\sum_n W^s_n} \sum_n W^s_n \frac{\langle \Psi_T | \hat{H} | \Phi^s_n \rangle}{\langle \Psi_T | \Phi^s_n \rangle},
 
@@ -188,7 +186,7 @@ Observables
 Observables are evaluated stochastically as 
 
 .. math::
-  :name: mixedEstimators
+  :name: mixedEstimators-af
 
   \langle \hat{O} \rangle_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
 
@@ -208,7 +206,7 @@ by using a mixed-estimator.
 The back-propagated estimator has the form,
 
 .. math::
-  :label: bpEstimators
+  :label: bpEstimators-af
 
   \langle \hat{O} \rangle_{BP} = \frac{1}{\sum_k W_{s+m,k}} \sum_k W_{s+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{s,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{s,k}\rangle}
 

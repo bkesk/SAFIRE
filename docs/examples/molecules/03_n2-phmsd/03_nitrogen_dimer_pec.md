@@ -93,8 +93,7 @@ Next, we will reproduce the PEC of the Nitrogen dimer using AFQMC / CASSCF(12o,6
 
 ## Converging AFQMC in the quality of the trial wavefunction
 
-As we saw in [ Using CI trial wavefunctions as a trial wavefunction ](),
-AFQMC trial wavefunctions are typically multi-Slater determinant expansions with form,
+As we saw in {doc}`../02_B_atom_SHCI_trial_wfn/06_SHCI_trial_wavefunction`, AFQMC trial wavefunctions are typically multi-Slater determinant expansions of the form form
 
 $$
 | \Psi_T \rangle = \sum_n^{N_{det}} C_{n} | \Phi_n \rangle,
