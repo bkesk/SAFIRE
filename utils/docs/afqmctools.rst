@@ -121,13 +121,12 @@ See the following for more details.
 
   lattice_models
 
-Python API reference
---------------------
+API reference
+-------------
 
 .. toctree::
   :maxdepth: 2
-  :caption: Detailed User Documentation:
 
-  api/modules.rst
+  api/afqmctools.rst
 
 
