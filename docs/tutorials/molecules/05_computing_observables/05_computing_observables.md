@@ -208,10 +208,10 @@ You can add an energy estimator input block to your json input file in order to 
 For example, in the input block,
 
 ```json
-"estimator" : {
-  "name" : "energy",
-  "print_components" : True,        
-  "overwrite" : True
+"estimator": {
+  "name": "energy",
+  "print_components": true,
+  "overwrite": true
 }
 ```
 

@@ -160,15 +160,15 @@ We use ellipses ( `...`)  in some of the advanced input blocks within some input
         "n_walkers_per_mpi_task": "10",
         "seed": "42",
         "projector" : {
-          ...
+          /* ... */
         },
         "estimator" : {
           "name" : "energy",
-          ...
+          /* ... */
         },
         "estimator" : {
           "name" : "mixed",
-          ...
+          /* ... */
         }
       }
     }

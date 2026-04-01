@@ -116,7 +116,7 @@ This input block will be explored in more detail in later tutorials.
         "seed": "42",
         "estimator" : {
           "name" : "mixed",
-          ...
+          /* ... */
         }
       }
     }
@@ -224,11 +224,11 @@ Here is a sample execute block with options exposed and default values where app
 
 ```json
 "execute" : {
-  "wavefunction": { ... },
-  "hamiltonian" : { ... },
-  "walker_set" : { ... },
-  "estimator" : { ... },
-  "projector" : { ... },
+  "wavefunction": { /* ... */ },
+  "hamiltonian" : { /* ... */ },
+  "walker_set" : { /* ... */ },
+  "estimator" : { /* ... */ },
+  "projector" : { /* ... */ },
   "timestep": "0.01",
   "steps": "1",
   "n_walkers_per_mpi_task": "10",
