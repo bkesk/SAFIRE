@@ -9,13 +9,13 @@ afqmctools.systems.lattice module
 
 .. automodule:: afqmctools.systems.lattice
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Module contents
 ---------------
 
 .. automodule:: afqmctools.systems
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
