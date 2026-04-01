@@ -225,7 +225,7 @@ where `[number of processes]` depends on how many tasks can be run on your local
 We've included some of the output below.
 You should see similar numbers in your output.
 
-```log
+```
 ****************************************************
                Initializing Hamiltonian
 

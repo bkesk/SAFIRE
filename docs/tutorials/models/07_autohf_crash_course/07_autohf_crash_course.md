@@ -165,7 +165,7 @@ we will focus on a few key settings which are as follows.
 
 When you run AutoHF, it will echo the settings. See sample output below.
 
-```log
+```
     -----------------------
     - ╔═╗ ------- ╖ ╓╔═╕ --
     - ╠═╣ ╖╖╒╦╕╔╗ ╠═╣╠╕ ---

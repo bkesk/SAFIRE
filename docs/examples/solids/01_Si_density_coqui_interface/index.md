@@ -67,7 +67,7 @@ $ pw.x -inp scf.inp > scf.out
 where we have redirected output to scf.out.
 You should see a final energy of,
 
-```log
+```
  highest occupied, lowest unoccupied level (ev):     6.3054    7.0035
 
 !    total energy              =     -62.96095502 Ry
@@ -213,7 +213,7 @@ $ /path/to/coqui --verbosity=2 --filenames hamil.toml &> hamil.out
 
 You should see the following output in `hamil.out`.
 
-```log
+```
  ---------------------------------
      ____ ___   ___  _   _ ___
     / ___/ _ \ / _ \| | | |_ _|
@@ -431,7 +431,7 @@ where `[number of processes]` depends on how many tasks can be run on your local
 We've included some of the output below.
 You should see similar numbers in your output.
 
-```log
+```
 ****************************************************
                Initializing Hamiltonian
 

@@ -82,7 +82,7 @@ From the example directory,
 
 This will generate a fairly long output (due to printing 2000 Slater determinants per state in plain text), but you should see that the variational stage converges to something similar to:
 
-```log
+```
 Variational calculation result
 Root             Energy     Time(s)
    0      -24.6065937243       37.01
@@ -96,7 +96,7 @@ Root             Energy     Time(s)
 The SHCI energy is given by the variational energy with perturbative corrections.
 In this case, for the ground state, we got,
 
-```log
+```
 **************************************************************
 PERTURBATION THEORY STEP  
 **************************************************************
