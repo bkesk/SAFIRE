@@ -466,7 +466,7 @@ Exactly one of `cholesky_vectors` or `coulomb_repuslion_tensor` must be provided
     )
 ```
 
-see the [API documentation for more]().
+see the [API documentation for more](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/api/afqmctools.hamiltonian.html#afqmctools.hamiltonian.mol.write_hamiltonian_generic).
 
 ### Your Turn: Run the following code block to convert from the provided FCIDUMP file to the SAFIRE format
 

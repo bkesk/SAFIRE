@@ -15,10 +15,6 @@ kernelspec:
 
 # Lattice class tutorial
 
-<!--
-[All tutorials](../the_joy_of_AFQMC.ipynb)
--->
-
 In this tutorial, we will learn how to set up a lattice to define a Model Hamiltonian (See __LATTICE_HAMIL_TUTORIAL__ for details on building a Hamiltonian).
 The `afqmctools` Python package implements a Lattice class which is responsible for answering geometric questions about a specific lattice such as:
 
@@ -353,7 +349,7 @@ vis.plot_lattice(lattice,title="Lieb lattice with tilted cell",show_labels=False
 
 The `vis.plot_lattice()` function can be used to visualize which pairs of sites
 are $n^{th}$-order neighbors.
-As you will see in the [Building Lattice Model Hamiltonians Tutorial](../hamiltonian_director/full_v1.ipynb),
+As you will see in the {doc}`../04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian`,
 $n_{th}$-order neighbor hopping and interactions are available in the lattice model Hamiltonian builder tools.
 Visualizing the neighbors can be helpfule or ensuring that the deisred hopping / interactions are being included,
 especially when dealing with complicated lattices.

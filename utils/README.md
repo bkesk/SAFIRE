@@ -43,7 +43,7 @@ See the examples in SAFIRE/examples/afqmc for more details on using these script
 - `sparse_to_dense` : (deprecated) sparse format is not officially supported
 
 
-# Installation:
+## Installation
 
 ***If you are on Rusty see below for easier installation!***
 
@@ -133,7 +133,7 @@ pip install . AutoHF # add -e to make editable
 # pip install -U "jax[cuda12]" 
 ```
 
-# afqmctools as a library
+## afqmctools as a library
 
 Additionally, the afqmctools library can be imported and used in Python:
 
@@ -143,7 +143,7 @@ from afqmctools.hamiltonian.mol import write_hamil_mol
 ... 
 ```
 
-# Requirements
+## Requirements
 
 TODO: 07252024 This needs to be tested; minimum versions are not known
 MAM: We seem to depend also on yaml and toml. Either make explicit or guard in the code.
@@ -158,7 +158,7 @@ The tools work with the following:
   (optional).
 * mpi4py >= 2.0.0
 
-# Tests
+## Tests
 
 To run all unit tests,  navigate to `/utils`, and run `$ pytest`.
 In addition to command line output, an html report will be generated in `utils/.htmlpytest/pytest.html` which can be viewed in a browser.
@@ -185,7 +185,7 @@ Additional marks exits to specify the test frequency:
 - `push` : tests to run every push
 - `weekly` : tests to run evry week
 
-# Model Hamiltonian Builder
+## Model Hamiltonian Builder
 
 TODO: this is in the docs now, and is too specific for here. ensure that everything is in the docs and remove!
 
@@ -215,7 +215,7 @@ $U^1$ is a density-density interaction (typically between bands on the same latt
 
 Currently, SAFIRE can use any form of this Hamiltonian. For convenience, we supply tooling to build the most common forms of the Hamiltonain described above. Only on-site, but inter-band, $U$,$U^1$,$U^2$, and $J$ are implemented; however, a motivated user can build a custom Hamiltonian and save it in the format described below in the section, "input file format"
 
-## Building a Model Hamiltonian
+### Building a Model Hamiltonian
 
 This section explains how to build a model Hamiltonian using the included Python tooling.
 Input format/conventions are described in more detail
@@ -292,7 +292,7 @@ boundary1 = "PBC"
 nelec = [6,6]
 ```
 
-## Model Hamiltonian Builder Input Conventions
+### Model Hamiltonian Builder Input Conventions
 
 Model Hamiltonian parameters can be specified either directly
 as a Python dict, or via an input file in json, toml, or yaml format.
@@ -336,6 +336,6 @@ vectors.
 - (optional) `boundary1` : either `'open'` or `'pbc'`. the type of boundary to use in the direction perpendicular to $\hat{a}_2$. `open` is the default.
 - (optional) `boundary2` : either `'open'` or `'pbc'`. the type of boundary to use in the direction perpendicular to $\hat{a}_1$. `open` is the default.
 
-## input file conventions
+### input file conventions
 
 

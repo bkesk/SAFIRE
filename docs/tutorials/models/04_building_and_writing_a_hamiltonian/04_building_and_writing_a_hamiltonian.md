@@ -94,7 +94,7 @@ scratch_dir = get_scratch_dir("lattice_04_hamiltonian_director",scratch_rootdir)
 
 ## Hamiltonian Director Tutorial
 
-The `afqmctools` Python package provides a framework for generating lattice model Hamiltonians as described in the Building Lattice Model Hamiltonians overview [here](#building-lattice-model-hamiltonians-tutorial).
+The `afqmctools` Python package provides a framework for generating lattice model Hamiltonians.
 The Hamiltonian Director is the highest-level interface to this framework.
 It may be invoked as a command line tool using an input file, or a directly within a Python script.
 We will briefly demonstrate the command line tool, but we will focus on using the Director within a Python script for most of this tutorial.

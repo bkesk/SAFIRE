@@ -15,10 +15,8 @@ kernelspec:
 
 # The Hamiltonian Builder
 
-[All tutorials](../the_joy_of_AFQMC.ipynb)
-
 The Hamiltonian builder requires a Lattice instance to build the Hamiltonian on
-(see the [lattice class tutorial](../lattice/basic.ipynb) for details on the lattice parameters).
+(see {doc}`../03_setting_up_a_lattice/03_setting_up_a_lattice` for details on the lattice parameters).
 We assume familiarity with the Lattice class in this tutorial.
 
 The Hamiltonian builder (`HamiltonianBuilder` class in afqmctools) is

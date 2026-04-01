@@ -130,7 +130,7 @@ If you are on rusty or using a rusty connected desktop a suitable build script i
 
 
 Installing the afqmctools Python package
-----------------------------------------
+________________________________________
 
 See :ref:`the afqmctools documentation <afqmctools>` for details on installing afqmctools.
 

@@ -1,4 +1,4 @@
-.. _post_processing_tools::
+.. _post_processing_tools:
 
 Post-processing tools
 =====================

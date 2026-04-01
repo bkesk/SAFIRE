@@ -218,7 +218,6 @@ For example, in the input file below, the walker_set is defined outside of the e
 
 .. code-block:: json
   :caption: Sample input file for AFQMC with Externally Defined Blocks
-  :name: Listing 202
 
   {
     "afqmc": {
@@ -334,7 +333,6 @@ Settings
 
 .. code-block::
   :caption: Sample execute.wavefunction input block with settings exposed.
-  :name: Listing 211
 
   "wavefunction": {
     "filename" : "afqmc.h5",
