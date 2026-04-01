@@ -130,7 +130,7 @@ For technical details on the wavefunction HDF5 format, see [the User Guide](http
 </div>
 
 The JSON input file sets AFQMC run parameters and references the locations of the Hamiltonian and trial wavefunction files. It is organized into a hierarchy of input blocks which each control specific
-details of the calculation. Understanding the details of the input file is the goal of the [next tutorial](../02_input_file/input_file.ipynb).
+details of the calculation. Understanding the details of the input file is the goal of the next tutorial, {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.
 
 **For now, we focus on the `wavefunction` and `hamiltonian` blocks.**
 
@@ -259,7 +259,7 @@ when requested.
 
 Similar to the `[id].s[series].scalar.dat` file, this file is not meant to be read directly by a user.
 Instead, afqmctools provides tools to extract data from this file for you.
-You will learn more about this in the [Estimators and post-processing tutorial](../04_using_estimators/04_using_estimators.ipynb).
+You will learn more about this in {doc}`../05_computing_observables/05_computing_observables`.
 
 +++ {"id": "Yhdjs78S-NIx"}
 
