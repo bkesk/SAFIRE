@@ -112,19 +112,20 @@ Settings
 
     Advanced / developer setting
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    .. list-table::
-    :header-rows: 1
-    :widths: 25 20 55
 
-    * - **Parameter**
+    .. list-table::
+      :header-rows: 1
+      :widths: 25 20 55
+
+      * - **Parameter**
         - **Default**
         - **Description**
-    * - print_sign
-      - false
-      - if true, print detailed information about the phase and constraint in the scalar.dat output file.
-    * - truncate
-      - false
-      - 
+      * - print_sign
+        - false
+        - if true, print detailed information about the phase and constraint in the scalar.dat output file.
+      * - truncate
+        - false
+        -
 
 Back-Propagation (BP) Estimators
 --------------------------------
@@ -262,13 +263,14 @@ Settings
 
     Advanced / developer settings
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    .. list-table::
-    :header-rows: 1
-    :widths: 25 20 55
 
-    * - **Parameter**
-      - **Default**
-      - **Description**
-    * - **extra_path_restoration**
-      - false
-      - if true, perform an extra path restoration in the back-propagation algorithm.
+    .. list-table::
+      :header-rows: 1
+      :widths: 25 20 55
+
+      * - **Parameter**
+        - **Default**
+        - **Description**
+      * - **extra_path_restoration**
+        - false
+        - if true, perform an extra path restoration in the back-propagation algorithm.

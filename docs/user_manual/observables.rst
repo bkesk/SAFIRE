@@ -290,6 +290,8 @@ Not implemented for CLOSED walkers.
    Atom-Centered Correlators
    -------------------------
 
+.. only:: developer
+
 	Sample Input Block
 	~~~~~~~~~~~~~~~~~~
 	
@@ -322,12 +324,16 @@ Not implemented for CLOSED walkers.
 
 
 
+.. only:: developer
+
 	Real-Space Correlators
 	----------------------
 
 	.. math::
 		\langle \psi_i^*(\mathbf{r}) \psi_j^*(\mathbf{r}') c_{i\sigma}^\dagger c_{j\sigma} \rangle
 
+
+.. only:: developer
 
 	Sample Input Block
 	------------------
@@ -351,6 +357,8 @@ Not implemented for CLOSED walkers.
 
 	- Requires grid-based orbital definitions.
 
+
+.. only:: developer
 
 	Structure Factor
 	----------------
@@ -382,6 +390,8 @@ Not implemented for CLOSED walkers.
 	- Requires pair densities and k-point information in HDF5.
 
 
+.. only:: developer
+
 	Generalized Fock Matrix
 	------------------------
 
@@ -411,6 +421,8 @@ Not implemented for CLOSED walkers.
 	~~~~~~~~~~~~
 
 	- Output includes spin blocks depending on walker type.
+
+.. only:: developer
 
 	On-Top Pair Density
 	-------------------
