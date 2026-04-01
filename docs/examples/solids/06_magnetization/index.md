@@ -8,7 +8,7 @@ jupytext:
 kernelspec:
   name: python3
   display_name: Python 3
-  language: python
+  language: ipython3
 ---
 
 +++ {"id": "NudwCmJzZWxz"}
