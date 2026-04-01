@@ -1,23 +1,5 @@
-afqmctools Python package
-=========================
-
-
-Overview
---------
-
-Installation
-------------
-
-
-More Detail
------------
-
-.. toctree::
-  :maxdepth: 2
-  :caption: Detailed User Documentation:
-
-  utils/docs/lattice_models
-  utils/docs/afqmctools_cli
+afqmctools package
+==================
 
 Subpackages
 -----------
@@ -38,5 +20,5 @@ Module contents
 
 .. automodule:: afqmctools
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

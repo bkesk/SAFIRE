@@ -9,39 +9,37 @@ afqmctools.observables.generic module
 
 .. automodule:: afqmctools.observables.generic
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 afqmctools.observables.greens module
 ------------------------------------
 
 .. automodule:: afqmctools.observables.greens
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 afqmctools.observables.rhonk module
 -----------------------------------
 
-Tools for computing observables for ab initio solids
-
 .. automodule:: afqmctools.observables.rhonk
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 afqmctools.observables.spin module
------------------------------------
+----------------------------------
 
 .. automodule:: afqmctools.observables.spin
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Module contents
 ---------------
 
 .. automodule:: afqmctools.observables
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

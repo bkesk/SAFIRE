@@ -49,8 +49,8 @@ extensions = [
     'sphinx_rtd_theme', 
     'myst_nb',
     'sphinx.ext.mathjax',
+    'sphinx.ext.apidoc',
     'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'numpydoc',
@@ -68,15 +68,9 @@ source_suffix = {
 
 
 suppress_warnings = [
-    'autosummary.stub',  # Suppress warnings about missing stub files
-    #'ref.ref',           # Suppress warnings about missing references
-    #'ref.citation',      # Suppress citation warnings
-    #'bibtex.key_not_found',  # Suppress missing bibtex key warnings
 ]
 
 numpydoc_show_class_members = False
-autosummary_generate = True
-autosummary_generate_overwrite = False  # Don't try to overwrite existing files
 
 numfig = True
 
@@ -88,6 +82,13 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+apidoc_modules = [
+    {
+        'path': '../utils/afqmctools',
+        'destination': '../utils/docs/api/',
+        'exclude_patterns': ['**/qe_driver.py', '**/hamiltonian/hubbard.py'],
+    },
+]
 
 # -- Options for HTML output -------------------------------------------------
 

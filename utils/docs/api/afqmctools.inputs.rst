@@ -9,29 +9,37 @@ afqmctools.inputs.energy module
 
 .. automodule:: afqmctools.inputs.energy
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
+
+afqmctools.inputs.from\_autohf module
+-------------------------------------
+
+.. automodule:: afqmctools.inputs.from_autohf
+   :members:
+   :show-inheritance:
+   :undoc-members:
 
 afqmctools.inputs.from\_hdf module
 ----------------------------------
 
 .. automodule:: afqmctools.inputs.from_hdf
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 afqmctools.inputs.from\_pyscf module
 ------------------------------------
 
 .. automodule:: afqmctools.inputs.from_pyscf
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Module contents
 ---------------
 
 .. automodule:: afqmctools.inputs
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
