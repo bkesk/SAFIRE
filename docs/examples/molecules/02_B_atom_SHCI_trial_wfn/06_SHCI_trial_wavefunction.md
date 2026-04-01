@@ -35,10 +35,8 @@ afqmctools provides a command line tool to convert from the SAFIRE HDF5 Hamilton
 afqmc_to_fcidump -i afqmc.h5 -o FCIDUMP
 ```
 
-We will use SHCI as implemented in DICE for this example; 
-the next step is generating an input file.
-A full explanation of using Dice is beyond the scope of this example.
-We refer the interested user to the official Dice GitHub page: https://github.com/sanshar/Dice.
+We will use SHCI as implemented in [DICE](https://github.com/sanshar/Dice) for this example; 
+the next step is generating an input file. For more information on how to use DICE, refer to its [official documentation](https://sanshar.github.io/Dice/).
 For the sake of this example, we will simply provide an input file.
 Copy and past the text below into a file within the example directory to use as an input file.
 We called this input file `dice_input.dat`.

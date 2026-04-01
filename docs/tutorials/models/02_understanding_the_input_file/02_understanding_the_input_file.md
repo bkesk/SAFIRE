@@ -90,7 +90,7 @@ First, let's look at a sample input file for a typical calculation.
 
 In a typical calculation. you will only need to set a few parameters.
 In the input file below, we include the default value of each common parameter where possible.
-We use  ellipses ( `...`) for the "estimaor" input block for visual simplicity.
+We use  ellipses ( `...`) for the "estimator" input block for visual simplicity.
 This input block will be explored in more detail in later tutorials.
 
 ```json
