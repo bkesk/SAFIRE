@@ -7,6 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3
+  language: ipython3
   name: python3
 ---
 
@@ -42,7 +43,7 @@ For the sake of this example, we will simply provide an input file.
 Copy and past the text below into a file within the example directory to use as an input file.
 We called this input file `dice_input.dat`.
 
-```txt
+```
 #system - B atom
 nocc 5
   0 2 4 1 3
