@@ -187,7 +187,7 @@ Internally, `free_electron()` applies a small twist in order to break k-space de
 It also accepts a user-supplied twist angle to used instead.
 `free_electron()` will print the actual twist used in units of radians as, for example,
 
-```log
+```
 Generating free-electron trial wavefunction with twist = [4.10803005e-06 4.58334805e-04]
 ```
 .
@@ -574,7 +574,7 @@ ref_stoch_uncertainty = dE
 
 If you used all of our settings, you should get see
 
-```log
+```
 The AFQMC energy is -13.614404 +/- 0.004229 Hartree
 ```
 
@@ -674,7 +674,7 @@ ref_stoch_uncertainty = dE
 
 Now, you should see
 
-```log
+```
 -13.618391
 ```
 

@@ -292,7 +292,7 @@ write_json(
 
 Now you can run SAFIRE, and you should see the following column headers in the `*scalar.dat` file.
 
-```log
+```
  block  time  nWalkers weight PseudoEloc LogOvlpFactor EnergyEstim__nume_real  EnergyEstim__nume_imag EnergyEstim__deno_real  EnergyEstim__deno_imag EnergyEstim__timer OneBodyEnergyEstim__nume_real EXXEnergyEstim__nume_real ECoulEnergyEstim__nume_real MixedEstim_timer Eshift freeMemory
 ```
 
