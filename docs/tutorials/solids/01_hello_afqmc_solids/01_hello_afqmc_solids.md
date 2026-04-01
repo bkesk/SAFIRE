@@ -331,7 +331,6 @@ see what changes.
 </div>
 
 ```{code-cell} ipython3
-%%time
 !safire files/input.json
 ```
 
@@ -511,7 +510,6 @@ colab:
 id: -Ej94zXY-NIz
 outputId: 74fb0dab-3f45-4fac-ea34-2931de197dcb
 ---
-%%time
 !scalar_stats qmc.s000.scalar.dat -s time -e 2.0 -t
 ```
 
