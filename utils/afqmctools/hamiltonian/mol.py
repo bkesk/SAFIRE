@@ -388,7 +388,7 @@ def ao2mo_chol(eri, C):
 def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     """Modified cholesky decomposition from pyscf eris.
 
-    See, e.g. [Motta17]_
+    See, e.g. :cite:`motta_initio_2018`
 
     Only works for molecular systems.
 

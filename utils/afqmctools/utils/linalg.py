@@ -81,7 +81,7 @@ def get_ortho_ao_mol(S, LINDEP_CUTOFF=0):
 def modified_cholesky_direct(M, tol=1e-5, verbose=False, cmax=20):
     """Modified cholesky decomposition of matrix.
 
-    See, e.g. [Motta17]_
+    See, e.g. :cite:`motta_initio_2018`
 
     Parameters
     ----------
