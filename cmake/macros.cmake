@@ -324,7 +324,7 @@ endfunction()
 function(SIMPLE_RUN_AND_CHECK base_name base_dir input_file procs threads check_script)
 
   # "simple run and check" function does 2 things:
-  #  1. run Auxiliary Feilds executable on $input_file located in $base_dir
+  #  1. run SAFIRE executable on $input_file located in $base_dir
   #  2. run $check_script located in the same folder ($base_dir)
   # note: NAME, COMMAND, and WORKING_DIRECTORY must be upper case in add_test!
 
