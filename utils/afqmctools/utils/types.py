@@ -14,7 +14,7 @@ class SpinSymm(IntFlag):
     """
     An enumerated class/type in order to
         document the different types of
-        spin_symmmetry.
+        spin_symmetry.
 
     The values are meaningful!! a larger
         value implies less symmetry. This

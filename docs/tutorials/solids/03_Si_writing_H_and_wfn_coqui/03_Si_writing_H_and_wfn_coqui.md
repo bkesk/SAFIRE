@@ -27,7 +27,7 @@ Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
 
-- [Quantum Espresso (QE)](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, and some intergrals via its post-processing utilities
+- [Quantum Espresso (QE)](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, and some integrals via its post-processing utilities
 - [CoQuí](https://github.com/AbInitioQHub/coqui) for generating the SAFIRE Hamiltonian and Trial wavefunction HDF5 files from the output of QE.
 - [pw2coqui.x](https://github.com/AbInitioQHub/coqui/tree/main/qe_converter) see the instructions there for adding this to your QE build.
 
@@ -66,7 +66,7 @@ Now, we will learn how to write a Hamiltonian and a trial wavefunction in SAFIRE
 CoQuí (Correlated Quantum ínterface), is a software project designed for ab initio electronic structure beyond density functional theory (DFT).
 It implements several many-body perturbation theory (MBPT) approaches as well as performing supporting operations for other methods such as dynamical mean-field theory (DMFT) as well as AFQMC.
 For AFQMC, and SAFIRE specifically, CoQuí can be used to directly generate
-a second-qauntized Hamiltonian from an electronic structure calculation.
+a second-quantized Hamiltonian from an electronic structure calculation.
 
 <!--
 <div>
@@ -92,7 +92,7 @@ the minimal basis hydrogen dimer with a bondlength of 1.4 Bohr radii.
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/solids/Si_primitive.png" width="500">
 </div>
 
-In this tutoroial, we will generate the Hamiltonian and trial wavefunction for
+In this tutorial, we will generate the Hamiltonian and trial wavefunction for
 Si in the primitive cell.
 
 +++ {"id": "TGWpFn73aPAi"}
@@ -118,7 +118,7 @@ We will perform the following calculations with QE:
   <b>Note:</b> CoQuí expects to find `[prefix].coqui.h5` in the QE output directory. Double check that the output path of the post-processing tools are all set to the same directory.
 </div>
 
-### Step 1 : self-consitent DFT
+### Step 1 : self-consistent DFT
 
 To generate the Hamiltonian for SAFIRE, we need
 to set `force_symmorphic=.true.` in the `&system` input card.
@@ -197,9 +197,9 @@ You should see something like the following,
 
 +++ {"id": "_uliHCdtig7m"}
 
-### Step 3: QE post-processing utilites
+### Step 3: QE post-processing utilities
 
-CoQuí reads some of the details of the psuedopotential from QE.
+CoQuí reads some of the details of the pseudopotential from QE.
 We need to dump the relevant data to a file using the pw2coqui.x QE post-processing utility.
 As described above, you will need to install this utility into
 your QE build using the instructions found [here](https://github.com/AbInitioQHub/coqui/tree/main/qe_converter).
@@ -221,7 +221,7 @@ $ pw2coqui.x < pw2coqui.in > pw2coqui.out
 ```
 
 <div class="alert alert-block alert-info">
-  <b>Note:</b> Unlike many of the QE post-proecessing tools,
+  <b>Note:</b> Unlike many of the QE post-processing tools,
    the pw2coqui.x converter does not support MPI.
    Be sure to run the convert in serial as shown above!
 </div>
@@ -284,7 +284,7 @@ Here, we are using the Cholesky form of interaction (see the [User manual for de
 The key details to note are:
 
 1. In `[mean_field.qe]`, we need to set the `outdir` to the directory where both the QE `pwscf.xml` file is saved, and where `[prefix].coqui.h5` is.
-2. Also in `[mean_field.qe]`, we can set the number of bands to use with `nbnd`. Of course, we can only use as many bands as we output in the one-shot DFT calcultion previously.
+2. Also in `[mean_field.qe]`, we can set the number of bands to use with `nbnd`. Of course, we can only use as many bands as we output in the one-shot DFT calculation previously.
 3. In the `interaction` input block, we are using the "cholesky" decomposed form for the interaction and have set a tolerance of `tol = 1e-4`. We have set the `output` to a file called "hamil.h5` to tell CoQuí to save the interaction there. **In general, one must converge the AFQMC energy in this parameter!**
 4. The `hamiltonian` block is used to write the one-body part of the Hamiltonian to HDF5. **We need to set this to the same file as the interaction.**
 
@@ -441,8 +441,8 @@ storage         = "incore"
 
 ## Writing the Trial Wavefunction
 
-Finally, we can save a single Salter determinant wavefunction to HDF5 using a "wavefunction" block.
-The Slater determinant is constructed by occupying the Kohn-Sham orbitals with the largest occuancy.
+Finally, we can save a single Slater determinant wavefunction to HDF5 using a "wavefunction" block.
+The Slater determinant is constructed by occupying the Kohn-Sham orbitals with the largest occupancy.
 The sample input file, `wfn.toml` is as follows:
 
 ```toml

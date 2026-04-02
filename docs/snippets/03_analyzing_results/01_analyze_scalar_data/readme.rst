@@ -69,7 +69,7 @@ and the right panel shows a histogram of the stochastic samples of the scalar da
 The vertical dotted line in the left panel illustrates the end of the equilibration phase, 
 as specified by the "nequil" setting passed to "analyze_scalar_data" via the 
 "analysis_settings" dictionary.
-This plot should be visually inspected to check that the AFQMC energy has equilbrated
+This plot should be visually inspected to check that the AFQMC energy has equilibrated
 by the end of the equilibration phase, and that the histogram resembles a normal distribution.
 
 

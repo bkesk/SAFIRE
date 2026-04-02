@@ -281,7 +281,7 @@ The input file can have an arbitrary name, but must end with `.json`.
 When you run the above, an AFQMC calculation will be performed based on the contents of input.json,
 using the Hamiltonian and trial wavefunction specified there.
 
-**For brevity, we will abreviate `/path/to/SAFIRE/build/bin/safire` as `safire` in this tutorial**.
+**For brevity, we will abbreviate `/path/to/SAFIRE/build/bin/safire` as `safire` in this tutorial**.
 There are many standard ways to make `safire` accessible from the command line in this way.
 
 You can see the possible command line options for SAFIRE by using the `-h`/`--help` switch.
@@ -338,7 +338,7 @@ outputId: 97e5782f-d892-4426-e6d5-e7bbb118cab2
 
 +++ {"id": "eShMF9Ab-NIy"}
 
-### Post-excercise
+### Post-exercise
 
 You should see the following a the top of the
 output after running SAFIRE.
@@ -478,7 +478,7 @@ will generate the plot,
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/HelloAuxyFields_equil.png" width="800">
 </div>
 
-One should check the equlibration curve to ensure that the the equilibration
+One should check the equilibration curve to ensure that the equilibration
 time, `-s time -e 2.0`, is large enough to discard the samples where AFQMC is not sampling from the target many-body wavefunction yet.
 On the other hand, the equilibration length should not be so large that it discards equilibrated samples.
 
@@ -497,7 +497,7 @@ in the last exercise.
 You should get an AFQMC energy of `-1.135762 +/-   0.000290`
 if you did not change any settings.
 
-Now, try to changing the equilbration length such that only un-equilibrated samples
+Now, try to changing the equilibration length such that only un-equilibrated samples
 are discarded.
 
 ```{code-cell} ipython3
@@ -514,7 +514,7 @@ outputId: 74fb0dab-3f45-4fac-ea34-2931de197dcb
 
 ## Post Exercise
 
-If you play around with the equilbration length, you will see that, for very small equilibration length,
+If you play around with the equilibration length, you will see that, for very small equilibration length,
 the predicted energy will be incorrect.
 This is due to the inclusion of un-equilibrated samples in the average.
 On the other hand, the average energy should be stable if you use too large of a value for the equilibration length.

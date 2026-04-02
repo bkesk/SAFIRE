@@ -4,7 +4,7 @@ Oxygen Atom (UHF Trial Wavefunction)
 ====================================
 
 This example demonstrates an AFQMC calculation of an isolated oxygen atom using an unrestricted Hartree-Fock (UHF) trial wavefunction.
-The Oxygen atom has a gorund state with :math:`S=2` (quartet state)
+The Oxygen atom has a ground state with :math:`S=2` (quartet state)
 
 Running the Example
 -------------------

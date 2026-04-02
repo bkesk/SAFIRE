@@ -30,7 +30,7 @@ scratch_dir = get_scratch_dir("multi_slater_trial_lattice",scratch_rootdir)
 In this example, we will compute the AFQMC energy of the Hubbard model with U=8 on a 6x6x square lattice with open boundary conditions
 at half-filling.
 We will use a trial wavefunction consisting of two Slater determinants.
-Speficially, we will use
+Specifically, we will use
 
 $$
 | \Psi_T \rangle = \frac{1}{\sqrt{2}} \left( |\Phi_{0}\rangle + |\Phi_{1}\rangle \right)
@@ -174,7 +174,7 @@ $$
 where $i$ is the basis index, $p$ is the electron index, and
  $M,N$ are the number of basis functions and electrons, respectively.
 <b>
-AuxiliaryFields uses the convention that orbitals are columns of the Slater matrices.</b>
+SAFIRE uses the convention that orbitals are columns of the Slater matrices.</b>
 For collinear Slater determinants, the first $N_{\uparrow}$ columns are the spin-up electrons and the last $N_{\downarrow}$ are the spin-down electrons.
 
 In the code block below, we manually construct Slater matrices from the UHF orbitals that we got from autohf above.
@@ -252,7 +252,7 @@ write_json(
 ---
 id: SJ-EP0itFLgE
 ---
-# run AuxiliaryFields
+# run SAFIRE
 run_afqmc(
     run_dir=scratch_dir,
     run_mode="local_cpu",

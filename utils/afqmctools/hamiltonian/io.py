@@ -119,7 +119,7 @@ def write_dense(
         filename='hamiltonian.h5',
         real_chol=None,
         ortho=None,
-        verbose=None # unused - kept for backwards compatability
+        verbose=None # unused - kept for backwards compatibility
         ):
     
 

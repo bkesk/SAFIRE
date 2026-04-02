@@ -389,7 +389,7 @@ class OptimizableBasisSet():
 
 def default_basis_set(Lmax,atoms):
     """Generates a OptimizableBasisSet object with default parameters.
-        A single uncontacted gaussian per angular momentum will be used.
+        A single uncontracted gaussian per angular momentum will be used.
         
     Parameters
     ----------

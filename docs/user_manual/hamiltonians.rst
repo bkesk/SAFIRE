@@ -130,7 +130,7 @@ fewer symmetry inequivalent momentum transfer vectors than there are
 :math:`k`-points):
 
 .. code-block::
-  :caption: Sample Dense :math:`k`-point dependent Cholesky SAFIRE Hamtiltonian.
+  :caption: Sample Dense :math:`k`-point dependent Cholesky SAFIRE Hamiltonian.
   :name: Listing 55
 
   $ h5dump -n afqmc.h5
@@ -263,7 +263,7 @@ however, including at least one interaction term is required.
 Model Hamiltonians are saved in HDF5 using the following format.
 
 .. code-block::
-  :caption: Sample Hubbard-Kanamori SAFIRE Hamtiltonian.
+  :caption: Sample Hubbard-Kanamori SAFIRE Hamiltonian.
   :name: Listing 57
 
   $ h5dump -n afqmc.h5 
@@ -351,7 +351,7 @@ Model Hamiltonians are saved in HDF5 using the following format.
     
       -  ``dims``:  Descriptor array of length 3 containing :math:`[M_1,M_2,N_{nz}]`. 
          where :math:`M_1` and :math:`M_2` are the dimensions of the CSR matrix, and
-         :math:`N_{nz}` is the number of non-zero entires.
+         :math:`N_{nz}` is the number of non-zero entries.
 
       -  ``data_``: an array containing the non-zero matrix elements.
 
@@ -368,12 +368,12 @@ ___________________________
 
 The following Conventions apply to the CSR matrix representations of each model component.
 
--  both real- and complex-valued matricies are supported; however, all components must have 
+-  both real- and complex-valued matrices are supported; however, all components must have 
    the same type. i.e. if the hopping matrix is complex-valued, due to a twist, all interaction 
    terms must also be complex-valued even of the imaginary part is identically zero.
   
 -  for all interaction terms except for on-site, on-band Hubbard U, we take the convention 
-   that :math:`i < j` as shown in the general Hubbard-Kanamori Hamiltonian above. If entires
+   that :math:`i < j` as shown in the general Hubbard-Kanamori Hamiltonian above. If entries
    with :math:`i >= j` are supplied, they will be ignored with a warning.
 
 -  For ``/tij/``, if :math:`M` is the total basis set size, including bands and sites,
@@ -392,7 +392,7 @@ The following Conventions apply to the CSR matrix representations of each model 
    is interpreted as :math:`U2_{ij}`with :math:`i,j` running over all basis set functions.
    If :math:`U2_{ij}` is desired without :math:`U_{ii}` or :math:`U1_{ij}`, the matrix must
    still have dimension :math:`2M x M`, but the upper half should have no non-zero elements.
-   If dimension is :math:`M x M`, then the CSR matrix is interpretd as :math:`U_{ii}+U1_{ij}`.
+   If dimension is :math:`M x M`, then the CSR matrix is interpreted as :math:`U_{ii}+U1_{ij}`.
 
 -  for ``/Jij``, the CSR matrix must have dimension :math:`M x M` and is interpreted as the 
    the :math:`J_{ij}` from the Hubbard-Kanamori term.

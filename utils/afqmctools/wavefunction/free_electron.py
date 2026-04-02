@@ -216,7 +216,7 @@ def _free_electron(hamiltonian:Hamiltonian,nelec,spin_symm=None,use_dense=True,f
         spin_symm = get_spin_symm_enum(spin_symm)
 
     if spin_symm == SpinSymm.CLOSED:
-        raise NotImplementedError("Free electron wavefunction with closed spin symmmetry is not implemented")
+        raise NotImplementedError("Free electron wavefunction with closed spin symmetry is not implemented")
     elif spin_symm == SpinSymm.COLLINEAR:
         wfn = _collinear_free_elec(T,nelec=nelec,Nmo=norb,use_dense=use_dense,
                                    filling_strategy=filling_strategy,shell_tol=shell_tol)

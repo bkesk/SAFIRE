@@ -170,7 +170,7 @@ io.write_model_hamiltonian(
 
 ## Run Hartree-Fock (HF)
 
-(somtimes jax doesn't initialize properly on the first run; just try running again!)
+(sometimes jax doesn't initialize properly on the first run; just try running again!)
 
 ```{code-cell} ipython3
 :id: 2529be21-ed17-4e89-8871-32335a476603
@@ -210,12 +210,12 @@ autohf_to_afqmc(
 
 ##  Analyze the HF results
 
-Before proceeding, it's imporant to check that the HF solution is correct.
+Before proceeding, it's important to check that the HF solution is correct.
 First, check that AutoHF actually converged.
 
 We will also want to check the charge and spin density on the lattice.
 You can you the lattice model visualizer `
-vis.plot_lattice(lattice,title="Lieb Lattice",density=...)` to plot an abtritrary density
+vis.plot_lattice(lattice,title="Lieb Lattice",density=...)` to plot an arbitrary density
 on the lattice.
 
 ```{code-cell} ipython3
