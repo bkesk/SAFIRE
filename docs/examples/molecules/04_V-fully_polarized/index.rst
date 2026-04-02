@@ -117,11 +117,8 @@ Files
 .. literalinclude:: scf/scf.py
    :language: python
 
-**Hamiltonian and Wavefunction Generation** (``ham/ham.py``):
+**Hamiltonian Generation** (``input/setup.py``):
 
-.. literalinclude:: ham/ham.py
+.. literalinclude:: input/setup.py
    :language: python
-
-
-
 
