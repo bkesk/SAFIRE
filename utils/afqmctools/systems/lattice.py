@@ -37,20 +37,14 @@ def euclid_nd(coord1,coord2):
 class LatticeSite:
     """
     Simple dataclass to hold basic metadata for each lattice site.
-
-    Attributes
-    ----------
-    index : int
-        Ordered basis index
-    coord : np.ndarray[int]
-        Lattice coordinates
-    position : np.ndarray[float]
-        Spatial position. For square lattices, this is the same as coord.
     """
 
     index:int
+    """Ordered basis index."""
     coord:np.ndarray
+    """Lattice coordinates."""
     position:np.ndarray
+    """Spatial position. For square lattices, this is the same as coord."""
 
     def __str__(self) -> str:
         return f"{self.index} {self.coord}"
