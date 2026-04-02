@@ -119,7 +119,7 @@ def write_esh5_orbitals(cell, name, kpts = numpy.zeros((1,3),dtype=numpy.float64
 def make_image_comm(nimage, comm=MPI.COMM_WORLD):
     """Splits a communicator into image communicators, consistent with QE partitioning.
        nimage consecutive ranks in comm belong to the same image communicator.
-       The number of distinct image communcators is comm.size/nimage. 
+       The number of distinct image communicators is comm.size/nimage.
 
     Parameters
     ----------
@@ -163,7 +163,7 @@ def get_qe_information(qe_prefix, qe_outdir, outdir='./qedrv',verbose=False):
     Returns
     -------
     qe_info: Python Dictionary
-        Dictonary containing all stored information about the QE driver.
+        Dictionary containing all stored information about the QE driver.
         Contents: ::
 
             'species' : string array    # array with species labels.

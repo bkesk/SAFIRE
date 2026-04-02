@@ -37,7 +37,7 @@ def write_wfn_pbc_old(scf_data, ortho_ao, filename, rediag=True,
         HDF5 file path to store wavefunction to.
     rediag : bool
         Whether to rediagonalise Fock matrix to compute MO coeffs in
-        orthoagonlised AO basis. Default: True.
+        orthogonalised AO basis. Default: True.
     verbose : bool
         Print additional information. Default: False.
 
@@ -148,7 +148,7 @@ def write_wfn_pbc(
         HDF5 file path to store wavefunction to.
     rediag : bool
         Whether to rediagonalise Fock matrix to compute MO coeffs in
-        orthoagonlised AO basis. Default: True.
+        orthogonalised AO basis. Default: True.
     verbose : bool
         Print additional information. Default: False.
 

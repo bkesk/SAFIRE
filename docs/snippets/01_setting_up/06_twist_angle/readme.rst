@@ -50,7 +50,7 @@ The `free_electron()` function accepts a `twist` keyword argument for the sake o
 reproducibility for open-shell systems. 
 Unlike many of the other examples, here we explicitly set the twist to that 
 of the lattice.
-By default, i.e. if twist is None, a small incomensurate twist angle is used instead.
+By default, i.e. if twist is None, a small incommensurate twist angle is used instead.
 
 If the sample Python script is run above with the sample input file, the following
 should be present at the end of the output.
@@ -91,7 +91,7 @@ This allows the initial energy to be checked within the AFQMC code.
     )
 
 
-If the sample Pyhton script is run above with the sample input file, the following
+If the sample Python script is run above with the sample input file, the following
 should be present at the end of the output.
 
 .. code-block:: text

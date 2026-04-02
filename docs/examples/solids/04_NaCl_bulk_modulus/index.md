@@ -13,7 +13,7 @@ kernelspec:
 
 +++ {"id": "NudwCmJzZWxz"}
 
-# Bulk modulous of NaCl
+# Bulk modulus of NaCl
 
 In this example, we will compute the cold curve of MnO.
 DEV TODO:
@@ -39,7 +39,7 @@ Remember to apply one-body finite size corrections!!
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
 
 - [Atomic Simulation Environment (ASE)](https://ase-lib.org/ase/build/build.html#ase.build.bulk) to generate lattice structure.
-- [Quantum Espresso (QE)](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, and some intergrals via its post-processing utilities
+- [Quantum Espresso (QE)](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, and some integrals via its post-processing utilities
 -  [CoQuí](https://github.com/mmorale3/BeyondDFT) for generating the SAFIRE Hamiltonian and Trial wavefunction HDF5 files from the output of QE.
 
 +++ {"id": "Si2pyf1sncMZ"}
@@ -47,7 +47,7 @@ In addition to SAFIRE and afqmctools, we will be using the following software pa
 ## Building the geometries
 
 We use ASE to generate the geometries to use.
-Other approaches can, of coruse, be used instead if desired.
+Other approaches can, of course, be used instead if desired.
 
 ```{code-cell} ipython3
 ---
@@ -133,7 +133,7 @@ We will perform the following calculations with QE:
   <b>Note:</b> CoQuí expects to find all of `VLOT`, `VSC`, and `VKB` in the same QE output directory. Double check that the output paths of the post-processing tools are all set to the same directory.
 </div>
 
-### Step 1 : self-consitent DFT
+### Step 1 : self-consistent DFT
 
 To generate the Hamiltonian for SAFIRE, we need
 to set `force_symmorphic=.true.` in the `&system` input card.
@@ -209,9 +209,9 @@ Band Structure Calculation
 
 +++ {"id": "_uliHCdtig7m"}
 
-### Step 3: QE post-processing utilites
+### Step 3: QE post-processing utilities
 
-CoQuí reads some of the details of the psuedopotential from QE.
+CoQuí reads some of the details of the pseudopotential from QE.
 We need to dump the relevant data to a file using the QE post-processing utilities.
 See the provided input files for more.
 
@@ -265,10 +265,10 @@ add_wavefunction = "default"
 The key details to note are:
 
 - In `[mean_field.qe]`, we need to set the `outdir` to the directory where both the QE `pwscf.xml` file is saved, and where `VLTOT`, `VSC`, and `VKB` are.
-- Also in `[mean_field.qe]`, we can set the number of bands to use with `nbnd`. Of course, we can only use as many bands as we output in the one-shot DFT calcultion previously.
-- In the `interaction` input block, we are using the "cholesky" decomposed form for the ineraciton and have set a tolerance of `tol = 1e-5`. We have set the `output` to a file called "hamiltonian.h5` to tell CoQuí to save the interaction there.
+- Also in `[mean_field.qe]`, we can set the number of bands to use with `nbnd`. Of course, we can only use as many bands as we output in the one-shot DFT calculation previously.
+- In the `interaction` input block, we are using the "cholesky" decomposed form for the interaction and have set a tolerance of `tol = 1e-5`. We have set the `output` to a file called "hamiltonian.h5` to tell CoQuí to save the interaction there.
 - The `hamiltonian` block is used to write the one-body part of the Hamiltonian to HDF5. **We need to set this to the same file as the interaction.**
-- Finally, we can save a single Salter determinant wavefunction to the Hamiltonian setting the `add_wavefunction = "default"` parameter in the `hamiltonian` block. The Slater determinant is constructed by occupying the Kohn-Sham orbitals with the largest occuancy.
+- Finally, we can save a single Slater determinant wavefunction to the Hamiltonian setting the `add_wavefunction = "default"` parameter in the `hamiltonian` block. The Slater determinant is constructed by occupying the Kohn-Sham orbitals with the largest occupancy.
 
 Now, run Coquí.
 
@@ -410,7 +410,7 @@ add_wfn: default
 *************************************************
 ```
 
-The HDF5 file, "hamiltonmian.h5", that CoQuí just generated can be
+The HDF5 file, "hamiltonian.h5", that CoQuí just generated can be
 directly read in SAFIRE to get the Hamiltonian and the trial wavefunction.
 
 +++ {"id": "-QQPlGsMnzeJ"}
@@ -446,7 +446,7 @@ back-propagation algorithm.
 The "name" parameter tells SAFIRE what kind of estimator to use (`"back_propagation"` in this case).
 The "nsteps" parameter determines the number of back propagation steps to use.
 
-To check for convergense in the number of back propagation steps, SAFIRE allows multiple "averages" to be set up which each use a different nubmer of steps.
+To check for convergence in the number of back propagation steps, SAFIRE allows multiple "averages" to be set up which each use a different number of steps.
 This feature is controlled by setting `"naverages"` to a value greater than one.
 The number of steps that will be used in each average is given by,
 
@@ -454,7 +454,7 @@ $$
 N^{step}_a = \frac{nsteps}{naverages - a},
 $$
 
-where $a$ is the 0-based index of the "average", and "nsteps" and "naverages" are coresponding values from the input file.
+where $a$ is the 0-based index of the "average", and "nsteps" and "naverages" are corresponding values from the input file.
 So, for the example here,
 
 $$
@@ -600,9 +600,9 @@ afqmc.json  afqmc.out  qmc.s000.scalar.dat  qmc.s000.stat.h5
 
 ### Ground state energy
 
-`afmqmctools` includes a command line tool for analyzing the scalar data output.
+`afqmctools` includes a command line tool for analyzing the scalar data output.
 Fun the following command.
-If you are running locallay, the `-t` option will cause a plot of the scalar data samples versus total projection time to be generated as seen below.
+If you are running locally, the `-t` option will cause a plot of the scalar data samples versus total projection time to be generated as seen below.
 If you are running remotely, you can add the `--savefig [filename].png` option to save the figure.
 Note, you must still use `-t` to generate the plot.
 
@@ -624,8 +624,8 @@ Your plot should look similar to the following.
 
 ### Charge Density
 
-`afmqctools` provides a function for generating the real-space charge density
-given the one-body reduced density matrix (1rdm), and its stochacastic uncertainty from AFQMC, as well as the orbitals from Quantum Espresso.
+`afqmctools` provides a function for generating the real-space charge density
+given the one-body reduced density matrix (1rdm), and its stochastic uncertainty from AFQMC, as well as the orbitals from Quantum Espresso.
 It will output the resulting 1rdm in a standard *.cube file.
 The *.cube file can then be opened in one of several
 software packages.

@@ -36,18 +36,18 @@ class Hamiltonian:
     of terms of the same type. The list of terms can be
     collapsed into a single term if desired; however,
     keeping terms separate provides more flexibility,
-    especially regarding the Hubbard-Stratonivich
+    especially regarding the Hubbard-Stratonovich
     transformation. Each entry in the list should be
     a `scipy.sparse.csr_array` instance.
 
-    By deafult, assigning terms to the Hamiltonian
+    By default, assigning terms to the Hamiltonian
     will append an additional term to the relevant list.
     
     Design notes for Developers:
 
     - should serve only as a container for Hamiltonian terms 
         which are built via the Director-Builder pattern.
-    - this class should not directly reference the underyling lattice.
+    - this class should not directly reference the underlying lattice.
     """
 
     def __init__(self) -> None:
@@ -230,7 +230,7 @@ class HamiltonianComponent:
     """
     Class to encapsulate the CSR representation,
         and metadata corresponding
-        to indiviual Hamiltonian components. 
+        to individual Hamiltonian components.
     """
 
     def __init__(

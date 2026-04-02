@@ -616,7 +616,7 @@ def soc(
     - mol: PySCF molecule object defining the system
     - mo: molecular orbital coefficient matrix (assumed to be of ROHF type here)
     - ncore (int): number of core electrons
-    - nactive (optioninal : int) : number of active orbitals, defaults to total number of orbitals - ncore
+    - nactive (optional : int) : number of active orbitals, defaults to total number of orbitals - ncore
 
     Returns:
     
@@ -679,7 +679,7 @@ def make_soc_one_body(
 
     Returns
     -------
-    h1_soc : np.ndarry
+    h1_soc : np.ndarray
        spin-orbit coupling Hamiltonian in full spin-orbital basis
 
        

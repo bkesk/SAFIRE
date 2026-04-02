@@ -53,7 +53,7 @@ to ensure that consistent index conventions are used.
 on a variety of lattices, using consistent conventions for indexing.
 The framework consists of a Lattice class which is responsible for geometry (see the `lattice tutorial <03_setting_up_a_lattice/03_setting_up_a_lattice_executed.html>`_),
 a Hamiltonian builder which is responsible for generating specific Hamiltonian terms on demand given a specific Lattice instance,
-and a Hamiltonian *Director* which is responsible for choosing which build steps to perfrom based on
+and a Hamiltonian *Director* which is responsible for choosing which build steps to perform based on
 a set of input Hamiltonian parameters.
 Each component of the framework can be used directly; however
 the Director class represents the highest-level interface of the lattice Hamiltonian framework and
@@ -70,7 +70,7 @@ It is recommended to use the Director whenever possible.
 Imaginary-Time Propagation
 --------------------------
 
-Explain the trotterization, and Hubbard-Stratonovich transformation for the lattice Hamiltonian. 
+Explain the Trotterization, and Hubbard-Stratonovich transformation for the lattice Hamiltonian. 
 Be sure to explicitly show each type of Hubbard-Stratonovich transformation (discrete spin, continuous charge, discrete charge, continuous spin).
 
 Trial wavefunctions

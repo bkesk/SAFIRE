@@ -107,7 +107,7 @@ _ = shutil.copy("files/wfn.h5", scratch_dir)
 
 ## Setup the Test System
 
-We will again use Si in its primtive cell at equilibrium represent in a basis of Kohn-Sham bands as a toy case to run
+We will again use Si in its primitive cell at equilibrium represent in a basis of Kohn-Sham bands as a toy case to run
 concrete calculations on.
 
 <div>
@@ -168,9 +168,9 @@ td, th {
   
 |<b>setting</b>|<b>default</b>|<b>description</b>|
 |--:|:-:|:--|
-| <b>        print_sign</b> | False |  If True, print verious quantities related to the sign/phase of random walkers in the `*.scalar.dat` file  |
+| <b>        print_sign</b> | False |  If True, print various quantities related to the sign/phase of random walkers in the `*.scalar.dat` file  |
 | <b>        remove</b> |  False |   If True, remove the default energy estimator. **Note that the explicitly defined energy estimator will not be used in the calculation!** |
-| <b>        truncate</b> |  False |   If True, truncate the energy such that data that fall outisde of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer |
+| <b>        truncate</b> |  False |   If True, truncate the energy such that data that fall outside of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer |
 
 ```{code-cell} ipython3
 :id: wOOIRUtfCIfh
@@ -410,7 +410,7 @@ write_json(
 +++ {"id": "TrVqnMi4AxuT"}
 
 Now, we can run AFQMC with a Mixed Estimator in order to compute the 1-rdm.
-**This will probably take a while!** To finish the tutorial more quickly, remove the "twordm" block from the input and just compate the one-body energy.
+**This will probably take a while!** To finish the tutorial more quickly, remove the "twordm" block from the input and just compute the one-body energy.
 
 ```{code-cell} ipython3
 ---
@@ -431,10 +431,10 @@ run_afqmc(
 
 ### Data Extraction and Analysis
 
-afqmctools provides several tools for extracting data - i.e. retrieving data from the SAFIRE output files - and analyzing data - ariving at a final average with stochastic uncertainty.
+afqmctools provides several tools for extracting data - i.e. retrieving data from the SAFIRE output files - and analyzing data - arriving at a final average with stochastic uncertainty.
 
 Since some observables require a large amount of memory to store, `afqmctools` also provides "transforms" which are applied to the raw observables as they are read from disk.
-For example, in the cell below, a enery evaluation transform is used to compute the one-body energy, a scalar, on the fly as one-rdm samples are read from the *.h5 data file.
+For example, in the cell below, a energy evaluation transform is used to compute the one-body energy, a scalar, on the fly as one-rdm samples are read from the *.h5 data file.
 This dramatically reduces the memory needed to analyze the AFQMC results from SAFIRE.
 
 ```{code-cell} ipython3
@@ -488,7 +488,7 @@ Energy_1body = extract_observable(
     ix=0,                              # index of the "average" - we'll return to this below!
     transform=[hermitize,eval_one_body_energy],  # list of transforms to apply *FROM LEFT TO RIGHT*
 )
-# add in constant energy for consistency with AuxilaryFields convention
+# add in constant energy for consistency with SAFIRE convention
 Energy_1body += Econst
 
 
@@ -527,12 +527,12 @@ plt.show()
 
 +++ {"id": "wDMvF0aT04_x"}
 
-As we can see, the energy computed using the one-body reduced density matrix with a mixed estimator yeilds the exact same one-body energies as the energy estimator to very high precision.
+As we can see, the energy computed using the one-body reduced density matrix with a mixed estimator yields the exact same one-body energies as the energy estimator to very high precision.
 This is no surprise since the energy estimator is simply a specialized mixed estimator.
 
 ### Your Turn : Extract the 2rdm and compute the 2-body energy
 
-Repeat the same excercise for the two-body energy.
+Repeat the same exercise for the two-body energy.
 As we saw in the energy estimator section, the exchange and direct coulomb energies are printed to file separately by the energy estimator.
 
 To compute the two-body energy, you will need to measure the "diag_twordm" observable during AFQMC, and extract and transform it.
@@ -621,7 +621,7 @@ Care must be take to remove autocorrelation effects or the stochastic uncertaint
 
 The former can be achieved by visualizing the observable over imaginary time, and finding the equilibration time by inspection.
 We saw this in {doc}`../01_hello_afqmc_solids/01_hello_afqmc_solids`.
-afqmctools provides tools for automatically computing the auto-correlation time - i.e. the time interval at which measurments are no longer autocorrelated - and adjusting the number of effective samples accordingly.
+afqmctools provides tools for automatically computing the auto-correlation time - i.e. the time interval at which measurements are no longer autocorrelated - and adjusting the number of effective samples accordingly.
 
 In the code cell below, we demonstrate how to use the provided tools to automatically compute averages.
 
@@ -754,7 +754,7 @@ td, th {
 | <b>        path_restoration</b> |   false  |  If true, perform path restoration.  |
 | <b>        extra_path_restoration</b> |   false  |   If true, perform an extra path restoration.  |
 
-### Demonstraiton of BP
+### Demonstration of BP
 
 For the sake of execution time, we will compute only the one-rdm using the back-propagation estimator.
 We will find that the one-body energy computed using the BP one-rdm will *not* agree with the one computed using a mixed estimator.

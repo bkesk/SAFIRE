@@ -36,7 +36,7 @@ of C diamond in the primitive cell cell.
 
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
 
-- [PySCF](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, intergrals, and some post-processing tools.
+- [PySCF](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, integrals, and some post-processing tools.
 - [VESTA](https://jp-minerals.org/vesta/en/) for visualizing the final density.
 
 ```{code-cell} ipython3
@@ -172,7 +172,7 @@ back-propagation algorithm.
 The "name" parameter tells SAFIRE what kind of estimator to use (`"back_propagation"` in this case).
 The "nsteps" parameter determines the number of back propagation steps to use.
 
-To check for convergense in the number of back propagation steps, SAFIRE allows multiple "averages" to be set up which each use a different nubmer of steps.
+To check for convergence in the number of back propagation steps, SAFIRE allows multiple "averages" to be set up which each use a different number of steps.
 This feature is controlled by setting `"naverages"` to a value greater than one.
 The number of steps that will be used in each average is given by,
 
@@ -180,7 +180,7 @@ $$
 N^{step}_a = \frac{nsteps}{naverages - a},
 $$
 
-where $a$ is the 0-based index of the "average", and "nsteps" and "naverages" are coresponding values from the input file.
+where $a$ is the 0-based index of the "average", and "nsteps" and "naverages" are corresponding values from the input file.
 So, for the example here,
 
 $$
@@ -326,9 +326,9 @@ afqmc.json  afqmc.out  qmc.s000.scalar.dat  qmc.s000.stat.h5
 
 ### Ground state energy
 
-`afmqmctools` includes a command line tool for analyzing the scalar data output.
+`afqmctools` includes a command line tool for analyzing the scalar data output.
 Fun the following command.
-If you are running locallay, the `-t` option will cause a plot of the scalar data samples versus total projection time to be generated as seen below.
+If you are running locally, the `-t` option will cause a plot of the scalar data samples versus total projection time to be generated as seen below.
 If you are running remotely, you can add the `--savefig [filename].png` option to save the figure.
 Note, you must still use `-t` to generate the plot.
 
@@ -350,8 +350,8 @@ Your plot should look similar to the following.
 
 ### Charge Density
 
-`afmqctools` provides a function for generating the real-space charge density
-given the one-body reduced density matrix (1rdm), and its stochacastic uncertainty from AFQMC, as well as the orbitals from Quantum Espresso.
+`afqmctools` provides a function for generating the real-space charge density
+given the one-body reduced density matrix (1rdm), and its stochastic uncertainty from AFQMC, as well as the orbitals from Quantum Espresso.
 It will output the resulting 1rdm in a standard *.cube file.
 The *.cube file can then be opened in one of several
 software packages.

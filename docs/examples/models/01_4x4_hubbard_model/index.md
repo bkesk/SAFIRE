@@ -26,7 +26,7 @@ $$
 where $i,j$ are lattice site indices, angle brackets indicate nearest-neighbors,
 $\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/annihilation operators,
 and $\hat{n}^{\sigma}_i$ are spin-resolved number operators corresponding to site $i$.
-The 4x4 lattice is small enough to make exact diagonaliztion possible.
+The 4x4 lattice is small enough to make exact diagonalization possible.
 We will use exact results for this system as reference data throughout
 this tutorial.
 
@@ -40,8 +40,8 @@ and spin density for the same filling and value of U.
 Next, we will demonstrated how to obtain exact results using AFQMC
 for the special case of half filling for which, if care is taken,
 there is no sign problem.
-We will end with an excercise where you will be asked to compute the ground state energy,
-charge density, and spin density of the the Hubbard model on the 4x4 lattice at a different value
+We will end with an exercise where you will be asked to compute the ground state energy,
+charge density, and spin density of the Hubbard model on the 4x4 lattice at a different value
 of U than in the walk through.
 
 ```{code-cell} ipython3
@@ -54,7 +54,7 @@ from pathlib import Path
 from tutorial_utils import run_afqmc, get_scratch_dir
 
 home = Path.home()
-scratch_dir = get_scratch_dir("4x4_sqaure_hubbard1",home / ".scratch")
+scratch_dir = get_scratch_dir("4x4_square_hubbard1",home / ".scratch")
 ```
 
 +++ {"id": "dfgyQ5OC5xcn"}
@@ -62,7 +62,7 @@ scratch_dir = get_scratch_dir("4x4_sqaure_hubbard1",home / ".scratch")
 ## Building a lattice model Hamiltonian
 
 `afqmctools` provides a convenience lattice model Hamiltonian builder and writer which
-will allow us to construct the "standard" Hubbard model with nearest-neighbor hopping and onsite U, among
+will allow us to construct the "standard" Hubbard model with nearest-neighbor hopping and on-site U, among
 other Hamiltonians.
 The basic steps for using the lattice model Hamiltonian builder are:
 1. define lattice parameters
@@ -148,7 +148,7 @@ io.write_model_hamiltonian(
 +++ {"id": "MqK7sb3Z5xcn"}
 
 We now have a "standard" Hubbard model with nearest-neighbor hopping and onsite U saved in an HDF5 file, "afqmc.h5"
-which can be directly read by AuxiliaryFields.
+which can be directly read by SAFIRE.
 Next, we'll walk through an AFQMC calculation where we'll compute the ground state energy.
 
 +++ {"id": "9KnqEEIS5xcn"}
@@ -192,7 +192,7 @@ Generating free-electron trial wavefunction with twist = [4.10803005e-06 4.58334
 ```
 .
 
-We note that, becuase of the twist angle, the Hamiltonian will typically need to be rebuilt.
+We note that, because of the twist angle, the Hamiltonian will typically need to be rebuilt.
 All of this is done internally if `free_electron()` is given the original lattice, and hamiltonian parameters
 as shown below.
 
@@ -313,7 +313,7 @@ which is expected for an even number of up and down electrons.
 ### Running AFQMC
 
 Next, we will run an AFQMC calculation.
-AuxiliaryFields uses an input file in json format to define AFQMC run parameters.
+SAFIRE uses an input file in json format to define AFQMC run parameters.
 `afqmctools` comes with a convenience function to generate a json input file as demonstrated below.
 We have included reasonable AFQMC run parameters for this calculation below.
 
@@ -371,7 +371,7 @@ outputId: 6de71736-72b7-4efa-bc41-8e0985c0759d
 from stats.scalar_dat import analyze_scalar_data
 
 ### Exercise 1.1.1:####################################
-# change this value to a reasonable equilbration length
+# change this value to a reasonable equilibration length
 nequil = 5.0 # Ha^{-1}
 #######################################################
 
@@ -390,9 +390,9 @@ ref_stoch_uncertainty = dE
 
 +++ {"id": "LRmDOsA-S8og"}
 
-Theb Hubbard model at half-filling is sign-free, so we would expect numerically exact results; For U/t =4, the exact energy is -13.62185, so why do we disagree?
+The Hubbard model at half-filling is sign-free, so we would expect numerically exact results; For U/t =4, the exact energy is -13.62185, so why do we disagree?
 
-1. the free-electron trial wavefunction may not always be sufficient, espeically for sign-free cases. The trial wavefunction must exactly obey particle-hole symmetry, which requires special care for a free-electron trial wavefunction.
+1. the free-electron trial wavefunction may not always be sufficient, especially for sign-free cases. The trial wavefunction must exactly obey particle-hole symmetry, which requires special care for a free-electron trial wavefunction.
 2. We have used spin collinear Slater determinant random walkers. In general, we want to use spin noncollinear Slater determinant random walkers.
 
 Next, we will use a Hartree-Fock trial wavefunction.
@@ -551,7 +551,7 @@ outputId: 78be3a24-0f0c-4577-cb48-6ad867cb1f1b
 from stats.scalar_dat import analyze_scalar_data
 
 ### Exercise 1.1.1:####################################
-# change this value to a reasonable equilbration length
+# change this value to a reasonable equilibration length
 nequil = 20.0 # Ha^{-1}
 #######################################################
 
@@ -651,7 +651,7 @@ outputId: 1d4d7374-5c21-43a7-eae5-46bafc88d52d
 from stats.scalar_dat import analyze_scalar_data
 
 ### Exercise 1.1.1:####################################
-# change this value to a reasonable equilbration length
+# change this value to a reasonable equilibration length
 nequil = 20.0 # Ha^{-1}
 #######################################################
 
@@ -799,8 +799,8 @@ run_afqmc(
 ### Analyze the AFQMC output
 
 The AFQMC code saves "scalar" data, such at the energy, in a file called `qmc.s000.scalar.dat` (a text file)
-and non-scalar data, such as the one-rdm and other obseervables, in a file called `qmc.s000.stat.h5` (HDF5 file).
-The AFQMC code inlcudes tools to analyze both.
+and non-scalar data, such as the one-rdm and other observables, in a file called `qmc.s000.stat.h5` (HDF5 file).
+The AFQMC code includes tools to analyze both.
 We have already analyzed the energy in the `qmc.s000.scalar.dat` file using `analyze_scalar_data()`.
 We will now focus on analyzing observables saved in the HDF5 output file, `qmc.s000.stat.h5`.
 
@@ -810,7 +810,7 @@ We will now focus on analyzing observables saved in the HDF5 output file, `qmc.s
 
 afqmctools provides tools to directly average observables from the HDF5 output
 in the `afqmctools.analysis.average` module.
-At the core of the module is the `average_observable()` function which extacts samples of a user specified observable from the HDF5 output file, and avarges the samples while accounting for autocorrelation automatically.
+At the core of the module is the `average_observable()` function which extracts samples of a user specified observable from the HDF5 output file, and averages the samples while accounting for autocorrelation automatically.
 Additionally, it users may provide one or more "transform" functions which are applied to the data samples immediately after reading from HDF5.
 afqmctools provides a few transform function "factories"for generating common transforms.
 We will use the `hermitize_factory()` to hermitize the one-rdm samples since SAFIRE measures only the upper-triangular part of the one-rdm.
@@ -888,7 +888,7 @@ for avg in range(naverages):
 
     sites = np.arange(M)
 
-    # add in constant energy for consistency with AuxilaryFields convention
+    # add in constant energy for consistency with SAFIRE convention
     plt.errorbar(x=sites,y=rho_up.real,yerr=rho_up_err.real,fmt='-o',color=f"C{avg}",label=r"diagonal of $\rho_\uparrow$" + f"{avg}")
     plt.errorbar(x=sites,y=rho_down.real,yerr=rho_down_err.real,fmt='--',color=f"C{avg}",label=r"diagonal of $\rho_\downarrow$" + f"{avg}")
 
@@ -903,7 +903,7 @@ plt.show()
 
 +++ {"id": "QOZdjPwg2JPg"}
 
-## Visualing Observables on the Lattice
+## Visualizing Observables on the Lattice
 
 We used the `afqmctools.utils.visualize` module's `plot_lattice()` function earlier in order to visualize the lattice itself.
 The same function allows us to colorize each lattice site based on some observables.

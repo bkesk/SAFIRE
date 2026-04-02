@@ -88,7 +88,7 @@ def modified_cholesky_direct(M, tol=1e-5, verbose=False, cmax=20):
     M : :class:`numpy.ndarray`
         Positive semi-definite, symmetric matrix.
     tol : float
-        Accuracy desired. Optional. Default : False.
+        Accuracy desired. Optional. Default : 1e-5.
     verbose : bool
         If true print out convergence progress. Optional. Default : False.
     cmax : int
