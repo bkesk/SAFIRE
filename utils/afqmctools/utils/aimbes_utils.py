@@ -87,31 +87,27 @@ def get_aimbes_hamil_enum(hamil_type:str|AIMBESHamiltonian) -> AIMBESHamiltonian
 class TRIQS_HDF5_File:
     """
     Dataclass to contain orbitals and relevant data
-      from the TRIQS internal format.
-
-    Attributes
-    ----------
-    name : str
-        The name of the file that Wannier orbitals were read from.
-    kpts : np.array
-        Array containing all k-points in fractional coordinates
-    proj_mat : np.array
-        Has shape Nspin x Nkpt x Ndefect x Norb x Nband ). Defines the 
-        projection from the Kohn-Sham (KS) band basis into
-        the basis defined in the file called "name"
-    band_window : np.array
-        An array containing the range of KS bands used as inputs to the 'proj_mat'
-    wan_centres : np.array | None
-        (if applicable) contains the spatial centers of Wannier orbitals. These are
-        used within AIMBES to translate Wannier orbitals into the home cell. Do not 
-        set these if you aren't using Wannier orbitals!
+    from the TRIQS internal format.
     """
 
     name:str
+    """The name of the file that Wannier orbitals were read from."""
     kpts:np.ndarray
+    """Array containing all k-points in fractional coordinates."""
     proj_mat:np.ndarray
+    """
+    Has shape (Nspin x Nkpt x Ndefect x Norb x Nband). Defines the
+    projection from the Kohn-Sham (KS) band basis into
+    the basis defined in the file called "name".
+    """
     band_window:np.ndarray
+    """An array containing the range of KS bands used as inputs to the 'proj_mat'."""
     wan_centres:np.ndarray
+    """
+    (if applicable) contains the spatial centers of Wannier orbitals. These are
+    used within AIMBES to translate Wannier orbitals into the home cell. Do not
+    set these if you aren't using Wannier orbitals!
+    """
 
 
 def read_triqs_hdf5(fname)->TRIQS_HDF5_File:
