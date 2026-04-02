@@ -221,7 +221,7 @@ write_hamiltonian_generic(
     filename=scratch_dir/"hamil.h5",
     E0=H0,
     H_one_body=H1_ij,
-    coulomb_repuslion_tensor=H2_ijkl
+    coulomb_repulsion_tensor=H2_ijkl
 )
 ```
 
@@ -461,7 +461,7 @@ Exactly one of `cholesky_vectors` or `coulomb_repulsion_tensor` must be provided
         filename=scratch_dir/"H2_hamiltonian.h5",
         E0=H0,
         H_one_body=H1_ij,
-        coulomb_repuslion_tensor=H2_ijkl,
+        coulomb_repulsion_tensor=H2_ijkl,
         cholesky_delta=1.0e-5
     )
 ```
@@ -488,7 +488,7 @@ write_hamiltonian_generic(
     filename=scratch_dir/"H2_hamiltonian.h5",
     E0=E0,
     H_one_body=H1_ij,
-    coulomb_repuslion_tensor=H2_ijkl,
+    coulomb_repulsion_tensor=H2_ijkl,
     cholesky_delta=1.0e-5
 )
 ```
@@ -623,7 +623,7 @@ write_hamiltonian_generic(
     filename=scratch_dir/"H2_hamiltonian.h5",
     E0=H0,
     H_one_body=H1_ij,
-    coulomb_repuslion_tensor=H2_ijkl
+    coulomb_repulsion_tensor=H2_ijkl
 )
 
 # make and save a trial wavefunction
