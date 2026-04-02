@@ -62,7 +62,7 @@ id: ACWiQaTbLK6S
 outputId: c0680e89-bb37-4f76-fa41-1d7e4d5d6e38
 ---
 """
-minimial example for understanding how PySCF computes the charge density and dipole moment.
+minimal example for understanding how PySCF computes the charge density and dipole moment.
 
 The sum of rho does not equal
 the total number of electrons...

@@ -425,7 +425,7 @@ def average_observable(filename, name, eqlb=1, estimator='back_propagated',
 
 def average_gen_fock(filename, fock_type='plus', estimator='back_propagated',
                      eqlb=1, blocksize=1, ix=None, kappa=None):
-    r"""Average AFQMC genralised Fock matrix.
+    r"""Average AFQMC generalised Fock matrix.
 
     Parameters
     ----------
@@ -475,7 +475,7 @@ def average_gen_fock(filename, fock_type='plus', estimator='back_propagated',
 def average_spinspin(filename, estimator='back_propagated', eqlb=1, blocksize=1, ix=None, kappa=None):
     r"""Get average AFQMC SpinSpin correlation.
 
-    Returns (<(X_i X_j)+(Y_i Y_j)> , <Z_i Z_j>) as a (2,M,M) dimensional array, resolving XX+YY and ZZ seperately
+    Returns (<(X_i X_j)+(Y_i Y_j)> , <Z_i Z_j>) as a (2,M,M) dimensional array, resolving XX+YY and ZZ separately
 
     Parameters
     ----------

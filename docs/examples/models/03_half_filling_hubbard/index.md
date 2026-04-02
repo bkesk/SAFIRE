@@ -59,7 +59,7 @@ import autohf
 
 ## Physics Background
 
-The Hubbard model at Half Filling ($n=1$) has a special "symmetry" known as particle-hole symmetry, that allows auxiliary field methods to be sign free. However, care must be taken to make sure that phaseless/constrainted path AFQMC is used properly to exploit said symmetry.
+The Hubbard model at Half Filling ($n=1$) has a special "symmetry" known as particle-hole symmetry, that allows auxiliary field methods to be sign free. However, care must be taken to make sure that phaseless/constrained path AFQMC is used properly to exploit said symmetry.
 
 [1]: _Benchmark study of the two-dimensional Hubbard model with auxiliary-field quantum Monte Carlo method_  
 M Qin, H Shi, S Zhang Phys. Rev. B 94, 085103 4 August, 2016  
@@ -376,7 +376,7 @@ dataHFC2["energy_func"](dataHFC2["state"]) < dataHFC2["energy_func"](uni_state)
 
 +++ {"id": "8944c9a6-fc6c-4cb0-9e07-8b8712bb5f45"}
 
-So we see we've reached a minimunm, and that a constant $M$ is the same as our nearly constant optimized $M_i$
+So we see we've reached a minimum, and that a constant $M$ is the same as our nearly constant optimized $M_i$
 
 +++ {"id": "5afb0278-218c-4d88-9bea-b1c0f2ce8b15"}
 

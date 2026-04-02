@@ -47,7 +47,7 @@ the :ref:`The Hamiltonian file formats <Hamiltonian-classes>` section.
 Imaginary-time projection
 -------------------------
 
-Thoulesses' theorem :cite:`Thouless` states that the operation of the exponential of a one-body operator on a Slater 
+Thouless' theorem :cite:`Thouless` states that the operation of the exponential of a one-body operator on a Slater 
 determinant is simply another Slater determinant.
 However, the application of the :ref:`imaginary-time projection operator <eq-imag-time-prop>` is non-trivial due to the interaction term in
 the hamiltonian.
@@ -78,7 +78,7 @@ Next, :math:`exp[-\tau \hat{H}_2]` can be rewritten via a Hubbard-Stratonovich (
 
   e^{-\tau \sum_\lambda (\hat{v}^\gamma)^2} = \int d\mathbf{\sigma} P(\mathbf{\sigma}) e^{-\tau \mathbf{\sigma} \cdot \hat{\mathbf{v}}},
 
-where :math:`\mathbf{\sigma}` is a vector of auxiliary-fields,
+where :math:`\mathbf{\sigma}` is a vector of auxiliary fields,
 :math:`\hat{\mathbf{v}}` is the vector of one-body operators :math:`\hat{v}^\gamma`, and :math:`P(\mathbf{\sigma})` is a normal distribution function.
 Combining the TS decomposition and the HS transformation, we arrive at
 
@@ -121,7 +121,7 @@ Importance sampling
 -------------------
 
 In practice, importance sampling is used to reduce variance.
-The auxiliary-fields from the Hubbard-Stratonovich 
+The auxiliary fields from the Hubbard-Stratonovich 
 transformation are shifted by the so-called "force bias",
 :math:`\bar{\mathbf{\sigma}}` and the walkers 
 are re-weighted according to an importance function, :math:`I(\mathbf{\sigma},\bar{\mathbf{\sigma}},\Phi^{s-1}_n)`, 
@@ -266,7 +266,7 @@ Wavefunctions
 AFQMC parameters
 ~~~~~~~~~~~~~~~~
 
-- :math:`\beta`, total projection time of the AFQMC imaginary-time projeciton
+- :math:`\beta`, total projection time of the AFQMC imaginary-time projection
 - :math:`\tau`, imaginary-time projection step size
 
 bibliography

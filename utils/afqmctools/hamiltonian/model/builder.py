@@ -133,7 +133,7 @@ class HamiltonianBuilder:
     ValueError
         raised when any build step is invoked using an invalid amplitude
     ValueError
-        raised when no hst_type can be unambiguously infered
+        raised when no hst_type can be unambiguously inferred
         
     Notes
     -----
@@ -362,7 +362,7 @@ class HamiltonianBuilder:
         Raises
         ------
         ValueError
-            when the hopping matrxi can't be constructed for the combination of `t` and `nth_neighbor`
+            when the hopping matrix can't be constructed for the combination of `t` and `nth_neighbor`
 
         Examples
         --------
@@ -606,7 +606,7 @@ class HamiltonianBuilder:
                                     (\vec{\sigma} \times \hat{r}_{ij})^{\sigma\sigma'}_z 
                                     \hat{c}^\dagger_{i\sigma} \hat{c}_{j\sigma'}
         
-        where :math:`\vec{\sigma}` is the vecotr of Pauli matricies, and :math:`\vec{r}_{ij}`
+        where :math:`\vec{\sigma}` is the vector of Pauli matrices, and :math:`\vec{r}_{ij}`
         is the relative position between sites i and j.
         """
         if not rashba_lambda:
@@ -840,7 +840,7 @@ class HamiltonianBuilder:
             the amplitude of the pinning field
         same_sign : bool
             if True, spin up and spin down sectors have the same sign.
-            if Falsw, spin up and spin down sectors have opposite signs.
+            if False, spin up and spin down sectors have opposite signs.
         axis : int, optional, default = 0
             the axis to apply pinning along
         spin_symm : afqmctools.hamiltonian.model.ham_class.SpinSymm, optional
@@ -1690,7 +1690,7 @@ class HamiltonianBuilder:
                     print("csr matrix: ", component.csr_array)
 
     def finalize(self,verbose=False):
-        """Combine Hamiltonian terms whereever possible, keeping terms
+        """Combine Hamiltonian terms wherever possible, keeping terms
         with different `hst_type` separate.
 
         Parameters

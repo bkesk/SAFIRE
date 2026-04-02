@@ -159,7 +159,7 @@ write_json(
 ---
 id: xvJVj1DGJeW0
 ---
-# run AuxiliaryFields
+# run SAFIRE
 run_afqmc(
     run_dir=scratch_dir,
     run_mode="local_cpu",

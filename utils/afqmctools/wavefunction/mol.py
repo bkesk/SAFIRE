@@ -123,7 +123,7 @@ def slater_gto2mo(
         else:
             raise ValueError("Can't construct a valid transformation matrix")
 
-    # ngto is the number of underyling basis functions, regardless of gto or other
+    # ngto is the number of underlying basis functions, regardless of gto or other
     ngto = nmo = transform_matrix.shape[0]
 
     if slater_type is None:
@@ -226,7 +226,7 @@ def make_slater(wfn_scf_data,basis_scf_data=None,cas=None):
         defines the source of the orbitals from
         which to build the Slater determinant
     (optional) basis_scf_data : dict
-        defines the orbtial basis. If given,
+        defines the orbital basis. If given,
         the Slater determinant will be expressed within
         this basis - in this case, the 'orthAO' keyword
         within `wfn_scf_data` will be ignored!

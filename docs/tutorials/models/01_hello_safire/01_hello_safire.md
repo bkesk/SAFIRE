@@ -289,7 +289,7 @@ long as its name ends in .json.
 When you run this, an AFQMC calculation will be performed based on the contents of input.json,
 using the Hamiltonian and trial wavefunction specified there.
 
-**For brevity, we will abreviate `/path/to/SAFIRE/build/bin/safire` as `safire` in this tutorial**.
+**For brevity, we will abbreviate `/path/to/SAFIRE/build/bin/safire` as `safire` in this tutorial**.
 There are many standard ways to make `safire` accessible from the command line in this way.
 
 You can see the possible command line options for SAFIRE by using the `-h`/`--help` switch.
@@ -346,7 +346,7 @@ outputId: 6cfa041d-1239-4cd5-bfac-31dcdd6aee8f
 
 +++ {"id": "eShMF9Ab-NIy"}
 
-### Post-excercise
+### Post-exercise
 
 You should the following a the top of the
 output after running SAFIRE.
@@ -489,11 +489,11 @@ will generate the plot,
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/Equil_hubbard_4x4_U4_hello_safire.png" width="800">
 </div>
 
-One should check the equlibration curve to ensure that the the equilibration
+One should check the equilibration curve to ensure that the equilibration
 time, `-x time -e 2.0` is large enough to discard the samples where AFQMC is not
 sampling from the target many-body wavefunction yet.
 On the other hand, the equilibration length should not be so large that it discards
-equilbrated samples.
+equilibrated samples.
 
 We will learn how to post-process AFQMC results from SAFIRE
 in more detail in {doc}`../08_computing_observables/08_computing_observables`.
@@ -505,7 +505,7 @@ in the last exercise.
 You should get an AFQMC energy of `-19.580880 +/-   0.000697`
 if you did not change any settings.
 
-Now, try to changing the equilbration length such that only un-equilibrated samples
+Now, try to changing the equilibration length such that only un-equilibrated samples
 are discarded.
 
 ```{code-cell} ipython3
@@ -568,7 +568,7 @@ You can tell `get_scratch_dir()` to not attempt to create the directory with
 
 +++ {"id": "N9bQJxCM-NIz"}
 
-### The run AFQMC convenince function
+### The run AFQMC convenience function
 
 `run_afqmc(input_file=input_file, np=np)` runs the SAFIRE executable as
 

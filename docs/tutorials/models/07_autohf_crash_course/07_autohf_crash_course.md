@@ -29,7 +29,7 @@ purpose of generating trial wavefunctions for SAFIRE.
 - choosing the ansatz
 - choosing the optimization method.
 
-## Software Prelimiaries
+## Software Preliminaries
 
 While AutoHF is a stand alone tool with it's own input format for Hamiltonians.
 However, it is able to convert SAFIRE format hamiltonians to it's own internal format very easily.
@@ -59,14 +59,14 @@ scratch_dir = get_scratch_dir("07_hubbard_model_autohf",home / ".scratch")
 
 ## Set up the model
 
-In this tutorial, we will perform Hatree-Fock calculations using AutoHF for the Hubbard model on
+In this tutorial, we will perform Hartree-Fock calculations using AutoHF for the Hubbard model on
 a 4x4 lattice.
 The Hamiltonian is given by,
 $$
 \hat{H} = -t \sum_{\langle i,j\rangle} \hat{c}^\dagger_i \hat{c}_j + U \sum_{i} \hat{n}^{\uparrow}_i \hat{n}^{\downarrow}_i,
 $$
 where $i,j$ are lattice site indices, angle brackets indicate nearest-neighbors,
-$\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/anihilation operators,
+$\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/annihilation operators,
 and $\hat{n}^{\sigma}_i$ are spin-resolved number operators corresponding to site $i$.
 
 ```{code-cell} ipython3

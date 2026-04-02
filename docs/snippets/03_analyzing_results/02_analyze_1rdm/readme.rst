@@ -1,6 +1,6 @@
 .. _analysis_ex_2:
 
-Analyzing One-Body Reduced Densitry Matrix Data
+Analyzing One-Body Reduced Density Matrix Data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers analyzing the one-rdm stochastic data output by SAFIRE

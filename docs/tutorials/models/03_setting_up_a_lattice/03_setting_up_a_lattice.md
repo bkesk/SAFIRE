@@ -19,7 +19,7 @@ In this tutorial, we will learn how to set up a lattice to define a Model Hamilt
 The `afqmctools` Python package implements a Lattice class which is responsible for answering geometric questions about a specific lattice such as:
 
 - what are the boundary conditions
-- what are the $n^{th}$-nearest neihgbors
+- what are the $n^{th}$-nearest neighbors
 - which of those neighbors are "direct" neighbors, and which are image neighbors
 
 and more.
@@ -34,9 +34,9 @@ $$
 \vec{r}_p = n_1 \vec{a}_1 + n_2 \vec{a}_2  + \vec{\delta}_p
 $$,
 where $n_1$, and $n_2$ are integers.
-Additionally, boundaries are defined normal to the primtive vectors and are labelled acording to the primitive vector which they are normal to.
+Additionally, boundaries are defined normal to the primitive vectors and are labelled according to the primitive vector which they are normal to.
 For example, "boundary 1" is normal to $\vec{a}_1$.
-Finally, when bounaries are crossed, a "twist" angle $\vec{\theta} = (\theta_1,\theta_2)$
+Finally, when boundaries are crossed, a "twist" angle $\vec{\theta} = (\theta_1,\theta_2)$
 is used to apply a phase where $\theta_1$/$\theta_2$ is applied when boundary 1 / boundary 2 are crossed, respectively.
 
 <div class="alert alert-block alert-info">
@@ -49,13 +49,13 @@ TODO add a figure illustrating this.
 
 ## Summary of get_lattice()
 
-The `get_lattice()` function takes a Python dictionary containging "lattice parameters" as an argument and returns a Lattice instance based on the provided "lattice parameters".
+The `get_lattice()` function takes a Python dictionary containing "lattice parameters" as an argument and returns a Lattice instance based on the provided "lattice parameters".
 
 We'll explore the available options individually, but possible lattice parameters are:
 
 - `type` : specifying the lattice type; `square` by default
 - `L1` : the lattice dimension along the lattice vector $\vec{a}_1$
-- `L2` : the lattice dimenstion along the lattice vector $\vec{a}_2$
+- `L2` : the lattice dimension along the lattice vector $\vec{a}_2$
 - `boundary1` : the boundary *type* of the boundary normal to $\vec{a}_1$ (at $0 * \vec{a}_1$ and $L_1 * \vec{a}_1$ ). Defaults to an open boundary if not specified.
 - `boundary2` : the boundary *type* of the boundary normal to $\vec{a}_2$ (at $0 * \vec{a}_2$ and $L_2 * \vec{a}_2$ ). Defaults to an open boundary if not specified.
 - `twist` : the twist angle to apply, given as $\vec{\theta} = (\theta_1,\theta_2)$ in units of radians. Defaults to (0.0,0.0)
@@ -84,14 +84,14 @@ vis.plot_lattice(lattice)
 
 +++ {"id": "16542f56-b4f4-455e-b117-cc003b665648"}
 
-As we can see, we have constructed a 4x4 squre lattice.
+As we can see, we have constructed a 4x4 square lattice.
 Nearest-neighbors in the direct cell are indicated with a solid black line by default.
 The lattice vectors, $\vec{a}_1$ and $\vec{a}_2$,
 the lattice coordinate $n_1,n_2$,
 and the lattice site index, $i$,
 are shown for convenience as well.
 
-### Excercise 1: Play with dimensions
+### Exercise 1: Play with dimensions
 
 Rerun the cell above with different lattice dimensions.
 Try:
@@ -111,7 +111,7 @@ dictionary to a string describing the boundary type.
 This is a case insensitive parameter.
 
 As we saw previously, the default boundaries are open.
-This can be made explict by setting
+This can be made explicit by setting
 
 ```python
 lattice_params = dict(
@@ -156,7 +156,7 @@ lattice_params = dict(
 
 ### Exercise 2: Play with boundary conditions
 
-Try setting different combintions of boundary conditions
+Try setting different combinations of boundary conditions
 in `lattice_params` in the code block below.
 The `plot_lattice()` function will indicate the position of nearest image
 neighbors with a black dotted line.
@@ -232,7 +232,7 @@ lattice = get_lattice(
 )
 ```
 
-altough we have provided a twist for both boundary 1 and boundary 2,
+although we have provided a twist for both boundary 1 and boundary 2,
 only the twist for boundary 2 will be applied since
 boundary 1 is not periodic.
 
@@ -276,7 +276,7 @@ represent the basis vectors **in spatial coordinates**.
 Currently only 2-dimensional lattices are supported, and all basis vectors
 must be 2-dimensional.
 
-Note that the honeycomb lattice and the kagame lattice are both special cases
+Note that the honeycomb lattice and the kagome lattice are both special cases
 of the triangular lattice with a basis that has been predefined.
 If a basis is provided in `lattice_params` for either of these lattices, it will
 be ignored.
@@ -351,7 +351,7 @@ The `vis.plot_lattice()` function can be used to visualize which pairs of sites
 are $n^{th}$-order neighbors.
 As you will see in the {doc}`../04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian`,
 $n_{th}$-order neighbor hopping and interactions are available in the lattice model Hamiltonian builder tools.
-Visualizing the neighbors can be helpfule or ensuring that the deisred hopping / interactions are being included,
+Visualizing the neighbors can be helpful or ensuring that the desired hopping / interactions are being included,
 especially when dealing with complicated lattices.
 
 ```{code-cell} ipython3
@@ -416,8 +416,8 @@ vis.plot_lattice(lattice,title="Water Molecule",show_labels=False)
 
 ### Lieb Lattice
 
-The Cuprates are a class of high-temperature superconductors which consiste of 2-dimensional layers of CuO$_2$ and other materials.
-The Cu and O atoms are arranged in the Leib lattice as shown below.
+The Cuprates are a class of high-temperature superconductors which consists of 2-dimensional layers of CuO$_2$ and other materials.
+The Cu and O atoms are arranged in the Lieb lattice as shown below.
 
 ```{code-cell} ipython3
 :id: d4955fae-dac3-4197-a3b5-f35bf51b103e

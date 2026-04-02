@@ -157,7 +157,7 @@ The pair correlation function observable may be requested as any other observabl
 However, the pair correlation function observable has a few unique parameters that must be set.
 They are:
 
-- "filename" which is the name of the HDF5 file where the pairing offsets were saved. These can saved in the same file as the Wavefunciton, and/or Hamiltonian or in their own independent input file. Whichever you prefer.
+- "filename" which is the name of the HDF5 file where the pairing offsets were saved. These can saved in the same file as the Wavefunction, and/or Hamiltonian or in their own independent input file. Whichever you prefer.
 - "pair_type" is a list of the names of the types of pairing you want to measure. For example, to measure all of the types of pairing that we defined above, we would use `"pair_type" : ["s","+x","-x","+y","-y","xy"]`.
 
 <div class="alert alert-block alert-info">
@@ -166,7 +166,7 @@ They are:
   i.e. it will compute $P^{\alpha \beta}_{ij}$ where both $\alpha$ and $\beta$ run over the full set of pairing definitions.
 </div>
 
-Since the pair correlation functions do not generally comute with the Hamiltonian, we should used a back-propagated estimator.
+Since the pair correlation functions do not generally commute with the Hamiltonian, we should use a back-propagated estimator.
 A back-propagated estimator block with pair correlation functions would look like the following,
 
 ```json
@@ -185,7 +185,7 @@ A back-propagated estimator block with pair correlation functions would look lik
   }
 ```
 
-If we decided we only wanted s-wave pair correlatios, we could use
+If we decided we only wanted s-wave pair correlations, we could use
 
 ```json
 "pair_correlators" : {

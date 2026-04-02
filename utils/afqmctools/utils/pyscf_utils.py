@@ -44,7 +44,7 @@ def mf_from_chkfile(chkfile, scf_class, scf):
     chkfile : str 
         path to PySCF chkfile
     scf_class : pyscf.scf.SCF 
-        PySCF SCF class to consruct e.g. scf.RHF, pbc.scf.RHF
+        PySCF SCF class to construct e.g. scf.RHF, pbc.scf.RHF
     scf: module
         Module containing the scf_class (e.g. pyscf.scf, pyscf.pbc.scf)
 
@@ -294,7 +294,7 @@ def ci_wavefunction(ciab, norb, nelec, ncore, tol=1.0e-4, max_det=None, sort_by_
     .. math::
         |c_{ij}| > \text{tol}
 
-    If a maxmimum number of determinants is specified, the determinants with the largest 
+    If a maximum number of determinants is specified, the determinants with the largest
     Ci coefficients are kept.
 
     Parameters

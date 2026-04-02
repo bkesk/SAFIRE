@@ -195,7 +195,7 @@ def eval_hubbard_from_diag_two_rdm_factory(U, walker_type):
     Returns
     -------
     callable
-        A function `hubbard_energy(rdm)`, where `rdm` is a two-rdm of shape (`n_samples`, `M`, `M`) - i.e. expressed as the full array versus the 
+        A function `hubbard_energy(diag2rdm)`, where `diag2rdm` is a two-rdm of shape (`n_samples`, `M`, `M`) - i.e. expressed as the full array versus the 
         upper-triangular form - Where M is the number of basis functions. M is the number of spin orbitals for 
         all cases except closed shell, where M is the number of spatial orbitals.
     """
