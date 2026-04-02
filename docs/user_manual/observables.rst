@@ -12,10 +12,6 @@ It is the user's responsibility to ensure that the observable is appropriate
 for their specific use case.
 Below is a summary of all observables currently implemented in SAFIRE.
 
-.. seealso::
-
-	:ref:`Post-processing with afqmctools <post_processing_tools>`
-
 Full 1-RDM
 ----------
 
