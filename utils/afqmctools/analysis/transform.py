@@ -25,13 +25,16 @@ def hermitize_factory(walker_type) -> callable:
     Factory function to generate a hermitian transform function.
 
     The transform makes a matrix hermitian by averaging with its conjugate transpose.
+
     .. math::
+
         M_{nij} = \\frac{1}{2} (M_{nij} + M_{nji}^{*})
     
     where 'n' is the sample dimension, and 'i' and 'j' are the matrix dimensions.
 
     Notes
     -----
+
     Only works for 2D matrices, where the first dimension is the sample dimension, and the
     second dimension is the square of a the matrix dimension.
     """
@@ -189,10 +192,10 @@ def eval_hubbard_from_diag_two_rdm_factory(U, walker_type):
     walker_type : str
         The type of walker ('closed', 'collinear', 'non_collinear').
 
-    Transform Parameters
-    --------------------
-    diag2rdm : np.ndarray
-        The input diagonal two-rdm data of shape (n_samples, M, M) - i.e. expressed as the full array versus the 
+    Returns
+    -------
+    callable
+        A function `hubbard_energy(rdm)`, where `rdm` is a two-rdm of shape (`n_samples`, `M`, `M`) - i.e. expressed as the full array versus the 
         upper-triangular form - Where M is the number of basis functions. M is the number of spin orbitals for 
         all cases except closed shell, where M is the number of spatial orbitals.
     """

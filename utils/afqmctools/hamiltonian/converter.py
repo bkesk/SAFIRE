@@ -41,7 +41,7 @@ def fcidump_header(nel:int, norb:int, spin:int) -> str:
     spin : int
         Spin of the system.
 
-    returns
+    Returns
     -------
     header : string
         Header for FCIDUMP file.
@@ -866,8 +866,8 @@ def read_cholesky_kpoint(filename, get_chol=True):
     Reads datasets from the `Hamiltonian` group in the internal format and
     returns the one-body matrices and (optionally) per-Q Cholesky vectors.
 
-    Reads
-    -----
+    The following format is expected:
+
     - `Hamiltonian/dims` (array, len=8): overall dimensions. Used entries:
       - `dims[2] = nkp`: number of k-points.
       - `dims[3] = nmo_tot`: total orbitals across all k-points.

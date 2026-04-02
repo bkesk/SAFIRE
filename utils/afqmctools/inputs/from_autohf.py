@@ -38,13 +38,15 @@ def autohf_to_afqmc(input_ = None,
                     ham = None,
                     write_hamil = False,
                     ):
-  """
-  convert input_ into a wavefunction in output_fname for afqmc
+  r"""
+  convert `input_` into a wavefunction in `output_fname` for afqmc
+
   Supported 3 cases:
   - string: completed autohf file
   - dictionary: settings to run autohf, convenience wrapper
   - tuple of dictionaries: passed autohf outputs, same as string
   """
+
   if input_ is None:
     raise ValueError("Must have either input file or autohf output to convert!")
 

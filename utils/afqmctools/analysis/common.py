@@ -51,12 +51,12 @@ def batched_np_array(data:np.array, batchsize=1):
 
 
 def get_metadata(fstat, path='Metadata'):
-    """Extract estimator metadata from h5 file.
+    r"""Extract estimator metadata from h5 file.
 
     Parameters
     ----------
     filename : string
-        output file containing density matrix (*.h5 file).
+        output file containing density matrix (\*.h5 file).
     path : string
         Path to metadata in filename.
 

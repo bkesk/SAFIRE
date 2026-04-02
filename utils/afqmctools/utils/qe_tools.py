@@ -147,7 +147,7 @@ def make_image_comm(nimage, comm=MPI.COMM_WORLD):
 
 def get_qe_information(qe_prefix, qe_outdir, outdir='./qedrv',verbose=False):
     """Retreats basic information from a QE calculation. Assumes QE was compiled with HDF5 support.
-       Requires a pre-existing, successful QE run.
+    Requires a pre-existing, successful QE run.
 
     Parameters
     ----------
@@ -158,25 +158,26 @@ def get_qe_information(qe_prefix, qe_outdir, outdir='./qedrv',verbose=False):
     outdir: string. Default: ./qedrv
         Output directory of the driver. Does not need to be the same as the QE parameter.
     verbose: bool. Default: False
-        Print information. 
+        Print information.
 
     Returns
     -------
     qe_info: Python Dictionary
-      Dictonary containing all stored information about the QE driver.
-      Contents:
-        'species' : string array    # array with species labels.
-        'nsp' : integer,            # number of species
-        'nat' : integer,            # number of atoms
-        'at_id' :  integer array    # array with the ids of atoms in the unit cell.  
-        'at_pos' : (nat,3) fp array # array with atom positions
-        'nkpts' : integer           # number of kpoints
-        'kpts' : (nkpts,3) fp array # k-points
-        'latt' : (3,3) fp array     # lattice vectors
-        'npwx' : integer            # npwx parameter from QE.
-        'mesh' : 3D integer array   # FFT mesh 
-        'ngm' : integer             # ngm parameter from QE. 
-        'outdir' : string           # location of output files 
+        Dictonary containing all stored information about the QE driver.
+        Contents: ::
+
+            'species' : string array    # array with species labels.
+            'nsp' : integer,            # number of species
+            'nat' : integer,            # number of atoms
+            'at_id' :  integer array    # array with the ids of atoms in the unit cell.
+            'at_pos' : (nat,3) fp array # array with atom positions
+            'nkpts' : integer           # number of kpoints
+            'kpts' : (nkpts,3) fp array # k-points
+            'latt' : (3,3) fp array     # lattice vectors
+            'npwx' : integer            # npwx parameter from QE.
+            'mesh' : 3D integer array   # FFT mesh
+            'ngm' : integer             # ngm parameter from QE.
+            'outdir' : string           # location of output files
     """
     # initialize driver:
     #nkpts, nat, nsp, npwx, ngm, mesh = pyscf_driver_init(inter_size, npools, intra_size/npools,

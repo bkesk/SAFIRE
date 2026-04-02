@@ -154,8 +154,8 @@ class PBCBoundary(Boundary):
         phase angle for the boundary (i.e. the twist angle)
         if phase is not given, it is assumed to be (0,0);
         if phase is a 1-d iterable of length 2, it is interpreted as (phase1,phase2)
-          where phase1 is applied when corssing the boundary along the a1 direction
-          and phase2 is applied when crossing the boundary along the a2 direction.
+        where phase1 is applied when corssing the boundary along the a1 direction
+        and phase2 is applied when crossing the boundary along the a2 direction.
     """
 
     def __init__(self,*args,**kwargs) -> None:
