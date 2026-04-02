@@ -30,9 +30,11 @@ def force_herm(M, method='upper_triangular'):
     Notes
     -----
     The following methods are available:
-    - 'upper_triangular' or 'triu': Set the lower triangular part of the matrix to zero and add the
-      conjugate transpose of the upper triangular part. This effectively ignores the lower triangular
-      part of the matrix.
+
+    `'upper_triangular'` or `'triu'`:
+        Set the lower triangular part of the matrix to zero and add the
+        conjugate transpose of the upper triangular part. This effectively ignores the lower triangular
+        part of the matrix.
     """
     if method in ('upper_triangular','triu'):
         print("forcing Hermiticity by taking upper triangular part. This ignores the lower triangular part.")
