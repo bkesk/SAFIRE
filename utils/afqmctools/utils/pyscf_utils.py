@@ -39,8 +39,8 @@ def chk_is_pbc(chkfile):
 def mf_from_chkfile(chkfile, scf_class, scf):
   """Load mf object from chkfile, useful for restart and post processing
 
-  Parameters
-  ----------
+    Parameters
+    ----------
     chkfile : str 
         path to PySCF chkfile
     scf_class : pyscf.scf.SCF 
@@ -48,9 +48,14 @@ def mf_from_chkfile(chkfile, scf_class, scf):
     scf: module
         Module containing the scf_class (e.g. pyscf.scf, pyscf.pbc.scf)
 
-  Output:
-    class: mf object
-  Example:
+    Returns
+    -------
+
+        class: mf object
+
+    Examples
+    --------
+
     >>> from pyscf import scf
     >>> rhf = mf_from_chkfile('rhf.chk', scf.RHF, scf)
     >>> from pyscf.pbc import scf

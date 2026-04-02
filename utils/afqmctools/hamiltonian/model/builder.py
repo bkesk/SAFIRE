@@ -31,7 +31,7 @@ def skip_empty_params(func):
     Notes
     -----
     This decorator is useful for functions that would attempt to build
-       an empty Hamiltonian component if the parameters are all zero. None is interpreted as zero.
+    an empty Hamiltonian component if the parameters are all zero. None is interpreted as zero.
     This decorator preserves the original docstring of the decorated function.
     """
 
@@ -66,9 +66,10 @@ def skip_empty_params(func):
 def iterate_nth_order(start_n=1):
     """
     Decorator to iterate over a list of parameters, calling the method of the object, `obj`,
-        with each parameter in `params`.
+    with each parameter in `params`.
     
-    decorates functions with the signature:
+    decorates functions with the signature: ::
+    
         func(self,params,nth_neighbor=n,*args,**kwargs)
 
     where `params` is an iterable of parameters to iterate over or a single parameter,
