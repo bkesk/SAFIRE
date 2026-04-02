@@ -104,6 +104,5 @@ void set_output_level(bool root, int output_level)
 }
 
 void set_stacktrace(bool stk) { __app_stacktrace__ = stk; }
-void set_test_mode(bool t)    { __app_test_mode__   = t; }
 
 }

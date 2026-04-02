@@ -49,7 +49,6 @@ int main(int argc, char* argv[])
     if(debug_level > 5) debug_level=2;
   }
   sfqmc::arch::init(world.root(),output_level,debug_level);
-  sfqmc::set_test_mode(true);
 
   Catch::Session session;
   using namespace Catch::clara;

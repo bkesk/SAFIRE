@@ -33,7 +33,6 @@
 namespace sfqmc {
 
 extern bool __app_stacktrace__;
-extern bool __app_test_mode__;
 
 /// Exception thrown by APP_ABORT when the program is running in test mode.
 struct AppAbortException : public std::runtime_error {
@@ -69,8 +68,8 @@ void APP_ABORT(Args&&... args)
   }
   spdlog::get("err_console")->flush();
   // Abort
-  if (__app_test_mode__)
-    throw AppAbortException("APP_ABORT triggered (see error log for details)");
+
+  throw AppAbortException("APP_ABORT triggered (see error log for details)");
   MPI_Abort(MPI_COMM_WORLD, 1);
 }
 
@@ -105,9 +104,7 @@ void APP_ABORT_with_source(const std::source_location& loc = std::source_locatio
   }
   spdlog::get("err_console")->flush();
   // Abort
-  if (__app_test_mode__)
-    throw AppAbortException("APP_ABORT triggered (see error log for details)");
-  MPI_Abort(MPI_COMM_WORLD, 1);
+  throw AppAbortException("APP_ABORT triggered (see error log for details)");
 }
 
 #else
@@ -135,9 +132,7 @@ void APP_ABORT(const std::string_view format_string, Args&&... args)
   }
   std::cerr.flush();
   // Abort
-  if (__app_test_mode__)
-    throw AppAbortException(std::vformat(format_string, std::make_format_args(args...)));
-  MPI_Abort(MPI_COMM_WORLD, 1);
+  throw AppAbortException(std::vformat(format_string, std::make_format_args(args...)));
 }
 
 template<class... Args>
@@ -165,9 +160,8 @@ void APP_ABORT_with_source(const std::source_location& loc, const std::string_vi
     std::cerr<<"**********************************************\n";
   }
   std::cerr.flush();
-  if (__app_test_mode__)
-    throw AppAbortException(std::vformat(format_string, std::make_format_args(args...)));
-  MPI_Abort(MPI_COMM_WORLD, 1);
+
+  throw AppAbortException(std::vformat(format_string, std::make_format_args(args...)));
 }
 
 #endif // ENABLE_SPDLOG

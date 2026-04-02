@@ -18,6 +18,7 @@
 #include "cxxopts.hpp"
 #include "IO/ptree/InputParser.hpp"
 #include "IO/app_loggers.h"
+#include "IO/AppAbort.hpp"
 
 #include "config.h"
 #include "configuration.hpp"
@@ -36,7 +37,7 @@
 
 /** @file safire.cpp
  */
-int main(int argc, char** argv)
+int main_impl(int argc, char** argv)
 {
   using namespace sfqmc;
   mpi3::environment env(argc, argv);
@@ -119,7 +120,6 @@ int main(int argc, char** argv)
 
   // setup output loggers
   sfqmc::arch::init(root,output_level,debug_level);
-  sfqmc::set_test_mode(false);
 
   std::string welcome(
     std::string("") + 
@@ -177,7 +177,15 @@ int main(int argc, char** argv)
       exit(1);	
     }
   } // simulations end
-
   return 0;
 }
 
+int main(int argc, char** argv) {
+  try {
+    return main_impl(argc, argv);
+  } catch (const sfqmc::AppAbortException& e) {
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    mpi3::environment::finalize();
+    return 1;
+  } 
+}
