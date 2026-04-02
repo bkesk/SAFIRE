@@ -85,7 +85,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 apidoc_modules = [
     {
         'path': '../utils/afqmctools',
-        'destination': '../utils/docs/api/',
+        'destination': 'afqmctools/api/',
         'exclude_patterns': ['**/qe_driver.py', '**/hamiltonian/hubbard.py'],
     },
 ]

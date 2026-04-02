@@ -11,7 +11,7 @@ Getting Started with SAFIRE
   user_manual
   tutorials
   examples
-  utils/docs/afqmctools
+  afqmctools/afqmctools
   features
   changelog
   afqmc
