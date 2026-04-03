@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   name: python3
-  language: python
+  language: ipython3
   display_name: Python 3
 ---
 
@@ -125,7 +125,7 @@ autohf_to_afqmc(results,output_fname=scratch_dir/"afqmc.h5")
 
 ## Write input file
 
-For more information about the input file, see the [Understanding the input file](../../../tutorials/models/02_understanding_the_input_file/02_understanding_the_input_file.html) tutorial.
+For more information about the input file, see {doc}`../../../tutorials/models/02_understanding_the_input_file/02_understanding_the_input_file`.
 
 ```{code-cell} ipython3
 :id: pm-N_EFxInNK
@@ -159,7 +159,7 @@ write_json(
 ---
 id: xvJVj1DGJeW0
 ---
-# run AuxiliaryFields
+# run SAFIRE
 run_afqmc(
     run_dir=scratch_dir,
     run_mode="local_cpu",

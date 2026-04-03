@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -125,7 +125,7 @@ orbitals = np.array(
 
 where we are using the RHF orbitals as a basis to represent the RHF orbitals.
 
-Next, we constructed the Slater matrix, $\Phi_{ip}$, and wrote down a trivial expanstion coefficient with,
+Next, we constructed the Slater matrix, $\Phi_{ip}$, and wrote down a trivial expansion coefficient with,
 
 ```python
 phi_0 = np.array([
@@ -150,7 +150,7 @@ write_wfn(
 )
 ```
 
-Note that we write the "wavefunction" as a tuple of length two where the first entry is a 1-dimensional array with the CI coefficient, and the second entry is a 3 dimensional array where the first index corresponds to the Slater determinant index, the second index corresponds to the basis set index, and the third index correpsonds to the electron index.
+Note that we write the "wavefunction" as a tuple of length two where the first entry is a 1-dimensional array with the CI coefficient, and the second entry is a 3 dimensional array where the first index corresponds to the Slater determinant index, the second index corresponds to the basis set index, and the third index corresponds to the electron index.
 
 We put all of this together in the following code block.
 
@@ -214,9 +214,9 @@ details on the expected data.
 
 ## NOMSD Trial Wavefunction
 
-In the previous example, we learned how to specify a trial wavefunctional with a single Slater determinant. Here, we will see how to we can write a suitable non-orthogonal multi-Slater trial wavefunction for the AFQMC code.
+In the previous example, we learned how to specify a trial wavefunction with a single Slater determinant. Here, we will see how to we can write a suitable non-orthogonal multi-Slater trial wavefunction for the AFQMC code.
 
-Similarly to the single Slater determinant case, we begin by specifying a set of orbitals. In this case, however, we chose a set of non-orthognal orbitals represented in a common basis:
+Similarly to the single Slater determinant case, we begin by specifying a set of orbitals. In this case, however, we chose a set of non-orthogonal orbitals represented in a common basis:
 
 ```python
 import numpy as np
@@ -228,7 +228,7 @@ orbitals = np.array(
 ```
 Note that each column of the `orbitals` object are normalized, but they are not orthogonal to each other.
 
-Next, we constuct two determinants with a single electron each. The first determinant will be specified by the orbital, whereas the second orbital will be used in the other determinant.
+Next, we construct two determinants with a single electron each. The first determinant will be specified by the orbital, whereas the second orbital will be used in the other determinant.
 
 ```python
 phi_nomsd = np.array([
@@ -325,8 +325,8 @@ $$
 $$
 where we explicitly create holes (through the $a_{g,\downarrow} a_{g,\uparrow}$ operators) and particles (through the $a_{u,\downarrow}^\dagger a_{u,\uparrow}^\dagger$) operators on top of a reference state.
 
-For the tooling side of the AFQMC, to write a ph-mSD trial wavefunction we need to specify an array with the occupied orbitals in each Slater determinant. $α$ and $β$ electrons should be specified separately. Finally, we need to provide an array containing the normalized weights/coefficients associated with each determiant in our trial wavefunction.
-Combining these ingredients (array of normalized coefficients, array of occupied $α$ orbitas and array of occupied $β$ orbitas) as a tuple objects allows us to write the ph-mSD wavefunction as an hdf5 file for the AFQMC code
+For the tooling side of the AFQMC, to write a ph-mSD trial wavefunction we need to specify an array with the occupied orbitals in each Slater determinant. $α$ and $β$ electrons should be specified separately. Finally, we need to provide an array containing the normalized weights/coefficients associated with each determinant in our trial wavefunction.
+Combining these ingredients (array of normalized coefficients, array of occupied $α$ orbitals and array of occupied $β$ orbitals) as a tuple objects allows us to write the ph-mSD wavefunction as an hdf5 file for the AFQMC code
 
 In our example, if we enumerate the orbitals in set starting with 0, we have:
 
@@ -373,7 +373,7 @@ write_wfn(
 !h5dump -n {scratch_dir}/PHMSD_wfn.h5
 ```
 
-here, the intersting information is the orbital occupancies in `/Wavefunction/PHMSD/occs` and
+here, the interesting information is the orbital occupancies in `/Wavefunction/PHMSD/occs` and
 the CI coefficients in `/Wavefunction/PHMSD/ci_coeffs`.
 
 ```{code-cell} ipython3
@@ -393,7 +393,7 @@ In this tutorial, you became acquainted with how to write a Trial wavefunction t
 ### What you learned
 
 1. How to write a single Slater determinant trial wavefunction given the Slater Matrix
-2. How to write a single Slater determinant given orbtial occupancies
+2. How to write a single Slater determinant given orbital occupancies
 3. How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices
 4. How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings
 

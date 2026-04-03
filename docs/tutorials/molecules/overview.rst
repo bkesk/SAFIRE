@@ -55,7 +55,7 @@ where,
 :math:`\vec{r}_p` is the position of electron :math:`p`,
 :math:`N_\mathrm{atom}` is the number of atomic nuclei,
 and :math:`Z_A` and :math:`\vec{R}_A` are the atomic number and position, respectively, of atomic nuclei, :math:`A`.
-This Hamiltonian can be expressed in the language of second quantization by making the idenfications,
+This Hamiltonian can be expressed in the language of second quantization by making the identifications,
 
 .. math::
 
@@ -89,7 +89,7 @@ combination of Slater determinants,
 where :math:`|\Phi_m\rangle` are Slater determinants,
 and :math:`C_n` is a coefficient.
 This can either be a configuration interaction-type expansion
-or a linear combination of nonorthogonal Slater determiants.
+or a linear combination of nonorthogonal Slater determinants.
 
 In the former case, it is convenient to specify Slater determinants in terms of occupation vectors as,
 
@@ -99,7 +99,7 @@ In the former case, it is convenient to specify Slater determinants in terms of 
 
 where :math:`O_\sigma = [o_0, o_1, ..., o_{N_\sigma}]` is the set of orbitals which are occupied for :math:`\sigma=\alpha, \beta`.
 
-In the later case, Slater determinants are often expressed explicitly by their respective Slater matries,
+In the later case, Slater determinants are often expressed explicitly by their respective Slater matrices,
 :math:`[\Phi^\sigma_n]_{ip}`, where :math:`p` is the electron index.
 
 Common methods for computing a trial wavefunction include:
@@ -136,22 +136,22 @@ in this format as will be seen in the tutorials.
 Software prerequisites
 ======================
 
-Many mature quantum chemisty codes exist and are widely used in the quantum chemistry community.
+Many mature quantum chemistry codes exist and are widely used in the quantum chemistry community.
 For this reason, SAFIRE does not implement common quantum chemistry methods,
-such as Hartree-Fock (HF), density functional theory (DFT), complete active space (CAS) methdos, etc.
+such as Hartree-Fock (HF), density functional theory (DFT), complete active space (CAS) methods, etc.
 Instead, SAFIRE is designed to use externally generated Hamiltonians and trial wavefunctions
 for easy integration into existing workflows.
 
 To use SAFIRE, you will need a quantum chemistry code that can:
 
-1. generate / output Hamiltonian matrix elements, :math:`H^0`, :math:`H^1_{ij}`, and :math:`H^2_{ijjkl}`. SAFIRE comes with a converter from the commmon FCIDUMP format to its internal format via afqmctools.
+1. generate / output Hamiltonian matrix elements, :math:`H^0`, :math:`H^1_{ij}`, and :math:`H^2_{ijjkl}`. SAFIRE comes with a converter from the common FCIDUMP format to its internal format via afqmctools.
 2. compute / output wavefunctions to use as trial wavefunctions. This can either be:
 
    - a list of CI coefficients, :math:`C_n`, and occupation strings :math:`O_\sigma = [o_0, o_1, ..., o_{N_\sigma}]`
    - a set of CI coefficients, :math:`C_n`, with corresponding non-orthogonal Slater determinant Slater matrices, :math:`[\Phi^\sigma_n]_{ip}`.
 
-For all of tutorials excpet for Hello SAFIRE we assume that you have access to a quantum
-chemisty code that can do all of this.
+For all of tutorials except for Hello SAFIRE we assume that you have access to a quantum
+chemistry code that can do all of this.
 If you do not have access to a quantum chemistry code that can do all of this,
 PySCF is a possible choice which is free and open source.
 The tutorials will teach you how to input this information using the `afqmctools` CLI tools / python package.

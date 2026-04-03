@@ -391,7 +391,7 @@ def read_orbitals(
         new FFT grid to use for the orbitals.
     cartesian : bool, optional
         If True, return real space grid in Cartesian coordinates.
-        If False, resturn real spcae grid in fractional coordinates.
+        If False, return real space grid in fractional coordinates.
         If 'realspace' is False, then this has no effect.
         If 'return_grid' is False, then this has no effect.
     realspace : bool, optional
@@ -402,13 +402,13 @@ def read_orbitals(
     -------
     tuple
         if realspace is True, then return a tuple containing:
-        - dense represenation of the realspace grid : np.ndarray with shape (3,N_grid)
+        - dense representation of the realspace grid : np.ndarray with shape (3,N_grid)
         - orbitals : np.ndarray with shape (N_kpts,N_bands,N_grid)
         - fft_grid : np.ndarray with shape (3,) containing the size of the FFT grid
         if realspace is False, then return a tuple containing:
         - metadata : dict containing metadata
         - orbitals : list of np.ndarray with shape (N_kpts,N_bands,N_fft)
-        - None : for tuple lenght consistency with the realspace case
+        - None : for tuple length consistency with the realspace case
     """
     if path is not None:
         path = Path(path)
@@ -455,7 +455,7 @@ def read_orbitals(
 
     # 4. map evc (-1/2,1/2 ) -> (0,1)
     if realspace:
-        warn("Converting orbtials to real space orbitals. It is slow and memory intensive.")
+        warn("Converting orbitals to real space orbitals. It is slow and memory intensive.")
         orbitals = np.zeros((nkpts,nbands,M[0],M[1],M[2]),dtype=np.complex128)
         for k in range(nkpts):
             for b in range(nbands):

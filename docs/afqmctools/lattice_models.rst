@@ -14,7 +14,7 @@ are constructed on the specific lattice.
 In the AFQMC lattice model tools, the creation of a `Lattice` class instance and of a `Hamiltonian` class instance 
 are separated. 
 First, the `Lattice` instance is generated 
-The lattice is an object which is aware of geometrical properties usch as the positions of lattice sites, 
+The lattice is an object which is aware of geometrical properties such as the positions of lattice sites,
 neighbors, boundary conditions, etc.
 
 
@@ -50,7 +50,7 @@ multi-band Hubbard-Kanamori Hamiltonians of the type:
 
 where :math:`i`,\ :math:`j` are combined lattice and band indices,
 :math:`\hat{c}^\dagger_{i\sigma}`, :math:`\hat{c}_{j\sigma'}`
-create/anihilate and electron on the site (and band) corresponding to
+create/annihilate and electron on the site (and band) corresponding to
 :math:`i`/:math:`j` with spin :math:`\sigma`/:math:`\sigma'`,
 :math:`\hat{n}_{i\sigma}` is the number operator,
 :math:`t^{\sigma \sigma'}_{ij}` includes all one-body terms
@@ -63,7 +63,7 @@ bands on the same lattice site, but are by no means limited in this way.
 
 Currently, SAFIRE can use any form of this Hamiltonian. For
 convenience, we supply tooling to build the most common forms of the
-Hamiltonain described above. Only on-site, but inter-band,
+Hamiltonian described above. Only on-site, but inter-band,
 :math:`U`,\ :math:`U^1`,\ :math:`U^2`, and :math:`J` are implemented;
 however, a motivated user can build a custom Hamiltonian and save it in
 the format described below in the section, " input file
@@ -159,11 +159,11 @@ Model Hamiltonian parameters can be specified either directly as a
 Python dict, or via an input file in toml format. 
 both cases share the following conventions.
 
-The model Hamiltionan builder will reference two different input blocks;
+The model Hamiltonian builder will reference two different input blocks;
 The ``hamiltonian`` block - where
-Hamiltionan parameters are specified - and a ``lattice`` block - where
+Hamiltonian parameters are specified - and a ``lattice`` block - where
 the lattice that underlies the Hamiltonian is defined.
-Any supported Hamiltionan can be constructed on any supported 
+Any supported Hamiltonian can be constructed on any supported 
 lattice.
 
 `hamiltonian` block
@@ -174,17 +174,17 @@ following, :math:`i,j` are combined indices including both lattice
 indices (:math:`\mu`,\ :math:`\nu`), and band indices
 (:math:`m`,\ :math:`m'`)
 
-TODO: This is a little too busy. Try making each parameter a sub-sub-section (whatevery level is appropriate), and space out each case.
+TODO: This is a little too busy. Try making each parameter a sub-sub-section (whatever level is appropriate), and space out each case.
 
 -  ``t`` : specifies hopping terms,
    :math:`\sum_{ij,\sigma \sigma'}t^{\sigma \sigma'}_{ij}\hat{c}^\dagger_{i\sigma}\hat{c}_{j\sigma'}`.
    ``t`` may be any of:
 
    -  None : no hopping : :math:`t^{\sigma \sigma'}_{ij} = 0`
-   -  a single number : interpretted as the nearest-neighbor hopping.
+   -  a single number : interpreted as the nearest-neighbor hopping.
       Assumes no hopping between band :
       :math:`t^{\sigma \sigma'}_{ij} = t\delta_{mm'}\delta_{\nu,\mu\pm1}\delta_{\sigma\sigma'}`
-   -  a 1-D array of length :math:`n-1` : interpretted as multiple
+   -  a 1-D array of length :math:`n-1` : interpreted as multiple
       hopping terms where ``t[n-1]`` is the hopping strength between
       :math:`n^{th}`-order neighbors. Assumes no hopping between bands :
       :math:`t^{\sigma \sigma'}_{ij} = \sum_{n=1} t_n \delta_{mm'}\delta_{\nu,\mu\pm n}\delta_{\sigma\sigma'}`
@@ -198,12 +198,12 @@ TODO: This is a little too busy. Try making each parameter a sub-sub-section (wh
    any of:
 
    -  None : no hubbard U : :math:`U_i = 0`
-   -  a single number : interpretted as a constant U across lattice
+   -  a single number : interpreted as a constant U across lattice
       sites and bands :math:`U_i = U \delta_{mm'} \delta_{\mu\nu}`
-   -  a 1-D array of length :math:`N_{bands}` : intepretted as
+   -  a 1-D array of length :math:`N_{bands}` : interpreted as
       :math:`U_m` where :math:`m` is the band index, but otherwise
       constant in lattice index.  :math:`U_i = U_m \delta_{\mu\nu}`
-   -  a 1-D array of length :math:`N_{sites}` : intepretted as
+   -  a 1-D array of length :math:`N_{sites}` : interpreted as
       :math:`U_\mu` where :math:`\mu` is the lattice site index, but
       otherwise constant in band index. :math:`U_i = U_{\mu} \delta_{mm'}`
 
@@ -215,11 +215,11 @@ TODO: update the description of ``U1``, ``U2``, and ``J`` to include the intersi
    May be any of:
 
    -  None : no density-density Hubbard interaction :math:`U_{ij}^1 = 0`
-   -  a single number : interpretted as a constant U1 for all valid
+   -  a single number : interpreted as a constant U1 for all valid
       interband interactions, on the same site.
       :math:`U_{ij}^1 = U^1 \delta_{\mu\nu} \forall m,m'`
    -  a 2-D array with shape :math:`N_{bands}` x :math:`N_{bands}` :
-      interpretted as the onsite, interband :math:`U^1` interaction
+      interpreted as the onsite, interband :math:`U^1` interaction
       which is the same for all sites. The diagonal is ignored since it
       should be specified via by the parameter ``U``.
       :math:`U_{ij}^1 = U^1_{mm'} \delta_{\mu\nu}`

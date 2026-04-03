@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -26,9 +26,9 @@ Become acquainted with how to write a Hamiltonian to the SAFIRE HDF5 format.
 
 ## Introduction
 
-In previous tutorials, we learned how to run SAFRIE, and how
+In previous tutorials, we learned how to run SAFIRE, and how
 to post process the results to arrive at the AFQMC energy.
-Now, we will learn how to write a Hamiltonian in SAFRIE's HDF5 format.
+Now, we will learn how to write a Hamiltonian in SAFIRE's HDF5 format.
 
 <!--
 <div>
@@ -42,7 +42,7 @@ Now, we will learn how to write a Hamiltonian in SAFRIE's HDF5 format.
 
 In this tutorial,
 we will compute the ground state energy of
-the minimal basis hydrogen dimer with a bondlength of 1.4 Bohr radii. 
+the minimal basis hydrogen dimer with a bond length of 1.4 Bohr radii. 
 
 <!--
 <div>
@@ -137,7 +137,7 @@ For this tutorial, we will use the minimal basis Hydrogen dimer since it can be 
 See, for example, section 3.5.2 in ref. 1.
 
 The code block below contains the Hamiltonian for the $H_2$ molecule at a
-bondlength of $\delta_{H-H} = 1.4$ Bohr radii in a standard sto-3g basis.
+bond length of $\delta_{H-H} = 1.4$ Bohr radii in a standard sto-3g basis.
 **Run the code block below to load the Hamiltonian into memory**
 
 1. Szabo, A., & Ostlund, N. S. (1996). Modern quantum chemistry: Introduction to advanced electronic structure theory. Dover Publications.
@@ -190,7 +190,7 @@ Sij = np.array([[1.,         0.65931821],
 
 ### Save the Hamiltonian
 
-`afqmctools` provides Python functions for writting Hamiltonians in an HDF5 file that can be read by the SAFIRE executable as
+`afqmctools` provides Python functions for writing Hamiltonians in an HDF5 file that can be read by the SAFIRE executable as
 shown in the code block below.
 AFQMC uses a factorized form of the electron-electron interaction tensor,
 
@@ -221,7 +221,7 @@ write_hamiltonian_generic(
     filename=scratch_dir/"hamil.h5",
     E0=H0,
     H_one_body=H1_ij,
-    coulomb_repuslion_tensor=H2_ijkl
+    coulomb_repulsion_tensor=H2_ijkl
 )
 ```
 
@@ -229,13 +229,12 @@ write_hamiltonian_generic(
 
 ## The Trial Wavefunction
 
-We will explore how to write trial wavefunctions in the [writing trial wavefunctions](../04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction.html)
-tutorial.
+We will explore how to write trial wavefunctions in {doc}`../04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction`.
 In general, the trial wavefunction is a linear combination of Slater determinants,
 $$
 | \Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle,
 $$
-where $C_n$ is a cofficient,
+where $C_n$ is a coefficient,
 and $|\Phi_n\rangle$ are Slater determinants which are not necessarily
 orthogonal to each other.
 
@@ -278,8 +277,8 @@ write_json(scratch_dir / "afqmc.json", scratch_dir / "wfn.h5", scratch_dir / "ha
 ## Your Turn: Compute the AFQMC energy
 
 At this point, you should run an AFQMC calculation using SAFIRE
-as we covered earlier in the [Hello SAFIRE](../01_hello_auxiliary_fields/hello_auxiliary_fields.html) tutorial,
-and use `afqmctools` to obtain the AFQMC energy as we learned in the [post-processing](../05_computing_observables) tutorial.
+as we covered earlier in {doc}`../01_hello_safire/01_hello_safire`,
+and use `afqmctools` to obtain the AFQMC energy.
 
 As a reminder, you can run SAFIRE in any of the following ways:
 
@@ -355,7 +354,7 @@ We will continue with the example of a Hydrogen dimer in an STO-3G basis to demo
 </div>
 
 Instructions for generating a FCIDUMP are beyond the scope of this tutorial;
-however, quantum chemistry codes that can easily generate FCIDUMP files are ubiquitious.
+however, quantum chemistry codes that can easily generate FCIDUMP files are ubiquitous.
 
 For simplicity, we provide a FCIDUMP file which, starting from the GitHub repo root, can be found in,
 
@@ -369,7 +368,7 @@ For simplicity, we provide a FCIDUMP file which, starting from the GitHub repo r
 
 The `fcidump_to_afqmc` CLI script can be used to directly convert
 from a FCIDUMP file to the HDF5 format used by SAFIRE.
-If you follow the official installation instrcutions for `afqmctools`, then
+If you follow the official installation instructions for `afqmctools`, then
 `fcidump_to_afqmc` should already be installed.
 
 It can be used as
@@ -401,7 +400,7 @@ trial wavefunction to the SAFIRE HDF5 file.
 The wavefunction is a single Slater determinant in which the first $N_{\uparrow}$/$N_{\downarrow}$ *by index*
 orbitals are occupied.
 $N_{\uparrow}$ and $N_{\downarrow}$ are determined by the information in the header of the FCIDUMP file.
-It is also possible to explicitly specify orbital occcupancies with the `--occ_up` and `--occ_down` swithces.
+It is also possible to explicitly specify orbital occupancies with the `--occ_up` and `--occ_down` switches.
 
 ### Your Turn
 Run the following codeblock to output the Wavefunction to an HDF5 file via the CLI.
@@ -441,12 +440,12 @@ see the [API documentation for more](https://users.flatironinstitute.org/~beskri
 
 ### write_hamiltonian_generic()
 
-As we saw above, the `write_hamiltonian_generic()` funciton will generate an HDF5 file that can
+As we saw above, the `write_hamiltonian_generic()` function will generate an HDF5 file that can
 be read by the SAFIRE executable containing the Hamiltonian.
-It will automatically generate a Cholesky decomposed form of the interaction if if a electron-repulsion integrals are provded via the `coulomb_repuslion_tensor` keyword argument.
-Alternativaly, any 3-index factorized form of the electron interaction can be provided
+It will automatically generate a Cholesky decomposed form of the interaction if electron-repulsion integrals are provided via the `coulomb_repulsion_tensor` keyword argument.
+Alternatively, any 3-index factorized form of the electron interaction can be provided
 via the `cholesky_vectors` input parameter.
-Exactly one of `cholesky_vectors` or `coulomb_repuslion_tensor` must be provided to
+Exactly one of `cholesky_vectors` or `coulomb_repulsion_tensor` must be provided to
 `write_hamiltonian_generic()`.
 
 ```python
@@ -462,12 +461,12 @@ Exactly one of `cholesky_vectors` or `coulomb_repuslion_tensor` must be provided
         filename=scratch_dir/"H2_hamiltonian.h5",
         E0=H0,
         H_one_body=H1_ij,
-        coulomb_repuslion_tensor=H2_ijkl,
+        coulomb_repulsion_tensor=H2_ijkl,
         cholesky_delta=1.0e-5
     )
 ```
 
-see the [API documentation for more]().
+see the [API documentation for more](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/api/afqmctools.hamiltonian.html#afqmctools.hamiltonian.mol.write_hamiltonian_generic).
 
 ### Your Turn: Run the following code block to convert from the provided FCIDUMP file to the SAFIRE format
 
@@ -489,7 +488,7 @@ write_hamiltonian_generic(
     filename=scratch_dir/"H2_hamiltonian.h5",
     E0=E0,
     H_one_body=H1_ij,
-    coulomb_repuslion_tensor=H2_ijkl,
+    coulomb_repulsion_tensor=H2_ijkl,
     cholesky_delta=1.0e-5
 )
 ```
@@ -550,7 +549,7 @@ write_wfn_mol(
 
 ## Summary
 
-In this tutorial, you set up and ran a quantum chemistry AFQMC calculation in which we computed the ground state energy of the Hydrogen dimer at a fixed bondlength.
+In this tutorial, you set up and ran a quantum chemistry AFQMC calculation in which we computed the ground state energy of the Hydrogen dimer at a fixed bond length.
 
 The AFQMC code needs a Hamiltonian, a trial wavefunction, and a file containing settings as input, and it outputs stochastic samples as specified in the input file.
 
@@ -624,7 +623,7 @@ write_hamiltonian_generic(
     filename=scratch_dir/"H2_hamiltonian.h5",
     E0=H0,
     H_one_body=H1_ij,
-    coulomb_repuslion_tensor=H2_ijkl
+    coulomb_repulsion_tensor=H2_ijkl
 )
 
 # make and save a trial wavefunction

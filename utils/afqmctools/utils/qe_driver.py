@@ -61,7 +61,7 @@ def qe_driver_init(norb, qe_prefix, qe_outdir, atm_labels,
     Returns
     -------
     qe_info: Python Dictionary
-      Dictonary containing all stored information about the QE driver.
+      Dictionary containing all stored information about the QE driver.
       Contents:
         'species' : string array    # array with species labels.
         'nsp' : integer,            # number of species

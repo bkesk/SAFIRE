@@ -12,12 +12,12 @@ used directly in custom scripts.
 Installation
 ------------
 
-The afqmctools library, and the acompanying scripts, can be installed via the `pip` package manager.
-It is recommended that afqmctools be installed in a virtual environmen as shown below.
+The afqmctools library, and the accompanying scripts, can be installed via the `pip` package manager.
+It is recommended that afqmctools be installed in a virtual environment as shown below.
 Some of the afqmctools library requires a parallel build of hdf5 and the h5py library.
-Insctructions for building the parrallel version of h5py can be found in the official 
+Instructions for building the parallel version of h5py can be found in the official
 `h5py documentation <https://docs.h5py.org/en/stable/mpi.html#building-against-parallel-hdf5>`_.
-Parrelel h5py should be installed before running `pip install .` below so that h5py is not installed
+Parallel h5py should be installed before running `pip install .` below so that h5py is not installed
 via pip (not built with mpi).
 For an editable development build of afqmctools, replace the last line below with `pip install -e .`
 
@@ -69,10 +69,10 @@ will display the help menu for `write_afqmc_json`.
                             path restoration type "0", "1", or "e" for no, yes, and extra
     
 
-Optional Depedencies
+Optional Dependencies
 ~~~~~~~~~~~~~~~~~~~~
 
-The afqmctools package has several optional depencies which enable additonal functionality.
+The afqmctools package has several optional dependencies which enable additional functionality.
 Optional dependencies are organized into groups (see below) and can be installed via:
 
 .. code-block:: bash
@@ -89,8 +89,8 @@ DEV TODO: update the following table to reflect current state of optional depend
  Group Name           installs                                        high-level overview of which features are enabled                                
 ============ ========================== ============================================================================================================== 
    AUTOHF     jax,optax,jaxlib, jaxopt                                    enables the autoHF lattice model HF Solver                                   
-   PYSCF            pyscf>=2.4.0         enables converters to/from PySCF formats, building waveunctions/Hamiltonians in Quantum Chemistry basis sets  
-   TESTING      pytest-html, coverage                             enables .html reports of pyest results and of code coverage                           
+   PYSCF            pyscf>=2.4.0         enables converters to/from PySCF formats, building wavefunctions/Hamiltonians in Quantum Chemistry basis sets  
+   TESTING      pytest-html, coverage                             enables .html reports of pytest results and of code coverage                           
 ============ ========================== ============================================================================================================== 
 
 
@@ -121,13 +121,12 @@ See the following for more details.
 
   lattice_models
 
-Python API reference
---------------------
+API reference
+-------------
 
 .. toctree::
   :maxdepth: 2
-  :caption: Detailed User Documentation:
 
-  api/modules.rst
+  api/afqmctools.rst
 
 

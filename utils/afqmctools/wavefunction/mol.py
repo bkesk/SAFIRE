@@ -123,7 +123,7 @@ def slater_gto2mo(
         else:
             raise ValueError("Can't construct a valid transformation matrix")
 
-    # ngto is the number of underyling basis functions, regardless of gto or other
+    # ngto is the number of underlying basis functions, regardless of gto or other
     ngto = nmo = transform_matrix.shape[0]
 
     if slater_type is None:
@@ -218,18 +218,23 @@ def slater_gto2mo(
 def make_slater(wfn_scf_data,basis_scf_data=None,cas=None):
     """
     make a single Slater determinant based on the contents of the
-       the input 'scf_data' dictionary.
+    the input 'scf_data' dictionary.
 
-    Inputs:
-    - wfn_scf_data:dict - defines the source of the orbitals from
-                            which to build the Slater determinant
-    - (optional) basis_scf_data:dict - defines the orbtial basis. If given,
-                            the Slater determinant will be expressed within
-                            this basis - in this case, the 'orthAO' keyword 
-                            within `wfn_scf_data` will be ignored!
+    Parameters
+    ----------
+    wfn_scf_data : dict
+        defines the source of the orbitals from
+        which to build the Slater determinant
+    (optional) basis_scf_data : dict
+        defines the orbital basis. If given,
+        the Slater determinant will be expressed within
+        this basis - in this case, the 'orthAO' keyword
+        within `wfn_scf_data` will be ignored!
 
-    Returns:
-    - phi:numpy.ndarray with shape (nmo,nelec) - a single Slater determinant expressed 
+    Returns
+    -------
+    phi:numpy.ndarray with shape (nmo,nelec)
+        a single Slater determinant expressed
         as a Slater matrix. The orbitals are taken from 'wfn_scf_data' and are expressed
         either in the basis of orbitals defined in `basis_scf_data` (if given), an orthogonalized
         AO basis (if wfn_scf_data['orthAO'] == True), or within the basis of orbitals defined in 

@@ -41,7 +41,7 @@ def fcidump_header(nel:int, norb:int, spin:int) -> str:
     spin : int
         Spin of the system.
 
-    returns
+    Returns
     -------
     header : string
         Header for FCIDUMP file.
@@ -582,7 +582,7 @@ def fmt_integral(intg, i, k, j, l, cplx, paren=False):
     cplx : bool
         If True, then integrals are printed as complex-valued
     paren : bool
-        If True, complex-valued integrals are printed in paranthesis
+        If True, complex-valued integrals are printed in parenthesis
     """
     if cplx:
         if paren:
@@ -626,7 +626,7 @@ def write_fcidump(filename, hcore, chol, enuc, nmo, nelec, tol=1e-8, ctol=1e-12,
     chol_is_eri: bool
         Write chemist's ERI directly instead of using its Cholesky factorization
     use_spinor: bool
-        Convret to a spinor basis before writting FCIDUMP
+        Convert to a spinor basis before writing FCIDUMP
     """
 
     if use_spinor and cplx == False:
@@ -866,8 +866,8 @@ def read_cholesky_kpoint(filename, get_chol=True):
     Reads datasets from the `Hamiltonian` group in the internal format and
     returns the one-body matrices and (optionally) per-Q Cholesky vectors.
 
-    Reads
-    -----
+    The following format is expected:
+
     - `Hamiltonian/dims` (array, len=8): overall dimensions. Used entries:
       - `dims[2] = nkp`: number of k-points.
       - `dims[3] = nmo_tot`: total orbitals across all k-points.
@@ -1285,7 +1285,7 @@ def write_fcidump_kpoint(filename, hcore, chol, enuc, nmo_tot, nelec,
     paren : bool
         Write complex numbers in parenthesis.
     use_spinor: bool
-        Convret to a spinor basis before writting FCIDUMP
+        Convert to a spinor basis before writing FCIDUMP
     """
     if use_spinor:
         raise NotImplementedError(
@@ -1418,7 +1418,7 @@ def kpoint_to_sparse(kp_file, sp_file, real_chol=False,
     real_chol : bool
         If True, write real Cholesky vectors. Optional. Default: False.
     thresh : float
-        Threshold for sparse integral values. Intagrals with absolute value less then 
+        Threshold for sparse integral values. Integrals with absolute value less then
         thresh are considered 0.0 Optional. Default: 1e-8.
     """
     warn("Sparse format is deprecated. Use k-point factorized Hamiltonian format instead.", DeprecationWarning)

@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -15,7 +15,7 @@ kernelspec:
 
 # Local Embedding
 
-Following the methodlogy presented in:
+Following the methodology presented in:
 
 https://pubs.acs.org/doi/10.1021/acs.jctc.8b01244
 
@@ -50,11 +50,11 @@ MPI_TASKS = 64
 
 ### Automate the AFQMC
 
-We can automate the local embedding workflow, for a given O atom hieght, $h$, and localization radii $R_o$, and $R_v$, using a Python function. The workflow consists of the following steps.
+We can automate the local embedding workflow, for a given O atom height, $h$, and localization radii $R_o$, and $R_v$, using a Python function. The workflow consists of the following steps.
 
 1. define the atomic positions
 2. run ROHF to obtain both a trial wavefunction, and a basis
-3. unitarily localize the set of ROHF orbitals using so-called "split localation". This can be done by partitioning the ROHF orbitals into the following sets, and localizing each set separately via Foster-Boys localization for example).
+3. unitarily localize the set of ROHF orbitals using so-called "split localization". This can be done by partitioning the ROHF orbitals into the following sets, and localizing each set separately via Foster-Boys localization for example).
     - energetic core orbitals (no need to localize, we will freeze these no mater what)
     - occupied orbitals (including singly-occupied orbitals here; however, it is also possible to partition the singly-occupied orbitals from the doubly-occupied orbitals)
     - virtual orbitals

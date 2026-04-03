@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -45,22 +45,22 @@ $$
 $\mu$ / $\nu$ are compound indices, $\mu = (i,p,m)$ / $\mu = (j,q,n)$, that include the lattice site index, ($i$ / $j$), sublattice, ($p$ / $q$) and band ($m$ / $n$) indices.
 This is known as the Hubbard-Kanamori Hamiltonian.
 Many standard model Hamiltonians can be written in this language including the standard Hubbard model,
-extendended Hubbard with nearest-neighbor $V$, etc.
+extended Hubbard with nearest-neighbor $V$, etc.
 SAFIRE is agnostic to the details of the compound indices.
 It simply accepts Hamiltonian "components" which are interpreted as above.
-This provides great flexibilty in specifying Hamiltonians, however care must be taken outside of SAFIRE to ensure that consistent index conventions are used.
+This provides great flexibility in specifying Hamiltonians, however care must be taken outside of SAFIRE to ensure that consistent index conventions are used.
 
 afqmctools provides a framework for building lattice model Hamiltonians that can generate broad classes of lattice model Hamiltonians
 on a variety of lattices, using consistent conventions for indexing.
-The framework consists of a Lattice class which is responsible for geometry (see the [Lattice class tutorial](../03_setting_up_a_lattice/03_setting_up_a_lattice.html)),
+The framework consists of a Lattice class which is responsible for geometry (see {doc}`../03_setting_up_a_lattice/03_setting_up_a_lattice`),
 a Hamiltonian builder which is responsible for generating specific Hamiltonian terms on demand given a specific Lattice instance,
-and a Hamiltonian "Director" which is responsible for choosing which build steps to perfrom based on
+and a Hamiltonian "Director" which is responsible for choosing which build steps to perform based on
 a set of input Hamiltonian parameters.
 Each component of the framework can be used directly; however
 the Director class represents the highest-level interface of the lattice Hamiltonian framework and
 can manage the underlying Lattice instance and Builder instance.
 Users who want direct control over the Hamiltonian build steps can directly
-use the Hamiltonian "Builder". See the [Hamiltonian Builder tutorial](../05_hamiltonian_builder/05_hamiltonian_builder.html) for
+use the Hamiltonian "Builder". See {doc}`../05_hamiltonian_builder/05_hamiltonian_builder` for
 more detail.
 It is recommended to use the Director whenever possible.
 
@@ -94,16 +94,16 @@ scratch_dir = get_scratch_dir("lattice_04_hamiltonian_director",scratch_rootdir)
 
 ## Hamiltonian Director Tutorial
 
-The `afqmctools` Python package provides a framework for generating lattice model Hamiltonians as described in the Building Lattice Model Hamiltonians overview [here](#building-lattice-model-hamiltonians-tutorial).
+The `afqmctools` Python package provides a framework for generating lattice model Hamiltonians.
 The Hamiltonian Director is the highest-level interface to this framework.
 It may be invoked as a command line tool using an input file, or a directly within a Python script.
 We will briefly demonstrate the command line tool, but we will focus on using the Director within a Python script for most of this tutorial.
 
 The Hamiltonian Director is meant to handle building Hamiltonians which can be expressed in terms of a few simple parameters on relatively simple lattices.
-While SAFIRE supports any combinaiton of lattice, sublattice, and band degrees-of-freedom in the Hamiltonian, it is not always feasible to map such general models onto a few simple parameters.
-For these cases, we provide lower-level classes to assist as much as possible. See the [Lattice class tutorial](../03_setting_up_a_lattice/03_setting_up_a_lattice.html) for example.
+While SAFIRE supports any combination of lattice, sublattice, and band degrees-of-freedom in the Hamiltonian, it is not always feasible to map such general models onto a few simple parameters.
+For these cases, we provide lower-level classes to assist as much as possible. See {doc}`../03_setting_up_a_lattice/03_setting_up_a_lattice` for example.
 For example, the Hubbard model only needs a single parameter, $U/t$, and a lattice / boundary conditions in order to be fully specified.
-More general Hamiltonians can also be built using the Director; however, it may be useful to some users to work directly with the Lattice and Hamiltonian Builder in a Python script. See the [Hamiltonian Builder tutorial](../05_hamiltonian_builder/05_hamiltonian_builder.html) for more advance uses.
+More general Hamiltonians can also be built using the Director; however, it may be useful to some users to work directly with the Lattice and Hamiltonian Builder in a Python script. See {doc}`../05_hamiltonian_builder/05_hamiltonian_builder` for more advance uses.
 
 In this tutorial, we will cover how to request specific Hamiltonian terms from the Hamiltonian Director.
 We will also cover the details of the input conventions for each of the terms needed to build these Hamiltonians.
@@ -183,7 +183,7 @@ Max spin symmetry is  2
 
 ```
 
-Noticate that the builder will echo what build steps are invoked using which parameters.
+Note that the builder will echo what build steps are invoked using which parameters.
 For example, we can see from the line,
 
 ```bash
@@ -397,9 +397,9 @@ We've already seen how to add a basic nearest-neighbor onsite Hubbard U, now we 
 
 #### Band- and site-dependence deduction rules
 
-1. if U is a scalar (or an array with a single entry), then the onsite Hubbard interaction term is included with strength U and applied to all sites and bands unformly.
+1. if U is a scalar (or an array with a single entry), then the onsite Hubbard interaction term is included with strength U and applied to all sites and bands uniformly.
 
-2. if U is 1-dimensional with length nbands (i.e. [U1,U2,…,Um] where for an m-band model), then the onsite Hubbard interaction term is included with strength U_i applied to band i and uniformaly across sites.
+2. if U is 1-dimensional with length nbands (i.e. [U1,U2,…,Um] where for an m-band model), then the onsite Hubbard interaction term is included with strength U_i applied to band i and uniformly across sites.
 
 3. if U is 1-dimensional with length nsites (i.e. [U1,U2,…,Un] where n is the number of sites), then the onsite Hubbard interaction term is included with strength U_i applied to site i and uniformly across bands.
 
@@ -463,7 +463,7 @@ plot_lattice(
 
 #### ✨ Example: band-dependent U
 
-Now we will construct a band-dependent U which is *uniform* accross lattice sites.
+Now we will construct a band-dependent U which is *uniform* across lattice sites.
 We will use two bands and the first band will have $U/t = 1$
 and the second will have $U/t = 2$.
 
@@ -603,13 +603,13 @@ specifically, it handles the following cases.
 
 The user provides a single value for $U^1$ and keeps the default $n=0$.
 
-In this case, the density-density intercation takes the following form.
+In this case, the density-density interaction takes the following form.
 
 $$
 \hat{H}_{U1} = U^1 \sum_{i} \sum_{mp} (\hat{n}_{(i,m)\uparrow} \hat{n}_{(i,p)\downarrow} + \hat{n}_{(i,m)\downarrow} \hat{n}_{(i,p)\uparrow} ),
 $$
 
-where we have replaced the composite indicies with site and band indices for clarity.
+where we have replaced the composite indices with site and band indices for clarity.
 
 #### Case 2: Band-dependent intrasite interaction
 
@@ -621,32 +621,32 @@ $$
 
 and keeps the default $n = 0$ for the neighbor order parameter.
 
-In this case, the density-density intercation takes the following form.
+In this case, the density-density interaction takes the following form.
 
 $$
 \hat{H}_{U1} =  \sum_{i} \sum_{mp} U_{mp}^1 (\hat{n}_{(i,m)\uparrow} \hat{n}_{(i,p)\downarrow} + \hat{n}_{(i,m)\downarrow} \hat{n}_{(i,p)\uparrow} ),
 $$
 
-where we have replaced the composite indicies with site and band indices for clarity.
+where we have replaced the composite indices with site and band indices for clarity.
 
 #### Case 3: Uniform nth-order neighbor interaction
 
 #### Case 4: Band-dependent nth-order neighbor interaction
 
-The user provides the neighor order, $n$, and a
+The user provides the neighbor order, $n$, and a
  matrix with shape $nbands \times nbands$,
 
 $$
 U^1 = U^1_{mp}.
 $$
 
-In this case, the density-density intercation takes the following form.
+In this case, the density-density interaction takes the following form.
 
 $$
 \hat{H}_{U1} =  \sum_{\langle i,j \rangle^n} \sum_{mp} U_{mp}^1 (\hat{n}_{(i,m)\uparrow} \hat{n}_{(i,p)\downarrow} + \hat{n}_{(i,m)\downarrow} \hat{n}_{(i,p)\uparrow} ),
 $$
 
-where we have replaced the composite indicies with site and band indices for clarity.
+where we have replaced the composite indices with site and band indices for clarity.
 
 #### Case 5: a list of inputs from the cases above
 
@@ -681,7 +681,7 @@ where $\mu = (i,m)$ / $\nu = (i,p)$ are a composite lattice, $i$ / $j$, and band
 
 afqmctools is able to generate a subset of interactions of this type;
 The $U_{\mu\nu}^2$ matrix is constructed based on what information
-the user provides simimilarly to the density-density (i.e. the $U^1$) term.
+the user provides similarly to the density-density (i.e. the $U^1$) term.
 See the density-density section above for more details.
 
 +++ {"id": "L-D4VJuBOK_X"}
@@ -703,14 +703,14 @@ $\mu$ / $\nu$ are compound indices, $\mu = (i,p,m)$ / $\mu = (j,q,n)$, that incl
 
 afqmctools is able to generate a subset of interactions of this type;
 The $J_{\mu\nu}$ matrix is constructed based on what information
-the user provides simimilarly to the density-density (i.e. the $U^1$ term).
+the user provides similarly to the density-density (i.e. the $U^1$ term).
 See the density-density section above for more details.
 
 +++ {"id": "CIbAdbiaOK_X"}
 
 #### ✨ Example: 3-band Hubbard-Kanamori Hamiltonian
 
-Below we construct a 3-band Hubbard kanamor model using uniform values for U,U1,U2, and J as in Table I of [PRB 99, 235142 (2019)](https://doi.org/10.1103/PhysRevB.99.235142)
+Below we construct a 3-band Hubbard-Kanamori model using uniform values for U,U1,U2, and J as in Table I of [PRB 99, 235142 (2019)](https://doi.org/10.1103/PhysRevB.99.235142)
 
 ```{code-cell} ipython3
 ---

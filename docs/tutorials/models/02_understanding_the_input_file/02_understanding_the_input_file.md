@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -90,7 +90,7 @@ First, let's look at a sample input file for a typical calculation.
 
 In a typical calculation. you will only need to set a few parameters.
 In the input file below, we include the default value of each common parameter where possible.
-We use  ellipses ( `...`) for the "estimaor" input block for visual simplicity.
+We use  ellipses ( `...`) for the "estimator" input block for visual simplicity.
 This input block will be explored in more detail in later tutorials.
 
 ```json
@@ -116,7 +116,7 @@ This input block will be explored in more detail in later tutorials.
         "seed": "42",
         "estimator" : {
           "name" : "mixed",
-          ...
+          /* ... */
         }
       }
     }
@@ -127,7 +127,7 @@ Note that we did not define a "hamiltonian" block at all.
 In this case, SAFIRE will look for the Hamiltonian in the same
 file as the trial wavefunction.
 We defined the "walker_set" block within the "execute" block.
-We could have defined it within the "afqmc" block and referenceed it by "name"
+We could have defined it within the "afqmc" block and referenced it by "name"
 within the execute block instead.
 This is only necessary if
 you will use multiple execute blocks and want to use the same walker set in both.
@@ -224,11 +224,11 @@ Here is a sample execute block with options exposed and default values where app
 
 ```json
 "execute" : {
-  "wavefunction": { ... },
-  "hamiltonian" : { ... },
-  "walker_set" : { ... },
-  "estimator" : { ... },
-  "projector" : { ... },
+  "wavefunction": { /* ... */ },
+  "hamiltonian" : { /* ... */ },
+  "walker_set" : { /* ... */ },
+  "estimator" : { /* ... */ },
+  "projector" : { /* ... */ },
   "timestep": "0.01",
   "steps": "1",
   "n_walkers_per_mpi_task": "10",
@@ -296,7 +296,7 @@ td, th {
 The wavefunction block is the only of the 5 low-level blocks
 that must always be specified.
 The wavefunction block is used to point to the input HDF5 file containing
-the desired trial wavefunciton via the "filename" keyword.
+the desired trial wavefunction via the "filename" keyword.
 If no hamiltonian block is provided, SAFIRE assumes that this HDF5 file
 also contains the Hamiltonian.
 
@@ -369,7 +369,7 @@ $$
 
 <b>FullyPolarized (similar to Collinear) </b>
 
-similiar to Collinear/UHF, but all electrons are in the $\alpha$-sector.
+similar to Collinear/UHF, but all electrons are in the $\alpha$-sector.
 
 $$
 | \Phi_k \rangle = | \Phi^\uparrow \rangle
@@ -419,7 +419,7 @@ td, th {
 
 | <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-| <b>load_balance_type</b> |  "async"  |  Choose which load balancing algorithm to use, Choices are "async" for the asynchronous non-block swap load balancing algorithm and "simple" for a a blocking (1-1) swap load balancing algorithm.  |
+| <b>load_balance_type</b> |  "async"  |  Choose which load balancing algorithm to use, Choices are "async" for the asynchronous non-block swap load balancing algorithm and "simple" for a blocking (1-1) swap load balancing algorithm.  |
 | <b>pop_control_type</b> |"pair"  |   choose population control algorithm to use. Choices are "pair", AND "serial_comb". The "pair" algorithm uses paired walker branching. The "serial_comb" algorithm uses the comb method from Booth, Gubernatis, PRE 2009. |
 | <b>min_weight</b> | 0.05 |   Minimum walker weight for population control  |
 | <b>max_weight</b> |4 |  Maximum walker weight for population control  |
@@ -535,7 +535,7 @@ The available "name" / types are:
 
 - **"energy"** : this is a specialized mixed-estimator which specifically evaluates the energy. It also provides some granular control over what details of the energy are printed. For example, you can print the 1-body, exchange, and direct Coulomb interaction energies, in addition to the total energy, by setting `"print_components" : true` within an energy estimator input block.
 
-- **"mixed"** : This adds a generic mixed estimator where the user may select which obsevables to compute. For observable, $\hat{O}$. the mixed estimator is given by
+- **"mixed"** : This adds a generic mixed estimator where the user may select which observables to compute. For observable, $\hat{O}$. the mixed estimator is given by
 $$
 \langle \hat{O} ⟩_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
 $$

@@ -7,6 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3
+  language: ipython3
   name: python3
 ---
 
@@ -34,15 +35,13 @@ afqmctools provides a command line tool to convert from the SAFIRE HDF5 Hamilton
 afqmc_to_fcidump -i afqmc.h5 -o FCIDUMP
 ```
 
-We will use SHCI as implemented in DICE for this example; 
-the next step is generating an input file.
-A full explanation of using Dice is beyond the scope of this example.
-We refer the interested user to the official Dice GitHub page: https://github.com/sanshar/Dice.
+We will use SHCI as implemented in [DICE](https://github.com/sanshar/Dice) for this example; 
+the next step is generating an input file. For more information on how to use DICE, refer to its [official documentation](https://sanshar.github.io/Dice/).
 For the sake of this example, we will simply provide an input file.
 Copy and past the text below into a file within the example directory to use as an input file.
 We called this input file `dice_input.dat`.
 
-```txt
+```
 #system - B atom
 nocc 5
   0 2 4 1 3
@@ -82,7 +81,7 @@ From the example directory,
 
 This will generate a fairly long output (due to printing 2000 Slater determinants per state in plain text), but you should see that the variational stage converges to something similar to:
 
-```log
+```
 Variational calculation result
 Root             Energy     Time(s)
    0      -24.6065937243       37.01
@@ -96,7 +95,7 @@ Root             Energy     Time(s)
 The SHCI energy is given by the variational energy with perturbative corrections.
 In this case, for the ground state, we got,
 
-```log
+```
 **************************************************************
 PERTURBATION THEORY STEP  
 **************************************************************

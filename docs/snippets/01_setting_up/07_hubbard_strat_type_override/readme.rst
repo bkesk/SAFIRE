@@ -1,16 +1,16 @@
 .. _setup_ex_7:
 
-Hubbard-Stratonovich Transformation Type Overrride
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Hubbard-Stratonovich Transformation Type Override
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 WARNING: This functionality is for experts only. Use at your own risk.
 
 This example covers an advanced feature where we force a specific Hubbard-Stratonovich transformation (HST) type.
 By default, the Hamiltonian builder will choose an appropriate HST type based on the sign 
 of the interaction.
-For band-dependent interactions, it will spilt each interaction into two separate terms if 
+For band-dependent interactions, it will split each interaction into two separate terms if 
 there are both positive and negative interaction strengths and assign an HST type separately.
-The bulder supports focing a specific HST type; however, it will be applied to the specified 
+The builder supports forcing a specific HST type; however, it will be applied to the specified 
 interaction term regardless of the sign of the interaction strength.
 
 .. literalinclude:: input.toml

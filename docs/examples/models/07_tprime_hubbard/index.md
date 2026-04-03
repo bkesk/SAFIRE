@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -27,7 +27,7 @@ where $i,j$ are lattice site indices, angle brackets with superscript $(n)$ indi
 that sums are constrained to $n^{th}$-order neighbors,
 $\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/annihilation operators,
 and $\hat{n}^{\sigma}_i$ are spin-resolved number operators corresponding to site $i$.
-The 4x4 lattice is small enough to make exact diagonaliztion possible.
+The 4x4 lattice is small enough to make exact diagonalization possible.
 We will use exact results for this system as reference data throughout
 this tutorial.
 
@@ -189,7 +189,7 @@ vis.plot_lattice(
 
 +++ {"id": "a42d9aa5-0a4d-45f4-a2cf-96e3949afb8d"}
 
-## Setup - Write an AuxiliaryFields input file
+## Setup - Write an SAFIRE input file
 
 ```{code-cell} ipython3
 :id: 9d13f4b9-22c5-468e-8faf-e8f0536c8110
@@ -235,7 +235,7 @@ write_json(
 ### Running AFQMC
 
 Below, we provide a cell that will run AFQMC here; however, for this calculation, you might prefer to submit the job to Slurm.
-You can copy the runscript from `/mnt/home/beskridge/ceph/software/AuxiliaryFields/local_scripts/run_afqmc_cpu.sh` to your scratch
+You can copy the runscript from `/mnt/home/beskridge/ceph/software/SAFIRE/local_scripts/run_afqmc_cpu.sh` to your scratch
 directory for this tutorial and use
 
 ```bash

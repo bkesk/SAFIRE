@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -204,7 +204,7 @@ told to write the spin-orbit coupling integrals via the `with_soc=True`
 keyword argument.
 
 For the initial wavefunction, we use the ground state of the non-interacting Hamiltonian
-as this was founds in [1] to lead to siginificantly faster equilibration than using
+as this was found in [1] to lead to significantly faster equilibration than using
 the SOC-GHF or ROHF solution for the initial wavefunction.
 
 ```{code-cell} ipython3

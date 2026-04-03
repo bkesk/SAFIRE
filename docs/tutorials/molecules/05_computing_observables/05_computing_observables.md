@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -29,9 +29,7 @@ Become acquainted with how to compute general observables with SAFIRE.
 
 AuxiliaryFiels uses "estimators" to compute observables.
 Each estimator corresponds to a formal method for computing an observable - i.e. mixed estimators, back-propagated estimators, etc. - We will explain each of the these in the next section.
-As we mentioned in the
-
-[understanding the Input file tutorial](../02_understanding_the_input_file/02_understanding_the_input_file.html),
+As we mentioned in {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`,
 
 you can add estimators to an AFQMC calculation using an "estimator" input block.
 By default, an "energy" estimator is included which is a specialized mixed estimator.
@@ -107,7 +105,7 @@ The code block below will:
 *   generate and save the RHF Slater determinant to the SAFIRE HDF5 format
 *   generate and save the Hamiltonian to the SAFIRE HDF5 format
 
-These were all covered in previous tutoirals.
+These were all covered in previous tutorials.
 
 <div>
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/NitrogenDimer.png" width="300">
@@ -210,10 +208,10 @@ You can add an energy estimator input block to your json input file in order to 
 For example, in the input block,
 
 ```json
-"estimator" : {
-  "name" : "energy",
-  "print_components" : True,        
-  "overwrite" : True
+"estimator": {
+  "name": "energy",
+  "print_components": true,
+  "overwrite": true
 }
 ```
 
@@ -248,9 +246,9 @@ td, th {
   
 |<b>setting</b>|<b>default</b>|<b>description</b>|
 |--:|:-:|:--|
-| <b>        print_sign</b> | False |  If True, print verious quantities related to the sign/phase of random walkers in the `*.scalar.dat` file  |
+| <b>        print_sign</b> | False |  If True, print various quantities related to the sign/phase of random walkers in the `*.scalar.dat` file  |
 | <b>        remove</b> |  False |   If True, remove the default energy estimator. **Note that the explicitly defined energy estimator will not be used in the calculation!** |
-| <b>        truncate</b> |  False |   If True, truncate the energy such that data that fall outisde of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer |
+| <b>        truncate</b> |  False |   If True, truncate the energy such that data that fall outside of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer |
 
 +++
 
@@ -294,7 +292,7 @@ write_json(
 
 Now you can run SAFIRE, and you should see the following column headers in the `*scalar.dat` file.
 
-```log
+```
  block  time  nWalkers weight PseudoEloc LogOvlpFactor EnergyEstim__nume_real  EnergyEstim__nume_imag EnergyEstim__deno_real  EnergyEstim__deno_imag EnergyEstim__timer OneBodyEnergyEstim__nume_real EXXEnergyEstim__nume_real ECoulEnergyEstim__nume_real MixedEstim_timer Eshift freeMemory
 ```
 
@@ -406,7 +404,7 @@ are common observables.
 
 <div class="alert alert-block alert-info">
 <b>Note:</b>
-    computing the 2rdm is very time and memory intensive; this shuld only be done for small systems.
+    computing the 2rdm is very time and memory intensive; this should only be done for small systems.
 </div>
 
 ### Specifying Observables to Measure
@@ -496,7 +494,7 @@ write_json(
 +++ {"id": "TrVqnMi4AxuT"}
 
 Now, we can run AFQMC with a Mixed Estimator in order to compute the 1-rdm.
-**This will probably take a while!** To finish the tutorial more quickly, remove the "twordm" block from the input and just compate the one-body energy.
+**This will probably take a while!** To finish the tutorial more quickly, remove the "twordm" block from the input and just compute the one-body energy.
 
 ```{code-cell} ipython3
 ---
@@ -517,13 +515,13 @@ run_afqmc(
 
 ### Data Extraction and Analysis
 
-afqmctools provides several tools for extracting data - i.e. retrieving data from the SAFIRE output files - and analyzing data - ariving at a final average with stochastic uncertainty.
+afqmctools provides several tools for extracting data - i.e. retrieving data from the SAFIRE output files - and analyzing data - arriving at a final average with stochastic uncertainty.
 
 Since some observables require a large amount of memory to store, `afqmctools` also provides "transforms" which are applied to the raw observables as they are read from disk.
-For example, in the cell below, a enery evaluation transform is used to compute the one-body energy, a scalar, on the fly as one-rdm samples are read from the *.h5 data file.
+For example, in the cell below, a energy evaluation transform is used to compute the one-body energy, a scalar, on the fly as one-rdm samples are read from the *.h5 data file.
 This dramatically reduces the memory needed to analyze the AFQMC results from SAFIRE.
 
-### ▶️ Run the code below to evlaute the one-body energy from the one-rdm, and compare with the energy estimator
+### ▶️ Run the code below to evaluate the one-body energy from the one-rdm, and compare with the energy estimator
 
 ```{code-cell} ipython3
 ---
@@ -571,7 +569,7 @@ Energy_1body = extract_observable(
     ix=0,                              # index of the "average" - we'll return to this below!
     transform=[hermitize,eval_one_body_energy],  # list of transforms to apply *FROM LEFT TO RIGHT*
 )
-# add in constant energy for consistency with AuxilaryFields convention
+# add in constant energy for consistency with SAFIRE convention
 Energy_1body += Econst
 
 
@@ -609,15 +607,15 @@ plt.show()
 
 +++ {"id": "wDMvF0aT04_x"}
 
-As we can see, the energy computed using the one-body reduced density matrix with a mixed estimator yeilds the exact same one-body energies as the energy estimator to very high precision.
+As we can see, the energy computed using the one-body reduced density matrix with a mixed estimator yields the exact same one-body energies as the energy estimator to very high precision.
 This is no surprise since the energy estimator is simply a specialized mixed estimator.
 
 ### 📝 Your Turn : Extract the 2rdm and compute the 2-body energy
 
 Note: You can skip this section if you chose to not compute the "twordm"
-obserable above.
+observable above.
 
-Repeat the same excercise for the two-body energy.
+Repeat the same exercise for the two-body energy.
 As we saw in the energy estimator section, the exchange and direct coulomb energies are printed to file separately by the energy estimator.
 
 To compute the two-body energy, you will need to measure the "twordm" observable during AFQMC, and extract and transform it.
@@ -694,8 +692,8 @@ This is known as "autocorrelation".
 Care must be take to remove autocorrelation effects or the stochastic uncertainty will be underestimated.
 
 The former can be achieved by visualizing the observable over imaginary time, and finding the equilibration time by inspection.
-We saw this in the [Hello SAFIRE](../01_hello_safire/01_hello_safire.html) tutorial.
-afqmctools provides tools for automatically computing the auto-correlation time - i.e. the time interval at which measurments are no longer autocorrelated - and adjusting the number of effective samples accordingly.
+We saw this in {doc}`../01_hello_safire/01_hello_safire`.
+afqmctools provides tools for automatically computing the auto-correlation time - i.e. the time interval at which measurements are no longer autocorrelated - and adjusting the number of effective samples accordingly.
 
 In the code cell below, we demonstrate how to use the provided tools to automatically compute averages.
 
@@ -815,7 +813,7 @@ td, th {
 | <b>        path_restoration</b> |   false  |  If true, perform path restoration.  |
 | <b>        extra_path_restoration</b> |   false  |   If true, perform an extra path restoration.  |
 
-### Demonstraiton of BP
+### Demonstration of BP
 
 For the sake of execution time, we will compute only the one-rdm using the back-propagation estimator.
 We will find that the one-body energy computed using the BP one-rdm will *not* agree with the one computed using a mixed estimator.
@@ -903,7 +901,7 @@ run_afqmc(
 )
 ```
 
-### ▶️ Run the code below to evlaute the one-body energy from the one-rdm, and compare with the BP estimator
+### ▶️ Run the code below to evaluate the one-body energy from the one-rdm, and compare with the BP estimator
 
 ```{code-cell} ipython3
 :id: 39c23cf1
@@ -1043,7 +1041,7 @@ plt.show()
 
 The plots above show how the BP estimator converges with increasing BP length. For observables that don't commute with the Hamiltonian, you should see:
 - Different results between mixed and BP estimators (showing the bias in mixed estimators)
-- Dependence of BP esitmators on back-propagation length. It is important to note that BP does not necessarily converge and is unstable for large total imaginary time.
+- Dependence of BP estimators on back-propagation length. It is important to note that BP does not necessarily converge and is unstable for large total imaginary time.
 
 This demonstrates why BP is essential for computing unbiased estimates of observables like charge densities, spin densities, and other quantities derived from the one-body reduced density matrix.
 

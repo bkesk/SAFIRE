@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   name: python3
-  language: python
+  language: ipython3
   display_name: Python 3
 ---
 
@@ -28,7 +28,7 @@ of solid Si in the conventional cell.
 
 In addition to SAFIRE and afqmctools, we will be using the following software packages:
 
-- [Quantum Espresso (QE)](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, and some intergrals via its post-processing utilities
+- [Quantum Espresso (QE)](https://www.quantum-espresso.org/) for density functional theory (DFT) calculations, and some integrals via its post-processing utilities
 -  [CoQuí](https://github.com/AbInitioQHub/coqui) for generating the SAFIRE Hamiltonian and Trial wavefunction HDF5 files from the output of QE.
 - [pw2coqui.x](https://github.com/AbInitioQHub/coqui/tree/main/qe_converter) see the instructions there for adding this to your QE build.
 - [VESTA](https://jp-minerals.org/vesta/en/) for visualizing the final density.
@@ -42,7 +42,7 @@ We will run Quantum Espresso (QE) to generate a set of Kohn-Sham orbitals to use
 We assume knowledge of the basic use of QE in this example, but we'll point out a few details that are relevant to the workflow here.
 All input files are provided in `1_dft_quantum_espresso`.
 
-> ⚠️ Imporant: you will need to install the pw2coqui.x converter in your QE build. See the above!
+> ⚠️ Important: you will need to install the pw2coqui.x converter in your QE build. See the above!
 
 We will perform the following calculations with QE:
 
@@ -54,7 +54,7 @@ We will perform the following calculations with QE:
   <b>Note:</b> CoQuí expects to find `[prefix].coqui.h5` in the QE output directory. Double check that the output path of the post-processing tools are all set to the same directory.
 </div>
 
-### Step 1 : self-consitent DFT
+### Step 1 : self-consistent DFT
 
 To generate the Hamiltonian for SAFIRE, we need
 to set `force_symmorphic=.true.` in the `&system` input card.
@@ -67,7 +67,7 @@ $ pw.x -inp scf.inp > scf.out
 where we have redirected output to scf.out.
 You should see a final energy of,
 
-```log
+```
  highest occupied, lowest unoccupied level (ev):     6.3054    7.0035
 
 !    total energy              =     -62.96095502 Ry
@@ -130,12 +130,12 @@ Band Structure Calculation
 
 +++ {"id": "_uliHCdtig7m"}
 
-### Step 3: QE post-processing utilites
+### Step 3: QE post-processing utilities
 
-CoQuí reads some of the details of the psuedopotential from QE.
+CoQuí reads some of the details of the pseudopotential from QE.
 We need to dump the relevant data to a file using the pw2coqui.x QE post-processing utility.
 As described above, you will need to install this utility into
-your QE vuild using the instructions found [here](https://github.com/AbInitioQHub/coqui/tree/main/qe_converter).
+your QE build using the instructions found [here](https://github.com/AbInitioQHub/coqui/tree/main/qe_converter).
 See the provided input files for more.
 
 pw2coqui.inp
@@ -154,7 +154,7 @@ $ pw2coqui.x < pw2coqui.inp > pw2coqui.out
 ```
 
 <div class="alert alert-block alert-info">
-  <b>Note:</b> Unlike many of the QE post-proecessing tools,
+  <b>Note:</b> Unlike many of the QE post-processing tools,
    the pw2coqui.x converter does not support MPI.
    Be sure to run the convert in serial as shown above!
 </div>
@@ -200,10 +200,10 @@ add_wavefunction = "default"
 The key details to note are:
 
 - In `[mean_field.qe]`, we need to set the `outdir` to the directory where both the QE `pwscf.xml` file is saved, and where `[prefix].coqui.h5` is.
-- Also in `[mean_field.qe]`, we can set the number of bands to use with `nbnd`. Of course, we can only use as many bands as we output in the one-shot DFT calcultion previously.
+- Also in `[mean_field.qe]`, we can set the number of bands to use with `nbnd`. Of course, we can only use as many bands as we output in the one-shot DFT calculation previously.
 - In the `interaction` input block, we are using the "cholesky" decomposed form for the interaction and have set a tolerance of `tol = 1e-5`. We have set the `output` to a file called "hamiltonian.h5` to tell CoQuí to save the interaction there.
 - The `hamiltonian` block is used to write the one-body part of the Hamiltonian to HDF5. **We need to set this to the same file as the interaction.**
-- Finally, we can save a single Salter determinant wavefunction to the Hamiltonian setting the `add_wavefunction = "default"` parameter in the `hamiltonian` block. The Slater determinant is constructed by occupying the Kohn-Sham orbitals with the largest occuancy.
+- Finally, we can save a single Slater determinant wavefunction to the Hamiltonian setting the `add_wavefunction = "default"` parameter in the `hamiltonian` block. The Slater determinant is constructed by occupying the Kohn-Sham orbitals with the largest occupancy.
 
 Now, run Coquí.
 
@@ -213,7 +213,7 @@ $ /path/to/coqui --verbosity=2 --filenames hamil.toml &> hamil.out
 
 You should see the following output in `hamil.out`.
 
-```log
+```
  ---------------------------------
      ____ ___   ___  _   _ ___
     / ___/ _ \ / _ \| | | |_ _|
@@ -345,7 +345,7 @@ add_wfn: default
 *************************************************
 ```
 
-The HDF5 file, "hamiltonmian.h5", that CoQuí just generated can be
+The HDF5 file, "hamiltonian.h5", that CoQuí just generated can be
 directly read in SAFIRE to get the Hamiltonian and the trial wavefunction.
 
 +++ {"id": "-QQPlGsMnzeJ"}
@@ -354,7 +354,7 @@ directly read in SAFIRE to get the Hamiltonian and the trial wavefunction.
 
 Next, we'll run SAFIRE using the Hamiltonian and trial wavefunction that we wrote using CoQuí.
 We've provided an input file in `3_afqmc` for this example.
-To learn more about the input file, see the [understanding the input file tutorial](../../../tutorials/solids/02_understanding_the_input_file/02_understanding_the_input_file.html).
+To learn more about the input file, see {doc}`../../../tutorials/solids/02_understanding_the_input_file/02_understanding_the_input_file`.
 
 The input file assumes that you ran CoQuí within the `2_hamiltonian_coqui` directory.
 If you ran it elsewhere, you will need to update the path to the HDF5 file
@@ -381,7 +381,7 @@ The "name" parameter tells SAFIRE what kind of estimator to use (`"back_propagat
 The "measure_interval_multiplier" parameter indirectly determines the number of back propagation steps to use.
 The actual number of back propagation steps is determined as $N^{step}_a = measure\_interval\_multiplier[a] \times population\_control\_interval $
 
-To check for convergense in the number of back propagation steps, SAFIRE allows multiple "averages" to be set up which each use a different nubmer of steps.
+To check for convergence in the number of back propagation steps, SAFIRE allows multiple "averages" to be set up which each use a different number of steps.
 This feature is enabled by provided a list of integers for measure_interval_multiplier instead of a single integer.
 The number of steps that will be used in each average is given by,
 $$
@@ -431,7 +431,7 @@ where `[number of processes]` depends on how many tasks can be run on your local
 We've included some of the output below.
 You should see similar numbers in your output.
 
-```log
+```
 ****************************************************
                Initializing Hamiltonian
 
@@ -532,9 +532,9 @@ afqmc.json  afqmc.out  qmc.s000.scalar.dat  qmc.s000.stat.h5
 
 ### Ground state energy
 
-`afmqmctools` includes a command line tool for analyzing the scalar data output.
+`afqmctools` includes a command line tool for analyzing the scalar data output.
 Fun the following command.
-If you are running locallay, the `-t` option will cause a plot of the scalar data samples versus total projection time to be generated as seen below.
+If you are running locally, the `-t` option will cause a plot of the scalar data samples versus total projection time to be generated as seen below.
 If you are running remotely, you can add the `--savefig [filename].png` option to save the figure.
 Note, you must still use `-t` to generate the plot.
 
@@ -552,8 +552,8 @@ Your plot should look similar to the following.
 
 ### Charge Density
 
-`afmqctools` provides a function for generating the real-space charge density
-given the one-body reduced density matrix (1rdm), and its stochacastic uncertainty from AFQMC, as well as the orbitals from Quantum Espresso.
+`afqmctools` provides a function for generating the real-space charge density
+given the one-body reduced density matrix (1rdm), and its stochastic uncertainty from AFQMC, as well as the orbitals from Quantum Espresso.
 It will output the resulting 1rdm in a standard *.cube file.
 The *.cube file can then be opened in one of several
 software packages.
@@ -599,10 +599,10 @@ There are several systematic errors, each controlled by a specific parameter, in
 They are:
 
 1. the trotter error which can be removed by either converging in the imaginary time step size OR by extrapolation to $\tau = 0$ (set in the SAFIRE input file)
-2. the cholesky error which is controlled by the cholesky decompostion tolerance (set in the CoQuí input file)
+2. the cholesky error which is controlled by the cholesky decomposition tolerance (set in the CoQuí input file)
 3. the basis set incompleteness error which is controlled by the number of bands included in the calculation (set in the CoQuí input file, but limited by the QE nscf calculation)
 
-These errors are formally interdependent; however, good values for each paramter can typically be found independently and used together in a production run.
+These errors are formally interdependent; however, good values for each parameter can typically be found independently and used together in a production run.
 
 +++ {"id": "Fm5vwrfIodNf"}
 

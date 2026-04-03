@@ -49,8 +49,8 @@ extensions = [
     'sphinx_rtd_theme', 
     'myst_nb',
     'sphinx.ext.mathjax',
+    'sphinx.ext.apidoc',
     'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'numpydoc',
@@ -68,15 +68,9 @@ source_suffix = {
 
 
 suppress_warnings = [
-    'autosummary.stub',  # Suppress warnings about missing stub files
-    #'ref.ref',           # Suppress warnings about missing references
-    #'ref.citation',      # Suppress citation warnings
-    #'bibtex.key_not_found',  # Suppress missing bibtex key warnings
 ]
 
 numpydoc_show_class_members = False
-autosummary_generate = True
-autosummary_generate_overwrite = False  # Don't try to overwrite existing files
 
 numfig = True
 
@@ -86,8 +80,24 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = [
+    '_build',
+    'Thumbs.db',
+    '.DS_Store',
+    'afqmctools/api/modules.rst' # we only have one module, so we do not need this
+]
 
+apidoc_modules = [
+    {
+        'path': '../utils/afqmctools',
+        'destination': 'afqmctools/api/',
+        'exclude_patterns': ['**/qe_driver.py', '**/hamiltonian/hubbard.py'],
+    },
+]
+
+autodoc_default_options = {
+    'exclude-members': 'warn,jit',
+}
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -125,6 +135,6 @@ myst_enable_extensions = [
 # required to have equations inside of text cells.
 myst_dmath_double_inline = True
 
-
 nb_execution_mode = "off"
 
+myst_heading_anchors = 3

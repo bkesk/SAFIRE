@@ -6,22 +6,16 @@ Wavefunction File formats
 The trial wavefunction in AFQMC is typically a linear combination of Slater determinants,
 
 .. math::
-  :label: eq-trial-wf
-
   |\Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle
 
 where :math:`C_n` is a complex-valued coefficient, and :math:`|\Phi_n\rangle` are Slater determinants which are not necessarily orthogonal to each other. Of course, each Slater determinant consists of some set of single-particle orbitals, :math:`\{ \psi_p \}`, such that,
 
 .. math::
-  :label: eq-orbitals
-
   \psi_{p} = \sum_i \bar{C}_{ip} \phi_i
 
 where :math:`\{\phi_i\}` are the chosen orthonormal basis set orbitals. Slater determinants can either be represented explicitly as a Slater matrix,
 
 .. math::
-  :label: eq-slater-matrix
-
   \Phi = \begin{bmatrix}
     \bar{C}_{00} &\bar{C}_{01} & \bar{C}_{02} & \dots  & \bar{C}_{0N} \\
     \bar{C}_{10} & \bar{C}_{11} & \bar{C}_{12} & \dots  & \bar{C}_{1N} \\

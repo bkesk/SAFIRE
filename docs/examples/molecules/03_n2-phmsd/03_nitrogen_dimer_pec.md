@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -17,7 +17,7 @@ kernelspec:
 
 <b>Goal:</b>
 This example demonstrates how to compute the potential energy curve (PEC) of a diatomic molecule
-using an appropriate trial wavefuncton.
+using an appropriate trial wavefunction.
 
 ## What you will learn
 
@@ -71,14 +71,14 @@ from reference [1].
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/984d8f6514d4af38baf14fd45a2d29c0b42cf95c8335c9a92c7cefb169a830b7/ReferenceFigure.png">
 </div>
 
-We have inlcude both the quantum chemistry "gold standard" CCSD(T) results, in orange, as well as CCSDT for reference.
+We have include both the quantum chemistry "gold standard" CCSD(T) results, in orange, as well as CCSDT for reference.
 There are two AFQMC curves, one using a UHF trial wavefunction (in pink), and
 one using a truncated CASSCF(12o,6e) trial wavefunction (in violet).
 For AFQMC, the stochastic uncertainty is smaller than the symbol size.
 
-For bondlenghts close to the equilibrium bond length of 2.118 Bohr,
+For bond lengths close to the equilibrium bond length of 2.118 Bohr,
 AFQMC agrees with exact results to well within chemical accuracy (  $ 1 kcal/mol ≈ 1.6 mE_{Ha}$) regardless of the trial wavefunction used.
-For intermediate and streched bond lengths, the trial wavefunction from MCSCF (in this case, from CASSCF(12o,6e)) is necessary to chemical accuracy using AFQMC accross the PEC.
+For intermediate and stretched bond lengths, the trial wavefunction from MCSCF (in this case, from CASSCF(12o,6e)) is necessary to chemical accuracy using AFQMC across the PEC.
 Still, for all nearly all bond lengths, AFQMC with a UHF trial wavefunction produces more accurate results,
 in terms of absolute error, than either the quantum chemistry "gold standard" method CCSD(T) or CCSDT.
 AFQMC with a CASSCF(12o,6e) trial wavefunction outperforms both CCSD(T) and CCSDT in terms of accuracy at all bond lengths.
@@ -93,8 +93,7 @@ Next, we will reproduce the PEC of the Nitrogen dimer using AFQMC / CASSCF(12o,6
 
 ## Converging AFQMC in the quality of the trial wavefunction
 
-As we saw in [ Using CI trial wavefunctions as a trial wavefunction ](),
-AFQMC trial wavefunctions are typically multi-Slater determinant expansions with form,
+As we saw in {doc}`../02_B_atom_SHCI_trial_wfn/06_SHCI_trial_wavefunction`, AFQMC trial wavefunctions are typically multi-Slater determinant expansions of the form form
 
 $$
 | \Psi_T \rangle = \sum_n^{N_{det}} C_{n} | \Phi_n \rangle,
@@ -137,7 +136,7 @@ SAFIRE provides a keyword in the "wavefunction" json input block to limit the nu
 }
 ```
 
-In this case, a maximum of 500 Slater determinants will be read from "your_wfn_file.h5" regarldess of how many Slater determinants were
+In this case, a maximum of 500 Slater determinants will be read from "your_wfn_file.h5" regardless of how many Slater determinants were
 written to the file.
 We will save significantly more Slater determinants to the wavefunction HDF5 file than we expect to need.
 This allows us to reuse the same wavefunction file while controlling the trial wavefunction quality via the "ndets_to_read" parameter.
@@ -206,7 +205,7 @@ write_cas_wfn(
 
 ### Checkpoint
 
-At this point, you should have a CASSCF trial wavefunction saved in an AuxliaryFields HDF5 file (we used "afqmc.h5" as our filename, but you are free to use whatever name you would like).
+At this point, you should have a CASSCF trial wavefunction saved in an SAFIRE HDF5 file (we used "afqmc.h5" as our filename, but you are free to use whatever name you would like).
 
 You will also need the CASSCF orbitals in order to represent the Hamiltonian in that basis.
 In PySCF, these are simply saved within the Checkpoint (*.chk) file.
@@ -258,7 +257,7 @@ In addition to the trial wavefunction HDF5 file from before, you should also now
 ### Run SAFIRE
 
 Before we move on to computing the PEC, we need to converge the AFQMC energy in $N_{det}$.
-To avoid doing this for every point on the PEC, we will simply choose a point on the PEC where we expect the most static correlation, converge the AFQMC energy in $N_{det}$ at that point, and use that converged $N_{det}$ value uniformly accross the entire PEC.
+To avoid doing this for every point on the PEC, we will simply choose a point on the PEC where we expect the most static correlation, converge the AFQMC energy in $N_{det}$ at that point, and use that converged $N_{det}$ value uniformly across the entire PEC.
 This avoids running many calculations at each point on the PEC to check convergence at the cost of perhaps too many Slater determinants at some points
 on the PEC.
 
@@ -411,11 +410,11 @@ Now, we can automate the calculation of the PEC using this value for $N_{det}$.
 Now that we have converged $E_{AFQMC}$ in $N_{det}$, we are ready to compute the PEC.
 In the code block below, we have included a function that performs all of the steps that we have already performed (excluding converging $E_{AFQMC}$ in $N_{det}$) given a value of the $N_2$ bond length, $\delta_{N-N}$.
 
-Sepcifically, given $\delta_{N-N}$ and `ndets_to_read`, the function automates:
+Specifically, given $\delta_{N-N}$ and `ndets_to_read`, the function automates:
 
 1. running CASSCF using PySCF (for convenience), and saving a truncated CASSCF wavefunction to the SAFIRE HDF5 format.
-2. building and saving the Hamiltonian in the basis of CASSCF orbitals to the AuxilariyFields HDF5 format.
-3. writing the json input file, with our choosen value of `ndets_to_read`, and running SAFIRE.
+2. building and saving the Hamiltonian in the basis of CASSCF orbitals to the SAFIRE HDF5 format.
+3. writing the json input file, with our chosen value of `ndets_to_read`, and running SAFIRE.
 4. Extracting the AFQMC energy using the stats module.
 
 <b>
@@ -531,7 +530,7 @@ def run_afqmc_on_dimer(delta,ndets_to_read=None,scratch_root_dir=home / ".scratc
 
 ### Compute the PEC
 
-Now we can use the `run_afqmc_on_dimer()` function to compute the PEC of the $N_2$ molcule.
+Now we can use the `run_afqmc_on_dimer()` function to compute the PEC of the $N_2$ molecule.
 
 ```{code-cell} ipython3
 :id: HAXNMGv0fmdE

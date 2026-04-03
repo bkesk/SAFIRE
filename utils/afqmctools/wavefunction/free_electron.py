@@ -71,12 +71,14 @@ def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=
         whether to measure spin in AutoHF (default: True)
     filling_strategy : str
         strategy for filling orbitals within shells. Options:
+
         - 'aufbau': fill shells from lowest to highest energy (default)
         - 'balanced': for partially filled shells, select orbitals evenly 
-                     to balance properties like momentum
+            to balance properties like momentum
         - 'hund': apply Hund's rule (maximize spin)
         - 'alternating': fill from edges inward (0, -1, 1, -2, ...) 
-                        for momentum cancellation
+            for momentum cancellation
+
     shell_tol : float
         tolerance for grouping eigenvalues into shells (default: 1e-6)
         Orbitals with eigenvalues within this tolerance are considered 
@@ -214,7 +216,7 @@ def _free_electron(hamiltonian:Hamiltonian,nelec,spin_symm=None,use_dense=True,f
         spin_symm = get_spin_symm_enum(spin_symm)
 
     if spin_symm == SpinSymm.CLOSED:
-        raise NotImplementedError("Free electron wavefunction with closed spin symmmetry is not implemented")
+        raise NotImplementedError("Free electron wavefunction with closed spin symmetry is not implemented")
     elif spin_symm == SpinSymm.COLLINEAR:
         wfn = _collinear_free_elec(T,nelec=nelec,Nmo=norb,use_dense=use_dense,
                                    filling_strategy=filling_strategy,shell_tol=shell_tol)
@@ -566,6 +568,7 @@ def _noncollinear_free_elec(Hfree,nelec,Nmo,use_dense=True,filling_strategy='auf
         - 'hund': apply Hund's rule (maximize spin)
         - 'alternating': fill from edges inward (0, -1, 1, -2, ...) 
                         for momentum cancellation
+
     shell_tol : float
         tolerance for grouping eigenvalues into shells (default: 1e-6)
 

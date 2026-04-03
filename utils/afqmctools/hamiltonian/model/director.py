@@ -201,7 +201,7 @@ class HamiltonianDirector(_HamiltonianDirector):
     
     - t : nth-order neighbor hopping term; input convention are as follows:
       
-      - if t is a scalar, then nerest-neighbor hopping is included with strength t
+      - if t is a scalar, then nearest-neighbor hopping is included with strength t
       - if t is a 1-dimensional list (i.e. [t1,t2,...,tn]), then up to nth-order hopping is included
       - if t is a 2-dimensional with shape (nbands, nbands), then
         the t is interpreted as an on-site inter-band hopping matrix
@@ -215,7 +215,7 @@ class HamiltonianDirector(_HamiltonianDirector):
         and applied to all sites and bands.
       - if U is 1-dimensional with length nbands (i.e. [U1,U2,...,Um] where for an m-band model),
         then the onsite Hubbard interaction term is included with strength U_i applied to band i
-        and uniformaly across sites.
+        and uniformly across sites.
       - if U is 1-dimensional with length nsites (i.e. [U1,U2,...,Un] where n is the number of sites), 
         then the onsite Hubbard interaction term is included with strength U_i applied to site i
         and uniformly across bands.
@@ -223,23 +223,23 @@ class HamiltonianDirector(_HamiltonianDirector):
     - U1 : Hubbard density-density interaction term. Input convention are as follows:
       
       - if U1 is a scalar, then the Hubbard density-density interaction term is included with strength U1
-        and is applied to all sites, and is unfirom across bands.
+        and is applied to all sites, and is uniform across bands.
       - if U1 is a 2-dimensional with shape (nbands, nbands), then U1 is used as an intrasite density-density 
-        interaction, and is applied uniformly accross sites.
+        interaction, and is applied uniformly across sites.
 
     - U2 : Hubbard spin-spin interaction term. Input convention are as follows:
       
       - if U2 is a scalar, then the Hubbard spin-spin interaction term is included with strength U2
-        and is applied to all sites, and is unfirom across bands.
+        and is applied to all sites, and is uniform across bands.
       - if U2 is a 2-dimensional with shape (nbands, nbands), then U2 is used as an intrasite spin-spin
-        interaction, and is applied uniformly accross sites.
+        interaction, and is applied uniformly across sites.
 
     - J : Hund's coupling interaction term. Input convention are as follows:
       
       - if J is a scalar, then the Hund's coupling interaction term is included with strength J
-        and is applied to all sites, and is unfirom across bands.
+        and is applied to all sites, and is uniform across bands.
       - if J is a 2-dimensional with shape (nbands, nbands), then J is used as an intrasite 
-        Hund's coupling interaction, and is applied uniformly accross sites.
+        Hund's coupling interaction, and is applied uniformly across sites.
         
     """
     def __init__(

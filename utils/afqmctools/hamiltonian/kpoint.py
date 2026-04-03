@@ -190,7 +190,7 @@ class FileHandler:
 
     Notes
     -----
-    Use the context manager for prallel i/o safety:
+    Use the context manager for parallel i/o safety:
 
     Examples
     --------
@@ -236,7 +236,7 @@ class FileHandler:
 
     def __enter__(self):
         """
-        For backwards compatability, 
+        For backwards compatibility, 
           decorate with extra attributes
         """
         def _decorate(f):
@@ -257,7 +257,7 @@ class FileHandler:
 
         Notes
         -----
-        Kept for backwards compatability,should be considered deprecated.
+        Kept for backwards compatibility,should be considered deprecated.
           Use context manager instead.
         """
         self.h5f.close()
@@ -368,7 +368,7 @@ class KPCholesky(object):
         self.nmo_max = nmo_max
         self.gmap, self.Qi, self.ngs = generate_grid_shifts(cell)
         if comm.rank == 0 and verbose:
-            print(" # Each kpoint is distributed accross {} mpi tasks."
+            print(" # Each kpoint is distributed across {} mpi tasks."
                   .format(self.part.nproc_pk))
             sys.stdout.flush()
         try:

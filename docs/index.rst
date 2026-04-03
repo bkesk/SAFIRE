@@ -11,12 +11,12 @@ Getting Started with SAFIRE
   user_manual
   tutorials
   examples
-  utils/docs/afqmctools
+  afqmctools/afqmctools
   features
   changelog
   afqmc
 
-.. _anatomy_of_safire
+.. _anatomy_of_safire:
 
 (S)tochastic (A)uxiliary-(F)ields for (I)nte(R)acting (E)lectrons (SAFIRE)
 is a flexible, high-performance implementation of the Auxiliary Field Quantum Monte Carlo (AFQMC) method. 

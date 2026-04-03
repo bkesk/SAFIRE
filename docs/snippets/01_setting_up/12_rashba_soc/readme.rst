@@ -9,7 +9,7 @@ in Python without using an inputfile.
 
 .. literalinclude:: run.py
 
-If the sample Pyhton script is run above with the sample input file, the following
+If the sample Python script is run above with the sample input file, the following
 should be present at the end of the output.
 
 .. literalinclude:: output.txt

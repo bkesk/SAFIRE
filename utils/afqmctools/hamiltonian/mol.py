@@ -216,7 +216,7 @@ def generate_hamiltonian(
 def process_generic_hamiltonian(
         H_one_body:np.array,
         cholesky_vectors:np.array=None,
-        coulomb_repuslion_tensor:np.array=None,
+        coulomb_repulsion_tensor:np.array=None,
         E0:float=0.0,
         cholesky_delta:float=1e-6,
         spin_orbital_integrals:np.array=None,
@@ -231,8 +231,8 @@ def process_generic_hamiltonian(
         One-body Hamiltonian.
     cholesky_vectors : :class:`np.ndarray`, optional
         Cholesky vectors with shape (number of Cholesky vectors,number_of_orbitals\*\*2).
-        Must provide either this or coulomb_repuslion_tensor.
-    coulomb_repuslion_tensor : :class:`np.ndarray`
+        Must provide either this or coulomb_repulsion_tensor.
+    coulomb_repulsion_tensor : :class:`np.ndarray`
         Coulomb repulsion tensor using Chemist's conventions, (ij|kl). Must provide exactly one of this or cholesky_vectors.
     E0 : float
         Nuclear repulsion energy.
@@ -259,25 +259,25 @@ def process_generic_hamiltonian(
 
     # NOTE: we might need `nelec` for silly practical reasons. Try just (0,0) for now.
 
-    if cholesky_vectors is None and coulomb_repuslion_tensor is None:
-        raise ValueError("Must provide either cholesky_vectors or coulomb_repuslion_tensor.")
+    if cholesky_vectors is None and coulomb_repulsion_tensor is None:
+        raise ValueError("Must provide either cholesky_vectors or coulomb_repulsion_tensor.")
     
-    if cholesky_vectors is not None and coulomb_repuslion_tensor is not None:
-        raise ValueError("Must provide exactly one of cholesky_vectors or coulomb_repuslion_tensor.")
+    if cholesky_vectors is not None and coulomb_repulsion_tensor is not None:
+        raise ValueError("Must provide exactly one of cholesky_vectors or coulomb_repulsion_tensor.")
 
     if spin_orbital_integrals:
         raise NotImplementedError("Spin orbital integrals not yet implemented. Please contact the developers.")
 
     nmo = H_one_body.shape[-1]
 
-    if coulomb_repuslion_tensor is not None:
-        if coulomb_repuslion_tensor.shape != (nmo,nmo,nmo,nmo):
+    if coulomb_repulsion_tensor is not None:
+        if coulomb_repulsion_tensor.shape != (nmo,nmo,nmo,nmo):
             raise ValueError("Coulomb repulsion tensor must have shape (nmo,nmo,nmo,nmo).")
 
         if verbose:
             print(" # Generating Cholesky vectors from Coulomb repulsion tensor.")
         cholesky_vectors = modified_cholesky_direct(
-        coulomb_repuslion_tensor.reshape(nmo**2,nmo**2), 
+        coulomb_repulsion_tensor.reshape(nmo**2,nmo**2), 
         tol=cholesky_delta, 
         verbose=verbose, 
         cmax=4
@@ -305,8 +305,8 @@ def write_hamiltonian_generic(*arg,filename:str="afqmc.h",**kwargs):
         One-body Hamiltonian.
     cholesky_vectors : :class:`np.ndarray`, optional
         Cholesky vectors with shape (number of Cholesky vectors,number_of_orbitals\*\*2).
-        Must provide either this or coulomb_repuslion_tensor.
-    coulomb_repuslion_tensor : :class:`np.ndarray`
+        Must provide either this or coulomb_repulsion_tensor.
+    coulomb_repulsion_tensor : :class:`np.ndarray`
         Coulomb repulsion tensor using Chemist's conventions, (ij|kl). Must provide exactly one of this or cholesky_vectors.
     E0 : float
         Nuclear repulsion energy.
@@ -388,7 +388,7 @@ def ao2mo_chol(eri, C):
 def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     """Modified cholesky decomposition from pyscf eris.
 
-    See, e.g. [Motta17]_
+    See, e.g. :cite:`motta_initio_2018`
 
     Only works for molecular systems.
 
@@ -396,9 +396,7 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     ----------
     mol : :class:`pyscf.mol`
         pyscf mol object.
-    orthoAO: :class:`np.ndarray`
-        Orthogonalising matrix for AOs. (e.g., mo_coeff).
-    delta : float
+    max_error : float
         Accuracy desired.
     verbose : bool
         If true print out convergence progress.
@@ -616,7 +614,7 @@ def soc(
     - mol: PySCF molecule object defining the system
     - mo: molecular orbital coefficient matrix (assumed to be of ROHF type here)
     - ncore (int): number of core electrons
-    - nactive (optioninal : int) : number of active orbitals, defaults to total number of orbitals - ncore
+    - nactive (optional : int) : number of active orbitals, defaults to total number of orbitals - ncore
 
     Returns:
     
@@ -679,7 +677,7 @@ def make_soc_one_body(
 
     Returns
     -------
-    h1_soc : np.ndarry
+    h1_soc : np.ndarray
        spin-orbit coupling Hamiltonian in full spin-orbital basis
 
        

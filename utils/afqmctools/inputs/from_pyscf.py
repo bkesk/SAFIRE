@@ -22,7 +22,7 @@ from afqmctools.wavefunction.pbc import write_wfn_pbc
 
 from afqmctools.utils.slater_types import _slater_enum_map
 
-# TODO: rename this accross entire code base
+# TODO: rename this across entire code base
 def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                   ortho_ao=False, df=False, kpoint=False, verbose=False,
                   cas=None, wfn_file=None,
