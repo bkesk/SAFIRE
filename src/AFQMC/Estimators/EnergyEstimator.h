@@ -65,7 +65,7 @@ public:
     app_log(1,"EnergyEstimator input:\n{}\n",io::to_string(pt));
     // initialize using verbose input
     print_sign = pt.get<bool>("print_sign");
-    truncate = pt.get<bool>("truncate");
+//    truncate = pt.get<bool>("truncate");
     energy_components = pt.get<bool>("print_components");
     nblocks_equil = pt.get<int>("equil");
     nblocks_skip = pt.get<int>("skip");
@@ -80,7 +80,7 @@ public:
     // read inputs with default options
     bool print_components = pt0.get<bool>("print_components", false);
     bool print_sign       = pt0.get<bool>("print_sign", false);
-    bool truncate         = pt0.get<bool>("truncate", false);
+//    bool truncate         = pt0.get<bool>("truncate", false);
     int equil = pt0.get<int>("equil", 0);
     int skip  = pt0.get<int>("skip", 0);
     int measure_interval_multiplier = pt0.get<int>("measure_interval_multiplier", DEFAULT_MEASURE_INTERVAL_MULTIPLIER);
@@ -91,7 +91,7 @@ public:
     ptree pt1;
     pt1.put("print_components", print_components);
     pt1.put("print_sign", print_sign);
-    pt1.put("truncate", truncate);
+//    pt1.put("truncate", truncate);
     pt1.put("equil", equil);
     pt1.put("skip", skip);
     pt1.put("measure_interval_multiplier", measure_interval_multiplier);
@@ -136,6 +136,7 @@ public:
       }
 
       nda::array<ComplexType,2> wet(4,nwalk);
+// MAM: disabled 
       if(truncate) {
         for(int i=0; i<nwalk; i++) { 
           wet(0,i) = eloc(i,0) + eloc(i,1) + eloc(i,2);
@@ -152,7 +153,6 @@ public:
 
       nda::array<ComplexType,2> wprop(7,nwalk);
       wset.getProperty(WEIGHT, wprop(0,all));
-std::cout<<" Energy w: " <<nda::sum(wprop(0,all)) <<std::endl;
       wset.getProperty(OVLP, wprop(1,all));
       wset.getProperty(PHASE, wprop(2,all));
       wset.getProperty(PHASE1, wprop(3,all));

@@ -387,15 +387,48 @@ protected:
   {
     if(P1inv) {
       if(denseP1) {
-        det_ops::PropagateWlkSet<MEM,TA>(wset,P1d_inv(),v,order);
+        det_ops::Propagate<MEM,TA>(wset,P1d_inv(),v,order);
       } else {
-        det_ops::PropagateWlkSet<MEM,TA>(wset,P1s_inv(),v,order);
+        det_ops::Propagate<MEM,TA>(wset,P1s_inv(),v,order);
       }
     } else {
       if(denseP1) {
-        det_ops::PropagateWlkSet<MEM,TA>(wset,P1d(),v,order);
+        det_ops::Propagate<MEM,TA>(wset,P1d(),v,order);
       } else {
-        det_ops::PropagateWlkSet<MEM,TA>(wset,P1s(),v,order);
+        det_ops::Propagate<MEM,TA>(wset,P1s(),v,order);
+      }
+    }
+  }
+
+  template<char TA, typename VHS_t>
+  void apply_propagators(WALKER_TYPES wtype, int npol, 
+                         nda::MemoryArrayOfRank<3> auto&& Xa, 
+                         nda::MemoryArrayOfRank<3> auto&& Xb, 
+                         VHS_t const& v, bool P1inv = false)
+  {
+    if(P1inv) {
+      if(denseP1) {
+        if(wtype == COLLINEAR)
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,Xb,P1d_inv(),v,order);
+        else
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,P1d_inv(),v,order);
+      } else {
+        if(wtype == COLLINEAR)
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,Xb,P1s_inv(),v,order);
+        else
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,P1s_inv(),v,order);
+      }
+    } else {
+      if(denseP1) {
+        if(wtype == COLLINEAR)
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,Xb,P1d(),v,order);
+        else
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,P1d(),v,order);
+      } else {
+        if(wtype == COLLINEAR)
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,Xb,P1s(),v,order);
+        else
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,P1s(),v,order);
       }
     }
   }

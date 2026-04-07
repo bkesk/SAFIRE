@@ -75,13 +75,11 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   {
     wfn->vbias(wset, X, dt);
   }
-  //std::cout<<" vbias: " <<nda::sum(nda::to_host(X)) <<std::endl;
 
   // 2. Assemble X(nwalk, nCV)
   AFQMCTimer.start(assemble_X_timer);
   assemble_X(sqrtdt, X, MFfactor, hybrid_weight);
   AFQMCTimer.stop(assemble_X_timer);
-  //std::cout<<" X: " <<nda::sum(nda::to_host(X)) <<std::endl;
 
   // Store sqrtdt*X in wset if back propagating
   int bp_step = wset.getBPPos(), bp_max = wset.NumBackProp();
@@ -95,14 +93,11 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     utils::check(vHS.shape() == std::array<long,4>{nspins_in_vHS,nwalk,npol_in_vHS*NMO,NMO}, 
                  "Size mismatch");
     AFQMCTimer.stop(vHS_timer);
-    //std::cout<<" vHS: " <<nda::sum(nda::to_host(vHS)) <<std::endl;
 
     // 4. Propagate walkers
-    //std::cout<<" Psi(0): " <<nda::sum(nda::to_host(wset.SlaterMatrices(Alpha)(0,nda::ellipsis{}))) <<std::endl;
     AFQMCTimer.start(propagate_timer);
     apply_propagators<'N'>(wset,vHS); 
     AFQMCTimer.stop(propagate_timer);
-//    std::cout<<" Psi(1): " <<nda::sum(nda::to_host(wset.SlaterMatrices(Alpha)(0,nda::ellipsis{}))) <<std::endl;
   } else {
     // 3. Calculate vHS
     AFQMCTimer.start(vHS_timer);
@@ -130,7 +125,6 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     wfn->Energy(wset, new_energies, new_overlaps);
   }
   AFQMCTimer.stop(pseudo_energy_timer);
-//  std::cout<<" pseudo energy " <<nda::sum(nda::exp(new_overlaps())) <<std::endl;
 
   // 6. update weights/energy/etc, apply constrains/bounds/etc
   AFQMCTimer.start(extra_timer);
@@ -152,7 +146,6 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     if(wset.getBPPos() < wset.NumBackProp()) wset.advanceBPPos();
     wset.advanceHistoryPos();
   }
-//  std::cout<<" update: " <<nda::sum(hybrid_weight)  <<" " <<nda::sum(MFfactor) <<std::endl <<std::endl;
   AFQMCTimer.stop(extra_timer);
 }
 
@@ -212,7 +205,6 @@ void AFQMCBasePropagator<MEM>::BackPropagate(int nbpsteps, int nStabalize, WlkSe
       auto vHS = wfn->vHS(X, old_dt);
       utils::check(vHS.shape() == std::array<long,4>{nspins_in_vHS,nwalk,npol_in_vHS*NMO,NMO},
                  "Size mismatch");
-//std::cout<<" vHS: " <<nda::sum(vHS) <<std::endl;
 
       // MAM: can do all references together in principle, 
       //      would consume more memory but be very efficient in GPU! 
@@ -223,17 +215,14 @@ void AFQMCBasePropagator<MEM>::BackPropagate(int nbpsteps, int nStabalize, WlkSe
         if(walker_type==COLLINEAR)
           wset.SlaterMatrices(Beta) = Refs(all,nr,all,range(nup,nup+ndown));        
 
-//std::cout<<" S0: " <<nda::sum(wset.SlaterMatrices(Alpha)) <<std::endl;
         // 4. Propagate walkers 
         apply_propagators<'H'>(wset,vHS); 
-//std::cout<<" S1: " <<nda::sum(wset.SlaterMatrices(Alpha)) <<std::endl;
 
         // always end (n==0) with an orthogonalization
         if (ni == 0 || ni % nStabalize == 0) {
           ldet() = ComplexType(0.0);
           det_ops::orthogonalize(wset, ldet);
           nda::tensor::add(ComplexType(1.0),ldet,"w",ComplexType(1.0),logdetR(all,nr),"w");
-//std::cout<<" S2: " <<nda::sum(wset.SlaterMatrices(Alpha)) <<std::endl;
         }
 
         // 5. copy reference to back
@@ -276,7 +265,6 @@ void AFQMCBasePropagator<MEM>::BackPropagate(int nbpsteps, int nStabalize, WlkSe
 
     }
   }
-//std::cout<<" R: " <<nda::sum(Refs) <<std::endl;
 
   // 6. restore the Slater Matrix
   wset.SlaterMatrices(Alpha) = SMA();
@@ -302,12 +290,14 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
   int nspin        = (walker_type == COLLINEAR) ? 2 : 1;
   int nwalk        = wset.size();
   int nCV          = wfn->number_of_cholesky_vectors();
+  int bp_step      = wset.getBPPos(); 
   ComplexType one(1.0,0.0);
 
   // Fields(nwalk, steps, nCV)
   auto Fields = wset.getFields();
   utils::check(Fields.extent(1) >= nsteps, "Size mismatch");
   utils::check(Fields.extent(0) == nwalk and Fields.extent(2) == nCV, "Size mismatch");
+  utils::check(bp_step > 0 and bp_step >= nsteps, "Error in PropagateOperators: bp_step:{}, nstep:{}",bp_step,nsteps);
 
   // generate P1x_inv if not yet constructed
   // NOTE: if time step changes after this point, 
@@ -317,7 +307,10 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
   
   { 
     memory::buffered_array<MEM,ComplexType,2> Xfield(nwalk, nCV);
-    for (int ni = 0; ni <nsteps; ++ni)
+    // MAM: Regularization is done after all nsteps are applied.
+    //      If this leads to instabilities (e.g. for large nsteps),
+    //      apply regularization inside this loop with some frequency
+    for (int i = 0, ni=bp_step-nsteps; i <nsteps; ++i, ++ni)
     {
 
       // 1. Get Xfield(nwalk,nCV) from wset
@@ -331,10 +324,10 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
                    "Size mismatch");
 
         // 4. Propagate walkers 
-//        apply_propagators<'N'>(walker_type,X(all,0,all,all),X(all,nspin-1,all,all),vHS);
+        apply_propagators<'N'>(walker_type,npol,X(all,0,all,all),X(all,nspin-1,all,all),vHS);
         // scale vHS by -1, since we need ma::H( B^(-1) )
         nda::tensor::scale(ComplexType(-1.0),vHS);
-//        apply_propagators<'H'>(walker_type,Y(all,0,all,all),Y(all,nspin-1,all,all),vHS,true);
+        apply_propagators<'H'>(walker_type,npol,Y(all,0,all,all),Y(all,nspin-1,all,all),vHS,true);
       } else {
 
         // 2. Calculate vHS
@@ -345,10 +338,12 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
                  "Size mismatch");
 
         // 4. Propagate walkers 
-//        apply_propagators<'N'>(walker_type,X(all,0,all,all),X(all,nspin-1,all,all),vHS);
+        apply_propagators<'N'>(walker_type,npol,X(all,0,all,all),X(all,nspin-1,all,all),vHS);
         // scale vHS by -1, since we need ma::H( B^(-1) )
-        nda::tensor::scale(ComplexType(-1.0),vHS);
-//        apply_propagators<'H'>(walker_type,Y(all,0,all,all),Y(all,nspin-1,all,all),vHS,true);
+        nda::tensor::scale(ComplexType(-1.0),vHS(0).values());
+        if(nspin==2)
+          nda::tensor::scale(ComplexType(-1.0),vHS(1).values());
+        apply_propagators<'H'>(walker_type,npol,Y(all,0,all,all),Y(all,nspin-1,all,all),vHS,true);
 
       }
 
@@ -376,7 +371,7 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
         auto SM_iw  = SM(iw,all,all); 
         auto X_iw  = X(iw,ispin,all,all);
         auto Y_iw  = Y(iw,ispin,all,all);
-        auto M_iw  = M(iw,ispin, all, all);
+        auto M_iw  = M(iw,ispin,all,all);
 
         // SY = H(S) * Y
         nda::blas::gemm(nda::dagger(SM_iw),Y_iw,SY);
@@ -385,7 +380,7 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
         nda::blas::gemm(SM_iw,SY,Y_iw);
         
         // M += H(Ynew) * X
-        nda::blas::gemm(one,nda::dagger(Y_iw),SY,one,M_iw);
+        nda::blas::gemm(one,nda::dagger(Y_iw),X_iw,one,M_iw);
      
         // SY = H(S) * X
         nda::blas::gemm(nda::dagger(SM_iw),X_iw,SY);
@@ -574,32 +569,26 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
   auto [nwalk,nCV] = X.shape();
   // generate random numbers
   utils::check( rng_block_size >= nCV, "Error in assemble_X: rng_block_size < nCV.");
-//  memory::buffered_array<MEM,RealType,2> RNGbuff(nwalk,rng_block_size);
-memory::buffered_array<MEM,RealType,2> RNGbuff(rng_block_size,nwalk);
+  memory::buffered_array<MEM,RealType,2> RNGbuff(nwalk,rng_block_size);
   RNGbuff() = RealType(0.0);
   if (addRAND)
   {
     // always generate rng_block_size per walker, to keep generators synchronized in 
     // correlated sampling calculations
-//    utils::sampleUniformFields(nda::flatten(RNGbuff), *rng);
-  std::normal_distribution<double> distribution(0.0,1.0);
-  auto V_ = nda::flatten(RNGbuff);
-  for(int i=0; i<V_.extent(0); i++)
-    V_(i) = distribution(*rng);
+    utils::sampleUniformFields(nda::flatten(RNGbuff), *rng);
   }
-//std::cout<<" RNG: " <<nda::sum(nda::to_host(RNGbuff)) <<std::endl;
 
   // construct X
   HWs() = ComplexType(0);
   MF() = ComplexType(0);
 
-// Doing this on host for now!!!
 #if defined(ENABLE_DEVICE)
   if constexpr (MEM==DEVICE_MEMORY) {
     kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X);
   } else
 #endif
   { 
+    // consider calling construct_X_impl with foreach to avoid code duplication
     for (int m = 0; m < nCV; ++m)
     {
       auto Xm = X(all,m);
@@ -628,8 +617,7 @@ memory::buffered_array<MEM,RealType,2> RNGbuff(rng_block_size,nwalk);
            Fp == ContinuousSpinPropagator) {
           ComplexType vdiff =
               free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
-          //Xm(iw) = probit(RNGbuff(iw,m)) + vdiff;
-Xm(iw) = RNGbuff(m,iw) + vdiff;
+          Xm(iw) = probit(RNGbuff(iw,m)) + vdiff;
           HWs(iw) -= vdiff * (Xm(iw) - 0.5 * vdiff);
           MF(iw) += im * Xm(iw) * vmf_0;
         } else if( Fp == DiscreteSpinPropagator or

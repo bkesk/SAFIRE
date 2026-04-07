@@ -73,9 +73,9 @@ public:
         prop0(std::addressof(prop)),
         max_nback_prop(10),
         nStabilize(10),
-        path_restoration(false),
+        path_restoration(true),
         importanceSampling(impsamp_),
-        extra_path_restoration(false),
+        extra_path_restoration(true),
         first(true)
   {
     // convert user input to verbose input
@@ -88,7 +88,6 @@ public:
     extra_path_restoration = pt.get<bool>("extra_path_restoration");
     nStabilize     = pt.get<int>("bp_walker_ortho_interval"); // units of steps!!
     equil_multiplier  = pt.get<int>("equil_multiplier"); // units of population control interval
-    number_of_references = pt.get<int>("number_of_references"); // number of references 
     std::vector<int> nback_prop_interval_multipliers = io::get_value_or_vector<int>(pt, "measure_interval_multiplier", {DEFAULT_MEASURE_INTERVAL_MULTIPLIER}); // units of population control interval
     naverages = nback_prop_interval_multipliers.size();
 
@@ -118,17 +117,13 @@ public:
     std::sort(nback_prop_steps.begin(), nback_prop_steps.end());
 
     int ncv(prop0->number_of_cholesky_vectors());
-    if(number_of_references < 0) number_of_references = wfn0->total_number_of_references();
-    if(number_of_references != 0 ) {
-      wset.resize_bp(max_nback_prop, ncv, number_of_references);
-      wset.setBPPos(0);
-      // set SMN in case BP begins right away
-      if (nblocks_equil == 0)
-        for (auto it = wset.begin(); it < wset.end(); ++it)
-          it->setSlaterMatrixN();
-    } else {
-      app_warning("Back Propagation: number_of_references was set to zero. Skipping back propagation.");
-    }
+    int number_of_references = wfn0->total_number_of_references();
+    wset.resize_bp(max_nback_prop, ncv, number_of_references);
+    wset.setBPPos(0);
+    // set SMN in case BP begins right away
+    if (nblocks_equil == 0)
+      for (auto it = wset.begin(); it < wset.end(); ++it)
+        it->setSlaterMatrixN();
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -137,11 +132,10 @@ public:
     bool path_restoration, extra_path_restoration;
     int ortho, equil_multiplier, _population_control_interval;
     std::vector<int> nback_prop_interval_multipliers;
-    path_restoration       = pt0.get<bool>("path_restoration", false);
-    extra_path_restoration = pt0.get<bool>("extra_path_restoration", false);
+    path_restoration       = pt0.get<bool>("path_restoration", true);
+    extra_path_restoration = pt0.get<bool>("extra_path_restoration", true);
     ortho         = pt0.get<int>("bp_walker_ortho_interval", 10);
     equil_multiplier = pt0.get<int>("equil_multiplier", 0);
-    int nrefs = pt0.get<int>("number_of_references", -1);
      _population_control_interval = pt0.get<int>("_population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL); // only for computing nback_prop_steps!
     
     // Use utility function to read either a single integer or vector of integers
@@ -161,7 +155,6 @@ public:
     pt1.put("bp_walker_ortho_interval", ortho);
     pt1.put("equil_multiplier", equil_multiplier);
     pt1.put("_population_control_interval", _population_control_interval);
-    pt1.put("number_of_references", nrefs);
     ptree temp_tree;
     for (const auto& value : nback_prop_interval_multipliers) {
         ptree item;
@@ -199,7 +192,6 @@ public:
   void accumulate_block([[maybe_unused]] double time, WalkerSet<MEM>& wset)
   {
     auto all = nda::range::all;
-    if(number_of_references==0) return;
     accumulated_in_last_block = false;
     int bp_step               = wset.getBPPos();
     int nwalk = wset.size();
@@ -241,6 +233,7 @@ public:
     AFQMCTimer.start(back_propagate_timer);
 
     // 1. allocate memory. Can loop over walkers if nrefs is too large 
+    int number_of_references = wfn0->total_number_of_references();
     memory::buffered_array<MEM,ComplexType,4> Refs(nwalk, number_of_references, npol*NMO, nel);
     memory::buffered_array<MEM,ComplexType,2> logdetR(nwalk, number_of_references);
 
@@ -309,7 +302,6 @@ public:
 
   void print([[maybe_unused]] std::ofstream& out, h5::file& file, [[maybe_unused]] WalkerSet<MEM>& wset)
   {
-    if(number_of_references==0) return;
     // I doubt we will ever collect a billion blocks of data.
     if (accumulated_in_last_block)
     {
@@ -328,6 +320,7 @@ public:
             h5::group g3 = g2.create_group("Metadata"); // can this already exist??? 
             h5::h5_write(g3,"BackPropSteps",nback_prop_steps);
             h5::h5_write(g3,"NumAverages",nave);
+            int number_of_references = wfn0->total_number_of_references();
             h5::h5_write(g3,"NumReferences",number_of_references);
             write_metadata = false;
           }
@@ -354,7 +347,6 @@ private:
 
   Propagator<MEM>* prop0;
 
-  int number_of_references = 0;
   int max_nback_prop = 0;
   std::vector<int> nback_prop_steps;
 //  std::vector<int> nback_prop_interval_multipliers;

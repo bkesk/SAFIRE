@@ -425,7 +425,7 @@ public:
               for(int ia=0; ia<(is==0?nup:ndown); ++ia) {
                 auto Ln = Lnak(is)()(0,ip,all,ia,all);
                 auto G_ = G3d(all,is*nup+ia,range(ip*NMO,(ip+1)*NMO));
-                nda::blas::gemm(ComplexType(a), G_(), Ln(), ComplexType(1.0), v);
+                nda::blas::gemm(ComplexType(a), G_(), nda::transpose(Ln()), ComplexType(1.0), v);
               }
             }
           }

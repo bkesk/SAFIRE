@@ -287,7 +287,7 @@ private:
   std::vector<Observable> properties;
 
   // denominator (nave, ...)
-  nda::vector<ComplexType> denominator;
+  nda::array<ComplexType,1> denominator;
 
 };
 

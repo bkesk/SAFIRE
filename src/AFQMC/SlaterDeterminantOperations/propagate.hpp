@@ -70,6 +70,46 @@ void apply_expM(V_t const& V, S_t && S, int order = 6)
 
 /*
  * Calculate S = exp(im*V)*S using a Taylor expansion of exp(V)
+ * This version is intended for cases where npol>1 in S, but npol_in_vHS==1.
+ */
+template<char TA, nda::MemoryArrayOfRank<3> V_t, nda::MemoryArrayOfRank<3> S_t>
+requires( nda::mem::have_compatible_addr_space<V_t,S_t> and math::is_valid_op(TA) and
+          std::decay_t<V_t>::is_stride_order_C() and std::decay_t<S_t>::is_stride_order_C()
+        )
+void apply_expM(int npol, V_t const& V, S_t && S, int order = 6)
+{
+  using nda::range;
+  auto all = range::all;
+  constexpr MEMORY_SPACE MEM = memory::get_memory_space<S_t>();
+  using Type = nda::get_value_t<S_t>;
+  static_assert( nda::is_complex_v<Type>, "Type mismatch");
+  auto [Nw, Mtot, Nel] = S.shape();
+  utils::check(Mtot%npol==0, "Incompatible S.shape:{} and npol:{}",Mtot,npol);
+  int M = Mtot/npol;
+  utils::check( V.shape() == std::array<long,3>{Nw,M,M}, "Shape mismatch");
+  memory::buffered_array<MEM,Type,3> T1(Nw,Mtot,Nel);
+  memory::buffered_array<MEM,Type,3> T2(Nw,Mtot,Nel);
+
+  Type zero(0.), one(1.);
+  Type im(0.0, 1.0);
+  if constexpr (TA == 'H' || TA == 'h')
+    im = ComplexType(0.0, -1.0);
+  auto pT1=std::addressof(T1);
+  auto pT2=std::addressof(T2);
+
+  T1() = S();
+  for (int n = 1; n <= order; n++)
+  {
+    Type fact = im * static_cast<Type>(1.0 / static_cast<double>(n));
+    for(int i=0, p=0; i<npol; i++, p+=M)  
+      math::product<TA>(fact,V,(*pT1)(all,range(p,p+M),all),zero,(*pT2)(all,range(p,p+M),all));
+    nda::tensor::add(one,*pT2,one,S);
+    std::swap(pT1, pT2);
+  }
+}
+
+/*
+ * Calculate S = exp(im*V)*S using a Taylor expansion of exp(V)
  * In this case, V is a csr_matrix with dimensions [Nw*M, Nw*M].
  * Can be used for fully polarized, closed shell, collinear (call each spin separately)
  * or noncollinear with full spin-orbit potential.
@@ -166,8 +206,6 @@ void apply_expM(V_t const& V, S_t && S, int order = 6)
   }
 }
 
-}  // namespace detail
-
 // SM[nbatch][M][NEL]
 // P1[M][M]
 // V[nbatch][M][M]
@@ -177,33 +215,7 @@ requires( (nda::MemoryArrayOfRank<V_t,3> or math::sparse::CSRMatrix<V_t>) and
           nda::mem::have_compatible_addr_space<V_t,S_t,P_t> and
           std::decay_t<S_t>::is_stride_order_C() and math::is_valid_op(TA) 
         )
-void Propagate(S_t && SM, P_t const& P1, V_t const& V, int order = 6)
-{
-  constexpr MEMORY_SPACE MEM = memory::get_memory_space<S_t>();
-  using Type = nda::get_value_t<S_t>;
-  static_assert( nda::is_complex_v<Type>, "Type mismatch");
-  auto [Nw, M, Nel] = SM.shape();
-  utils::check( P1.shape() == std::array<long,2>{M,M}, "Shape mismatch");
-
-  memory::buffered_array<MEM,Type,3> TMN(Nw,M,Nel);
-  // Apply P1     
-  math::product<TA>(P1,SM,TMN);
-  // Apply exp(i*V)  
-  detail::apply_expM<TA>(V, TMN, order);
-  // Apply P1
-  math::product<TA>(P1,TMN,SM);
-}
-
-// Special case for non-collinear calculations with dense, spin-diagonal, potentials.
-// SM[nbatch][npol*M][NEL]
-// P1[npol*M][npol*M]
-// V[nbatch][npol*M][M]
-template<char TA, nda::MemoryArrayOfRank<3> S_t, typename P_t, nda::MemoryArrayOfRank<3> V_t>
-requires( (nda::MemoryArrayOfRank<P_t,2> or math::sparse::CSRMatrix<P_t>) and
-          nda::mem::have_compatible_addr_space<V_t,S_t,P_t> and math::is_valid_op(TA) and
-          std::decay_t<S_t>::is_stride_order_C() and std::decay_t<V_t>::is_stride_order_C()
-        )
-void Propagate_pol(long npol, S_t && SM, P_t const& P1, V_t const& V, int order = 6)
+void propagate_impl(int npol, S_t && SM, P_t const& P1, V_t const& V, int order = 6)
 {
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<S_t>();
   using Type = nda::get_value_t<S_t>;
@@ -211,64 +223,139 @@ void Propagate_pol(long npol, S_t && SM, P_t const& P1, V_t const& V, int order 
   auto [Nw, Mtot, Nel] = SM.shape();
   utils::check(Mtot%npol==0, "npol:{} incompatible with M:{}",npol,Mtot);
   long M = Mtot/npol;
-  utils::check( V.shape() == std::array<long,3>{Nw,Mtot,M}, "Shape mismatch");
   utils::check( P1.shape() == std::array<long,2>{Mtot,Mtot}, "Shape mismatch");
 
-  auto str = V.strides();
-  std::array<long,4> shape = {Nw,npol,M,M};
-  std::array<long,4> strides = {str[0],M*str[1],str[1],str[2]};
-  nda::idx_map<4, 0, nda::C_stride_order<4>, nda::layout_prop_e::none> idxm(shape,strides);
-  memory::array_view<MEM,const Type,4> V4d(idxm,V.data());
+  memory::buffered_array<MEM,Type,3> TMN(Nw,Mtot,Nel);
+  // Apply P1     
+  math::product<TA>(P1,SM,TMN);
 
-  memory::buffered_array<MEM,Type,3> TMN(Nw,npol*M,Nel);
-  auto TMN_4d = nda::reshape(TMN,std::array<long,4>{Nw,npol,M,Nel});
-  // Apply P1
-  math::product<TA>(P1,SM,TMN);
   // Apply exp(i*V)  
-  detail::apply_expM<TA>(V4d, TMN_4d, order);
+  if constexpr ( nda::MemoryArrayOfRank<V_t,3> ) {
+    utils::check((V.extent(1)%npol==0) and (V.extent(2)%npol==0), "Size error: shape(V):({},{}), npol:{}",V.extent(1),V.extent(2),npol);
+    int npol_0 = V.extent(1)/M;
+    int npol_1 = V.extent(2)/M;
+    utils::check( (npol_0==1 or npol_0==npol) and (npol_1==1 or npol_1==npol), "npol_0 and npol_1 must be either 1 or npol, npol_0:{}, npol_1:{}, npol:{}",npol_0,npol_1,npol);
+
+    if(npol_0==npol and npol_1==npol) {
+      // V[nbatch][npol*M][npol*M]
+      utils::check( V.shape() == std::array<long,3>{Nw,Mtot,Mtot}, "Shape mismatch");
+      detail::apply_expM<TA>(V, TMN, order);
+    } else if(npol_0==npol and npol_1==1) {
+      // V[nbatch][npol*M][M]
+      utils::check( V.shape() == std::array<long,3>{Nw,Mtot,M}, "Shape mismatch");
+      auto str = V.strides();
+      std::array<long,4> shape = {Nw,npol,M,M};
+      std::array<long,4> strides = {str[0],M*str[1],str[1],str[2]};
+      nda::idx_map<4, 0, nda::C_stride_order<4>, nda::layout_prop_e::none> idxm(shape,strides);
+      memory::array_view<MEM,const Type,4> V4d(idxm,V.data());
+  
+      auto TMN_4d = nda::reshape(TMN,std::array<long,4>{Nw,npol,M,Nel});
+      detail::apply_expM<TA>(V4d, TMN_4d, order);
+    } else if(npol_0==1 and npol_1==1) {
+      // non-collinear with polarization independent vHS
+      // V[nbatch][M][M]
+      utils::check( V.shape() == std::array<long,3>{Nw,M,M}, "Shape mismatch");
+      detail::apply_expM<TA>(npol, V, TMN, order);
+    }
+  } else {
+    // CSRMatrix must be [nw*npol*M][nw*npol*M]
+    // V[nbatch][npol*M][npol*M]
+    detail::apply_expM<TA>(V, TMN, order);
+  }
+
   // Apply P1
-  math::product<TA>(P1,SM,TMN);
+  math::product<TA>(P1,TMN,SM);
 }
+
+}  // namespace detail
 
 // Propagate a WalkerSet
 // P1(nspin)(npol*NMO,npol*NMO): The matrix can be csr_matrix or nda::MemoryMatrix
-// V: vHS[nspin][nw][npol*NMO][npol*NMO]
-template<MEMORY_SPACE MEM, char TA, typename WlkSet, typename P_t, typename V_t>
+// V: vHS[nspin][nw][npol_0*NMO][npol_1*NMO]
+// In NONCOLLINEAR several cases are supported:
+//   npol_0=npol_1=1: Polarization independent basis, e.g. Gaussian basis sets
+//   npol_0=npol, npol_1=1: Standard case with polarization dependent basis but
+//                          with vHS potential diagonal in polarization index 
+//   npol_0=npol_1=npol: Full vHS matrix, most general case with spin-orbit vHS
+template<MEMORY_SPACE MEM, char TA, typename P_t, typename V_t>
+requires( std::decay_t<V_t>::is_stride_order_C() and math::is_valid_op(TA) and
+          (nda::MemoryArrayOfRank<P_t,3> or nda::MemoryArrayOfRank<P_t,1>) and
+          (nda::MemoryArrayOfRank<V_t,4> or nda::MemoryArrayOfRank<V_t,1>) )
+void Propagate(WALKER_TYPES walker_type, int npol, nda::MemoryArrayOfRank<3> auto&& SMA,
+               P_t const& P1, V_t const& V, int order = 6)
+{
+  auto all = nda::range::all;
+  int nwalk        = SMA.extent(0);
+  utils::check(V.extent(1) == nwalk, "Size mismatch");
+  utils::check(walker_type != COLLINEAR, "Walker type mismatch");
+
+// MAM: wrong if npol_in_file == 1 in NONCOLLINEAR, fix fix fix!!!
+  if constexpr ( nda::MemoryArrayOfRank<V_t,4> ) {
+    if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
+      detail::propagate_impl<TA>(npol,SMA,P1(0,nda::ellipsis{}),V(0,all,all,all),order);
+    } else {
+      detail::propagate_impl<TA>(npol,SMA,P1(0),V(0,all,all,all),order);
+    }
+  } else {
+    if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
+      detail::propagate_impl<TA>(npol,SMA,P1(0,nda::ellipsis{}),V(0),order);
+    } else {
+      detail::propagate_impl<TA>(npol,SMA,P1(0),V(0),order);
+    }
+  }
+}
+
+template<MEMORY_SPACE MEM, char TA, typename P_t, typename V_t>
 requires( std::decay_t<V_t>::is_stride_order_C() and math::is_valid_op(TA) and 
           (nda::MemoryArrayOfRank<P_t,3> or nda::MemoryArrayOfRank<P_t,1>) and
           (nda::MemoryArrayOfRank<V_t,4> or nda::MemoryArrayOfRank<V_t,1>) ) 
-void PropagateWlkSet(WlkSet& wset, P_t const& P1, V_t const& V, int order = 6)
+void Propagate(WALKER_TYPES walker_type, int npol, nda::MemoryArrayOfRank<3> auto&& SMA,
+               nda::MemoryArrayOfRank<3> auto&& SMB, P_t const& P1, V_t const& V, 
+               int order = 6)
 {
   auto all = nda::range::all;
-  int nwalk        = wset.size();
-  auto walker_type = wset.getWalkerType();
+  int nwalk        = SMA.extent(0); 
   utils::check(V.extent(1) == nwalk, "Size mismatch");
   long nspin_P1 = P1.extent(0);
+  utils::check(walker_type == COLLINEAR and (npol==1), "Walker type mismatch");
   
-// MAM: wrong is npol_in_file == 1 in NONCOLLINEAR, fix fix fix!!!
   if constexpr ( nda::MemoryArrayOfRank<V_t,4> ) {
     long nspin_V = V.extent(0);
     if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
-      Propagate<TA>(wset.SlaterMatrices(Alpha),P1(0,nda::ellipsis{}),V(0,all,all,all),order);
+      detail::propagate_impl<TA>(npol,SMA,P1(0,nda::ellipsis{}),V(0,all,all,all),order);
       if(walker_type==COLLINEAR)
-        Propagate<TA>(wset.SlaterMatrices(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V,all,all,all),order);
+        detail::propagate_impl<TA>(npol,SMB,P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V,all,all,all),order);
     } else {
-      Propagate<TA>(wset.SlaterMatrices(Alpha),P1(0),V(0,all,all,all),order);
+      detail::propagate_impl<TA>(npol,SMA,P1(0),V(0,all,all,all),order);
       if(walker_type==COLLINEAR)
-        Propagate<TA>(wset.SlaterMatrices(Beta),P1(1%nspin_P1),V(1%nspin_V,all,all,all),order);
+        detail::propagate_impl<TA>(npol,SMB,P1(1%nspin_P1),V(1%nspin_V,all,all,all),order);
     }
   } else {
     long nspin_V = V.extent(0);
     if constexpr( nda::MemoryArrayOfRank<P_t,3> ) {
-      Propagate<TA>(wset.SlaterMatrices(Alpha),P1(0,nda::ellipsis{}),V(0),order);
+      detail::propagate_impl<TA>(npol,SMA,P1(0,nda::ellipsis{}),V(0),order);
       if(walker_type==COLLINEAR)
-        Propagate<TA>(wset.SlaterMatrices(Beta),P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V),order);
+        detail::propagate_impl<TA>(npol,SMB,P1(1%nspin_P1,nda::ellipsis{}),V(1%nspin_V),order);
     } else {
-      Propagate<TA>(wset.SlaterMatrices(Alpha),P1(0),V(0),order);
+      detail::propagate_impl<TA>(npol,SMA,P1(0),V(0),order);
       if(walker_type==COLLINEAR)
-        Propagate<TA>(wset.SlaterMatrices(Beta),P1(1%nspin_P1),V(1%nspin_V),order);
+        detail::propagate_impl<TA>(npol,SMB,P1(1%nspin_P1),V(1%nspin_V),order);
     }
   }
+}
+
+template<MEMORY_SPACE MEM, char TA, typename WlkSet, typename P_t, typename V_t>
+requires( std::decay_t<V_t>::is_stride_order_C() and math::is_valid_op(TA) and
+          (nda::MemoryArrayOfRank<P_t,3> or nda::MemoryArrayOfRank<P_t,1>) and
+          (nda::MemoryArrayOfRank<V_t,4> or nda::MemoryArrayOfRank<V_t,1>) )
+void Propagate(WlkSet& wset, P_t const& P1, V_t const& V, int order = 6)
+{
+  auto walker_type = wset.getWalkerType();
+  int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
+  if(walker_type == COLLINEAR) 
+    Propagate<MEM,TA>(walker_type,npol,wset.SlaterMatrices(Alpha),wset.SlaterMatrices(Beta),P1,V,order);
+  else
+    Propagate<MEM,TA>(walker_type,npol,wset.SlaterMatrices(Alpha),P1,V,order);
 }
 
 } // namespace det_ops 

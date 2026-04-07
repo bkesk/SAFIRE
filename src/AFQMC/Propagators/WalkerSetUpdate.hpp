@@ -205,9 +205,6 @@ void hybrid_walker_update(Wlk& w,
     work(9,i) = scale; // KE: this was originally the cumulative product of "scale"
                         //    changed to just "scale" since this isn't used anywhere 
   }
-std::cout<<" w: " <<work(0,0) <<" " <<work(1,0) <<" " <<work(3,0) <<" "
-<<nda::sum(work(0,all)) <<" "
-<<nda::sum(work(1,all)) <<" " <<nda::sum(work(3,all)) <<std::endl;
   w.setProperty(WEIGHT, work(0,all));
   w.setProperty(PSEUDO_ELOC_, work(1,all));
   w.setProperty(OVLP, work(2,all));

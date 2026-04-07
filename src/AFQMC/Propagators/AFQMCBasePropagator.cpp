@@ -166,7 +166,6 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
       for(int i=0; i<nspin; ++i) 
         P1d_inv()(i,all,all) = math::exp_hermitian(H1(i,all,all), printP1eV);
     }
-std::cout<<" sum(P1d): " <<nda::sum(P1d()) <<" " <<nda::sum(H1()) <<std::endl;
   }
   mpi->comm.barrier();
 

@@ -249,21 +249,22 @@ void SDetOps()
       V2(nda::range(i*NMO,(i+1)*NMO),nda::range(i*NMO,(i+1)*NMO)) = utils::make_random<Type>(NMO,NMO); 
     auto Vcsr = math::sparse::to_csr<MEM,int,int>(V2);
 
-    det_ops::Propagate<'N'>(SM, P, V, 4);
-    det_ops::Propagate<'T'>(SM, P, V, 4);
-    det_ops::Propagate<'H'>(SM, P, V, 4);
+    using det_ops::detail::propagate_impl;
+    propagate_impl<'N'>(1,SM, P, V, 4);
+    propagate_impl<'T'>(1,SM, P, V, 4);
+    propagate_impl<'H'>(1,SM, P, V, 4);
 
-    det_ops::Propagate<'N'>(SM, Pcsr, V, 4);
-    det_ops::Propagate<'T'>(SM, Pcsr, V, 4);
-    det_ops::Propagate<'H'>(SM, Pcsr, V, 4);
+    propagate_impl<'N'>(1,SM, Pcsr, V, 4);
+    propagate_impl<'T'>(1,SM, Pcsr, V, 4);
+    propagate_impl<'H'>(1,SM, Pcsr, V, 4);
 
-    det_ops::Propagate<'N'>(SM, P, Vcsr, 4);
-    det_ops::Propagate<'T'>(SM, P, Vcsr, 4);
-    det_ops::Propagate<'H'>(SM, P, Vcsr, 4);
+    propagate_impl<'N'>(1,SM, P, Vcsr, 4);
+    propagate_impl<'T'>(1,SM, P, Vcsr, 4);
+    propagate_impl<'H'>(1,SM, P, Vcsr, 4);
 
-    det_ops::Propagate<'N'>(SM, Pcsr, Vcsr, 4);
-    det_ops::Propagate<'T'>(SM, Pcsr, Vcsr, 4);
-    det_ops::Propagate<'H'>(SM, Pcsr, Vcsr, 4);
+    propagate_impl<'N'>(1,SM, Pcsr, Vcsr, 4);
+    propagate_impl<'T'>(1,SM, Pcsr, Vcsr, 4);
+    propagate_impl<'H'>(1,SM, Pcsr, Vcsr, 4);
   }
 
   // Propagate noncollinear with diagonal V
@@ -279,14 +280,15 @@ void SDetOps()
     Vt() = Vt()*0.001;
     V() = Vt(); 
     auto Pcsr = math::sparse::to_csr<MEM,int,int>(P);
-  
-    det_ops::Propagate_pol<'N'>(2, SM, P, V, 4);
-    det_ops::Propagate_pol<'T'>(2, SM, P, V, 4);
-    det_ops::Propagate_pol<'H'>(2, SM, P, V, 4);
     
-    det_ops::Propagate_pol<'N'>(2, SM, Pcsr, V, 4);
-    det_ops::Propagate_pol<'T'>(2, SM, Pcsr, V, 4);
-    det_ops::Propagate_pol<'H'>(2, SM, Pcsr, V, 4);
+    using det_ops::detail::propagate_impl;
+    propagate_impl<'N'>(2, SM, P, V, 4);
+    propagate_impl<'T'>(2, SM, P, V, 4);
+    propagate_impl<'H'>(2, SM, P, V, 4);
+    
+    propagate_impl<'N'>(2, SM, Pcsr, V, 4);
+    propagate_impl<'T'>(2, SM, Pcsr, V, 4);
+    propagate_impl<'H'>(2, SM, Pcsr, V, 4);
 
     // now with separate spin up/down csr_matrix
   }
