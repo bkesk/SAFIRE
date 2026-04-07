@@ -63,6 +63,14 @@ SET(PROJECT_UNIT_TEST_DIR ${PROJECT_BINARY_DIR}/tests/bin)
 enable_testing()
 include( CTest )
 
+######################################################################
+# Code Coverage
+######################################################################
+if(ENABLE_COVERAGE)
+  include(CodeCoverage)
+  append_coverage_compiler_flags()
+endif()
+
 
 ######################################################################
 # Build level
@@ -94,6 +102,7 @@ option(BUILD_UNIT_TESTS "Build unit tests" ON)
 option(BUILD_STATIC "Link to static libraries" OFF)
 option(ENABLE_TIMERS "Enable internal timers" ON)
 OPTION(BUILD_DOCUMENTATION "Enable compiling C++ Docs" OFF)
+option(ENABLE_COVERAGE "Enable code coverage reporting" OFF)
 option(ENABLE_SPDLOG "Build with spdlog" ON)
 option(ENABLE_CPPTRACE "Build with cpptrace support" ON)
 
@@ -430,6 +439,12 @@ target_compile_options(${PROJECT_NAME}_warnings
 
 add_subdirectory(src)
 
+######################################################################
+# Setup code coverage targets
+######################################################################
+if(ENABLE_COVERAGE)
+  setup_coverage_targets()
+endif()
 
 #######################################################################
 # C++ Docs

@@ -23,8 +23,6 @@ In this case, a mixed estimator is an unbiased estimator.
 Formally, mixed estimators evaluate an observable :math:`\hat{O}` as
 
 .. math::
-  :name: mixedEstimators
-
   \langle \hat{O} \rangle_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
 
 
@@ -114,19 +112,20 @@ Settings
 
     Advanced / developer setting
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    .. list-table::
-    :header-rows: 1
-    :widths: 25 20 55
 
-    * - **Parameter**
+    .. list-table::
+      :header-rows: 1
+      :widths: 25 20 55
+
+      * - **Parameter**
         - **Default**
         - **Description**
-    * - print_sign
-      - false
-      - if ture, print detailed information about the phase and constraint in the scalar.dat output file.
-    * - truncate
-      - false
-      - 
+      * - print_sign
+        - false
+        - if true, print detailed information about the phase and constraint in the scalar.dat output file.
+      * - truncate
+        - false
+        -
 
 Back-Propagation (BP) Estimators
 --------------------------------
@@ -136,7 +135,6 @@ which requires the use of pure estimators. The Back-Propagation (BP) algorithm i
 The back-propagated estimator has the form,
 
 .. math::
-  :label: bpEstimators
 
   \langle \hat{O} \rangle_{BP} = \frac{1}{\sum_k W_{s+m,k}} \sum_k W_{s+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{s,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{s,k}\rangle}
 
@@ -265,13 +263,14 @@ Settings
 
     Advanced / developer settings
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    .. list-table::
-    :header-rows: 1
-    :widths: 25 20 55
 
-    * - **Parameter**
-      - **Default**
-      - **Description**
-    * - **extra_path_restoration**
-      - false
-      - if true, perform an extra path restoration in the back-propagation algorithm.
+    .. list-table::
+      :header-rows: 1
+      :widths: 25 20 55
+
+      * - **Parameter**
+        - **Default**
+        - **Description**
+      * - **extra_path_restoration**
+        - false
+        - if true, perform an extra path restoration in the back-propagation algorithm.

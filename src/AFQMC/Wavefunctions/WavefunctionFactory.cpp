@@ -143,6 +143,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       return Wavefunction<MEM>(NOMSD<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
                                      std::move(ci), std::move(PsiT),NCE,targetNW)); 
     }
+
   }
   else if (wfn_type == PHMSD_WFN)
   {

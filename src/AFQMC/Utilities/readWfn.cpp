@@ -96,7 +96,7 @@ WALKER_TYPES getWalkerType(std::string filename, std::string type)
     return COLLINEAR;
   else if (wfn_type == 3)
     return NONCOLLINEAR;
-  else if (wfn_type ==4)
+  else if (wfn_type == 4)
     return FULLYPOLARIZED;
   else
     return UNDEFINED_WALKER_TYPE;

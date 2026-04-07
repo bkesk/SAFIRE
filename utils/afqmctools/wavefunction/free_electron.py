@@ -45,7 +45,8 @@ THETA_Y = 1/np.sqrt(47603)     # 47603 is prime
 
 
 def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=None,
-                  return_autohf=False,measure_spin=True,filling_strategy='aufbau',shell_tol=1e-6):
+                  return_autohf=False,measure_spin=True,filling_strategy='aufbau',shell_tol=1e-6,
+                  measure_evar=True):
     """
     Builds a free-electron trial wavefunction based on the 'source' lattice hamiltonian.
 
@@ -70,16 +71,21 @@ def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=
         whether to measure spin in AutoHF (default: True)
     filling_strategy : str
         strategy for filling orbitals within shells. Options:
+
         - 'aufbau': fill shells from lowest to highest energy (default)
         - 'balanced': for partially filled shells, select orbitals evenly 
-                     to balance properties like momentum
+            to balance properties like momentum
         - 'hund': apply Hund's rule (maximize spin)
         - 'alternating': fill from edges inward (0, -1, 1, -2, ...) 
-                        for momentum cancellation
+            for momentum cancellation
+
     shell_tol : float
         tolerance for grouping eigenvalues into shells (default: 1e-6)
         Orbitals with eigenvalues within this tolerance are considered 
         to belong to the same shell.
+    measure_evar : bool
+        whether to measure the variational energy with respect to the interacting Hamiltonian
+        using AutoHF (default: True)
     
     Returns
     -------
@@ -147,20 +153,20 @@ def free_electron(source,nelec,twist=None,spin_symm=None,use_dense=True,lattice=
     # TODO: put this somewhere else, probably parse from an input file
     settings = dict(
         ansatz = 'SD',
-        numSteps = -1, # prints only the reference energy
+        steps = -1, # prints only the reference energy
         verbose = True,
         nelec = nelec,
-        numTrials = 1,
+        batch_size = 1,
         measure_spin = measure_spin
     )
 
     if spin_symm_wfn == SpinSymm.NONCOLLINEAR:
         settings["noncollinear"] = True
 
-    if not HAS_AUTOHF:
+    if measure_evar and not HAS_AUTOHF:
         warn("AutoHF not available. Skipping energy evaluation.")
         results = None
-    else:
+    elif measure_evar:
         results = lattice_hf(
             AutoHFHamiltonian(source=hamiltonian),
             settings=settings,
@@ -210,7 +216,7 @@ def _free_electron(hamiltonian:Hamiltonian,nelec,spin_symm=None,use_dense=True,f
         spin_symm = get_spin_symm_enum(spin_symm)
 
     if spin_symm == SpinSymm.CLOSED:
-        raise NotImplementedError("Free electron wavefunction with closed spin symmmetry is not implemented")
+        raise NotImplementedError("Free electron wavefunction with closed spin symmetry is not implemented")
     elif spin_symm == SpinSymm.COLLINEAR:
         wfn = _collinear_free_elec(T,nelec=nelec,Nmo=norb,use_dense=use_dense,
                                    filling_strategy=filling_strategy,shell_tol=shell_tol)
@@ -562,6 +568,7 @@ def _noncollinear_free_elec(Hfree,nelec,Nmo,use_dense=True,filling_strategy='auf
         - 'hund': apply Hund's rule (maximize spin)
         - 'alternating': fill from edges inward (0, -1, 1, -2, ...) 
                         for momentum cancellation
+
     shell_tol : float
         tolerance for grouping eigenvalues into shells (default: 1e-6)
 

@@ -20,6 +20,7 @@
 #include "config.h"
 #include "arch/arch.h"
 #include "utilities/mpi_context.h"
+#include "IO/app_loggers.h"
 
 #include<iostream>
 

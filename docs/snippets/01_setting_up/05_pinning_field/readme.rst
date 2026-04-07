@@ -1,10 +1,10 @@
 .. _setup_ex_5:
 
-05 Hubbard with Pinning Fields
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Hubbard with Pinning Fields
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers building a Hubbard model Hamiltonian on square Lattice with 
-an anitferromagnetic pinning field and a charge pinning field, 
+an antiferromagnetic pinning field and a charge pinning field, 
 and generating a free-electron trial wavefunction.
 
 Currently, pinning is applied only at the boundaries perpendicular to axis 1, 
@@ -72,7 +72,7 @@ The `free_electron()` function accepts a `twist` keyword argument for the sake o
 reproducibility for open-shell systems. 
 `twist` should be a 2-d iterable containing :math:`\vec{\theta}=(\theta_1,\theta_2)`
 in radians even if one component is set to 0.0.
-By default, a small incomensurate twist angle is used.
+By default, a small incommensurate twist angle is used.
 
 If the sample Python script is run above with the sample input file, the following
 should be present at the end of the output.

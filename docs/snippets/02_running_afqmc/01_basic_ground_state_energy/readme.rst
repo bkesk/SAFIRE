@@ -1,7 +1,7 @@
 .. _run_afqmc_ex_1:
 
-01 Basic Ground State Energy with CPU build
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Basic Ground State Energy with CPU build
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers running AFQMC for a generic input
 Hamiltonian to obtain the ground state energy.

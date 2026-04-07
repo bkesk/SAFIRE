@@ -11,6 +11,9 @@ if(ENABLE_CUDA)
     construct_fields.cu
     determinants.cu
     accumulate.cu
+    split_singular_vals.cu
+    add_diagonal.cu
+    add_scalar.cu
 #    symmetry_tools.cu
 #    potentials.cu
 #    kpoint_tools.cu
