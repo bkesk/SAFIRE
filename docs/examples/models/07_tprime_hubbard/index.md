@@ -49,7 +49,7 @@ References:
 from tutorial_utils import run_afqmc, get_scratch_dir
 
 #TODO: update this to a good directory for scratch files
-scratch_rootdir="/mnt/home/beskridge/ceph/scratch/11"
+scratch_rootdir="."
 scratch_dir = get_scratch_dir("04_hubbard_tprime",scratch_rootdir)
 ```
 
@@ -118,13 +118,11 @@ write_model_hamiltonian(hamiltonian,fname=scratch_dir/"Hubbard_tprime0.4_U4.0.h5
 ## Setup - Trial Wavefunction.
 
 ```{code-cell} ipython3
-:id: 51e57c3e-82b1-4064-80f2-2afd63d7e609
-:outputId: c453b587-038c-4867-dac8-a4cfdeacece8
-
 # First, let's compute the Free-Electron trial wavefunction
 from afqmctools.wavefunction.free_electron import free_electron
+from afqmctools.wavefunction.common import write_wfn
 
-nelec =(16,16)
+nelec = (16,16)
 
 input_params = dict(
     lattice = lattice_params,                           # from step 1. above
@@ -133,13 +131,17 @@ input_params = dict(
 
 # twist from ref 1:
 twist = (0.0,0.0) #(0.01,0.01) # this twist was used for 4x16 with t' = 0.3t
-_,_,results = free_electron(
+wfn,_,results = free_electron(
     source=input_params,
     nelec=nelec,
-    twist=twist,                          # (optional) using the defaul small twist
-    output=scratch_dir/"free_elec_wfn.h5",           # set output file to save the wavefunction in.
+    twist=twist,                          # (optional) using the default small twist
     return_autohf = True
 )
+
+# get lattice dimensions from the Lattice instance
+L = lattice.L
+
+write_wfn(scratch_dir/"free_elec_wfn.h5", wfn, walker_type='collinear', norb=L[0]*L[1], nelec=nelec)
 ```
 
 ```{code-cell} ipython3
@@ -149,13 +151,10 @@ _,_,results = free_electron(
 import afqmctools.utils.visualize as vis
 
 # convert the 'results' from autohf to a charge density
-makeRDMs = results['makeRDMs']
-state = results['state']
+makeRDMs = results[1]['makeRDMs']
+state = results[0]['state']
 
 rdm = makeRDMs(state)
-
-# get lattice dimensions from the Lattice instance
-L = lattice.L
 
 # collinear
 rho_up = rdm[0].diagonal().reshape(*L)
@@ -192,8 +191,6 @@ vis.plot_lattice(
 ## Setup - Write an SAFIRE input file
 
 ```{code-cell} ipython3
-:id: 9d13f4b9-22c5-468e-8faf-e8f0536c8110
-
 # make a json input file
 from afqmctools.inputs.from_hdf import write_json
 
@@ -203,23 +200,22 @@ afqmc_params = {
     "n_walkers_per_mpi_task": 30,
     "population_control_interval": 5,
     "walker_ortho_interval": 5,
-    "measure_interval": 10,
+    "measure_interval_multiplier": 2,
     "seed" : 42,                          # for reproducibility
     "propagator": {
-      "use_cp_constraint": True,
-      "use_real_vbias" : True
+        "use_cp_constraint": True,
+        "use_real_vbias": True
     },
-      "estimator": {
+    "estimator": {
         "name":"back_propagation",
-        "path_restoration":True,
-        "ortho":5,
-        "nsteps":200,
-        "naverages":4,
-        "equil":2000,
-        "onerdm" : {
-          "name":"onerdm"
+        "path_restoration": True,
+        "bp_walker_ortho_interval": 5,
+        "measure_interval_multiplier": [40, 80, 120, 160],
+        "equil_multiplier":480,
+        "onerdm":{
+            "name":"onerdm"
         }
-      }
+    }
 }
 
 write_json(
