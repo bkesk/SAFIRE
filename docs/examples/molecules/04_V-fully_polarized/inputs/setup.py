@@ -8,8 +8,6 @@
 #
 #      http://www.apache.org/licenses/LICENSE-2.0
 
-import numpy as np
-
 from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 from afqmctools.hamiltonian.mol import write_hamil_mol
 from afqmctools.wavefunction.mol import write_wfn_mol
@@ -19,13 +17,11 @@ def main():
 
     # inputs
     basis_chk = '../scf/rohf.chk'
-    wfn_chk = '../scf/uhf.chk'
     chol_tol = 1e-5
     cas_afqmc = (3,32)
     
     # output
     fout = 'afqmc.h5'
-
 
     basis_scf_data = load_from_pyscf_chk_mol(basis_chk, 'scf')
 
@@ -50,6 +46,12 @@ def main():
         cas=cas_afqmc  # provide the CAS info here
     )
     
+    write_wfn_mol(
+        scf_data = basis_scf_data,
+        filename = fout,
+        cas = cas_afqmc  # must match the CAS info used in write_hamil_mol!
+    )
+
 
 if __name__ == '__main__':
     main()
