@@ -184,7 +184,7 @@ and the actual measurement interval, :math:`m`, is determined as:
 
 .. math::
 
-    m = (\text{measure_interval_multiplier}) \times (\text{population_control_interval})
+    m = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}
 
 Multiple BP Lengths
 ~~~~~~~~~~~~~~~~~~~
@@ -221,7 +221,7 @@ Similarly to the measure_interval_multiplier, the equilibration time is specifie
 
 .. math::
 
-    \text{equil_time} = (\text{equil_multiplier}) \times (\text{population_control_interval})
+    \text{equil_time} = \text{equil\_multiplier} \times \text{population\_control\_interval}
 
 
 Settings
@@ -255,7 +255,7 @@ Settings
 
   .. math::
 
-    measure\_interval = measure\_interval\_multiplier \times population\_control\_interval
+    \text{measure\_interval} = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}
 
   and similarly for the equilibration time.
 

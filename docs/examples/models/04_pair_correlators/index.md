@@ -163,7 +163,7 @@ They are:
 <div class="alert alert-block alert-info">
 <b>Note:</b>
   SAFIRE will measure all combinations of pairings that you request.
-  i.e. it will compute $P^{\alpha \beta}_{ij}$ where both $\alpha$ and $\beta$ run over the full set of pairing definitions.
+  i.e. it will compute :math:`P^{\alpha \beta}_{ij}` where both :math:`\alpha` and :math:`\beta` run over the full set of pairing definitions.
 </div>
 
 Since the pair correlation functions do not generally commute with the Hamiltonian, we should use a back-propagated estimator.
@@ -242,8 +242,8 @@ instead of the above.
 
 +++ {"id": "SrM8syoYzUeS"}
 
-## You Turn
-Run SAFIRE on a 4x4 Hubbard model with U=4, and $N_{\uparrow}=N_{⇓} = 7$ using the full sample input file above.
+## Your Turn
+Run SAFIRE on a 4x4 Hubbard model with :math:`U=4`, and :math:`N_{\uparrow}=N_{⇓} = 7` using the full sample input file above.
 
 +++ {"id": "WIxdjnH-zopo"}
 
