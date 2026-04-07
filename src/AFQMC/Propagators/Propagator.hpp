@@ -50,7 +50,6 @@ public:
     std::visit([&](auto&& a) { a.Propagate(std::forward<Args>(args)...); }, var);
   }
 
-/*
   template<class... Args>
   void BackPropagate(Args&&... args)
   {
@@ -62,7 +61,7 @@ public:
   {
     std::visit([&](auto&& a) { a.PropagateOperators(std::forward<Args>(args)...); }, var);
   }
-*/
+
   template<class... Args>
   void generateP1(Args&&... args)
   {

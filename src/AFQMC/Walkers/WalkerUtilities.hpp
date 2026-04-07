@@ -53,10 +53,7 @@ inline void BasicWalkerData(WlkBucket& wlk, DVec&& curData, mpi3::communicator& 
         (!std::isfinite((weight * eloc).imag())))
     {
       w_data(iw,0) = ComplexType(0.0, 0.0);
-      if(wtype == COLLINEAR_FT or wtype == NONCOLLINEAR_FT)
-        w_data(iw,1) = ComplexType(0.0, 0.0); // finite-T keeps log(ovlp) instead of ovlp
-      else
-        w_data(iw,1) = ComplexType(1.0, 0.0);
+      w_data(iw,1) = ComplexType(0.0, 0.0); 
       w_data(iw,2) = ComplexType(0.0, 0.0);
       modified      = true;
       continue;
@@ -66,7 +63,7 @@ inline void BasicWalkerData(WlkBucket& wlk, DVec&& curData, mpi3::communicator& 
     data[2] += weight.real();
     data[3] += weight.imag();
     data[4] += std::abs(weight);
-    data[5] += std::abs(ovlp);
+    data[5] += ovlp.real();
     data[7]++; // healthy walkers
   }
   comm.all_reduce_in_place_n(data.begin(), data.size(), std::plus<>());

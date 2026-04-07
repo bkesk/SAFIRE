@@ -72,7 +72,13 @@ bool AFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
     if (total_time < weight_reset_period && !prop0.free_propagation())
       wset.resetWeights();
 
-    if (total_time < 1.0 || (iStep + 1) % nPopulation == 0 || iStep == 0)
+    if (total_time < 1.0) 
+    {
+      wset.processWalkerData(curData);
+      estim0.accumulate_step(total_time, wset, curData);
+    } 
+
+    if ((iStep + 1) % nPopulation == 0 || iStep == 0)
     {
       AFQMCTimer.start(popcont_timer);
       wset.processWalkerData(curData);

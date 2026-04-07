@@ -524,13 +524,13 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
           for(long Q=0; Q<nkpts; Q++) {
             if(Q<=minusq(Q)) {
               auto Lijn = LQ(Q)()(is_,ip_,ik,nda::ellipsis{});
-              nda::tensor::contract(one,Lijn,"ijn",nda::conj(Lijn),"ljn",one,vt,"il");
+              nda::tensor::contract(ComplexType(-0.5),Lijn,"ijn",nda::conj(Lijn),"ljn",one,vt,"il");
             } else {
               // L[Q,k,k2](i,j,n) = conj( L[-Q,k2,k](j,i,n) )
               int Qm = minusq(Q);
               int k2 = qk_to_k2(Q,ik); 
               auto Lijn = LQ(Qm)()(is_,ip_,k2,nda::ellipsis{});
-              nda::tensor::contract(one,nda::conj(Lijn),"jin",Lijn,"jln",one,vt,"il");
+              nda::tensor::contract(ComplexType(-0.5),nda::conj(Lijn),"jin",Lijn,"jln",one,vt,"il");
             }
           }
           v0()(isp,ik,all,all) = vt();        

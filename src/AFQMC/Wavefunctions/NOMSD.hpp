@@ -25,11 +25,11 @@
 #include "utilities/check.hpp"
 #include "utilities/check_strides.hpp"
 #include "IO/ptree/ptree_utilities.hpp"
+#include "numerics/sparse/csr_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
-//#include "AFQMC/SlaterDeterminantOperations/
 
 namespace sfqmc
 {
@@ -285,16 +285,27 @@ public:
     Log_Overlap(wset, ovlp);
     wset.setProperty(OVLP, ovlp);
   }
-/*
-  template<class... Args>
-  void accumulate_estimators(Args&&... args)
+
+  /*
+   * Calculates Green functions and calls Observables.
+   */
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
+        nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
+        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true);
+
+  /*
+   * Calculates Green functions and calls Observables.
+   */
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body,
+        std::vector<Observable>& properties, bool importanceSampling = true)
   {
-    if(ci.size()>1)
-      accumulate_estimators_general_impl(std::forward<Args>(args)...);
-    else
-      accumulate_estimators_single_ref_impl(std::forward<Args>(args)...);    
+    memory::buffered_array<MEM,ComplexType,4> *X = nullptr;
+    accumulate_estimators(iav,wset,wgt,properties_1body,properties,X,X,X,false,importanceSampling);
   }
-*/
 
   ComplexType getReferenceWeight(int i) const { return ci[i]; }
 
@@ -313,17 +324,25 @@ public:
     if(number_of_references==0) return;
     if(number_of_references < 0) number_of_references = OrbMats.extent(0);
     utils::check(number_of_references > 0 and 
-                 number_of_references < OrbMats.extent(0) and
-                 number_of_references < Refs.extent(0), 
+                 number_of_references <= OrbMats.extent(0) and
+                 number_of_references <= Refs.extent(0), 
                  "Invalid number_of_references:{}", number_of_references);
     utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
     // this is slow and uses too much memory. Improve!!!
 //  write kernel
-//    for(int i=0; i<number_of_references; ++i) {
-//      Refs(i,all,range(nup)) = math::sparse::to_array<'H'>(OrbMats(i,0))();
-//      if(walker_type == COLLINEAR)
-//        Refs(i,all,range(nup,nel)) = math::sparse::to_array<'H'>(OrbMats(i,1))();
-//    }
+    if constexpr (math::sparse::CSRMatrix<devPsiT>) {
+      for(int i=0; i<number_of_references; ++i) {
+        Refs(i,all,range(nup)) = math::sparse::to_array<'H'>(OrbMats(i,0)());
+        if(walker_type == COLLINEAR)
+          Refs(i,all,range(nup,nel)) = math::sparse::to_array<'H'>(OrbMats(i,1)());
+      }
+    } else { 
+      for(int i=0; i<number_of_references; ++i) {
+        Refs(i,all,range(nup)) = nda::dagger(OrbMats(i,0)());
+        if(walker_type == COLLINEAR)
+          Refs(i,all,range(nup,nel)) = nda::dagger(OrbMats(i,1)());
+      }
+    }
   }
 
 protected:
@@ -343,16 +362,6 @@ protected:
 
 /*
   void recompute_ci();
-
-  template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
-  void accumulate_estimators_general_impl(int iav, WlkSet& wset, TVec& wgt, 
-        std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
-        Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
-
-  template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
-  void accumulate_estimators_single_ref_impl(int iav, WlkSet& wset, TVec& wgt, 
-        std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
-        Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
 */
 };
 

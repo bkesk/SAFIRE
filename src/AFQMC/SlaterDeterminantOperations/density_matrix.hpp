@@ -20,6 +20,7 @@
 #include "numerics/device_kernels/cuda/add_scalar.cuh"
 #include "utilities/check_strides.hpp"
 #include "numerics/operations/determinants.hpp"
+#include "numerics/operations/product.hpp"
 #include "numerics/operations/split_singular_vals.hpp"
 #include "numerics/operations/add_diagonal.hpp"
 #include "numerics/nda_functions.hpp"
@@ -32,7 +33,7 @@ namespace afqmc
 namespace det_ops 
 {
 
-  using math::sparse::CSRMatrix;
+using math::sparse::CSRMatrix;
 
 namespace detail
 {
@@ -123,6 +124,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool herm = true, bool invert = false)
 {
+  auto _ = nda::ellipsis{};
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
@@ -138,17 +140,10 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  if constexpr (CSRMatrix<A_t>) {
-    if(herm)
-      math::sparse::csrmm<'N'>(A,B,TNN);
-    else
-      math::sparse::csrmm<'H'>(A,B,TNN);
-  } else {
-    if(herm)
-      nda::tensor::contract(A,"ij",B,"njk",TNN,"nik");
-    else
-      nda::tensor::contract(nda::conj(A),"ji",B,"njk",TNN,"nik");
-  }
+  if(herm) 
+    math::product(A,B,TNN);
+  else
+    math::product<'H'>(A,B,TNN);
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);
@@ -173,6 +168,7 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
+  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
@@ -182,7 +178,8 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  nda::tensor::contract(nda::conj(A),"nji",B,"njk",TNN,"nik");
+  // T = dagger(A) * B
+  math::product<'H'>(A,B,TNN);
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);
@@ -483,6 +480,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
 void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ0, IVec && ref)
 {
   auto all = nda::range::all;
+  auto _ = nda::ellipsis{};
   utils::check_strides(B,ovlp,QQ0,ref);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -500,12 +498,8 @@ void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  if constexpr (CSRMatrix<A_t>) {
-    math::sparse::csrmm<'N'>(A,B,TMN);
-  } else {
-    utils::check_strides(A);
-    nda::tensor::contract(A,"ij",B,"njk",TMN,"nik");
-  }
+  // TMN = A*B
+  math::product(A,B,TMN);
 
   // TNN(i,:) = TMN(ref(i),:)
   for(int n=0; n<nbatch; ++n)
@@ -523,7 +517,7 @@ void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ
   // fill_if_zero()
 
   // QQ0 = TMN * inv(TNN)
-  nda::tensor::contract(TMN,"nij",TNN,"njk",QQ0,"nik");
+  math::product(TMN,TNN,QQ0);
 }
 
 // Density Matrices
@@ -538,6 +532,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool compact = true, bool herm = true)
 {
+  auto _ = nda::ellipsis{};
   utils::check_strides(B,C,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -563,49 +558,32 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
 
   if(compact) {
 
-    nda::tensor::contract(TNN,"nji",B,"nkj",C,"nik");
+    // C = T(TNN) * T(B)
+    math::product<'T','T'>(TNN,B,C);
 
   } else {
     memory::buffered_array<MEM,Type,3> TNM(nbatch,NEL,NMO);
 
-    if constexpr (CSRMatrix<A_t>) {
-      if (herm)
-      {
-        // T2 = T(T1) * T(B)
-        nda::tensor::contract(TNN,"nji",B,"nkj",TNM,"nik");
+    if (herm)
+    {
+      // T2 = T(T1) * T(B)
+      math::product<'T','T'>(TNN,B,TNM);
 
-        // C = conj(A) * T2
-        math::sparse::csrmm<'T'>(A,TNM,C);
+      // C = conj(A) * T2
+      math::product<'T'>(A,TNM,C);
+    }
+    else
+    {
+      // T2 = T1 * H(A)
+      if constexpr (CSRMatrix<A_t>) {
+        utils::check(false, "finish implementation!!!");
+      } else {
+        math::product<'N','H'>(TNN,A,TNM);
       }
-      else
-      {
-        // T2 = T1 * H(A)
-        // can't do TNN*H(A), what to do???
-        //ma::productStridedBatched(TNN3D, ma::H(hermA), TNM3D);  
-        sfqmc::utils::check(false, "finish implementation");
 
-        // T2 = T(T1) * T(B)
-        // C = T( B * T2) = T(T2) * T(B)
-        nda::tensor::contract(TNM,"nji",B,"nkj",C,"nik");
-      }
-    } else {
-      if (herm)
-      { 
-        // T2 = T(T1) * T(B)
-        nda::tensor::contract(TNN,"nji",B,"nkj",TNM,"nik");
-        
-        // C = conj(A) * T2
-        nda::tensor::contract(A,"ji",TNM,"njk",C,"nik");
-      }
-      else
-      { 
-        // T2 = T1 * H(A)
-        nda::tensor::contract(TNN,"nij",nda::conj(A),"kj",TNM,"nik");
-        
-        // T2 = T(T1) * T(B)
-        // C = T( B * T2) = T(T2) * T(B)
-        nda::tensor::contract(TNM,"nji",B,"nkj",C,"nik");
-      }
+      // T2 = T(T1) * T(B)
+      // C = T( B * T2) = T(T2) * T(B)
+      math::product<'T','T'>(TNM,B,C);
     }
   }
 }
@@ -624,6 +602,7 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
+  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = A.shape();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
@@ -642,17 +621,19 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
 
   if(compact) {
 
-    nda::tensor::contract(TNN,"nji",B,"nkj",C,"nik");
+    math::product<'T','T'>(TNN,B,C);
 
   } else {
+
     memory::buffered_array<MEM,Type,3> TNM(nbatch,NEL,NMO);
 
     // T2 = T1 * H(A)
-    nda::tensor::contract(TNN,"nij",nda::conj(A),"kj",TNM,"nik");
-        
+    math::product<'N','H'>(TNN,A,TNM);
+
     // T2 = T(T1) * T(B)
     // C = T( B * T2) = T(T2) * T(B)
-    nda::tensor::contract(TNM,"nji",B,"nkj",C,"nik");
+    math::product<'T','T'>(TNM,B,C);
+
   }
 }
 
@@ -670,6 +651,7 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
+  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   auto NACT = A.extent(0);
   utils::check(A.shape() == std::array<long,2>{NACT,NMO}, "Size mismatch");
@@ -687,11 +669,8 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  if constexpr (CSRMatrix<A_t>) {
-    math::sparse::csrmm<'N'>(A,B,TAB);
-  } else {
-    nda::tensor::contract(A,"ij",B,"njk",TAB,"nik");
-  }
+  // TAB = A*B
+  math::product(A,B,TAB);
 
   // TNN(i,:) = TAB(ref(i),:)
   for(int n=0; n<nbatch; ++n)
@@ -709,26 +688,22 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   // fill_if_zero()
 
   // QQ0 = TAB * inv(TNN)
-  nda::tensor::contract(TAB,"nij",TNN,"njk",QQ0,"nik");
+  math::product(TAB,TNN,QQ0);
 
   if(compact) {
 
     // C = T(TNN) * T(B)
-    nda::tensor::contract(TNN,"nji",B,"nkj",C,"nik");
+    math::product<'T','T'>(TNN,B,C);
 
   } else {
 
     memory::buffered_array<MEM,Type,3> TNM(nbatch,NEL,NMO);
 
     // TNM = T(TNN) * T(B)
-    nda::tensor::contract(TNN,"nji",B,"nkj",TNM,"nik");
+    math::product<'T','T'>(TNN,B,TNM);
 
     // C = conj(A) * TNM
-    if constexpr (CSRMatrix<A_t>) {
-      math::sparse::csrmm<'T'>(A,TNM,C);
-    } else {
-      nda::tensor::contract(A,"nji",TNM,"njk",C,"nik");
-    }
+    math::product<'T'>(A,TNM,C);
 
   } 
 }
@@ -746,6 +721,7 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
+  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   auto NACT = A.extent(0);
   utils::check(A.shape() == std::array<long,2>{NACT,NMO}, "Size mismatch");
@@ -762,11 +738,8 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  if constexpr (CSRMatrix<A_t>) {
-    math::sparse::csrmm<'N'>(A,B,TAB);
-  } else {
-    nda::tensor::contract(A,"ij",B,"njk",TAB,"nik");
-  }
+  // TAB = A*B
+  math::product(A,B,TAB);
 
   // TNN(i,:) = TAB(ref(i),:)
   for(int n=0; n<nbatch; ++n)
@@ -786,21 +759,16 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   if(compact) {
 
     // C = T(TNN) * T(B)
-    nda::tensor::contract(TNN,"nji",B,"nkj",C,"nik");
+    math::product<'T','T'>(TNN,B,C);
 
   } else {
 
     memory::buffered_array<MEM,Type,3> TNM(nbatch,NEL,NMO);
-
     // TNM = T(TNN) * T(B)
-    nda::tensor::contract(TNN,"nji",B,"nkj",TNM,"nik");
+    math::product<'T','T'>(TNN,B,TNM);
 
     // C = conj(A) * TNM
-    if constexpr (CSRMatrix<A_t>) {
-      math::sparse::csrmm<'T'>(A,TNM,C);
-    } else {
-      nda::tensor::contract(A,"nji",TNM,"njk",C,"nik");
-    }
+    math::product<'T'>(A,TNM,C);
 
   } 
 }
