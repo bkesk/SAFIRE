@@ -168,7 +168,7 @@ def write_wfn(
     filename : str
         HDF5 file to write wavefunction to.
     wfn : tuple
-        Wavefunction description. Either a list containing an array coefficients and occupation numbers (PHMSD)
+        Wavefunction description. Either a list containing an array of coefficients and occupation numbers (PHMSD)
         or a tuple containing an array of coefficients and an array of determinants (NOMSD).
     walker_type : str
         Type of walker to write. Options are 'closed', 'collinear', 'noncollinear', 'fullypolarized'.

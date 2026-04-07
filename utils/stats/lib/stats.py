@@ -40,7 +40,7 @@ def stddev(values): # pragma: no cover
 @jit(nopython=True)
 def corr(values:np.ndarray): # pragma: no cover
     '''
-    compute the correlation length of the input values
+    compute the correlation length of the input values.
 
     correlation length, l, of values a(i) is given by:
 

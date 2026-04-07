@@ -41,4 +41,4 @@ def get_spin_symm_enum(spin_symm):
     elif spin_symm in ('fullypolarized','fully polarized','fp',SpinSymm.FULLYPOLARIZED,4):
         return SpinSymm.FULLYPOLARIZED
     else:
-        raise ValueError(f"Uknown Spin symmetry: {spin_symm}")
+        raise ValueError(f"Unknown Spin symmetry: {spin_symm}")
