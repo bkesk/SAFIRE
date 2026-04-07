@@ -202,7 +202,7 @@ def result_type_map(type:str):
     elif type in ("dummy"):
         return DummyResult
     else:
-        raise ValueError(f"Uknown result type: {type}")
+        raise ValueError(f"Unknown result type: {type}")
 
 # HERE
 def parse_expeted_results(settings:dict):
