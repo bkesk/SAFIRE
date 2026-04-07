@@ -9,11 +9,8 @@
       "walker_set": {
         "walker_type": "FULLYPOLARIZED"
       },
-      "wavefunction": {
-        "filename": "shci_wfn.h5"
-      },
-      "hamiltonian":{
-	"filename" : "afqmc.h5"
+      "wavefunction":{
+	      "filename" : "afqmc.h5"
       },
       "timestep": 0.005,
       "steps": 7000,
