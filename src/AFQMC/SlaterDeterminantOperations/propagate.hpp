@@ -231,7 +231,7 @@ void propagate_impl(int npol, S_t && SM, P_t const& P1, V_t const& V, int order 
 
   // Apply exp(i*V)  
   if constexpr ( nda::MemoryArrayOfRank<V_t,3> ) {
-    utils::check((V.extent(1)%npol==0) and (V.extent(2)%npol==0), "Size error: shape(V):({},{}), npol:{}",V.extent(1),V.extent(2),npol);
+    utils::check((V.extent(1)%M==0) and (V.extent(2)%M==0), "Size error: shape(V):({},{}), npol:{}, M:{}",V.extent(1),V.extent(2),npol,M);
     int npol_0 = V.extent(1)/M;
     int npol_1 = V.extent(2)/M;
     utils::check( (npol_0==1 or npol_0==npol) and (npol_1==1 or npol_1==npol), "npol_0 and npol_1 must be either 1 or npol, npol_0:{}, npol_1:{}, npol:{}",npol_0,npol_1,npol);
