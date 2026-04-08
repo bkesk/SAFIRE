@@ -33,7 +33,8 @@ pipeline {
           sh 'cd $BUILD && ctest --output-on-failure'
         }
       }
-    } stage('asan_and_ubsan') {
+    } 
+    stage('asan_and_ubsan') {
       agent {
          dockerfile {
             dir 'docker'
