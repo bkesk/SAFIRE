@@ -1,3 +1,3 @@
 [submodule "utils/AutoHF"]
 	path = utils/AutoHF
-	url = git@github.com:bkesk/AutoHF.git
+	url = git@github.com:SFQMC/AutoHF.git
