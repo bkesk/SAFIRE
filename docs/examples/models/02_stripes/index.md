@@ -32,16 +32,10 @@ config.update("jax_enable_x64", True)
 ```
 
 ```{code-cell} ipython3
-:id: 6883d177-8f0e-4e90-bea0-54b6c711cad6
+:id: f6e937d2-fde5-4f1b-afd9-6afb3798244a
 
 import matplotlib.pyplot as plt
 import numpy as np
-```
-
-```{code-cell} ipython3
-:id: f6e937d2-fde5-4f1b-afd9-6afb3798244a
-
-# all the imports used later in the tutorial, but put here for convenience
 
 import afqmctools.systems.lattice as lat
 import afqmctools.utils.visualize as vis
@@ -51,17 +45,11 @@ import afqmctools.hamiltonian.model.director as ham
 from afqmctools.wavefunction.converter import read_wavefunction
 from afqmctools.wavefunction.model import write_free_electron_wfn
 from afqmctools.analysis.rdm import average_afqmc_rdm
-```
-
-```{code-cell} ipython3
-:id: a332abc9-fc0a-4774-b316-6016060e0091
 
 from afqmctools.observables.greens import greens_1body
 import afqmctools.observables.spin as spobs
-```
 
-```{code-cell} ipython3
-:id: 8c9febda-fb02-489c-8c4f-422a343b80a2
+from tutorial_utils import run_afqmc
 
 import autohf
 ```
@@ -122,10 +110,12 @@ vis.plot_lattice(lattice)
 The Hamiltonian will be simple,
 
 $$
-H &= H_t + H_U + H_{pin} \\
+\begin{align}
+H &= H_t + H_U + H_\text{pin} \\
 H_t &= -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
 H_U &= U\sum_i n_{i\uparrow}n_{i\downarrow}\\
-H_{pin} &= \sum_{i\in \text{edge}} (-1)^{i_x+i_y} h_i S^z_i
+H_\text{pin} &= \sum_{i\in \text{edge}} (-1)^{i_x+i_y} h_i S^z_i
+\end{align}
 $$
 
 and we have a convenience function to add the edge pinning as well. We'll assume $t=1$, $h_i=0.5$ just like in the paper
@@ -140,7 +130,7 @@ colab:
 builder = ham.HamiltonianBuilder(
           lattice=lattice,
           spin_symm="collinear" # we have no spin-flip terms
-              )
+)
 # add standard Hubbard terms
 builder.nth_neighbor_hopping(1.0)
 builder.onsite_hubbard(U)
@@ -177,79 +167,49 @@ Now we'll write the file to run AFQMC. There are some better tools than this but
 ```{code-cell} ipython3
 :id: 866c943b-b811-40b9-a8a5-e257e30bda24
 
-def getInputJson(series,wf_fname,h_fname=None):
-    if h_fname is None:
-        h_fname = wf_fname
-    return f'''{{
-  "afqmc": {{
-    "project": {{
-      "id": "qmc",
-      "series": {series},
-      "mixed_precision": false
-    }},
-    "execute": {{
-      "walker_set": {{
-        "walker_type": "COLLINEAR"
-      }},
-      "wavefunction": {{
-        "filename": "{wf_fname}"
-      }},
-      "hamiltonian": {{
-        "filename": "{h_fname}"
-      }},
-      "timestep": 0.005,
-      "steps": 20000,
-      "accumlate_interval": 2,
-      "measure_interval": 2,
-      "population_control_interval" : 2,
-      "walker_ortho_interval" : 2,
-      "n_walkers_per_mpi_task": 540,
-      "estimator": {{
-        "name": "energy",
-        "overwrite": true,
-        "print_components": true
-      }},
-      "estimator": {{
-        "name":"back_propagation",
-        "path_restoration":true,
-        "extra_path_restoration":true,
-        "bp_walker_ortho_interval":2,
-        "nsteps":500,
-        "naverages":1,
-        "equil":2000,
-        "onerdm" : {{
-          "name":"onerdm"
-	      }}
-      }}
-    }}
-  }}
-}}
-'''
-```
+from afqmctools.inputs.from_hdf import write_json
 
-```{code-cell} ipython3
----
-id: b343c03f-ab1d-490a-a421-86a44864ecf4
-outputId: 200baf2a-73d2-4f0e-d713-4cc0c39f277a
-colab:
-  base_uri: https://localhost:8080/
----
-print(getInputJson(0,"afqmc.h5"))
-```
+# make an input file
+def afqmc_params(series):
+    return {
+        "project": {
+            "series": series,
+        },
+        "timestep": 0.005,
+        "steps": 20000,
+        "population_control_interval": 2,
+        "walker_ortho_interval": 2,
+        "n_walkers_per_mpi_task": 100,
+        "measure_interval_multiplier": 1,    
+        "estimator": {
+            "name": "energy",
+            "overwrite": True,
+            "print_components": True
+        },
+        "estimator": {
+            "name":"back_propagation",
+            "path_restoration": True,
+            "extra_path_restoration": True,
+            "bp_walker_ortho_interval": 2,
+            "measure_interval_multiplier": 250,
+            "equil_multiplier": 1000,
+            "onerdm" : {
+                "name":"onerdm"
+    	    }
+        },
+        "seed" : 42,                          # just for reproducibility
+        "propagator": {
+            "use_cp_constraint": True,
+            "use_real_vbias" : True
+        }
+    }
 
-```{code-cell} ipython3
-:id: 6e930735-29d0-4dc0-838d-475283cc6bb4
-
-with open("afqmc.json","w") as f:
-    lines = getInputJson(0,"afqmc.h5")
-    f.write(lines)
-```
-
-```{code-cell} ipython3
-:id: 59c74aca-3a04-4677-b6ab-fa1e1d61d366
-:outputId: df9d0f96-bb53-4ec7-a6cc-42462bd0a27e
-
-!sbatch --wait run_afqmc.sh afqmc.json
+write_json(
+    "afqmc.json",
+    fwfn0="afqmc.h5",
+    fham0="afqmc.h5",
+    exec_opts=afqmc_params(0)
+)
 ```
 
 ```{code-cell} ipython3
@@ -263,15 +223,27 @@ colab:
 ```
 
 ```{code-cell} ipython3
-:id: e8e41aff-0a7a-49fd-bbe8-821dc49fc7a8
-:outputId: 2091d2fd-7735-4d06-ef08-73f9d31f4ae8
+---
+id: nn3u7u8k5xcp
+colab:
+  base_uri: https://localhost:8080/
+  height: 921
+outputId: 78be3a24-0f0c-4577-cb48-6ad867cb1f1b
+---
+# analyze
+from stats.scalar_dat import analyze_scalar_data
 
-!scalar_stats qmc.s000.scalar.dat -s time -t -e 10.0 --savefig energy_fe.png
+nequil = 20.0
+
+analysis_settings = dict(
+    fname = "qmc.s000.scalar.dat",
+    xaxis = "time",     # use units of imaginary time for equilibration
+    nequil = 5,    # length of equilibration phase (in units of imaginary time)
+    trace = True,       # plots a trace of the scalar data
+)
+
+E,dE = analyze_scalar_data(analysis_settings)
 ```
-
-+++ {"id": "711d86ce-c4f5-4b17-88b6-4f11c90a4f79"}
-
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/ex02_stripes/energy_fe.png" width="800px" />
 
 +++ {"id": "e5e2892a-59fe-412e-9d8b-42f42c05ff79"}
 
@@ -357,7 +329,7 @@ plt.show()
 
 ## Self Consistency w/ Hartree-Fock
 
-The idea behind self-consistent AFQMC is to have the trial wave function match as much as possible the output of AFQMC. [cite me]
+The idea behind self-consistent AFQMC is to have the trial wave function match as much as possible the output of AFQMC.
 
 For this model, we can do this by introducing an effective Hubbard model, where $U$ is replaced with $U_{eff}$. By solving Hartree-Fock (mean field theory) for this effective model and using the result as a trial wave function, we can scan through different $U_{eff}$ to find the one that matches the best.
 
@@ -382,7 +354,7 @@ for Ueff in [1,2,3,4]:
     builder_eff.finalize()
 
     # NOTICE: we must be careful here! We can either keep around afqmc.h5
-    # which has the original Hamiltonian (U=6) and keep the wf and its hamiltonian together
+    # which has the original Hamiltonian (U=6) and keep the wf and its Hamiltonian together
     # or we have one file with afqmc_Ueff which has both the wf and builder.hamiltonian
     io.write_model_hamiltonian(builder_eff.hamiltonian, f"afqmc_{Ueff}.h5",
                             nelec=nelec,spin_symm="collinear")
@@ -404,9 +376,12 @@ for Ueff in [1,2,3,4]:
     )
     print(data["E_final"])
 
-    with open(f"afqmc_{Ueff}.json","w") as f:
-        lines = getInputJson(Ueff,f"afqmc_{Ueff}.h5","afqmc.h5")
-        f.write(lines)
+    write_json(
+        f"afqmc_{Ueff}.json",
+        fwfn0="afqmc.h5",
+        fham0="afqmc.h5",
+        exec_opts=afqmc_params(0)
+    )
     print(f"Written {Ueff}")
 ```
 
@@ -630,4 +605,3 @@ Lets use this as a test bed to explore how AFQMC responds to different settings.
 - Use a trial with a small number of steps so that the solver doesn't converge. How do the results change? How could you tell this trial isn't good?
 - The free electron trial isn't a valid RHF state (why?). What would be the corresponding RHF solution? What does that output look like?
 - Explore the parameters of backpropagation, how does the 1rdm change as a function of `nsteps`? you can include `naverages` to see the results converge
-
