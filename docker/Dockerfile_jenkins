@@ -1,6 +1,7 @@
 FROM ubuntu:24.04
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
+
 
 # install dependencies
 RUN apt-get update && apt-get install -y openssh-client git \
@@ -18,3 +19,7 @@ RUN apt-get update && apt-get install -y openssh-client git \
    python3-mpi4py \
    python3-h5py-mpi \
    python3-venv
+
+# necessary for building BLIS within TBLIS
+ENV CC=/usr/bin/gcc
+ENV CXX=/usr/bin/g++
