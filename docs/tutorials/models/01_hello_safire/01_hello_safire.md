@@ -430,10 +430,10 @@ Try running SAFIRE with MPI! To get the same numbers as us, you will need to use
 
 ## Basic post-processing
 
-Now that we've learned how to invoke the SAIFRE executable from the command line in serial, using MPI, and using GPU(s),
-we are ready to learn how to extract the AFQMC energy from the outputs of SAIFRE using afqmctools.
+Now that we've learned how to invoke the SAFIRE executable from the command line in serial, using MPI, and using GPU(s),
+we are ready to learn how to extract the AFQMC energy from the outputs of SAFIRE using afqmctools.
 
-We previously ran SAIFRE on the Hamiltonian of the Hubbard model on a 4x4 lattice with periodic boundary conditions
+We previously ran SAFIRE on the Hamiltonian of the Hubbard model on a 4x4 lattice with periodic boundary conditions
 and $U/t = 4$, and using a UHF trial wavefunction.
 This generated a scalar data file, "qmc.s000.scalar.dat", which contains
 the scalar data that was accumulated during the AFQMC calculation, including the AFQMC energy.
