@@ -18,7 +18,16 @@ pipeline {
         BUILD = pwd(tmp:true)
       }
       steps {
-        sh 'cd $BUILD && cmake $SRC -DCMAKE_BUILD_TYPE=Release'
+        sh '''
+          cd $BUILD && cmake $SRC \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="." \
+            -DCOMPILE_NDA_TESTS=OFF \
+            -DENABLE_FFTW=ON \
+            -DENABLE_CPPTRACE=OFF \
+            -DENABLE_SPDLOG=ON \
+            -DCTEST_NPROC=$PARALLEL
+        '''
         sh 'make -C $BUILD -j $PARALLEL'
         warnError("Tests failed") {
           sh 'cd $BUILD && ctest --output-on-failure'
@@ -38,7 +47,17 @@ pipeline {
         BUILD = pwd(tmp:true)
       }
       steps {
-        sh 'cd $BUILD && cmake $SRC -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=ON'
+        sh '''
+          cd $BUILD && cmake $SRC \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="." \
+            -DCOMPILE_NDA_TESTS=OFF \
+            -DENABLE_FFTW=ON \
+            -DENABLE_CPPTRACE=OFF \
+            -DENABLE_SPDLOG=ON \
+            -DCTEST_NPROC=4 \
+            -DENABLE_CUDA=ON
+        '''
         sh 'make -C $BUILD -j $PARALLEL'
         warnError("Tests failed") {
           sh 'cd $BUILD && ctest --output-on-failure'
