@@ -1,7 +1,7 @@
 .. _afqmctools:
 
 afqmctools Python package
-==========================
+=========================
 
 afqmctools provides a set of tools for working with AFQMC calculations, including utilities for 
 writing Hamiltonian and trial wavefunction input HDF5 files,
@@ -70,7 +70,7 @@ will display the help menu for `write_afqmc_json`.
     
 
 Optional Dependencies
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 The afqmctools package has several optional dependencies which enable additional functionality.
 Optional dependencies are organized into groups (see below) and can be installed via:

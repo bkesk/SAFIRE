@@ -226,12 +226,12 @@ def _free_electron(hamiltonian:Hamiltonian,nelec,spin_symm=None,use_dense=True,f
                                       filling_strategy=filling_strategy,shell_tol=shell_tol)
         return wfn, spin_symm
     else:
-        raise ValueError("Can't make free electron wavefunction. Uknown spin_symm")
+        raise ValueError("Can't make free electron wavefunction. Unknown spin_symm")
 
 
 def _get_1body_eig(H1body,num_eigenvals,use_dense=True):
     """
-    Get the eigenvalues and vectors of the given one-boyd Hamiltonian.
+    Get the eigenvalues and vectors of the given one-body Hamiltonian.
 
     This function will attempt to use the dense representation of the
       1-body Hamiltonian by default, but will use the sparse representation if requested and if possible. The sparse
