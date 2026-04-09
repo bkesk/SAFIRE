@@ -68,12 +68,10 @@ from afqmctools.hamiltonian.mol import write_hamiltonian_generic
 from afqmctools.wavefunction.mol import write_wfn
 from afqmctools.inputs.from_hdf import write_json
 
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-home = Path.home()
-scratch_rootdir = home / ".scratch"
-scratch_rootdir.mkdir(exist_ok=True)
-scratch_dir = get_scratch_dir("writing_a_hamiltonian",scratch_rootdir)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "J8ieYi3YyCNe"}
@@ -85,7 +83,7 @@ Before we can run an AFQMC calculation, we must generate:
 
 1. A Hamiltonian
 2. A trial wavefunction
-3. a json input file
+3. A json input file
 
 Implicit in items 1. and 2. is the need for an orthonormal basis in
 which to compute matrix elements of the Hamiltonian,
@@ -304,7 +302,7 @@ from tutorial_utils import run_afqmc, get_scratch_dir
 run_afqmc(
     run_dir=scratch_dir,
     input_file =  "afqmc.json",#"your_input_file.json",
-    np=12,             # number of MPI tasks
+    np=16,             # number of MPI tasks
 )
 ```
 
@@ -332,12 +330,12 @@ _ = analyze_scalar_data(settings)
 
 ### Check your result
 
-Your AFQMC energy should agree with $-1.137024 \pm 0.000195 E_{Hartree}$
+Your AFQMC energy should agree with $-1.137024 \pm 0.000195 Ha$
 to within 1-2 $\sigma$.
 
-For comparison, the FCI energy is $-1.1372759436170439 E_{Hartree}$.
+For comparison, the FCI energy is $-1.1372759436170439 Ha$.
 
-Our AFQMC result agrees FCI to within 0.0003(2) $E_{Hartree}$ which
+Our AFQMC result agrees FCI to within 0.0003(2) Ha which
 is well within chemical accuracy.
 
 +++ {"id": "jnupX3Uz1l4q"}
@@ -651,9 +649,8 @@ write_wfn(
 afqmc_execution_options = {
     "timestep": 0.01,
     "steps": 10000,
-    "accumlate_interval": 10,           # in units of steps
-    "measure_interval": 10,             # in units of steps
     "population_control_interval" : 10, # in units of steps
+    "measure_interval_multiplier": 1,   # in units of population_control_interval
     "walker_ortho_interval" : 10 ,      # in units of steps
     "n_walkers_per_mpi_task": 200,
     "seed" : 42
