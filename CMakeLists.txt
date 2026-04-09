@@ -21,7 +21,7 @@ set(PROJECT_CMAKE ${CMAKE_SOURCE_DIR}/cmake)
 set (LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib CACHE PATH "Library directory.")
 set (EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin CACHE PATH "Binary directory.")
 
-include_directories( ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src )
+include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src )
 
 ######################################################################
 # CUDA/HIP build options. Read first, to be able to set policies! 
@@ -366,11 +366,6 @@ endif()
 # cpptrace 
 ######################################################################
 if(ENABLE_CPPTRACE)
-  check_include_file("stdint.h" HAVE_STDINT_H)
-  check_include_file("unistd.h" HAVE_UNISTD_H)
-  check_include_file("fcntl.h" HAVE_FCNTL_H)
-  # MAM: Failing in MacOSX, find correct way
-  add_compile_definitions( $<$<COMPILE_LANGUAGE:C>:PACKAGE_VERSION="0"> )
   FetchContent_Declare(
     cpptrace
     GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
