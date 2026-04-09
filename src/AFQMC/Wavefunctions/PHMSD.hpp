@@ -380,6 +380,7 @@ public:
   {
     using nda::range;
     auto all = range::all;
+    memory::check_memory_space<MEM>(Refs);
     int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nspin = (walker_type == COLLINEAR ? 2 : 1);
@@ -397,7 +398,7 @@ public:
       if (mpi->node_comm.root())
       {
         {
-          auto psi = math::sparse::to_array<'N'>(OrbMats(0));
+          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(0)));
           nda::vector<int> Ac(nup);
           for (int i_det = 0; i_det < number_of_references; ++i_det)
           {
@@ -409,7 +410,7 @@ public:
         }
         if(walker_type == COLLINEAR) 
         {
-          auto psi = math::sparse::to_array<'N'>(OrbMats(1));
+          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(1)));
           nda::vector<int> Ac(ndown); 
           for (int i_det = 0; i_det < number_of_references; ++i_det)
           { 

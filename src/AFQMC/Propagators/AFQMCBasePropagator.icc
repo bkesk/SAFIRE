@@ -417,7 +417,7 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
 
       // Xnew = X - S * SY
       nda::tensor::contract(-one, wset.SlaterMatrices(stype[ispin]), "nik", SY, "nkj",
-                            one, X(all,range(nel[ispin]), all), "nij"); 
+                            one, X(all,ispin,all, all), "nij"); 
 
     } // ispin
 
