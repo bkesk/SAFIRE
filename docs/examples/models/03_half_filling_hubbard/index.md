@@ -63,7 +63,7 @@ The Hubbard model at Half Filling ($n=1$) has a special "symmetry" known as part
 
 [1]: _Benchmark study of the two-dimensional Hubbard model with auxiliary-field quantum Monte Carlo method_  
 M Qin, H Shi, S Zhang Phys. Rev. B 94, 085103 4 August, 2016  
-DOI: https://doi.org/10.1103/PhysRevB.94.085103  
+DOI: https://doi.org/10.1103/PhysRevB.94.085103
 
 +++ {"id": "678e6d9b-4d8f-4f74-87ee-2420b8588c57"}
 
@@ -115,9 +115,11 @@ plt.show()
 The Hamiltonian will be simple,
 
 $$
+\begin{align}
 H &= H_t + H_U \\
 H_t &= -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
 H_U &= U\sum_i n_{i\uparrow}n_{i\downarrow}
+\end{align}
 $$
 
 ```{code-cell} ipython3
