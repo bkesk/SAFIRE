@@ -71,7 +71,7 @@ import time
 
 import h5py as h5
 import numpy as np
-from pyscf import gto,scf,mcscf
+from pyscf import gto,scf,mcscf,lib
 import jax
 import jax.numpy as jnp
 
@@ -82,7 +82,6 @@ from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 from afqmctools.hamiltonian.mol import write_hamil_mol
 from afqmctools.wavefunction.mol import write_cas_wfn
 from afqmctools.inputs.from_hdf import write_json
-from afqmctools.hamiltonian.io import write_to_hdf5
 
 from tutorial_utils import get_scratch_dir
 
@@ -258,12 +257,7 @@ def setup_benchmark(key:str, case:dict):
 
     # run CASSCF to get a basis / trial wavefunction
     mc = mcscf.CASSCF(rhf, ncas, nelec_cas).run()
-
-    # save some extra data to the checkpoint file
-    with h5.File(casscf_chkfile, 'a') as fp:
-        write_to_hdf5(fp,'mcscf/ci', data=mc.ci)
-        write_to_hdf5(fp,'mcscf/ncore', data=mc.ncore)
-        write_to_hdf5(fp,'mcscf/ncas', data=mc.ncas)
+    lib.chkfile.save(mc.chkfile, 'mcscf/ci', mc.ci)
     
     # write the CAS wavefunction to a file
     write_cas_wfn(

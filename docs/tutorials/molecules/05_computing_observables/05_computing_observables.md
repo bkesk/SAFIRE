@@ -129,7 +129,6 @@ from pyscf import gto,scf,mcscf
 from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 from afqmctools.hamiltonian.mol import write_hamil_mol
 from afqmctools.inputs.from_hdf import write_json
-from afqmctools.hamiltonian.io import write_to_hdf5
 
 from stats.scalar_dat import analyze_scalar_data
 
