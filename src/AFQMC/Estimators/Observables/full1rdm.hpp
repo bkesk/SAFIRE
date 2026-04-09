@@ -226,7 +226,8 @@ public:
                         g->create_group("FullOneRDM") );
       for (int i = 0; i < nave; ++i)
       {
-        h5::group agrp = grp.create_group(std::string("Average_") + std::to_string(i)); 
+        std::string dname = std::string("Average_") + std::to_string(i);
+        h5::group agrp = ( grp.has_key(dname) ? grp.open_group(dname) : grp.create_group(dname)); 
         std::string padded_iblock =
             std::string(n_zero - std::to_string(iblock).length(), '0') + std::to_string(iblock);
         auto DMAverage_i = DMAverage(i, nda::range::all);

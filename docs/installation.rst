@@ -130,7 +130,7 @@ If you are on rusty or using a rusty connected desktop a suitable build script i
 
 
 Installing the afqmctools Python package
-----------------------------------------
+________________________________________
 
 See :ref:`the afqmctools documentation <afqmctools>` for details on installing afqmctools.
 
@@ -142,7 +142,7 @@ beginning from the root directory of this repo.
 
 .. code-block:: bash
 
-    $ export VENV_DIR=~/venvs  # replace this with a good directory to install a virtual enviroment
+    $ export VENV_DIR=~/venvs  # replace this with a good directory to install a virtual environment
     $ export AFQMC_ROOT_DIR=$(pwd)
     $ module load openmpi hdf5 python-mpi/3.11
     $ cd $VENV_DIR

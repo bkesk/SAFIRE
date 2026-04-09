@@ -80,7 +80,7 @@ def write_hamil_supercell(comm, scf_data, hamil_file, chol_cut,
     # Setup parallel partition of work.
     part = Partition(comm, maxvecs, nmo_tot, nmo_max, nkpts)
     if comm.rank == 0 and verbose:
-        print(" # Each kpoint is distributed accross {} mpi tasks."
+        print(" # Each kpoint is distributed across {} mpi tasks."
               .format(part.nproc_pk))
         sys.stdout.flush()
     maxvecs = part.maxvecs
@@ -162,7 +162,7 @@ def write_rhoG_supercell(comm, scf_data, hdf_file, Gcut,
     # Setup parallel partition of work.
     part = Partition(comm, 0, nmo_tot, nmo_max, nkpts)
     if comm.rank == 0 and verbose:
-        print(" # Each kpoint is distributed accross {} mpi tasks."
+        print(" # Each kpoint is distributed across {} mpi tasks."
               .format(part.nproc_pk))
         sys.stdout.flush()
     # Set up mapping for shifted FFT grid.
@@ -432,7 +432,7 @@ class PartitionOld(object):
                 sys.exit()
             self.nproc_pk = comm.size // nkpts
             if comm.rank == 0:
-                print(" # Each kpoint is distributed accross {} mpi tasks."
+                print(" # Each kpoint is distributed across {} mpi tasks."
                       .format(self.nproc_pk))
                 sys.stdout.flush()
             self.mykpt = comm.rank // self.nproc_pk

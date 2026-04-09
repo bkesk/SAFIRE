@@ -76,6 +76,18 @@ inline WALKER_TYPES initWALKER_TYPES(int i)
   return UNDEFINED_WALKER_TYPE;
 }
 
+inline std::string walkerTypeToString(WALKER_TYPES type)
+{
+  if (type == UNDEFINED_WALKER_TYPE) return "undefined";
+  else if (type == CLOSED) return "closed";
+  else if (type == COLLINEAR) return "collinear";
+  else if (type == NONCOLLINEAR) return "noncollinear";
+  else if (type == FULLYPOLARIZED) return "fullypolarized";
+  else if (type == COLLINEAR_FT) return "collinear-ft";
+  else if (type == NONCOLLINEAR_FT) return "noncollinear-ft";
+  return "undefined";
+}
+
 enum INTEGRAL_TYPES
 {
   UNDEFINED_INTEGRAL_TYPE,

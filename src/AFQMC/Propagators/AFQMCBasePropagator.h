@@ -280,13 +280,14 @@ public:
 
   template<class WlkSet>
   void Propagate(WlkSet& wset, RealType E1, RealType dt);
-/*
-  template<class WlkSet, class CTens, class CMat>
-  void BackPropagate(int steps, int nStabalize, WlkSet& wset, CTens&& Refs, CMat&& logdetR);
 
-  template<class WlkSet, class Mat1, class Mat2, class Mat3> 
-  void PropagateOperators(int steps, WlkSet& wset,  Mat1&& X, Mat2&& Y, Mat3&& M);
-*/
+  template<class WlkSet>
+  void BackPropagate(int nbpsteps, int nStabalize, WlkSet& wset, 
+        nda::MemoryArrayOfRank<4> auto&& Refs, nda::MemoryArrayOfRank<2> auto&& logdetR);           
+  template<class WlkSet> 
+  void PropagateOperators(int steps, WlkSet& wset,  
+        nda::MemoryArrayOfRank<4> auto&& X, nda::MemoryArrayOfRank<4> auto&& Y,
+        nda::MemoryArrayOfRank<4> auto&& M);       
 
   bool hybrid_propagation() { return hybrid; }
 
@@ -381,20 +382,53 @@ protected:
                   nda::MemoryArrayOfRank<1> auto&& HWs,
                   bool addRAND = true);
 
-  template<class WlkSet, typename VHS_t>
-  void apply_propagators(WlkSet& wset, char TA, VHS_t const& v, bool P1inv = false)  
+  template<char TA, class WlkSet, typename VHS_t>
+  void apply_propagators(WlkSet& wset, VHS_t const& v, bool P1inv = false)  
   {
     if(P1inv) {
       if(denseP1) {
-        det_ops::PropagateWlkSet<MEM>(wset,P1d_inv(),v,order,TA);
+        det_ops::Propagate<MEM,TA>(wset,P1d_inv(),v,order);
       } else {
-        det_ops::PropagateWlkSet<MEM>(wset,P1s_inv(),v,order,TA);
+        det_ops::Propagate<MEM,TA>(wset,P1s_inv(),v,order);
       }
     } else {
       if(denseP1) {
-        det_ops::PropagateWlkSet<MEM>(wset,P1d(),v,order,TA);
+        det_ops::Propagate<MEM,TA>(wset,P1d(),v,order);
       } else {
-        det_ops::PropagateWlkSet<MEM>(wset,P1s(),v,order,TA);
+        det_ops::Propagate<MEM,TA>(wset,P1s(),v,order);
+      }
+    }
+  }
+
+  template<char TA, typename VHS_t>
+  void apply_propagators(WALKER_TYPES wtype, int npol, 
+                         nda::MemoryArrayOfRank<3> auto&& Xa, 
+                         nda::MemoryArrayOfRank<3> auto&& Xb, 
+                         VHS_t const& v, bool P1inv = false)
+  {
+    if(P1inv) {
+      if(denseP1) {
+        if(wtype == COLLINEAR)
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,Xb,P1d_inv(),v,order);
+        else
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,P1d_inv(),v,order);
+      } else {
+        if(wtype == COLLINEAR)
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,Xb,P1s_inv(),v,order);
+        else
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,P1s_inv(),v,order);
+      }
+    } else {
+      if(denseP1) {
+        if(wtype == COLLINEAR)
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,Xb,P1d(),v,order);
+        else
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,P1d(),v,order);
+      } else {
+        if(wtype == COLLINEAR)
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,Xb,P1s(),v,order);
+        else
+          det_ops::Propagate<MEM,TA>(wtype,npol,Xa,P1s(),v,order);
       }
     }
   }

@@ -62,6 +62,11 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   using nda::range;
   using matrix_t = memory::array<MEM,ComplexType,2>;
   auto all = range::all;
+  app_log(1, "Running Hamiltonian operations unit test "
+    "with:\n  Hamiltonian file: {}\n  wavefunction file: {}", 
+    hamil_file, wfn_file
+  );
+  
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
   utils::check(utils::file_exists(wfn_file),
@@ -188,11 +193,11 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   }
 
   auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
-  REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
+  CHECK( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
 
   auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
   auto vHS = HOps.vHS(X,dt);
-  REQUIRE( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
+  CHECK( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
   auto vHS_h = nda::to_host(vHS);
   ComplexType Vsum = 0;
   for (int i = 0; i < vHS.extent(2); i++)
@@ -344,10 +349,18 @@ TEST_CASE("ham_ops_basic_serial", "[hamiltonian_operations]")
   } else {
     app_log(0,"HamiltonianOperations unit testing. Running standard tests.");
     auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
-    for( auto f : files ) { 
-      ham_ops_basic_serial<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+    for( auto f : files ) {
+      try {
+        ham_ops_basic_serial<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in ham_ops_basic_serial<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+      }
 #if defined(ENABLE_DEVICE)
-      ham_ops_basic_serial<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+      try {
+        ham_ops_basic_serial<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in ham_ops_basic_serial<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+      }
 #endif
     }
   }

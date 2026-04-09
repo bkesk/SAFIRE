@@ -45,12 +45,7 @@ def me2d(edata, kappa=None, axis=0):
     # get autocorrelation
     ntrace = edata.shape[axis]
     if kappa is None:
-      try:  # fortran implementation is faster than np FFT for len(trace)<1000
-          from stats.lib.stats import corr
-      except ImportError as err:
-          msg = str(err)
-          msg += '\n  Please compile qharv.reel.forlib.stats using f2py.'
-          raise ImportError(msg)
+      from stats.lib.stats import corr
       kappa = np.apply_along_axis(corr, axis, edata.real)
 
     # kappa may contain inf or NaN if we have constant data ; 

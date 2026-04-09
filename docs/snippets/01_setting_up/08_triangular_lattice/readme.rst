@@ -1,7 +1,7 @@
 .. _setup_ex_8:
 
-08 Triangular Hubbard Model
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Triangular Hubbard Model
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers building a Hubbard model Hamiltonian on a triangular lattice, 
 and generating a free-electron trial wavefunction.
@@ -16,7 +16,7 @@ Below is a sample input file, which we name `input.toml`
 
 .. literalinclude:: input.toml
 
-if no "type" is speciefied in the "lattice" section, then a square lattice is used.
+if no "type" is specified in the "lattice" section, then a square lattice is used.
 
 afqmctools can be invoked within a Python script as
 
@@ -60,9 +60,9 @@ The `free_electron()` function accepts a `twist` keyword argument for the sake o
 reproducibility for open-shell systems. 
 `twist` should be a 2-d iterable containing :math:`\vec{\theta}=(\theta_1,\theta_2)`
 in radians even if one component is set to 0.0.
-By default, a small incomensurate twist angle is used.
+By default, a small incommensurate twist angle is used.
 
-If the sample Pyhton script is run above with the sample input file, the following
+If the sample Python script is run above with the sample input file, the following
 should be present at the end of the output.
 
 .. code-block:: text

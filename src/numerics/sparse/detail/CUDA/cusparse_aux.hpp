@@ -87,13 +87,15 @@ uint32_t find_alignment(T *p) {
     return sizeof(T);
 }
 
+template<typename T>
 inline auto get_operation(char op) {
   if (op == 'n' or op == 'N')
     return CUSPARSE_OPERATION_NON_TRANSPOSE;
   else if (op == 't' or op == 'T')
     return CUSPARSE_OPERATION_TRANSPOSE;
-  else if (op == 'c' or op == 'C' or op == 'h' or op == 'H') 
-    return CUSPARSE_OPERATION_CONJUGATE_TRANSPOSE;
+  else if (op == 'c' or op == 'C' or op == 'h' or op == 'H') { 
+    return ((::nda::is_complex_v<T>)?CUSPARSE_OPERATION_CONJUGATE_TRANSPOSE:CUSPARSE_OPERATION_TRANSPOSE);
+  }
   sfqmc::utils::check(false, "Invalid operation op:{}",op);
   return CUSPARSE_OPERATION_NON_TRANSPOSE;
 }
