@@ -643,12 +643,11 @@ import numpy as np
 from afqmctools.hamiltonian.mol import write_hamiltonian_generic
 from afqmctools.wavefunction.mol import write_wfn
 from afqmctools.inputs.from_hdf import write_json
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 from stats.scalar_dat import analyze_scalar_data
 
-# For you TODO: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("hello_safire",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 # copy the provided files
 files_dir = scratch_dir / "files"
@@ -683,4 +682,3 @@ In this tutorial we have learned,
 2. how to invoke the SAFIRE executable from the command line in serial, using MPI, and using GPU(s)
 3. how to extract the AFQMC energy from the outputs of SAFIRE using afqmctools
 4. how to use the tutorial helper functions to perform 2 and 3 from within an interactive Python notebook
-
