@@ -259,7 +259,8 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
           // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
-          M0() = nda::dagger(UL);
+          // M0() = nda::dagger(UL);
+          nda::tensor::add(nda::conj(UL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -331,7 +332,8 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
           // U -> U^+ = U^-1 (for U unitary) 
-          M0() = nda::dagger(UL);
+          //M0() = nda::dagger(UL);
+          nda::tensor::add(nda::conj(UL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -892,7 +894,8 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
           // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
-          M0() = nda::dagger(UL);
+          //M0() = nda::dagger(UL);
+          nda::tensor::add(nda::conj(UL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -968,7 +971,8 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
           // U -> U^+ = U^-1 (for U unitary) 
-          M0() = nda::dagger(UL);
+          //M0() = nda::dagger(UL);
+          nda::tensor::add(nda::conj(UL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -1062,7 +1066,9 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
    * @param sclR Input scalar Used to scale \f$ \mathbf{D}_R\f$.
    * @return The equal-time density matrix, \f$ \mathbf{G} \f$
    */
-template<typename A_t, typename B_t, typename C_t,
+template<nda::MemoryMatrix A_t, 
+         nda::MemoryVector B_t, 
+         nda::MemoryMatrix C_t,
          nda::MemoryArrayOfRank<3> D_t,
          nda::MemoryArrayOfRank<2> E_t,
          nda::MemoryArrayOfRank<3> F_t,
@@ -1070,8 +1076,7 @@ template<typename A_t, typename B_t, typename C_t,
          nda::MemoryArrayOfRank<1> O_t,
          typename SL_t,
          nda::MemoryArrayOfRank<1> SR_t>
-requires(  nda::MemoryMatrix<A_t> and nda::MemoryVector<B_t> and nda::MemoryMatrix<C_t> and
-          nda::mem::have_compatible_addr_space<A_t,B_t,C_t,D_t,E_t,F_t,G_t,O_t,SR_t> and
+requires( nda::mem::have_compatible_addr_space<A_t,B_t,C_t,D_t,E_t,F_t,G_t,O_t,SR_t> and
           nda::have_same_value_type_v<A_t, B_t, C_t, D_t, E_t, F_t, G_t, O_t, SR_t> and
           std::decay_t<D_t>::is_stride_order_C() and std::decay_t<E_t>::is_stride_order_C() and
           std::decay_t<F_t>::is_stride_order_C() and std::decay_t<G_t>::is_stride_order_C()
@@ -1127,7 +1132,8 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
           // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(VL,ovlp,M0,nbatch,false);
-          M0() = nda::dagger(VL);
+          //M0() = nda::dagger(VL);
+          nda::tensor::add(nda::conj(VL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -1194,7 +1200,8 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
           // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(VL,ovlp,M0,nbatch,false);
-          M0() = nda::dagger(VL);
+          // M0() = nda::dagger(VL);
+          nda::tensor::add(nda::conj(VL),"ji",M0,"ij");
         }
         // M1 <-- VR^-1
         if(!unitaryR){
@@ -1204,8 +1211,9 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
           // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
           // and det(UR) has a phase (i.e. det(UR) =/= +-1)
           detail::inverse_logdet(VR,ovlp,G,false); 
-          for(int b = 0; b < nbatch; ++b)
-            G(b,nda::range::all,nda::range::all) = nda::dagger(VR(b,nda::ellipsis{}));
+//          for(int b = 0; b < nbatch; ++b)
+//            G(b,nda::range::all,nda::range::all) = nda::dagger(VR(b,nda::ellipsis{}));
+          nda::tensor::add(nda::conj(VR),"bji",G,"bij");
         }
 
         // M0 <-- DLmax^-1*VL^-1

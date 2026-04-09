@@ -318,6 +318,7 @@ public:
   {
     using nda::range;
     auto all = range::all;
+    memory::check_memory_space<MEM>(Refs);
     int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nspin = (walker_type == COLLINEAR ? 2 : 1);
@@ -328,8 +329,6 @@ public:
                  number_of_references <= Refs.extent(0), 
                  "Invalid number_of_references:{}", number_of_references);
     utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
-    // this is slow and uses too much memory. Improve!!!
-//  write kernel
     if constexpr (math::sparse::CSRMatrix<devPsiT>) {
       for(int i=0; i<number_of_references; ++i) {
         Refs(i,all,range(nup)) = math::sparse::to_array<'H'>(OrbMats(i,0)());
@@ -338,9 +337,12 @@ public:
       }
     } else { 
       for(int i=0; i<number_of_references; ++i) {
-        Refs(i,all,range(nup)) = nda::dagger(OrbMats(i,0)());
+        nda::tensor::add(nda::conj(OrbMats(i,0)()),"ji",Refs(i,all,range(nup)),"ij");
         if(walker_type == COLLINEAR)
-          Refs(i,all,range(nup,nel)) = nda::dagger(OrbMats(i,1)());
+          nda::tensor::add(nda::conj(OrbMats(i,0)()),"ji",Refs(i,all,range(nup,nel)),"ij");
+//        Refs(i,all,range(nup)) = nda::dagger(OrbMats(i,0)());
+//        if(walker_type == COLLINEAR)
+//          Refs(i,all,range(nup,nel)) = nda::dagger(OrbMats(i,1)());
       }
     }
   }
