@@ -52,6 +52,11 @@ import afqmctools.observables.spin as spobs
 from tutorial_utils import run_afqmc
 
 import autohf
+
+from pathlib import Path
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
+
 ```
 
 +++ {"editable": true, "id": "083d8f36-02de-4281-a56c-7cd3d5add077"}
@@ -141,7 +146,7 @@ builder.finalize()
 ```{code-cell} ipython3
 :id: f94e92dd-9802-46ea-a1db-0baffb7efbb4
 
-io.write_model_hamiltonian(builder.hamiltonian, "afqmc.h5",
+io.write_model_hamiltonian(builder.hamiltonian, scratch_dir / "afqmc.h5",
                         nelec=nelec,spin_symm="collinear")
 ```
 
@@ -155,7 +160,7 @@ colab:
 # get a trial wavefunction: First, let's try a free-electron (i.e. non-interacting) wavefunction
 from afqmctools.wavefunction.model import write_free_electron_wfn
 write_free_electron_wfn(
-    hamiltonian_fname="afqmc.h5",
+    hamiltonian_fname=scratch_dir / "afqmc.h5",
     nelec=nelec
 )
 ```
@@ -219,7 +224,7 @@ outputId: 8c812e11-d1f3-454d-82c4-0322455b50bb
 colab:
   base_uri: https://localhost:8080/
 ---
-!mpirun -np 12 $AFQMC_EXEC afqmc.json
+!mpirun -np 12 $AFQMC_EXEC data/afqmc.json
 ```
 
 ```{code-cell} ipython3
@@ -236,7 +241,7 @@ from stats.scalar_dat import analyze_scalar_data
 nequil = 20.0
 
 analysis_settings = dict(
-    fname = "qmc.s000.scalar.dat",
+    fname = scratch_dir / "qmc.s000.scalar.dat",
     xaxis = "time",     # use units of imaginary time for equilibration
     nequil = 5,    # length of equilibration phase (in units of imaginary time)
     trace = True,       # plots a trace of the scalar data
@@ -265,7 +270,7 @@ def averageOverCols(Sz,Nx,Ny):
 ```{code-cell} ipython3
 :id: 0a52fe29-2397-4436-b84d-48b95ac5f777
 
-rho_avg, delta_rho = average_afqmc_rdm(rdm_file="qmc.s000.stat.h5")
+rho_avg, delta_rho = average_afqmc_rdm(rdm_file=scratch_dir / "qmc.s000.stat.h5")
 ```
 
 ```{code-cell} ipython3
@@ -356,12 +361,12 @@ for Ueff in [1,2,3,4]:
     # NOTICE: we must be careful here! We can either keep around afqmc.h5
     # which has the original Hamiltonian (U=6) and keep the wf and its Hamiltonian together
     # or we have one file with afqmc_Ueff which has both the wf and builder.hamiltonian
-    io.write_model_hamiltonian(builder_eff.hamiltonian, f"afqmc_{Ueff}.h5",
+    io.write_model_hamiltonian(builder_eff.hamiltonian, scratch_dir / f"afqmc_{Ueff}.h5",
                             nelec=nelec,spin_symm="collinear")
 
     hf_settings = dict(
         numSteps = 2000,
-        output = f"afqmc_{Ueff}.h5", # change file name!
+        output = scratch_dir / f"afqmc_{Ueff}.h5", # change file name!
         opt_method="lbfgs",
         ansatz="SD_ROT",
         nelec = nelec,
@@ -377,7 +382,7 @@ for Ueff in [1,2,3,4]:
     print(data["E_final"])
 
     write_json(
-        f"afqmc_{Ueff}.json",
+        scratch_dir / f"afqmc_{Ueff}.json",
         fwfn0="afqmc.h5",
         fham0="afqmc.h5",
         exec_opts=afqmc_params(0)
@@ -469,7 +474,7 @@ for Ueff in Ueffs:
         fname = "afqmc.h5"
     else:
         fname = f"afqmc_{Ueff}.h5"
-    (coeffs,wfn), psi0, (na, nb),spintype = read_wavefunction(fname)
+    (coeffs,wfn), psi0, (na, nb),spintype = read_wavefunction(scratch_dir / fname)
     # We assume spin balance below
     o = wfn.reshape(lattice.N_sites,na,2,order='F').real
     o = np.stack([o[:,:,0],o[:,:,1]])
