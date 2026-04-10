@@ -34,7 +34,6 @@ For NVIDIA GPU Builds
 ~~~~~~~~~~~~~~~~~~~~~
 
 - CUDA 12+
-- NCCL (optional, for multi-GPU communication)
 
 
 Compiling SAFIRE
@@ -116,7 +115,6 @@ If you are on rusty or using a rusty connected desktop a suitable build script i
 
     # GPU
     module load cuda/11
-    module load nccl
 
     # build
     module load python-mpi/3.11

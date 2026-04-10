@@ -96,7 +96,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ######################################################################
 option(ENABLE_ROCM " Build device code with ROCM backend" OFF)
 option(ENABLE_OPENMP " Build device code with OPENMP backend" OFF)
-option(USE_NCCL "Use NCCL library with CUDA backend." OFF)
 option(HAVE_MKL "Assume MKL BLAS/LAPACK library." OFF)
 option(BUILD_UNIT_TESTS "Build unit tests" ON)
 option(BUILD_STATIC "Link to static libraries" OFF)
@@ -148,36 +147,6 @@ if(ENABLE_CUDA)
   string(APPEND CMAKE_CUDA_FLAGS " -std=c++20 --expt-relaxed-constexpr --extended-lambda -Xcudafe \"--diag_suppress=implicit_return_from_non_void_function\" -Wdeprecated-declarations -w") 
   include_directories(${CUDA_INCLUDE_DIRS})
   message( STATUS " CMAKE_CUDA_FLAGS: " ${CMAKE_CUDA_FLAGS})
-
-  ########
-  # NCCL # 
-  ########
-  # look for nccl by default
-  if(NOT DEFINED NCCL_ROOT AND DEFINED ENV{NCCL_ROOT})
-    set(NCCL_ROOT $ENV{NCCL_ROOT})
-  endif()
-  find_package(NCCL QUIET)
-  if(${NCCL_FOUND})
-    set(ENABLE_NCCL TRUE)
-    add_compile_definitions(ENABLE_NCCL)
-    message(STATUS "Found NCCL library: ${NCCL_LIBRARIES}")
-    include_directories(${NCCL_INCLUDE_DIRS})
-    link_libraries(${NCCL_LIBRARIES})
-  else()
-    # try by hand
-    find_path(NCCL_INCLUDE_DIRS NAMES nccl.h nccl_net.h HINTS ${NCCL_ROOT}/include)
-    find_library(NCCL_LIBRARIES NAMES nccl HINTS ${NCCL_ROOT}/lib)
-    if(NCCL_INCLUDE_DIRS AND NCCL_LIBRARIES)
-      message(STATUS "Found NCCL library: ${NCCL_LIBRARIES}")
-      add_compile_definitions(ENABLE_NCCL)
-      include_directories(${NCCL_INCLUDE_DIRS})
-      link_libraries(${NCCL_LIBRARIES})
-      set(NCCL_FOUND TRUE)
-    endif()
-  endif()
-  if(REQUIRE_NCCL AND NOT NCCL_FOUND)
-    message(FATAL_ERROR "NCCL requested but not found. Set NCCL_ROOT")
-  endif()
 endif()
 
 ######################################################################

@@ -156,7 +156,6 @@ module load intel-oneapi-mkl
 
 # GPU
 module load cuda/11
-module load nccl
 
 # build
 module load python-mpi/3.11
