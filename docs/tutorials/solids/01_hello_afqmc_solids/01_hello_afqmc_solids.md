@@ -331,7 +331,7 @@ see what changes.
 </div>
 
 ```{code-cell} ipython3
-!safire files/input.json
+!$AFQMC_EXEC files/input.json
 ```
 
 +++ {"id": "eShMF9Ab-NIy"}
@@ -623,13 +623,6 @@ Use the code block below to run the entire calculation again.
 Just as before, at the end, you should get an AFQMC energy of `-1.135742 +/-   0.000286`
 if you did not change any settings.
 
-<div class="alert alert-block alert-info">
-<b>Note:</b>
-    The python `Path` class from `pathlib`, which is a part of the standard cPython distribution,
-    greatly simplifies the process of specifying, and creating directories. We recommend using it
-    in these tutorials. See the code block below.
-</div>
-
 ```{code-cell} ipython3
 ---
 colab:
@@ -638,7 +631,6 @@ colab:
 id: lFXM3f_c-NIz
 outputId: 23c92fb6-6385-46fa-a007-1b019b3bffa5
 ---
-%%time
 from pathlib import Path
 import shutil
 
@@ -650,9 +642,8 @@ from afqmctools.inputs.from_hdf import write_json
 from tutorial_utils import run_afqmc, get_scratch_dir
 from stats.scalar_dat import analyze_scalar_data
 
-# For you TODO: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("hello_safire",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 # copy the provided files
 files_dir = scratch_dir / "files"
@@ -672,7 +663,7 @@ run_afqmc(
 _ = analyze_scalar_data(dict(
     fname = scratch_dir/"qmc.s000.scalar.dat",
     series_column = "time",
-    nequil = 5,
+    nequil = 10,
     trace = True
 ))
 ```
