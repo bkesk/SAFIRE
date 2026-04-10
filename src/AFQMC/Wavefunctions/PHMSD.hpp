@@ -348,12 +348,26 @@ public:
     wset.setProperty(OVLP, ovlp);
   }
 
-/*
-  template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
-  void accumulate_estimators(int iav, WlkSet& wset, TVec& wgt,
-        std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
-        Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
-*/
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
+        nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
+        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true)
+  {
+    utils::check(false,"finish");
+  }
+
+  /*
+   * Calculates Green functions and calls Observables.
+   */
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body,
+        std::vector<Observable>& properties, bool importanceSampling = true)
+  {
+    memory::buffered_array<MEM,ComplexType,4> *X = nullptr;
+    accumulate_estimators(iav,wset,wgt,properties_1body,properties,X,X,X,false,importanceSampling);
+  }
 
   ComplexType getReferenceWeight(int i) const { return std::get<2>(*abij.configuration(i)); }
 
@@ -366,6 +380,7 @@ public:
   {
     using nda::range;
     auto all = range::all;
+    memory::check_memory_space<MEM>(Refs);
     int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nspin = (walker_type == COLLINEAR ? 2 : 1);
@@ -383,7 +398,7 @@ public:
       if (mpi->node_comm.root())
       {
         {
-          auto psi = math::sparse::to_array<'N'>(OrbMats(0));
+          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(0)));
           nda::vector<int> Ac(nup);
           for (int i_det = 0; i_det < number_of_references; ++i_det)
           {
@@ -395,7 +410,7 @@ public:
         }
         if(walker_type == COLLINEAR) 
         {
-          auto psi = math::sparse::to_array<'N'>(OrbMats(1));
+          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(1)));
           nda::vector<int> Ac(ndown); 
           for (int i_det = 0; i_det < number_of_references; ++i_det)
           { 

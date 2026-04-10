@@ -21,7 +21,7 @@ set(PROJECT_CMAKE ${CMAKE_SOURCE_DIR}/cmake)
 set (LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib CACHE PATH "Library directory.")
 set (EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin CACHE PATH "Binary directory.")
 
-include_directories( ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src )
+include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src )
 
 ######################################################################
 # CUDA/HIP build options. Read first, to be able to set policies! 
@@ -63,6 +63,14 @@ SET(PROJECT_UNIT_TEST_DIR ${PROJECT_BINARY_DIR}/tests/bin)
 enable_testing()
 include( CTest )
 
+######################################################################
+# Code Coverage
+######################################################################
+if(ENABLE_COVERAGE)
+  include(CodeCoverage)
+  append_coverage_compiler_flags()
+endif()
+
 
 ######################################################################
 # Build level
@@ -94,8 +102,18 @@ option(BUILD_UNIT_TESTS "Build unit tests" ON)
 option(BUILD_STATIC "Link to static libraries" OFF)
 option(ENABLE_TIMERS "Enable internal timers" ON)
 OPTION(BUILD_DOCUMENTATION "Enable compiling C++ Docs" OFF)
+option(ENABLE_COVERAGE "Enable code coverage reporting" OFF)
 option(ENABLE_SPDLOG "Build with spdlog" ON)
 option(ENABLE_CPPTRACE "Build with cpptrace support" ON)
+option(ENABLE_ASAN "Compile with AddressSanitizer for host C/C++ code" OFF)
+option(ENABLE_UBSAN "Compile with UndefinedBehaviorSanitizer for host C/C++ code" OFF)
+
+# Keep dependency-local sanitizer toggles disabled. SAFIRE controls sanitizer
+# flags globally through ENABLE_ASAN/ENABLE_UBSAN to avoid toolchain conflicts.
+if(ENABLE_ASAN OR ENABLE_UBSAN)
+  set(ASAN OFF CACHE BOOL "Disable dependency-local ASAN option" FORCE)
+  set(UBSAN OFF CACHE BOOL "Disable dependency-local UBSAN option" FORCE)
+endif()
 
 #option(ENABLE_FFTW "Build using FFTW3 library." ON)
 option(COMPILE_NDA_TESTS "Build with nda tests" OFF)
@@ -348,11 +366,6 @@ endif()
 # cpptrace 
 ######################################################################
 if(ENABLE_CPPTRACE)
-  check_include_file("stdint.h" HAVE_STDINT_H)
-  check_include_file("unistd.h" HAVE_UNISTD_H)
-  check_include_file("fcntl.h" HAVE_FCNTL_H)
-  # MAM: Failing in MacOSX, find correct way
-  add_compile_definitions( $<$<COMPILE_LANGUAGE:C>:PACKAGE_VERSION="0"> )
   FetchContent_Declare(
     cpptrace
     GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
@@ -428,8 +441,54 @@ target_compile_options(${PROJECT_NAME}_warnings
     $<$<COMPILE_LANGUAGE:CUDA>:--diag-error=128> # unreachable_code
 )
 
+#######################################################################
+# Sanitizers
+########################################################################
+if(ENABLE_ASAN OR ENABLE_UBSAN)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang|IntelLLVM")
+    message(FATAL_ERROR "Sanitizers require a GCC/Clang-compatible host compiler")
+  endif()
+
+  if(ENABLE_CUDA OR ENABLE_HIP)
+    message(FATAL_ERROR "ENABLE_ASAN/ENABLE_UBSAN currently support host-only builds. Disable CUDA/HIP when using sanitizers.")
+  endif()
+
+  if(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
+    message(WARNING "Sanitizers are best used with Debug/RelWithDebInfo builds")
+  endif()
+
+  # Apply sanitizer flags only to host C/C++ sources.
+  add_compile_options(
+    $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>
+    $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-g>
+  )
+  add_link_options(-fno-omit-frame-pointer)
+
+  if(ENABLE_ASAN)
+    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=address>)
+    add_link_options(-fsanitize=address)
+    message(STATUS "AddressSanitizer enabled")
+  endif()
+
+  if(ENABLE_UBSAN)
+    add_compile_options(
+      $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=undefined>
+      $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=float-divide-by-zero>
+      $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=float-cast-overflow>
+    )
+    add_link_options(-fsanitize=undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow)
+    message(STATUS "UndefinedBehaviorSanitizer enabled")
+  endif()
+endif()
+
 add_subdirectory(src)
 
+######################################################################
+# Setup code coverage targets
+######################################################################
+if(ENABLE_COVERAGE)
+  setup_coverage_targets()
+endif()
 
 #######################################################################
 # C++ Docs

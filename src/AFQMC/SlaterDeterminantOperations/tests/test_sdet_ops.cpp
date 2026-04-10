@@ -169,9 +169,8 @@ void SDetOps()
                     0.0497734835066391 + 0.1783200397050796i},
                     {0.1020030246826092 + 0.0344707468383766i, -0.2500340021988402 - 0.0826863644855427i,
                     0.9941948024934623 + 0.0664465796801866i}};
-  nda::array<Type,2> vc_ref_2 = {{-0.489369975192701 + 0.103038673040713i, -0.858850485405126 - 0.275734238124941i},
-                     {1.219791948842170 + 0.118626922447301i,  0.486337033653898 - 0.098631569047656i},
-                     {0.595497821653010 + 0.185288949671560i,  -0.455373025165330 - 0.129360996228044i}};
+  nda::array<Type,2> vc_ref_2 = {{-0.489369975192701 + 0.103038673040713i, -0.858850485405126 - 0.275734238124941i, 1.219791948842170 + 0.118626922447301i},
+                     {0.486337033653898 - 0.098631569047656i, 0.595497821653010 + 0.185288949671560i,  -0.455373025165330 - 0.129360996228044i}};
 
   array g_ref(nwalk,NMO,NMO);    copy_to_array(v_ref,g_ref);
   array gc_ref(nwalk,NEL,NMO);    copy_to_array(vc_ref,gc_ref);
@@ -255,21 +254,22 @@ void SDetOps()
       V2(nda::range(i*NMO,(i+1)*NMO),nda::range(i*NMO,(i+1)*NMO)) = utils::make_random<Type>(NMO,NMO); 
     auto Vcsr = math::sparse::to_csr<MEM,int,int>(V2);
 
-    det_ops::Propagate(SM, P, V, 4, 'N');
-    det_ops::Propagate(SM, P, V, 4, 'T');
-    det_ops::Propagate(SM, P, V, 4, 'H');
+    using det_ops::detail::propagate_impl;
+    propagate_impl<'N'>(1,SM, P, V, 4);
+    propagate_impl<'T'>(1,SM, P, V, 4);
+    propagate_impl<'H'>(1,SM, P, V, 4);
 
-    det_ops::Propagate(SM, Pcsr, V, 4, 'N');
-    det_ops::Propagate(SM, Pcsr, V, 4, 'T');
-    det_ops::Propagate(SM, Pcsr, V, 4, 'H');
+    propagate_impl<'N'>(1,SM, Pcsr, V, 4);
+    propagate_impl<'T'>(1,SM, Pcsr, V, 4);
+    propagate_impl<'H'>(1,SM, Pcsr, V, 4);
 
-    det_ops::Propagate(SM, P, Vcsr, 4, 'N');
-    det_ops::Propagate(SM, P, Vcsr, 4, 'T');
-    det_ops::Propagate(SM, P, Vcsr, 4, 'H');
+    propagate_impl<'N'>(1,SM, P, Vcsr, 4);
+    propagate_impl<'T'>(1,SM, P, Vcsr, 4);
+    propagate_impl<'H'>(1,SM, P, Vcsr, 4);
 
-    det_ops::Propagate(SM, Pcsr, Vcsr, 4, 'N');
-    det_ops::Propagate(SM, Pcsr, Vcsr, 4, 'T');
-    det_ops::Propagate(SM, Pcsr, Vcsr, 4, 'H');
+    propagate_impl<'N'>(1,SM, Pcsr, Vcsr, 4);
+    propagate_impl<'T'>(1,SM, Pcsr, Vcsr, 4);
+    propagate_impl<'H'>(1,SM, Pcsr, Vcsr, 4);
   }
 
   // Propagate noncollinear with diagonal V
@@ -285,14 +285,15 @@ void SDetOps()
     Vt() = Vt()*0.001;
     V() = Vt(); 
     auto Pcsr = math::sparse::to_csr<MEM,int,int>(P);
-  
-    det_ops::Propagate_pol(2, SM, P, V, 4, 'N');
-    det_ops::Propagate_pol(2, SM, P, V, 4, 'T');
-    det_ops::Propagate_pol(2, SM, P, V, 4, 'H');
     
-    det_ops::Propagate_pol(2, SM, Pcsr, V, 4, 'N');
-    det_ops::Propagate_pol(2, SM, Pcsr, V, 4, 'T');
-    det_ops::Propagate_pol(2, SM, Pcsr, V, 4, 'H');
+    using det_ops::detail::propagate_impl;
+    propagate_impl<'N'>(2, SM, P, V, 4);
+    propagate_impl<'T'>(2, SM, P, V, 4);
+    propagate_impl<'H'>(2, SM, P, V, 4);
+    
+    propagate_impl<'N'>(2, SM, Pcsr, V, 4);
+    propagate_impl<'T'>(2, SM, Pcsr, V, 4);
+    propagate_impl<'H'>(2, SM, Pcsr, V, 4);
 
     // now with separate spin up/down csr_matrix
   }
@@ -308,7 +309,6 @@ void SDetOps()
     det_ops::Log_Overlap(Q, Q, ovlp);
     ARRAY_EQUAL(oref,ovlp);
   }
-
 
   // Finite temperature functions
   {
@@ -647,8 +647,7 @@ void SDetOps()
     }
     
   }
-
-
+  
 }
 
 

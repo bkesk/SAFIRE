@@ -53,7 +53,6 @@ public:
   {
     int _pop_control_interval, equil_multiplier;
     _pop_control_interval = pt.get<int>("_population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL);
-    block_size = pt.get<int>("block_size", 1);
     equil_multiplier = pt.get<int>("equil_multiplier", 0); // units of population control interval
     measure_interval_multiplier = pt.get<int>("measure_interval_multiplier", DEFAULT_MEASURE_INTERVAL_MULTIPLIER); // units of population control interval
     measure_interval = measure_interval_multiplier * _pop_control_interval;
@@ -97,7 +96,7 @@ public:
   void print([[maybe_unused]] std::ofstream& out, h5::file& file, [[maybe_unused]] WalkerSet<MEM>& wset)
   {
     // print resets the counters for block average.
-    if (accumulated_in_last_block and (iblock%block_size==0))
+    if (accumulated_in_last_block)
     {
       if (writer)
       {
@@ -106,11 +105,12 @@ public:
                                                       grp.create_group("Observables") );
         h5::group g2 = ( g1.has_key("Mixed") ? g1.open_group("Mixed") : 
                                                 g1.create_group("Mixed") );
-        observ0.print(iblock, std::addressof(grp));
+        observ0.print(iblock, std::addressof(g2));
       } else { 
         h5::group *grp = nullptr;
         observ0.print(iblock, grp);
       }
+      accumulated_in_last_block = false;
     }
   }
 
@@ -121,7 +121,6 @@ private:
   MixedObsHandler<MEM> observ0;
 
   // Blocking info 
-  int block_size   = 1;
   int iblock       = 0;
   int nblocks_skip = 0;
 

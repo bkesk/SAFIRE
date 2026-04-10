@@ -44,9 +44,13 @@ def parse_args():
     parser.add_argument('--autocorr',action='store',type=int,default=None, help='autocorrelation length. If set, then this value of the autocorrelation length will be used and it will not be automatically computed.')
     parser.add_argument('--savefig')
     parser.add_argument('--dump-avail-columns', action='store_true', help='dump available column names and exit')
+    parser.add_argument('--denominator', '-d', type=str, default=None,
+        help='denominator column for normalization (e.g., "deno" for energy/denominator)')
+    parser.add_argument('--return-complex', action='store_true',
+        help='return complex values instead of just real part (only for complex columns)')
     args = parser.parse_args()
     return args
-    
+
 def main():
     """
     Analyze stochastic samples of scalar data output by SAFIRE.

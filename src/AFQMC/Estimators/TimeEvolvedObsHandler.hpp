@@ -50,11 +50,11 @@ public:
                  ptree pt,
                  WALKER_TYPES wlk,
                  int nave,
-                 Wavefunction<MEM>& wfn)
+                 Wavefunction<MEM>& wfn_)
       : AFQMCInfo(info),
         mpi(_mpi),
         walker_type(wlk),
-        wfn0(std::addressof(wfn)),
+        wfn(std::addressof(wfn_)),
         ncalls(0),
         number_of_averages(nave),
         name(name_)
@@ -140,31 +140,11 @@ public:
     denominator() = ComplexType(0.0);
   }
 
-  // call for MixedEstimator
-  template<class WlkSet>
-  void accumulate(int iav, WlkSet& wset, nda::MemoryVector auto&& wgt, bool importanceSampling)
-  {
-    // accumulate denominator
-    if (importanceSampling)
-      denominator(iav) += nda::sum(wgt);
-    else
-    {
-      APP_ABORT(" Finish implementation of free projection. \n\n");
-    }
-
-/*
-    memory::buffered_array<HOST_MEMORY,ComplexType,1> dummy(0,0,0,0); 
-    wfn0->accumulate_estimators(iav, wset, wgt, properties_1body, properties, 
-                               dummy, dummy, dummy, false, importanceSampling);
-*/
-    ncalls++;
-  }
-
-  // call for TimeEvolvedOperators
   template<class WlkSet>
   void accumulate(int iav, WlkSet& wset, nda::MemoryVector auto&& wgt, 
-                  nda::MemoryMatrix auto const& X, nda::MemoryMatrix auto const& Y, 
-                  nda::MemoryMatrix auto const& M, bool importanceSampling) 
+                  nda::MemoryArrayOfRank<4> auto const& X, 
+                  nda::MemoryArrayOfRank<4> auto const& Y, 
+                  nda::MemoryArrayOfRank<4> auto const& M, bool importanceSampling) 
   {
     // accumulate denominator
     if (importanceSampling)
@@ -173,9 +153,10 @@ public:
     {
       APP_ABORT(" Finish implementation of free projection. \n\n");
     } 
+    ncalls++;
 
-    wfn0->accumulate_estimators(iav, wset, wgt, properties_1body, properties, 
-                               X, Y, M, true, importanceSampling);
+    wfn->accumulate_estimators(iav, wset, wgt, properties_1body, properties, 
+        std::addressof(X), std::addressof(Y), std::addressof(M), true, importanceSampling);
   }
 
 private:
@@ -183,7 +164,7 @@ private:
 
   WALKER_TYPES walker_type;
 
-  Wavefunction<MEM>* wfn0;
+  Wavefunction<MEM>* wfn;
 
   int ncalls = 1;
 
@@ -194,7 +175,7 @@ private:
   std::vector<Observable> properties_1body;
   std::vector<Observable> properties;
 
-  nda::vector<ComplexType> denominator;
+  nda::array<ComplexType,1> denominator;
 
 };
 
