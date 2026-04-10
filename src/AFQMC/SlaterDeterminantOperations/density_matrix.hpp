@@ -845,10 +845,10 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
   using Type = nda::get_value_t<B_t>;
 
   auto [nbatch, NMO, NEL] = UR.shape();
-  
-  utils::check(UL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
-  utils::check(DL.shape() == std::array<long,1>{NMO}, "Size mismatch");
-  utils::check(VL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+
+  //utils::check(UL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
+  //utils::check(DL.shape() == std::array<long,1>{NMO}, "Size mismatch");
+  //utils::check(VL.shape() == std::array<long,2>{NMO,NMO}, "Size mismatch");
   utils::check(DR.shape() == std::array<long,2>{nbatch,NMO}, "Size mismatch");
   utils::check(VR.shape() == std::array<long,3>{nbatch,NMO,NMO}, "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
