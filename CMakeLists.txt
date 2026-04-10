@@ -289,20 +289,6 @@ endif()
 add_definitions(-DBOOST_LOCALE_HIDE_AUTO_PTR)
 
 ######################################################################
-# toml++: c++ parser for toml files
-######################################################################
-if(DEFINED TOMLPP)
-  set(FETCHCONTENT_SOURCE_DIR_TOMLPLUSPLUS ${TOMLPP})
-endif()
-
-FetchContent_Declare( 
-        tomlplusplus
-        GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-        GIT_TAG v3.4.0
-)
-FetchContent_MakeAvailable(tomlplusplus)
-
-######################################################################
 # spdlog - disable warnings for external library
 ######################################################################
 # Save current warning flags
