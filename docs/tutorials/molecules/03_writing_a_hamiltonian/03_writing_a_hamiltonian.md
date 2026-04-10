@@ -296,12 +296,10 @@ colab:
 id: VhPYIHxeyCNf
 outputId: f8c272ce-fe42-4727-be4e-2abd163c3a79
 ---
-from tutorial_utils import run_afqmc, get_scratch_dir
-
 # Use this to run SAFIRE
 run_afqmc(
     run_dir=scratch_dir,
-    input_file =  "afqmc.json",#"your_input_file.json",
+    input_file = "afqmc.json",#"your_input_file.json",
     np=16,             # number of MPI tasks
 )
 ```
@@ -330,10 +328,10 @@ _ = analyze_scalar_data(settings)
 
 ### Check your result
 
-Your AFQMC energy should agree with $-1.137024 \pm 0.000195 Ha$
+Your AFQMC energy should agree with $-1.137024 \pm 0.000195$ Ha
 to within 1-2 $\sigma$.
 
-For comparison, the FCI energy is $-1.1372759436170439 Ha$.
+For comparison, the FCI energy is $-1.1372759436170439$ Ha.
 
 Our AFQMC result agrees FCI to within 0.0003(2) Ha which
 is well within chemical accuracy.
