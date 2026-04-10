@@ -1,0 +1,32 @@
+&control
+   calculation = 'nscf',
+   prefix = 'pwscf',
+   outdir = 'OUT',
+   pseudo_dir = './',
+   verbosity = 'high'
+/
+&system
+   ibrav=  2,
+   celldm(1)=10.263087,
+   nat= 2,
+   ntyp= 1,
+   nbnd= 20,
+   ecutwfc =25.0,
+   force_symmorphic=.true.,
+   nosym=.true.,
+   noinv=.true., 
+/
+&electrons
+   diago_full_acc = .true.,
+   conv_thr = 1.0e-10
+/
+
+ATOMIC_SPECIES
+  Si 28  Si_ONCV_PBE-1.2.upf
+
+K_POINTS automatic
+  1 1 1 0 0 0 
+
+ATOMIC_POSITIONS crystal
+  Si   -0.1250000000000000  -0.1250000000000000  -0.1250000000000000
+  Si    0.1250000000000000   0.1250000000000000   0.1250000000000000
