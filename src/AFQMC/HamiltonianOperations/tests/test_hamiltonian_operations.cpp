@@ -62,6 +62,11 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   using nda::range;
   using matrix_t = memory::array<MEM,ComplexType,2>;
   auto all = range::all;
+  app_log(1, "Running Hamiltonian operations unit test "
+    "with:\n  Hamiltonian file: {}\n  wavefunction file: {}", 
+    hamil_file, wfn_file
+  );
+  
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
   utils::check(utils::file_exists(wfn_file),
@@ -163,6 +168,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
       app_log(1," E1: {} ", eloc_h(0,0));
     if (std::abs(file_data.E2) > 1e-8)
     {
+      eloc_h(all,1) += eloc_h(all,2);
       ARRAY_EQUAL(eloc_h(all,1), nda::array<ComplexType,1>(nwalk,file_data.E2)); 
     }
     else
@@ -171,7 +177,6 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
       app_log(1," EXX: {}", eloc_h(0,1)); 
       app_log(1," ETotal: {}", eloc_h(0,0)+eloc_h(0,1)+eloc_h(0,2)); 
     }
-    return;
 
     double dt = 0.01;
     auto nCV  = HOps.number_of_cholesky_vectors();
@@ -194,23 +199,20 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
     }
     if (std::abs(file_data.Xsum) > 1e-8)
     {
-      REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
-      REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
+      utils::VALUE_EQUAL(Xsum,file_data.Xsum);
     }
     else
     {
       app_log(1," Xsum: {}", Xsum);
       app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
     }
-    return;
 
     auto h1 = HOps.getOneBodyPropagatorMatrix(dt,X_h(0,all));
-    REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
+    CHECK( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
 
     auto[vHS_nspin, vHS_npol] = HOps.vHS_dims();
     auto vHS = HOps.vHS(X,dt);
-    //REQUIRE( vHS.shape() == std::array<long,4>{nwalk,vHS_nspin,vHS_npol*NMO,NMO} );
-    REQUIRE( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
+    CHECK( vHS.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
     auto vHS_h = nda::to_host(vHS);
     ComplexType Vsum = 0;
     for (int i = 0; i < vHS.extent(2); i++)
@@ -218,8 +220,7 @@ void ham_ops_basic_serial(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
         Vsum += vHS_h(0,0,i,j);
     if (std::abs(file_data.Vsum) > 1e-8)
     {
-      REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
-      REQUIRE(imag(Vsum) == Approx(imag(file_data.Vsum)));
+      utils::VALUE_EQUAL(Vsum,file_data.Vsum);
     }
     else
     {
@@ -593,10 +594,18 @@ TEST_CASE("ham_ops_basic_serial", "[hamiltonian_operations]")
   } else {
     app_log(0,"HamiltonianOperations unit testing. Running standard tests.");
     auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
-    for( auto f : files ) { 
-      ham_ops_basic_serial<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+    for( auto f : files ) {
+      try {
+        ham_ops_basic_serial<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in ham_ops_basic_serial<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+      }
 #if defined(ENABLE_DEVICE)
-      ham_ops_basic_serial<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+      try {
+        ham_ops_basic_serial<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in ham_ops_basic_serial<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+      }
 #endif
     }
   }

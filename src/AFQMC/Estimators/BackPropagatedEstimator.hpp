@@ -73,9 +73,9 @@ public:
         prop0(std::addressof(prop)),
         max_nback_prop(10),
         nStabilize(10),
-        path_restoration(false),
+        path_restoration(true),
         importanceSampling(impsamp_),
-        extra_path_restoration(false),
+        extra_path_restoration(true),
         first(true)
   {
     // convert user input to verbose input
@@ -88,7 +88,6 @@ public:
     extra_path_restoration = pt.get<bool>("extra_path_restoration");
     nStabilize     = pt.get<int>("bp_walker_ortho_interval"); // units of steps!!
     equil_multiplier  = pt.get<int>("equil_multiplier"); // units of population control interval
-    number_of_references = pt.get<int>("number_of_references"); // number of references 
     std::vector<int> nback_prop_interval_multipliers = io::get_value_or_vector<int>(pt, "measure_interval_multiplier", {DEFAULT_MEASURE_INTERVAL_MULTIPLIER}); // units of population control interval
     naverages = nback_prop_interval_multipliers.size();
 
@@ -105,7 +104,11 @@ public:
     if ((equil_multiplier * _population_control_interval) % max_nback_prop != 0 )
       APP_ABORT("Error in BackPropagatedEstimator user input: 'equil_multiplier' must be evenly divisible by the maximum value in 'measure_interval_multiplier'");
     nblocks_equil = (equil_multiplier *_population_control_interval )/ max_nback_prop; // Note: nback_prop is in steps, so we have to convert equil_multiplier to steps by multiplying by _population_control_interval
-    _measure_interval_for_handler = max_nback_prop;
+
+    // MAM: In principle, this should be the MCD of the nback_prop_steps.
+    //      But it gets complicated if nblocks_equil > 1, so setting this to this
+    //      for simplicity. Should not cause serious performance issues.
+    _measure_interval_for_handler = _population_control_interval; 
 
     average_has_run.reserve(naverages);
     average_has_run.assign(naverages, false);
@@ -114,17 +117,13 @@ public:
     std::sort(nback_prop_steps.begin(), nback_prop_steps.end());
 
     int ncv(prop0->number_of_cholesky_vectors());
-    if(number_of_references < 0) number_of_references = wfn0->total_number_of_references();
-    if(number_of_references != 0 ) {
-      wset.resize_bp(max_nback_prop, ncv, number_of_references);
-      wset.setBPPos(0);
-      // set SMN in case BP begins right away
-      if (nblocks_equil == 0)
-        for (auto it = wset.begin(); it < wset.end(); ++it)
-          it->setSlaterMatrixN();
-    } else {
-      app_warning("Back Propagation: number_of_references was set to zero. Skipping back propagation.");
-    }
+    int number_of_references = wfn0->total_number_of_references();
+    wset.resize_bp(max_nback_prop, ncv, number_of_references);
+    wset.setBPPos(0);
+    // set SMN in case BP begins right away
+    if (nblocks_equil == 0)
+      for (auto it = wset.begin(); it < wset.end(); ++it)
+        it->setSlaterMatrixN();
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -133,11 +132,10 @@ public:
     bool path_restoration, extra_path_restoration;
     int ortho, equil_multiplier, _population_control_interval;
     std::vector<int> nback_prop_interval_multipliers;
-    path_restoration       = pt0.get<bool>("path_restoration", false);
-    extra_path_restoration = pt0.get<bool>("extra_path_restoration", false);
-    ortho         = pt0.get<int>("bp_walker_ortho_interval", 1);
+    path_restoration       = pt0.get<bool>("path_restoration", true);
+    extra_path_restoration = pt0.get<bool>("extra_path_restoration", true);
+    ortho         = pt0.get<int>("bp_walker_ortho_interval", 10);
     equil_multiplier = pt0.get<int>("equil_multiplier", 0);
-    int nrefs = pt0.get<int>("number_of_references", -1);
      _population_control_interval = pt0.get<int>("_population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL); // only for computing nback_prop_steps!
     
     // Use utility function to read either a single integer or vector of integers
@@ -157,7 +155,6 @@ public:
     pt1.put("bp_walker_ortho_interval", ortho);
     pt1.put("equil_multiplier", equil_multiplier);
     pt1.put("_population_control_interval", _population_control_interval);
-    pt1.put("number_of_references", nrefs);
     ptree temp_tree;
     for (const auto& value : nback_prop_interval_multipliers) {
         ptree item;
@@ -194,7 +191,7 @@ public:
 
   void accumulate_block([[maybe_unused]] double time, WalkerSet<MEM>& wset)
   {
-    if(number_of_references==0) return;
+    auto all = nda::range::all;
     accumulated_in_last_block = false;
     int bp_step               = wset.getBPPos();
     int nwalk = wset.size();
@@ -202,14 +199,14 @@ public:
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nspin = (walker_type == COLLINEAR ? 2 : 1);
     utils::check(bp_step>0," Error: Found bp_step <=0 in BackPropagate::accumulate_block. ");
-    utils::check(bp_step<max_nback_prop, " Error: max_nback_prop in back propagation estimator must be commensurate with measure_interval.");
+    utils::check(bp_step<=max_nback_prop, " Error: max_nback_prop in back propagation estimator must be commensurate with measure_interval.");
     utils::check(max_nback_prop <= wset.NumBackProp()," Error: max_nback_prop > wset.NumBackProp() ");
 
     // check if measurement is needed
     int iav(-1);
     if( auto it = std::find(nback_prop_steps.begin(), nback_prop_steps.end(), bp_step); 
         it != nback_prop_steps.end() ) {
-      iav = *it;
+      iav = std::distance(nback_prop_steps.begin(),it);
       utils::check(iav==0 || average_has_run[iav-1],
           "Error: missed a measurement in BackPropagate::accumulate_block.\n"
           "Use a number of steps in the back propagation estimator that is divisible\n"
@@ -236,8 +233,9 @@ public:
     AFQMCTimer.start(back_propagate_timer);
 
     // 1. allocate memory. Can loop over walkers if nrefs is too large 
+    int number_of_references = wfn0->total_number_of_references();
     memory::buffered_array<MEM,ComplexType,4> Refs(nwalk, number_of_references, npol*NMO, nel);
-    memory::buffered_array<MEM,ComplexType,2> logdetR(nwalk, number_of_references*nspin);
+    memory::buffered_array<MEM,ComplexType,2> logdetR(nwalk, number_of_references);
 
     // 2. setup back propagated references
     wfn0->getReferences(number_of_references, Refs(0,nda::ellipsis{}));
@@ -246,7 +244,7 @@ public:
     mpi->node_comm.barrier();
 
     //3. propagate backwards the references
-//    prop0->BackPropagate(bp_step, nStabilize, wset, Refs_, logdetR);
+    prop0->BackPropagate(bp_step, nStabilize, wset, Refs, logdetR);
 
     //4. calculate properties
     // adjust weights here is path restoration
@@ -257,23 +255,22 @@ public:
       auto factors = nda::to_host(wset.getWeightFactors());
       int hpos(wset.getHistoryPos()); // position where next step goes... go bach in history...
       int maxpos(wset.HistoryBufferLength());
-      int nbp(max_nback_prop);
+      int nbp(bp_step);
       if (extra_path_restoration)
         nbp *= 2;
       for (int k = 0; k < nbp; k++)
       {
+        // start going back since position is advanced for next step already
         hpos =
-            ((hpos == 0) ? maxpos - 1 : hpos - 1); // start going back since position is advanced for next step already
-        for (int i = 0; i < nwalk; i++)
-          wgt(i) *= factors(hpos,i);
+            ((hpos == 0) ? maxpos - 1 : hpos - 1); 
+        wgt(all) *= factors(all,hpos);
       }
     }
     else if (!importanceSampling)
     {
       memory::buffered_array<HOST_MEMORY,ComplexType,1> phase(nwalk);
       wset.getProperty(PHASE, phase);
-      for (int i = 0; i < nwalk; i++)
-        wgt(i) *= phase[i];
+      wgt() *= phase();
     }
     observ0.accumulate(iav, wset, Refs, wgt, logdetR, importanceSampling);
     average_has_run[iav] = true;
@@ -305,7 +302,6 @@ public:
 
   void print([[maybe_unused]] std::ofstream& out, h5::file& file, [[maybe_unused]] WalkerSet<MEM>& wset)
   {
-    if(number_of_references==0) return;
     // I doubt we will ever collect a billion blocks of data.
     if (accumulated_in_last_block)
     {
@@ -324,6 +320,7 @@ public:
             h5::group g3 = g2.create_group("Metadata"); // can this already exist??? 
             h5::h5_write(g3,"BackPropSteps",nback_prop_steps);
             h5::h5_write(g3,"NumAverages",nave);
+            int number_of_references = wfn0->total_number_of_references();
             h5::h5_write(g3,"NumReferences",number_of_references);
             write_metadata = false;
           }
@@ -350,7 +347,6 @@ private:
 
   Propagator<MEM>* prop0;
 
-  int number_of_references = 0;
   int max_nback_prop = 0;
   std::vector<int> nback_prop_steps;
 //  std::vector<int> nback_prop_interval_multipliers;

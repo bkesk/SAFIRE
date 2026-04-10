@@ -138,7 +138,7 @@ public:
     enume += (curData[1] / curData[2]) * weight_product;
     edeno += weight_product;
     weight += curData[3].real();
-    ovlp += wset.getLogOverlapFactor(); //curData[4].real();
+    ovlp += curData[4].real();
     nwalk += static_cast<int>(std::floor(curData[5].real()));
     nwalk_good += static_cast<int>(std::floor(curData[6].real()));
   }
@@ -155,7 +155,7 @@ public:
       {
         out << "nWalkers weight PseudoEloc ";
       }
-      out << "LogOvlpFactor ";
+      out << "LogOvlp ";
     }
   }
 

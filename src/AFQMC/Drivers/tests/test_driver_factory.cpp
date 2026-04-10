@@ -59,12 +59,15 @@ using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
 void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
-             std::string hamil_file)
+             std::string hamil_file, std::string wfn_file,
+             WALKER_TYPES walker_type = UNDEFINED_WALKER_TYPE)
 {
   using nda::range;
   auto all = range::all;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
+  utils::check(utils::file_exists(wfn_file),
+               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
   std::map<std::string, AFQMCInfo> InfoMap;
   HamiltonianFactory HamFac(InfoMap);
@@ -73,7 +76,7 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   PropagatorFactory<MEM> PropFac(InfoMap);
   DriverFactory<MEM> DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac);
 
-  const auto[NMO, nup, ndown] = read_info_from_wfn(hamil_file,"any");
+  const auto[NMO, nup, ndown] = read_info_from_wfn(wfn_file,"any");
   AFQMCInfo info("sys0",NMO,nup,ndown);
   InfoMap.insert(std::pair<std::string, AFQMCInfo>(info.name, info));
 
@@ -86,13 +89,12 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   ptree wfn_full;
   wfn_full.put("name","wfn0");
   wfn_full.put("system","sys0");
-  wfn_full.put("filename",hamil_file);
+  wfn_full.put("filename",wfn_file);
   WfnFac.push("wfn0", wfn_full);
 
   ptree wlk_full;
   wlk_full.put("name","wlk0");
   wlk_full.put("system","sys0");
-  WSetFac.push("wlk0", wlk_full);
 
   ptree prop_full;
   prop_full.put("name","prop0");
@@ -100,75 +102,117 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   PropFac.push("prop0", prop_full);
 
   ptree wfn_min;
-  wfn_min.put("filename",hamil_file);
+  wfn_min.put("filename",wfn_file);
 
   ptree ham_min;
-  ham_min.put("filename",hamil_file);
+  ham_min.put("filename",hamil_file);  
 
   ptree wlk_min;
   wlk_min.put("max_weight","4.0");
+
+  // KE: Some special walker_types must match the wavefunction type;
+  //     if an explicit walker type is provided to this test, use it!
+  if (walker_type != UNDEFINED_WALKER_TYPE) {
+    wlk_full.put("walker_type", walkerTypeToString(walker_type));
+    wlk_min.put("walker_type", walkerTypeToString(walker_type));
+  }
+
+  WSetFac.push("wlk0", wlk_full);
 
   ptree prop_min;
   prop_min.put("hybrid","true");
 
   ptree exec;
 
-  // wfn only
+  const bool default_walker = (walker_type == UNDEFINED_WALKER_TYPE);
+
+  if (default_walker) {
+    exec.put_child("wavefunction",wfn_min);
+    // wfn only - this is invalid unless wfn file and hamil file are the same
+    if (hamil_file == wfn_file) {
+      app_log(0,"[driver_fac] TEST: wfn only (inline); walker_type={}", int(walker_type));
+      CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    }
+    
+    // wfn and ham
+    exec.put_child("hamiltonian",ham_min);
+    app_log(0,"[driver_fac] TEST: wfn+ham (inline); walker_type={}", int(walker_type));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+
+    // wfn, ham, prop
+    exec.put_child("propagator",prop_min);
+    app_log(0,"[driver_fac] TEST: wfn+ham+prop (inline); walker_type={}", int(walker_type));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  }
+
+  // wfn, ham, prop, wlk
+  exec.clear();
   exec.put_child("wavefunction",wfn_min);
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
-
-  // wfn and ham
   exec.put_child("hamiltonian",ham_min);
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
-
-  // wfn, ham, prop
   exec.put_child("propagator",prop_min);
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
-
-  // wfn, ham, prop, wlk
   exec.put_child("walker_set",wlk_min);
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  app_log(0,"[driver_fac] TEST: wfn+ham+prop+wlk (all inline); walker_type={}", int(walker_type));
+  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
-  // external wfn 
-  exec.clear();    
+  if (default_walker) {
+    // external wfn 
+    exec.clear();
+    exec.put("wavefunction","wfn0");
+    if (hamil_file == wfn_file) {
+      app_log(0,"[driver_fac] TEST: wfn only (external); walker_type={}", int(walker_type));
+      CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    }
+
+    // wfn and ham
+    exec.put("hamiltonian","ham0");
+    app_log(0,"[driver_fac] TEST: wfn+ham (external); walker_type={}", int(walker_type));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+
+    // wfn, ham, prop
+    exec.put("propagator","prop0");
+    app_log(0,"[driver_fac] TEST: wfn+ham+prop (external); walker_type={}", int(walker_type));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  }
+
+  // wfn, ham, prop, wlk (all external)
+  exec.clear();
   exec.put("wavefunction","wfn0");
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
-
-  // wfn and ham
   exec.put("hamiltonian","ham0");
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
-
-  // wfn, ham, prop
   exec.put("propagator","prop0");
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
-
-  // wfn, ham, prop, wlk
   exec.put("walker_set","wlk0");
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  app_log(0,"[driver_fac] TEST: wfn+ham+prop+wlk (all external); walker_type={}", int(walker_type));
+  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
   // mixed external internal
   exec.clear();
   exec.put_child("wavefunction",wfn_min);
   exec.put("walker_set","wlk0");
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
+  if (hamil_file == wfn_file) {
+    app_log(0,"[driver_fac] TEST: wfn(inline)+wlk(external); walker_type={}", int(walker_type));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  }
 
-  exec.clear();
-  exec.put_child("wavefunction",wfn_min);
-  exec.put("hamiltonian","ham0");
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
-
+  if (default_walker) {
+    exec.clear();
+    exec.put_child("wavefunction",wfn_min);
+    exec.put("hamiltonian","ham0");
+    app_log(0,"[driver_fac] TEST: wfn(inline)+ham(external); walker_type={}", int(walker_type));
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
+  }
 
   exec.clear();
   exec.put("wavefunction","wfn0");
   exec.put_child("hamiltonian",ham_min);
   exec.put("walker_set","wlk0");
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
+  app_log(0,"[driver_fac] TEST: wfn(external)+ham(inline)+wlk(external); walker_type={}", int(walker_type));
+  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));  
 
   exec.clear();
   exec.put("wavefunction","wfn0");
   exec.put_child("hamiltonian",ham_min);
   exec.put_child("walker_set",wlk_min);
-  REQUIRE(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  app_log(0,"[driver_fac] TEST: wfn(external)+ham(inline)+wlk(inline); walker_type={}", int(walker_type));
+  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
  
   // many more possibilities (combinatorial...) Add any problematic ones if needed
 }
@@ -177,11 +221,33 @@ TEST_CASE("driver_fac", "[driver_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
   
-  driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL);
-  
+  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
+    app_log(0,"Driver factory unit testing. Running user provided test:");
+    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
+    app_log(0," Wavefunction: {}", UTEST_WFN);
+    driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #if defined(ENABLE_DEVICE)
-  driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL);
+    driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #endif
+   } else {
+    app_log(0,"Driver factory unit testing. Running standard tests.");
+    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    for( auto f : files ) {
+      try {
+        driver_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in driver_fac<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+      }
+#if defined(ENABLE_DEVICE)
+      try {
+        driver_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in driver_fac<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+      }
+#endif
+    }
+  }
 }
+
 
 } // namespace sfqmc

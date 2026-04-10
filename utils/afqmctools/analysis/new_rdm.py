@@ -174,7 +174,11 @@ def get_one_rdm_av(filename, skip, name="Mixed"):
     dm_err : :class:`numpy.array`
         Associated matrix of estimates for errors.
         
+    Notes
+    -----
+    
     .. Warning:
+
         This is a very simple estimate of the error and does not include
         temporal correlations.
     """

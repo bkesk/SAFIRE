@@ -194,7 +194,7 @@ def spin_spin(rdm,spin_symm:SpinSymm=SpinSymm.COLLINEAR, resolveXY=False):
         values are {'rhf','uhf','ghf','closed','collinear','noncollinear'}. String values
         are not case-sensitive.
     resolveXY:bool
-        return a the XY and Z contributions seperately
+        return a the XY and Z contributions separately
 
     Returns
     -------

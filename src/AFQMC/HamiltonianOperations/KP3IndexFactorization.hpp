@@ -338,10 +338,10 @@ public:
           auto LB = ( Q==Qm ? Lbnk(Qmap(Q))() : Lank(Qm)() ); 
           auto Lb = nda::reshape(LB(idet,is,nda::ellipsis{}),std::array<long,3>{nkpts,nocc_max*nchol,npol*nbnd}); 
 
-          auto Tl3d = nda::reshape(T1buff,std::array<long,3>{batch_size,nwalk*nocc_max,nocc_max*nchol});   
-          auto Tl5d = nda::reshape(T1buff,std::array<long,5>{batch_size,nwalk,nocc_max,nocc_max,nchol});   
-          auto Tr3d = nda::reshape(T2buff,std::array<long,3>{batch_size,nwalk*nocc_max,nocc_max*nchol});   
-          auto Tr5d = nda::reshape(T2buff,std::array<long,5>{batch_size,nwalk,nocc_max,nocc_max,nchol});   
+          memory::array_view<MEM,ComplexType,3,nda::C_layout> Tl3d(std::array<long,3>{batch_size,nwalk*nocc_max,nocc_max*nchol},T1buff.data()); 
+          auto Tl5d = nda::reshape(Tl3d,std::array<long,5>{batch_size,nwalk,nocc_max,nocc_max,nchol});   
+          memory::array_view<MEM,ComplexType,3,nda::C_layout> Tr3d(std::array<long,3>{batch_size,nwalk*nocc_max,nocc_max*nchol},T2buff.data()); 
+          auto Tr5d = nda::reshape(Tr3d,std::array<long,5>{batch_size,nwalk,nocc_max,nocc_max,nchol});   
 
           // simple implementation for now
           Av.clear();

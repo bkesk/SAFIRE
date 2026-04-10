@@ -76,7 +76,11 @@ def plot_lattice(
     if Dx == 0: Dx = max(1,Dy)
     if Dy == 0: Dy = max(1,Dx)
 
-    fig_scale = 2
+    if kwargs.get("fig_scale",None) is not None:
+        fig_scale = kwargs.get("fig_scale")
+    else:
+        fig_scale = 2
+
     fig,ax = plt.subplots(1,1,figsize=(Dx*fig_scale,Dy*fig_scale))
     
 
@@ -103,7 +107,7 @@ def plot_lattice(
     else:
         title_string = f"{Lx}x{Ly} {lattice_type} Lattice"
 
-    ax.set_title(title_string, fontsize=20, verticalalignment='bottom')
+    ax.set_title(title_string, fontsize=20, verticalalignment='bottom', pad = 20)
     ax.set_xlabel("x", fontsize=14)
     ax.set_ylabel("y", fontsize=14)
 

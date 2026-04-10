@@ -87,31 +87,27 @@ def get_aimbes_hamil_enum(hamil_type:str|AIMBESHamiltonian) -> AIMBESHamiltonian
 class TRIQS_HDF5_File:
     """
     Dataclass to contain orbitals and relevant data
-      from the TRIQS internal format.
-
-    Attributes
-    ----------
-    name : str
-        The name of the file that Wannier orbitals were read from.
-    kpts : np.array
-        Array containing all k-points in fractional coordinates
-    proj_mat : np.array
-        Has shape Nspin x Nkpt x Ndefect x Norb x Nband ). Defines the 
-        projection from the Kohn-Sham (KS) band basis into
-        the basis defined in the file called "name"
-    band_window : np.array
-        An array containing the range of KS bands used as inputs to the 'proj_mat'
-    wan_centres : np.array | None
-        (if applicable) contains the spatial centers of Wannier orbitals. These are
-        used within AIMBES to translate Wannier orbitals into the home cell. Do not 
-        set these if you aren't using Wannier orbitals!
+    from the TRIQS internal format.
     """
 
     name:str
+    """The name of the file that Wannier orbitals were read from."""
     kpts:np.ndarray
+    """Array containing all k-points in fractional coordinates."""
     proj_mat:np.ndarray
+    """
+    Has shape (Nspin x Nkpt x Ndefect x Norb x Nband). Defines the
+    projection from the Kohn-Sham (KS) band basis into
+    the basis defined in the file called "name".
+    """
     band_window:np.ndarray
+    """An array containing the range of KS bands used as inputs to the 'proj_mat'."""
     wan_centres:np.ndarray
+    """
+    (if applicable) contains the spatial centers of Wannier orbitals. These are
+    used within AIMBES to translate Wannier orbitals into the home cell. Do not
+    set these if you aren't using Wannier orbitals!
+    """
 
 
 def read_triqs_hdf5(fname)->TRIQS_HDF5_File:
@@ -140,7 +136,7 @@ def check_aimbes_energy(aimbes_file,H1,V_abcd,scf_iter=1,mode="mixed"):
 
     Can evaluate the energy in two modes:
     
-    - (defualt) : 'mixed_mode' mimics the output of AIMBES. The energy 
+    - (default) : 'mixed_mode' mimics the output of AIMBES. The energy
       at iteration n is defined as:
       
       E^{mixed HF}_{n} = Tr[ D_{n} H1 ] + Tr[ F[ D_{n-1} ] D_{n} ]
@@ -812,7 +808,7 @@ def _infer_aimbes_hamil_type(aimbes_fname,hamil_type=None,sc_iter=1) -> AIMBESHa
 
     When the contents of 'aimbes_fname' are consistent with 
     mutiple Hamiltonian types, the most general hamiltonian
-    possible will be infered (unless 'hamil_type' is given.)
+    possible will be inferred (unless 'hamil_type' is given.)
 
     If 'hamil_type` is specified, then 'aimbes_fname' is checked
     for consistency with the 'hamil_type' and an error is raised
@@ -913,7 +909,7 @@ def read_aimbes_Hamiltonian(fname:str,hamil_type=None,omega=0,chol_tol=1.0e-6,sc
 
     - :math:`\hat{H}_0` is the non-interacting Hamiltonian
     - :math:`\hat{V}_{HF}` is the Hartree-Fock potential (i.e. 2*J - K ) evaluated over the full hilbert space
-    - :math:`\hat{V}_{HF-DC}` is the doulbe counting correction for :math:`\hat{V}_{HF}` (2*J -K evaluated in the active space. For calculations in the full Hilbert space, this is identical to :math:`\hat{V}_{HF}`)
+    - :math:`\hat{V}_{HF-DC}` is the double counting correction for :math:`\hat{V}_{HF}` (2*J -K evaluated in the active space. For calculations in the full Hilbert space, this is identical to :math:`\hat{V}_{HF}`)
 
     The "types" of Hamiltonian that can be read are:
 
@@ -928,7 +924,7 @@ def read_aimbes_Hamiltonian(fname:str,hamil_type=None,omega=0,chol_tol=1.0e-6,sc
         If not specified, the hamil_type will be inferred based on
         the contents of the 'fname'.
     omega : int, optional
-        The index of the frequency to use for the paritally screened
+        The index of the frequency to use for the partially screened
         Coulomb interaction
     chol_tol : float, optional
         Cholesky tolerance

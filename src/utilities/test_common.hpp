@@ -31,6 +31,8 @@
 #include "utilities/type_traits.hpp"
 #include "nda/nda.hpp"
 #include "utilities/mpi_context.h"
+#include "AFQMC/config.h"
+#include "IO/app_loggers.h"
 
 namespace sfqmc {
 namespace utils {
@@ -50,30 +52,85 @@ inline constexpr std::string unit_test_base()
 
 inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd) 
 {
-  std::vector< std::tuple<std::string, std::string> > files;
+  std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> > files;
   auto pre = unit_test_base() + "molecules/";
-  if(nomsd) { 
+  if(nomsd) {
     if(rhf) {
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_closed.h5", 
-                                          pre + "BH/afqmc_inputs/afqmc_rhf_nomsd.h5") );
+                                          pre + "BH/afqmc_inputs/afqmc_rhf_nomsd.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
     } 
     if(uhf) {
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
-                                          pre + "BH/afqmc_inputs/afqmc_uhf_nomsd.h5") );
+                                          pre + "BH/afqmc_inputs/afqmc_uhf_nomsd.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
-                                          pre + "BH/afqmc_inputs/afqmc_uhf_nomsd_init_rhf.h5") );
-    }    
+                                          pre + "BH/afqmc_inputs/afqmc_uhf_nomsd_init_rhf.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      files.emplace_back( std::make_tuple(pre + "Li/afqmc_inputs/hamil_closed.h5",
+                                          pre + "Li/afqmc_inputs/rohf_nomsd_fullypolarized.h5",
+                                          afqmc::FULLYPOLARIZED) );
+    }
     if(ghf) {
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_noncollinear.h5",
-                                          pre + "BH/afqmc_inputs/afqmc_ghf_nomsd.h5") );
+                                          pre + "BH/afqmc_inputs/afqmc_ghf_nomsd.h5",
+                                          afqmc::NONCOLLINEAR) );
+      files.emplace_back( std::make_tuple(pre + "Pb/afqmc_inputs/afqmc_H_rhf_basis_noncollinear_sf.h5",
+                                          pre + "Pb/afqmc_inputs/afqmc_ghf_sf_nomsd.h5",
+                                          afqmc::NONCOLLINEAR) );
+      // 🚧 Complex-value H1 in Q. Chem Hamiltonian got dropped! Add it back in after consulting with Miguel
+      //files.emplace_back( std::make_tuple(pre + "Pb/afqmc_inputs/afqmc_H_rhf_basis_noncollinear_soc.h5",
+      //                                    pre + "Pb/afqmc_inputs/afqmc_ghf_soc_nomsd.h5",
+      //                                    afqmc::UNDEFINED_WALKER_TYPE) );
     }
   }
   if (phmsd) {
-
+    if (uhf) {
+      // edge case: leading det only
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
+                                          pre + "BH/afqmc_inputs/afqmc_casci_uhf_1phmsd.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_uhf_collinear.h5",
+                                          pre + "BH/afqmc_inputs/afqmc_casci_uhf_phmsd.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      // may be redundant with above test: good for diversity of inputs
+      files.emplace_back(std::make_tuple(pre + "N2/afqmc_inputs/cas_basis_hamil.h5",
+                                        pre + "N2/afqmc_inputs/cas_wfn.h5",
+                                        afqmc::UNDEFINED_WALKER_TYPE));
+      }
   }
   return files;
 }
 
+
+inline constexpr auto lattice_unit_test_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd) 
+{
+  std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> > files;
+  auto pre = unit_test_base() + "lattices/";
+  if(nomsd) {
+    if(rhf) {
+      // Closed spin symmetry is not implemented - no tests expected to pass
+    } 
+    if(uhf) {
+      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_collinear.h5",
+                                          pre + "square4x4/afqmc_inputs/afqmc_uhf_nomsd.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+    }    
+    if(ghf) {
+      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_noncollinear.h5",
+                                          pre + "square4x4/afqmc_inputs/afqmc_ghf_nomsd.h5",
+                                          afqmc::NONCOLLINEAR) );
+    }
+  }
+  if (phmsd) {
+    if (uhf) {
+      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_collinear.h5",
+                                          pre + "square4x4/afqmc_inputs/afqmc_casci_uhf_phmsd.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+    }
+  }
+  return files;
+}
 
 
 /* Checks if a file exists in the file system */
@@ -88,7 +145,6 @@ inline std::shared_ptr<mpi_context_t<mpi3::communicator>>& make_unit_test_mpi_co
   if(not detail::__unit_test_mpi_context__) {
     detail::__unit_test_mpi_context__ =
          std::make_shared<mpi_context_t<boost::mpi3::communicator>>(make_mpi_context());
-
   }
   return detail::__unit_test_mpi_context__;
 }

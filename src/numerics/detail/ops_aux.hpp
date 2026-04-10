@@ -25,6 +25,7 @@
  * Auxiliary functions 
  */ 
 
+#include <cctype>
 #include <utility>
 #include <type_traits>
 #include "nda/nda.hpp"
@@ -32,8 +33,8 @@
 namespace math
 {
 
-constexpr bool is_valid_op(char op) { return ((op == 'N') or
-            (op == 'T') or (op == 'H') or (op == 'C')); };
+constexpr bool is_valid_op(char op) { return (op == 'N') or
+            (op == 'T') or (op == 'H'); };
 
 namespace detail
 {

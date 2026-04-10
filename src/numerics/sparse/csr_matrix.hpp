@@ -522,17 +522,17 @@ public:
   auto operator()() const { return *this; }
 
   auto row_begin_device() const {
-    if constexpr (MEM==HOST_MEMORY) {
-      return row_begin_();
-    } else {
+    if constexpr (MEM==DEVICE_MEMORY) {
       return row_begin_dev_();
+    } else {
+      return row_begin_();
     } 
   }
   auto row_end_device() const {
-    if constexpr (MEM==HOST_MEMORY) {
-      return row_end_();
-    } else {
+    if constexpr (MEM==DEVICE_MEMORY) {
       return row_end_dev_();
+    } else {
+      return row_end_();
     }
   } 
 };

@@ -64,7 +64,7 @@ void csrmv(char oper_A,typename A::value_type alpha, A const& a, X const &x, typ
   auto cuY = cuDn(y);  
 
   memory::buffered_array<MEM,int_type,1> ofs(m+1,int_type(0));
-  auto op_A = get_operation(oper_A); 
+  auto op_A = get_operation<value_type>(oper_A);
   auto cuA = cuCSR(a,ofs);
    
   // allocate an external buffer if needed
@@ -130,8 +130,8 @@ void csrmm(char oper_A, char oper_B, typename A::value_type alpha, A const& a, B
   
   auto handle = get_cusparse_handle_ptr();
   // not enabled yet. Take as argument if needed and implement custom backend in cpu.
-  auto op_A = get_operation(oper_A); 
-  auto op_B = get_operation(oper_B); 
+  auto op_A = get_operation<value_type>(oper_A);
+  auto op_B = get_operation<value_type>(oper_B);
   auto cuB = cuDn(b);
   auto cuC = cuDn(c);
 
