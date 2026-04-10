@@ -296,7 +296,7 @@ public:
   int number_of_cholesky_vectors() const { return wfn->number_of_cholesky_vectors(); }
 
   // constructs the 1-body hamiltonian for propagation and generates the propagator
-  // if Pinv = true, the routine builds the invere of the propagator and stores it in P_inv
+  // if Pinv = true, the routine builds the inverse of the propagator and stores it in P_inv
   void generateP1(double dt, WALKER_TYPES walker_type, bool Pinv = false);
 
   template<class WlkSet>
@@ -436,7 +436,7 @@ protected:
   template<typename T>
   T apply_bound_vbias(T v, RealType sqrtdt)
   {
-    // explict caste to avoid compiler warnings when T is std::complex<float>.
+    // explicit cast to avoid compiler warnings when T is std::complex<float>.
     return (std::abs(v) > std::abs(static_cast<T>(static_cast<SPRealType>(vbias_bound * sqrtdt))))
         ? (v / (std::abs(v) / static_cast<T>(static_cast<SPRealType>(vbias_bound * sqrtdt))))
         : (v);

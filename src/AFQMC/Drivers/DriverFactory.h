@@ -77,7 +77,7 @@ public:
       auto nWalkers = pt0.get<int>("n_walkers_per_mpi_task", 10);
       auto timestep = pt0.get<double>("timestep", 0.01);
       auto iseed = pt0.get<int>("seed", 0);
-      // local energy importance sampling will ignore "initial_Eshfit", if provided, with a warning
+      // local energy importance sampling will ignore "initial_Eshift", if provided, with a warning
       auto Eshift = pt0.get<double>("initial_Eshift", 0.0); 
       pt1.put("hdf_read_file", hdf_read_file);
       pt1.put("set_nwalker_to_target", set_nwalker_to_target);
@@ -96,7 +96,6 @@ public:
       "hamiltonian",
       "hdf_write_file",
       "steps",
-      "accumlate_interval",
       "population_control_interval",
       "measure_interval_multiplier",
       "fix_bias",
@@ -134,7 +133,7 @@ public:
       } else {
         utils::check(false,"cs_system_N not found."); 
       }
-      // check for unkown input keys
+      // check for unknown input keys
       std::unordered_set<std::string> pass_through_keys = {
         "walker_set",
         "wavefunction",

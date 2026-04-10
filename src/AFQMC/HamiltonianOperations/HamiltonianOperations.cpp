@@ -28,7 +28,7 @@
 
 // MAM: Once all hamiltonians are implemented, measure the compilation time 
 //      with and without instantiations. Remove all this and go back to the
-//      header only version if the compilation times are not reduced signifficantly
+//      header only version if the compilation times are not reduced significantly
 
 namespace sfqmc
 {

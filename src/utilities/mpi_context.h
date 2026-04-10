@@ -55,7 +55,7 @@ struct mpi_context_t {
   template<typename Op, bool use_gpu = true>
   void all_reduce(nda::Array auto&& A, Op&& op)
   {
-    utils::check(A.is_contiguous(),"mpi_context_t::broadcast: Array must be contiguous.");
+    utils::check(A.is_contiguous(),"mpi_context_t::all_reduce: Array must be contiguous.");
     comm.all_reduce_in_place_n(A.data(),A.size(),op);
   }
 

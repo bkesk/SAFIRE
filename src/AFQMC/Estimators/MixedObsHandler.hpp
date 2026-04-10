@@ -40,7 +40,7 @@ namespace afqmc
  * This class also handles all the hdf5 I/O (given a hdf archive).
  * Since n-body observables (n>1) require an explicit sum over references, 
  * they are treated separately if the number of references is > 1.
- * A customized implementation for PHMSD will be ubilt in the future if needed. 
+ * A customized implementation for PHMSD will be built in the future if needed. 
  */
 template<MEMORY_SPACE MEM>
 class MixedObsHandler : public AFQMCInfo

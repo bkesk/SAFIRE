@@ -946,7 +946,7 @@ public:
   { return nda::array<ComplexType, 2>{}; }
 
 protected:
-  // keeping communicators here seems unnecesary
+  // keeping communicators here seems unnecessary
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
   WALKER_TYPES walker_type;

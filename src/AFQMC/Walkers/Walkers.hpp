@@ -36,7 +36,7 @@ namespace afqmc
  * Basic class to access/interface walker information.
  * It uses wlk_indices and wlk_descriptor to translate a linear, contiguous segment
  * of memory into walker properties.
- * The localtion of the memory is determined at construction of the object, it is a runtime property.
+ * The location of the memory is determined at construction of the object, it is a runtime property.
  */ 
 template<MEMORY_SPACE MEM, typename _value_t_>
 struct walker

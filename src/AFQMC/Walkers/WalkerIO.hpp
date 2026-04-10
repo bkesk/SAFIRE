@@ -180,7 +180,7 @@ bool restartFromHDF5(WalkerSet& wset,
   h5::group grp(fh5);
   utils::check(grp.has_subgroup("Walkers"), " restartFromHDF5: Missing Walkers dataset.");
   h5::group sgrp = grp.open_group("Walkers"); 
-  utils::check(sgrp.has_subgroup("WalkerSet"), " restartFromHDF5: Missing WalkeriSet dataset.");
+  utils::check(sgrp.has_subgroup("WalkerSet"), " restartFromHDF5: Missing WalkerSet dataset.");
   h5::group wgrp = sgrp.open_group("WalkerSet");
   h5::h5_read(wgrp, "dims", Idata);
 

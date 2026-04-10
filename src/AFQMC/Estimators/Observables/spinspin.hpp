@@ -91,7 +91,7 @@ public:
 
     using std::fill_n;
     writer  = (TG.Global().rank() == 0);
-    // currenty 2* upper triangular since <SiSj> = <SjSi>
+    // currently 2* upper triangular since <SiSj> = <SjSi>
     dm_size = NMO*(NMO+1); 
     //if (walker_type == CLOSED)
     //  dm_size -= NMO * (NMO - 1) / 2;

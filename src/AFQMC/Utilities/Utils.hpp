@@ -64,7 +64,7 @@ void variance_based_truncation(Vec&& v, VType scale_)
     for(int i=0; i<nz; i++) var += (v[i] - av)*(v[i] - av);
     var /= nz;
     RType sig = rscl*std::sqrt(var);
-    // in case large deviations exist, which can dignificantly modify the variance,
+    // in case large deviations exist, which can significantly modify the variance,
     // I'm recalculating the variance with the requested truncation
     RType av1(0.0),var1(0.0);
     for(int i=0; i<nz; i++) av1 += (trunc(v[i],av,sig)); 
@@ -81,7 +81,7 @@ void variance_based_truncation(Vec&& v, VType scale_)
     for(int i=0; i<nz; i++) var += (std::real(v[i]) - av)*(std::real(v[i]) - av);
     var /= nz;
     RType sig = rscl*std::sqrt(var);
-    // in case large deviations exist, which can dignificantly modify the variance,
+    // in case large deviations exist, which can significantly modify the variance,
     // I'm recalculating the variance with the requested truncation
     RType av1(0.0),var1(0.0);
     for(int i=0; i<nz; i++) av1 += (trunc(std::real(v[i]),av,sig));

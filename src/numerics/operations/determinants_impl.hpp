@@ -60,7 +60,7 @@ struct log_determinant_from_getrf_impl
       else
         res(b) += log(T(-1.0)*static_cast<T>(a(b,i,i))+small);
     }
-    // bring imaginaty part to [-pi,pi]
+    // bring imaginary part to [-pi,pi]
     if(imag(res(b)) > pi) {
       while(imag(res(b)) > pi) {
         auto v = imag(res(b));

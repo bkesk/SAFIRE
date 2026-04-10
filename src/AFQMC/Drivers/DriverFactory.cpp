@@ -138,7 +138,7 @@ std::string DriverFactory<MEM>::get_system_id(ptree pt, std::string wfn_name)
         InfoMap.insert(std::pair<std::string, AFQMCInfo>(info.name, info));
       }
     } else if( auto val = pt_->get_value_optional<std::string>() ) {
-      // id of previosly declared block provided
+      // id of previously declared block provided
       if(*val != "") name = *val;
       else utils::check(false," Error: Found empty string in system tag.");
     } else
@@ -322,7 +322,7 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
       //    otherwise, use the value from input with warning
       if (Eshift != 0.0)
       {
-        app_warning("user set expert-level parameter, \"initial_Eshfit\" : Using user-provided initial Eshift = {}", Eshift);
+        app_warning("user set expert-level parameter, \"initial_Eshift\" : Using user-provided initial Eshift = {}", Eshift);
       }
     } else {
       if (Eshift != 0.0)

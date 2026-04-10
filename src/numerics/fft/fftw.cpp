@@ -96,7 +96,7 @@ fftplan_t create_plan_many_impl_(int rank, [[maybe_unused]] const int *n, int ho
 
 void destroy_plan(fftplan_t& p) 
 {
-  // if uninitialized, don;t check for backend
+  // if uninitialized, don't check for backend
   if(p.fwd==nullptr and p.inv==nullptr) return; 
   sfqmc::utils::check(p.bend == FFT_BACKEND_FFTW,"Incorrect FFT backend.");
   fftw_plan* fwd = reinterpret_cast<fftw_plan*>(p.fwd);

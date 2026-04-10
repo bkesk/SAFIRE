@@ -44,12 +44,12 @@ namespace det_ops
       // Selecting last element as the pivot
       auto pivot = A(high);
 
-      // Index of elemment just before the last element
+      // Index of element just before the last element
       // It is used for swapping
       int i = (low - 1);
 
       for (int j = low; j <= high - 1; j++) {
-        // If current element is great than pivot
+        // If current element is greater than pivot
         if (A(j).real() >= pivot.real()) {
             i++;
             std::swap(A(i), A(j));
@@ -173,7 +173,7 @@ void orthogonalize(A_t && A, B_t && log_detR)
  /**
    * @brief Performs batched finite temperature stabilization procedure for product of propagator matrices
    * @details Given the arrays \f$ \mathbf{U}\f$, \f$ \mathbf{D}\f$ and \f$ \mathbf{V}\f$ representing the product
-   * of progator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
+   * of propagator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
    * function stabilizes the matrices by first computing the pivoted-QR decomposition of 
    * \f$\mathbf{U}\mathbf{D} = \mathbf{Q}\mathbf{R}\mathbf{P}^{\mathsf T}\f$.
    *
@@ -341,7 +341,7 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
  /**
    * @brief Performs batched finite temperature stabilization procedure for product of propagator matrices
    * @details Given the arrays \f$ \mathbf{U}\f$, \f$ \mathbf{D}\f$ and \f$ \mathbf{V}\f$ representing the product
-   * of progator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
+   * of propagator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
    * function stabilizes the matrices using the SVD decomposition of 
    * \f$\mathbf{U}\mathbf{D} = \tilde{\mathbf{U}}\tilde{\mathbf{D}}\tilde{\mathbf{V}}^\dagger\f$.
    *
