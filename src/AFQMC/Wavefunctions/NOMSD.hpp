@@ -349,12 +349,12 @@ public:
 
   void updateLogScale(auto scl_new, SpinTypes s)
   {
-    utils::check(false, "updateLogScale is not compatible with ground state calculations");
+    utils::check(false, "updateLogScale is not implemented for ground state calculations");
   }
 
   auto getLogScale(SpinTypes s)
   {
-    utils::check(false, "getLogScale is not compatible with ground state calculations"); 
+    utils::check(false, "getLogScale is not implemented for ground state calculations"); 
   }
 
 protected:

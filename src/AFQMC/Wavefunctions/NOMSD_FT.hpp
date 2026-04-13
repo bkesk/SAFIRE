@@ -289,32 +289,48 @@ public:
     Log_Overlap(wset, ovlp, nt);
     wset.setProperty(OVLP, ovlp);
   }
-/*
-  template<class... Args>
-  void accumulate_estimators(Args&&... args)
-  {
-    if(ci.size()>1)
-      accumulate_estimators_general_impl(std::forward<Args>(args)...);
-    else
-      accumulate_estimators_single_ref_impl(std::forward<Args>(args)...);    
-  }
-*/
+
   /*
-   * Returns the number of reference Slater Matrices needed for back propagation.  
+   * Calculates Green functions and calls Observables.
    */
-  int number_of_references_for_back_propagation() const
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
+        nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
+        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true, int nt=0);
+  
+  /*
+   * Calculates Green functions and calls Observables.
+   */
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body,
+        std::vector<Observable>& properties, bool importanceSampling = true, int nt = 0)
   {
-    return OrbMats.extent(0);
+    memory::buffered_array<MEM,ComplexType,4> *X = nullptr;
+    accumulate_estimators(iav,wset,wgt,properties_1body,properties,X,X,X,false,importanceSampling,nt);
   }
 
-  ComplexType getReferenceWeight(int i) const { return ci[i]; }
-
   /*
-    * Returns the reference Slater Matrices needed for back propagation.  
-    */
-  auto getReferences() const
+   * Calculates Green functions and calls Observables.
+   */
+  /*
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
+        bool importanceSampling=true, int nt=0);
+  */
+  ComplexType getReferenceWeight(int i) const { 
+    utils::check(false, "back propagation not implemented for finite-T");
+  }
+
+  int total_number_of_references() const { 
+    utils::check(false, "back propagation not implemented for finite-T");
+  }
+
+  void getReferences(int number_of_references, nda::MemoryArrayOfRank<3> auto&& Refs) const
   {
-    return OrbMats;
+    utils::check(false, "back propagation not implemented for finite-T");
   }
 
   void updateLogScale(auto scl_new, SpinTypes s)
