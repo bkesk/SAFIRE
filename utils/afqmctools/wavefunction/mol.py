@@ -363,6 +363,59 @@ def _make_slater_gto(scf_data,walker_type=None,verbose=False):
         raise ValueError("Invalid Slater determinant type")
 
 
+def _get_occupied_indices(mo_occ, walker_type, nfzc=0, nfzv=0):
+    """Return occupied orbital indices for each spin sector.
+
+    Indices are returned in the basis used to build the default AFQMC init
+    state. When a CAS is requested, occupied orbitals are trimmed to the active
+    window and shifted so they are local to that active-space basis.
+    """
+    mo_occ = np.asarray(mo_occ)
+    walker_type = _slater_enum_map(walker_type)
+
+    def _trim_active_space(indices):
+        indices = np.asarray(indices, dtype=np.int32)
+        if nfzc == 0 and nfzv == 0:
+            return indices
+
+        active_stop = mo_occ.shape[-1] - nfzv
+        active_indices = indices[(indices >= nfzc) & (indices < active_stop)]
+        return active_indices - nfzc
+
+    if walker_type == _SlaterType.CLOSED:
+        occ = np.flatnonzero(mo_occ >= 1)
+        occ = _trim_active_space(occ)
+        return occ, occ
+
+    if walker_type == _SlaterType.COLLINEAR:
+        if mo_occ.ndim == 1:
+            occa = np.flatnonzero(mo_occ > 0)
+            occb = np.flatnonzero(mo_occ > 1)
+        elif mo_occ.ndim == 2:
+            occa = np.flatnonzero(mo_occ[0] > 0)
+            occb = np.flatnonzero(mo_occ[1] > 0)
+        else:
+            raise ValueError("Invalid mo_occ shape for collinear walkers")
+
+        return _trim_active_space(occa), _trim_active_space(occb)
+
+    if walker_type == _SlaterType.NONCOLLINEAR:
+        occ = np.flatnonzero(mo_occ >= 1)
+        return _trim_active_space(occ), None
+
+    if walker_type == _SlaterType.FULLYPOLARIZED:
+        if mo_occ.ndim == 1:
+            occa = np.flatnonzero(mo_occ > 0)
+        elif mo_occ.ndim == 2:
+            occa = np.flatnonzero(mo_occ[0] > 0)
+        else:
+            raise ValueError("Invalid mo_occ shape for fully polarized walkers")
+
+        return _trim_active_space(occa), None
+
+    raise ValueError("Invalid Slater determinant type")
+
+
 def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
                   init=None, verbose=False, cas=None):
     """Generate SAFIRE format trial wavefunction.
@@ -396,13 +449,16 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
         Wavefunction as numpy array. Format depends on wavefunction.
     """
 
-    nelec = scf_data['nelec']        
+    nelec = scf_data['nelec']
+    occ = scf_data['mo_occ']
     # the basis size
     ngto = norb = scf_data['norb']
     # ensure valid walkers up-front
     walker_type = _slater_enum_map(
         scf_data['walker_type']
     )
+    nfzc = 0
+    nfzv = 0
     if cas is not None:
         nfzc = (sum(nelec) - cas[0]) // 2
         nfzv = norb - nfzc - (cas[1] if cas[1] != -1 else
@@ -416,7 +472,26 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
             print(f"Freezing {nfzc} core orbitals and {nfzv} virtual orbitals.")
         norb -= (nfzc + nfzv)
         nelec = (nelec[0]-nfzc, nelec[1]-nfzc)
-    
+        # a collinear walker can become fully-polarized with a sufficiently large frozen core!
+        if walker_type == _SlaterType.COLLINEAR and nelec[1] == 0:
+            walker_type = _SlaterType.FULLYPOLARIZED
+
+    occa, occb = _get_occupied_indices(
+        occ,
+        walker_type,
+        nfzc=nfzc,
+        nfzv=nfzv
+    )
+
+    if len(occa) != nelec[0]:
+        raise ValueError(
+            f"mo_occ defines {len(occa)} alpha occupied orbitals, expected {nelec[0]}"
+        )
+    if occb is not None and len(occb) != nelec[1]:
+        raise ValueError(
+            f"mo_occ defines {len(occb)} beta occupied orbitals, expected {nelec[1]}"
+        )
+
     # Catch spin-contaminated initial wavefunctions
     if walker_type == _SlaterType.COLLINEAR and init is None:
         print("Walker type is UHF/collinear; using RHF/ROHF-like initial wavefunction "
@@ -425,19 +500,18 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
             np.zeros((norb,nelec[0]),dtype=np.complex128),
             np.zeros((norb,nelec[1]),dtype=np.complex128)
         ]
-        init[0][:nelec[0]] = np.eye(nelec[0])
-        init[1][:nelec[1]] = np.eye(nelec[1])
+        init[0][occa, np.arange(nelec[0])] = 1.0
+        init[1][occb, np.arange(nelec[1])] = 1.0
     elif walker_type == _SlaterType.NONCOLLINEAR and init is None:
         print("Walker type is GHF/noncollinear; using RHF-like initial wavefunction "
               "for a pure spin state. See J. Chem. Phys. 128, 114309 (2008) DOI: /10.1063/1.2838983")
         init = np.zeros((1,2*norb,nelec[0]+nelec[1]),dtype=np.complex128)
-        init[0,:norb,:nelec[0]] = np.eye(norb, nelec[0])
-        init[0,norb:,nelec[0]:] = np.eye(norb, nelec[1])
+        init[0, occa, np.arange(nelec[0] + nelec[1])] = 1.0
     elif walker_type == _SlaterType.FULLYPOLARIZED and init is None:
         print("Walker type is fully polarized; using RHF-like initial wavefunction "
               "for a pure spin state. See J. Chem. Phys. 128, 114309 (2008) DOI: /10.1063/1.2838983")
         init = np.zeros((1,norb,nelec[0]),dtype=np.complex128)
-        init[0] = np.eye(norb,nelec[0])
+        init[0][occa, np.arange(nelec[0])] = 1.0
 
     if wfn is None:
 
@@ -516,7 +590,6 @@ def write_cas_wfn(mol, cas_chkfile, outname='afqmc_wfn.h5', tol_trunc=1.0e-4, ma
     ]
 
     nmo = mol.nao_nr()
-                                                                                                                                                                             
     ci, occa, occb = ci_wavefunction(
         ciab,
         ncas,
@@ -529,7 +602,7 @@ def write_cas_wfn(mol, cas_chkfile, outname='afqmc_wfn.h5', tol_trunc=1.0e-4, ma
     ndet = len(ci)
     print('number of determinants: %d' % ndet)
 
-    ci = np.array(ci, dtype=np.complex128)                                                                                                                                   
+    ci = np.array(ci, dtype=np.complex128)
     uhf = True # UHF always true for CI expansions.
     write_wfn(
         outname,

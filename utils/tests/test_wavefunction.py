@@ -16,6 +16,7 @@ import h5py
 import scipy.sparse as sps
 
 from afqmctools.wavefunction import mol,pbc
+from afqmctools.utils.io import from_complex
 from afqmctools.wavefunction.free_electron import (
     _group_eigenvalues_by_shell,
     _fill_shells,
@@ -30,10 +31,8 @@ class TestMolWavefunction:
 
 
     def test_write_wfn_mol(self,neon_atom,neon_rhf,tmp_path):
-        
         atom = neon_atom
         mf,_ = neon_rhf
-        
         scf_data = {
             'mol': atom,
             'mo_coeff': mf.mo_coeff,
@@ -51,6 +50,56 @@ class TestMolWavefunction:
             dims = fh5['Wavefunction/NOMSD/dims'][:]
 
         assert (dims == [5,5,5,1,1]).all()
+
+    def test_write_wfn_mol_init_uses_mo_occ_for_collinear(self, tmp_path):
+        scf_data = {
+            'mo_occ': np.array([2, 0, 2, 0]),
+            'nelec': (2, 2),
+            'norb': 4,
+            'walker_type': 'collinear'
+        }
+        wfn = np.eye(4, dtype=np.complex128)
+
+        mol.write_wfn_mol(scf_data, tmp_path/'collinear_init.h5', wfn=wfn)
+
+        with h5py.File(tmp_path/'collinear_init.h5', 'r') as fh5:
+            init_alpha = from_complex(fh5['Wavefunction/NOMSD/Psi0_alpha'][:], shape=(4, 2))
+            init_beta = from_complex(fh5['Wavefunction/NOMSD/Psi0_beta'][:], shape=(4, 2))
+
+        expected = np.array(
+            [[1, 0],
+             [0, 0],
+             [0, 1],
+             [0, 0]],
+            dtype=np.complex128
+        )
+
+        assert np.allclose(init_alpha, expected)
+        assert np.allclose(init_beta, expected)
+
+    def test_write_wfn_mol_init_uses_mo_occ_for_fully_polarized(self, tmp_path):
+        scf_data = {
+            'mo_occ': np.array([1, 0, 1, 0]),
+            'nelec': (2, 0),
+            'norb': 4,
+            'walker_type': 'fully_polarized'
+        }
+        wfn = np.eye(4, 2, dtype=np.complex128)
+
+        mol.write_wfn_mol(scf_data, tmp_path/'fp_init.h5', wfn=wfn)
+
+        with h5py.File(tmp_path/'fp_init.h5', 'r') as fh5:
+            init_alpha = from_complex(fh5['Wavefunction/NOMSD/Psi0_alpha'][:], shape=(4, 2))
+
+        expected = np.array(
+            [[1, 0],
+             [0, 0],
+             [0, 1],
+             [0, 0]],
+            dtype=np.complex128
+        )
+
+        assert np.allclose(init_alpha, expected)
 
 
 @pytest.mark.pyscf
