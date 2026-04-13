@@ -307,13 +307,29 @@ TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
 #endif
   } else {
     app_log(0,"WavefunctionFactory unit testing. Running standard tests.");
-    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    auto files = utils::get_unit_tests_files(true,true,true,true,false);
     for( auto f : files ) {
-      wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
-      wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      try {
+        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
+      }
+      try {
+        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
+      }
 #if defined(ENABLE_DEVICE)
-      wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
-      wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      try {
+        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
+      }
+      try {
+        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
+      }
 #endif
     }
   }
