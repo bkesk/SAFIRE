@@ -148,6 +148,15 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     app_log(1," EXX: {}", wset[0].get_property(EXX_));
   }
 
+  // must initialize discrete propagators for lattice models before calling vMF, vbias, etc.
+  // technically, only for discrete propagators, but we don't access to that info here.
+  if (wfn.getHamType() == ModelHamiltonian) { 
+      const long ncv = wfn.number_of_cholesky_vectors();
+      memory::array<MEM,ComplexType, 1> vMF_discrete(ncv, ComplexType(0.0, 0.0));
+      memory::array<MEM,ComplexType, 1> nMF(2 * NMO, ComplexType(0.0, 0.0));
+      wfn.update_potentials(dt, nMF, vMF_discrete, false);
+  }
+
   // vMF
   {
     memory::array<MEM,ComplexType,1> v(wfn.number_of_cholesky_vectors());
