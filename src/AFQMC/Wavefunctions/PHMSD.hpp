@@ -97,7 +97,7 @@ public:
       APP_ABORT("PHMSD has not yet been implemented for FULLYPOLARIZED walkers.");
 
     const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
-    utils::check(OrbMats.extent(0)==1 or OrbMats.extent(0)==nspin, "PHMSD: Invalid sise of OrbMats");
+    utils::check(OrbMats.extent(0)==1 or OrbMats.extent(0)==nspin, "PHMSD: Invalid size of OrbMats");
 
     // setup device structures
 
@@ -255,7 +255,7 @@ public:
   }
 
   /*
-   * Returns the Hubbard-Stratonovoch potential. 
+   * Returns the Hubbard-Stratonovich potential. 
    *  Input:
    *    - X: [# chol vecs][nW]
    *  Output:
@@ -470,7 +470,7 @@ protected:
 
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
   void energy_alg2(const WlkSet& wset, Mat&& E, TVec&& Ov)
-  { utils::check(false, "fiinish"); }
+  { utils::check(false, "not implemented"); }
 
 };
 

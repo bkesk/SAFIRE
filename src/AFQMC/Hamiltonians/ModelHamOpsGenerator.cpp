@@ -41,7 +41,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
   std::string base_error("Error in ModelHamOpsGenerator::spin_to_walker_type(...): ");
   if(stype == "closed") {
     utils::check(hij.shape() == std::array<long,2>{NMO,NMO}, 
-                 base_error + " Inconsistent matrix dimention in one_body::tij. ");
+                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
     if(type == CLOSED) {
       utils::check(false," Error: Model Hamiltonians not allowed with CLOSED walkers. ");
     } else if(type == COLLINEAR) {
@@ -53,7 +53,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
     }
   } else if(stype == "collinear") {
     utils::check(hij.shape() == std::array<long,2>{2*NMO,NMO}, 
-                 base_error + " Inconsistent matrix dimention in one_body::tij. ");
+                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
     if(type == CLOSED) {
       utils::check(false," Error: Model Hamiltonians not allowed with CLOSED walkers. ");
     } else if(type == COLLINEAR or type == COLLINEAR_FT) {
@@ -65,7 +65,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
     }
   } else if(stype == "noncollinear") {
     utils::check(hij.shape() == std::array<long,2>{2*NMO,2*NMO}, 
-                 base_error + " Inconsistent matrix dimention in one_body::tij. ");
+                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
     if(type == NONCOLLINEAR or type == NONCOLLINEAR_FT) {
       return hij;
     } else { 
@@ -212,7 +212,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
       else
         utils::check(false,base_error + " Unknown hst_type: " + hst_type);
 
-      app_log(1, "Hamiltonian component {} is using Hubbard-Stratanovich transformation type {} or Hubbard U", n, hst_type);
+      app_log(1, "Hamiltonian component {} is using Hubbard-Stratonovich transformation type {} or Hubbard U", n, hst_type);
 
       {
         // doing this "by hand" to impose condition i>j
@@ -269,7 +269,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
       } else 
         utils::check(false,base_error + " Unknown hst_type: " + hst_type);
     
-      app_log(1, "Hamiltonian component {} is using Hubbard-Stratanovich transformation type {} for Hubbard J", n, hst_type);
+      app_log(1, "Hamiltonian component {} is using Hubbard-Stratonovich transformation type {} for Hubbard J", n, hst_type);
 
       { 
         // doing this "by hand" to impose condition i>j

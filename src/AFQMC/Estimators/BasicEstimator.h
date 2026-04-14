@@ -248,7 +248,7 @@ private:
   RealType weight = 0.0, weight_sub = 0.0, ovlp = 0.0;
   int nwalk_good, nwalk, ncalls, ncalls_substep, nwalk_sub, nwalk_min, nwalk_max;
 
-  // this is usder for scheduling "accumulate_block" calls
+  // this is used for scheduling "accumulate_block" calls
   int measure_interval = 1;
 
   // optional

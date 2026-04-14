@@ -85,7 +85,7 @@ auto nocc_per_kpoint(WALKER_TYPES type, int nkpts, nda::array<PsiT_Matrix<MEM>,2
         nocc(is,kp)++;
       }
     }
-    utils::check(nda::sum(nda::abs(nocc()-nocc_per_kp())) == 0, "Error: Occupation numbers for eack kpoint differ between determinants, idet:{}",id);
+    utils::check(nda::sum(nda::abs(nocc()-nocc_per_kp())) == 0, "Error: Occupation numbers for each kpoint differ between determinants, idet:{}",id);
   }
   return nocc_per_kp;
 }

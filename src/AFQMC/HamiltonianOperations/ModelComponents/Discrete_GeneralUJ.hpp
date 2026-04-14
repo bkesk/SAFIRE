@@ -203,7 +203,7 @@ private:
   // interacting term.
   memory::shared_array<MEM,ComplexType,1> h0;
 
-  // 1-body part of MF substaction. Not given by vMF in discrete case!!!
+  // 1-body part of MF subtraction. Not given by vMF in discrete case!!!
   memory::shared_array<MEM,ComplexType,1> hMF;
 
   // need to keep a copy of the U matrix. Keeping on host memory.
@@ -219,7 +219,7 @@ private:
   // and on MF onsite occupations.    
   // follows addComponent from Hamiltonians/ModelHamOpsGenerator.icc, 
   // but uses correct prefactors, which are now functions of dt*U and nMFJ = <nI +- nJ>   
-  // assumes nMF[i] = <c^{+}_i c_i>_MF is the mean-field site occupations. UHF convenstion for
+  // assumes nMF[i] = <c^{+}_i c_i>_MF is the mean-field site occupations. UHF convention for
   // spin ordering (e.g. all up, followed by all down).   
   // assuming onsite densities are real...
   // This is a collective call!
@@ -250,7 +250,7 @@ private:
  
       nda::array<ComplexType,1> hMF_h(nIJ, ComplexType(0.0));
       math::sparse::csr_matrix<ComplexType, HOST_MEMORY, int, int> VnT({SpVnT.extent(0),SpVnT.extent(1)},4); 
-      // save parameters to avoid excesve recalculation
+      // save parameters to avoid excessive recalculation
       std::vector<std::tuple<RealType,RealType,ComplexType,ComplexType>> params; 
 
       // opposite spin terms

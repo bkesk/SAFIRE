@@ -243,7 +243,7 @@ void fwdfft(fftplan_t& p, IMat && A)
     sfqmc::utils::check(::nda::get_rank<A_t> == p.rank, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
   } else {
     sfqmc::utils::check(::nda::get_rank<A_t> == p.rank+1, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
-    sfqmc::utils::check(p.howmany == A.shape()[0], "fwdfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
+    sfqmc::utils::check(p.howmany == A.shape()[0], "fwdfft: Rank mismatch: p.howmany:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
   }
   if constexpr (::nda::mem::on_host<IMat>) {
     impl::host::fwdfft(p,A.data(),A.data());
@@ -269,7 +269,7 @@ void fwdfft(fftplan_t& p, IMat && A, OMat && B)
     sfqmc::utils::check(::nda::get_rank<A_t> == p.rank, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
   } else {
     sfqmc::utils::check(::nda::get_rank<A_t> == p.rank+1, "fwdfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
-    sfqmc::utils::check(p.howmany == A.shape()[0], "fwdfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
+    sfqmc::utils::check(p.howmany == A.shape()[0], "fwdfft: Rank mismatch: p.howmany:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
   }
   if constexpr (::nda::mem::on_host<IMat>) {
     impl::host::fwdfft(p,A.data(),B.data());
@@ -292,7 +292,7 @@ void invfft(fftplan_t& p, IMat && A)
     sfqmc::utils::check(::nda::get_rank<A_t> == p.rank, "invfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
   } else {
     sfqmc::utils::check(::nda::get_rank<A_t> == p.rank+1, "invfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
-    sfqmc::utils::check(p.howmany == A.shape()[0], "invfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
+    sfqmc::utils::check(p.howmany == A.shape()[0], "invfft: Rank mismatch: p.howmany:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
   }
   if constexpr (::nda::mem::on_host<IMat>) {
     impl::host::invfft(p,A.data(),A.data());
@@ -316,7 +316,7 @@ void invfft(fftplan_t& p, IMat && A, OMat && B)
     sfqmc::utils::check(::nda::get_rank<A_t> == p.rank, "invfft: Rank mismatch: rank(A):{}, p.rank:{}, howmany:{}",::nda::get_rank<A_t>,p.rank,p.howmany);
   } else {
     sfqmc::utils::check(::nda::get_rank<A_t> == p.rank+1, "invfft: Rank mismatch: rank(A):{}, p.rank:{}",::nda::get_rank<A_t>,p.rank);
-    sfqmc::utils::check(p.howmany == A.shape()[0], "invfft: Rank mismatch: p.hownamy:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
+    sfqmc::utils::check(p.howmany == A.shape()[0], "invfft: Rank mismatch: p.howmany:{}, A.shape(0):{}",p.howmany, A.shape()[0]);
   }
   if constexpr (::nda::mem::on_host<IMat>) {
     impl::host::invfft(p,A.data(),B.data());

@@ -51,7 +51,7 @@ bool get_nocc_per_kp(Vector const& nmo_per_kp, CSR const& PsiT, Array&& nocc_per
       return false;
     }
     auto col = PsiT.non_zero_indices2_data(i);
-    // check the kp index of the first non-zero column. Mut be either >= Q
+    // check the kp index of the first non-zero column. Must be either >= Q
     auto it = std::lower_bound(bounds.begin(), bounds.end(), *col + 1) - 1;
     RUNTIME_CHECK(it != bounds.end(), "");
     int Q_   = std::distance(bounds.begin(), it) % nkpts;
@@ -99,7 +99,7 @@ Array get_PsiK(Vector const& nmo_per_kp, CSR const& PsiT, int K, bool noncolin =
     if (nt == 0)
       APP_ABORT("Error: PsiT not in block-diagonal form in get_PsiK.");
     auto col = PsiT.non_zero_indices2_data(i);
-    // check the kp index of the first non-zero column. Mut be either >= Q
+    // check the kp index of the first non-zero column. Must be either >= Q
     auto it = std::lower_bound(bounds.begin(), bounds.end(), *col + 1) - 1;
     RUNTIME_CHECK(it != bounds.end(), "");
     int Q_   = std::distance(bounds.begin(), it) % nkpts;
@@ -126,7 +126,7 @@ Array get_PsiK(Vector const& nmo_per_kp, CSR const& PsiT, int K, bool noncolin =
     auto nt  = PsiT.num_non_zero_elements(i);
     auto col = PsiT.non_zero_indices2_data(i);
     auto val = PsiT.non_zero_values_data(i);
-    // check the kp index of the first non-zero column. Mut be either >= Q
+    // check the kp index of the first non-zero column. Must be either >= Q
     auto it = std::lower_bound(bounds.begin(), bounds.end(), *col + 1) - 1;
     Q   = std::distance(bounds.begin(), it) % nkpts;
     if (Q == K)

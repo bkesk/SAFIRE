@@ -118,7 +118,7 @@ inline typename RandomGenerator_t<HOST_MEMORY>::result_type make_seed(boost::mpi
 inline typename RandomGenerator_t<HOST_MEMORY>::result_type split_seed(int seed, boost::mpi3::communicator& comm)
 {
   /*
-  Splits the given seed accross the given comm to guarantee that each MPI rank has a unique, but  
+  Splits the given seed across the given comm to guarantee that each MPI rank has a unique, but  
     reproducible seed
   */
   using result_type = typename RandomGenerator_t<HOST_MEMORY>::result_type;

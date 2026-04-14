@@ -42,7 +42,7 @@ namespace nda
 
 /*
  * Returns a tuple with the position (e.g. std::array with n-dimensional indexes) and value
- * of the maximum element in the array. For complex values, it considers only the real part 
+ * of the minimum element in the array. For complex values, it considers only the real part 
  * of the number and return the real part of the number. 
  */
 template<Array Arr>
@@ -91,7 +91,7 @@ auto argmin(Arr const& A)
 
 /*
  * Returns a tuple with the position (e.g. std::array with n-dimensional indexes) and value
- * of the minimum element in the array. For complex values, it considers only the real part 
+ * of the maximum element in the array. For complex values, it considers only the real part 
  * of the number and return the real part of the number. 
  */
 template<Array Arr>

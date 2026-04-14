@@ -17,7 +17,7 @@ Minimum
 ~~~~~~~
 
 - CMake 3.18+
-- a modern C++ compiler with C++17 support. LLVM or GCC are recommended.
+- a modern C++ compiler with C++20 support. LLVM or GCC are recommended.
 - MPI (OpenMPI or other MPI implementation)
 - HDF5 (parallel HDF5 recommended)
 - Boost 1.61.0+
@@ -34,7 +34,6 @@ For NVIDIA GPU Builds
 ~~~~~~~~~~~~~~~~~~~~~
 
 - CUDA 12+
-- NCCL (optional, for multi-GPU communication)
 
 
 Compiling SAFIRE
@@ -116,7 +115,6 @@ If you are on rusty or using a rusty connected desktop a suitable build script i
 
     # GPU
     module load cuda/11
-    module load nccl
 
     # build
     module load python-mpi/3.11

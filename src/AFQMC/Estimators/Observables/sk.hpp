@@ -174,7 +174,7 @@ public:
 
       nmo_max = *std::max_element(nmo_per_kp.begin(), nmo_per_kp.end());
 
-      // not using possible simmetries yet 
+      // not using possible symmetries yet 
       // LQKGik is padded to nmo_max.
       LQKGik.reserve(nkpts);
       for(int k=0; k<nkpts; k++) 
