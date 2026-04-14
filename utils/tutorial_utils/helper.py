@@ -20,31 +20,6 @@ if not Path(AFQMC_EXEC).exists():
         "Set it to the path to the AFQMC executable."
     )
 
-def get_scratch_dir(run_name:str,root_dir:Path=AFQMC_SCRATCH_DIR_ROOT,create:bool=True):
-    """
-    Get the scratch directory for a given run name. The scratch directory is
-    root_dir/run_name.
-
-    Parameters
-    ----------
-    run_name: str
-        The name of the run.
-    root_dir: Path
-        The root directory for the scratch directory. Defaults to the value of
-        the environment variable AFQMC_SCRATCH_DIR.
-    create: bool
-        Whether to create the scratch directory if it does not exist. Defaults
-        to True.
-    """
-    scratch_dir = Path(root_dir) / run_name
-    scratch_dir.mkdir(parents=True, exist_ok=create)
-    if not os.access(scratch_dir, os.W_OK):
-        warn(
-            f"You don't have write to scratch directory {scratch_dir} "
-            "Please use a different scratch directory."
-        )
-    return scratch_dir
-
 def run_afqmc(run_dir:Path=None,timeout_mins=None,run_mode="local_cpu",output_file="afqmc.out",**kwargs):
     """
     Run AFQMC in a given directory. The directory is changed to run_dir before

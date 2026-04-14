@@ -4,12 +4,7 @@ from warnings import warn
 import numpy as np
 
 from stats.scalar_dat import analyze_scalar_data
-from tutorial_utils import get_scratch_dir
-
-
-# For you TODO: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("3d_tm_oxides",home / ".scratch")
+scratch_dir = Path("data")
 ecp_dir = Path("./files").resolve()
 
 

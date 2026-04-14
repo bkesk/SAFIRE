@@ -77,23 +77,18 @@ Additionally, specific pairings may be selected in the json input file.
 This allows the user to skip some of the offsets saved in the HDF5 file if desired.
 We will explore this in more detail below.
 
-+++ {"id": "Np-zIkGusNIP"}
++++
 
-## Saving index offsets in the HDF5 input
-
-The Lattice class from afqmctools can be directly used to find the pairs that we need via the `.get_directed_pairs()` function.
-`.get_directed_pairs()` needs a list of "directions", and it will return a dictionary where the keys are the requested directions, and the values are a list of index offsets, $\bar{i}_\alpha [i]$, such that $\bar{i}_{\alpha} [i] = i + e_\alpha$.
+## Defining the Hamiltonian
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-  height: 907
-id: VjaOtDOltPAj
-outputId: 30ac79d1-e76e-4b8e-8c2c-6341210f4b4f
----
 from afqmctools.systems.lattice import get_lattice
 from afqmctools.utils.visualize import plot_lattice
+from afqmctools.hamiltonian.model.director import HamiltonianDirector
+from pathlib import Path
+
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 lattice = get_lattice(
     params=dict(
