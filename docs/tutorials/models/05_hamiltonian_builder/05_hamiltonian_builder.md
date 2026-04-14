@@ -225,7 +225,6 @@ to cover
     - uniform
     - band/sublattice degrees of freedom (individual and combined)
 - hst over-rides (expert-mode)
-  
 
 ```{code-cell} ipython3
 :id: 91b862e0-881c-4e53-a5ee-cd23ede58378

@@ -383,7 +383,7 @@ hamiltonian_params = {
 }
 
 hamiltonian = HamiltonianDirector(
-    lattice=lattice,e
+    lattice=lattice,
     source=hamiltonian_params
 ).build()
 

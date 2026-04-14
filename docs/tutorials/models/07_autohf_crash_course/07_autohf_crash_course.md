@@ -231,7 +231,6 @@ results = lattice_hf(
     hamiltonian=hamiltonian_autohf,
     settings=hf_settings
 )
-
 ```
 
 +++ {"id": "wGm8ARSAYhms"}
@@ -249,8 +248,6 @@ You should have gotten a HF energy of -17.7499999549238 $t$ (to within about $1 
 
 ```{code-cell} ipython3
 :id: fFMgfc_zU4oW
-
-autohf_to_afqmc
 
 autohf_to_afqmc(
     results,
