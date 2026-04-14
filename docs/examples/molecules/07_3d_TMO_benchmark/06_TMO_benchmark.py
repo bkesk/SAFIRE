@@ -83,10 +83,8 @@ from afqmctools.hamiltonian.mol import write_hamil_mol
 from afqmctools.wavefunction.mol import write_cas_wfn
 from afqmctools.inputs.from_hdf import write_json
 
-from tutorial_utils import get_scratch_dir
-
-home = Path.home()
-scratch_dir = get_scratch_dir("06_3d_tm_oxides",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ecp_dir = Path("./files").resolve()
 
 # load the ECP and basis

@@ -46,10 +46,10 @@ there is no sign problem.
 
 from pathlib import Path
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-home = Path.home()
-scratch_dir = get_scratch_dir("4x4_square_hubbard1",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "dfgyQ5OC5xcn"}

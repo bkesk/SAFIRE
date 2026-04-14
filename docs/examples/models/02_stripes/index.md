@@ -57,7 +57,6 @@ import autohf
 from pathlib import Path
 scratch_dir = Path("data")
 scratch_dir.mkdir(parents=True, exist_ok=True)
-
 ```
 
 +++ {"editable": true, "id": "083d8f36-02de-4281-a56c-7cd3d5add077"}

@@ -43,14 +43,11 @@ References:
 ```{code-cell} ipython3
 :id: 418bd9e4-4da9-4612-889f-6f365fc667a6
 
-%load_ext autoreload
-%autoreload
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-#TODO: update this to a good directory for scratch files
-scratch_rootdir="."
-scratch_dir = get_scratch_dir("04_hubbard_tprime",scratch_rootdir)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "b8153eeb-0f28-4151-ad09-af65db81f358"}

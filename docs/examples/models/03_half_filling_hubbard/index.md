@@ -52,7 +52,14 @@ import afqmctools.observables.spin as spobs
 
 from stats.scalar_dat import analyze_scalar_data
 
+from tutorial_utils import run_afqmc
+
 import autohf
+from afqmctools.inputs.from_autohf import autohf_to_afqmc
+
+from pathlib import Path
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"editable": true, "id": "f91cf26c-5663-416e-9802-aeb1aa5a77c6"}
