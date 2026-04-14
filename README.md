@@ -60,7 +60,7 @@ Also, see the afqmctools Python package [Readme](utils/README.md#installation) t
 
 For a CPU-only build:
 
-- a compiler that supports c++17
+- a compiler that supports c++20
 - cmake
 - MPI
 - HDF5
