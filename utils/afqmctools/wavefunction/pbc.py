@@ -58,7 +58,7 @@ def write_wfn_pbc_old(scf_data, ortho_ao, filename, rediag=True,
     nmo_tot = np.sum(nmo_pk)
     kpts = scf_data['kpts']
     nkpts = len(kpts)
-    uhf = scf_data['isUHF']
+    uhf = scf_data['walker_type'] == _SlaterType.COLLINEAR
     
     if len(fock.shape) == 3:
         fock = fock.reshape((1,)+fock.shape)
@@ -165,7 +165,6 @@ def write_wfn_pbc(
     mo_energy = scf_data['mo_energy']
     nmo_tot = np.sum(nmo_pk)
     kpts = scf_data['kpts']
-    #uhf = scf_data['isUHF']
 
     # TODO: make this independent of the trial type!
     walker_type = _slater_enum_map(

@@ -43,6 +43,7 @@ from afqmctools.hamiltonian.io import write_sparse
 import afqmctools.hamiltonian.kpoint as kp
 import afqmctools.hamiltonian.supercell as sc
 from afqmctools.utils.linalg import get_ortho_ao
+from afqmctools.utils.slater_types import _SlaterType
 
 
 class TestConverter:
@@ -208,8 +209,7 @@ class TestMol:
             'mo_coeff': C, 
             'mol': neon_atom, 
             'hcore': mf.get_hcore(),
-            'isUHF': False,
-            'walker_type' : 'closed'
+            'walker_type' : _SlaterType.CLOSED,
             }
         h1e,chol,_,enuc,_ = mol.generate_hamiltonian(scf_data,walker_type='closed')
 
