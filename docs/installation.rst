@@ -17,7 +17,7 @@ Minimum
 ~~~~~~~
 
 - CMake 3.18+
-- a modern C++ compiler with C++17 support. LLVM or GCC are recommended.
+- a modern C++ compiler with C++20 support. LLVM or GCC are recommended.
 - MPI (OpenMPI or other MPI implementation)
 - HDF5 (parallel HDF5 recommended)
 - Boost 1.61.0+
