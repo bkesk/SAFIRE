@@ -24,10 +24,10 @@ Status:
 
 from pathlib import Path
 
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-home = Path.home()
-scratch_dir = get_scratch_dir("ex_emery_model",home/".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "d13e8127-0310-46e7-8546-f7e2d7bed54e"}
@@ -281,7 +281,6 @@ vis.plot_lattice(
     cmap = 'bwr',
     show_labels=False
 )
-
 ```
 
 +++ {"id": "54616d5a-2831-45da-bd5f-b68621efc8f1"}

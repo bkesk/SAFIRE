@@ -55,7 +55,7 @@ well as the corresponding augmented cGTO basis sets [2-5].
 
 # setup the tutorials by runnig this block
 from pathlib import Path
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
 scratch_dir = Path("data")
 scratch_dir.mkdir(parents=True, exist_ok=True)

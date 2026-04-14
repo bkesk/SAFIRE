@@ -50,6 +50,11 @@ Generate a wavefunction of the form $\Psi = \Psi^\uparrow \otimes \Psi^\downarro
 ```{code-cell} ipython3
 :id: TdBbEZh8TeCS
 
+import numpy as np
+from pathlib import Path
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
+
 nx = 2
 ny = 2
 nelec = (2,2)

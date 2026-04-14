@@ -22,12 +22,10 @@ kernelspec:
 
 # setup scratch dir
 from pathlib import Path
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-home = Path.home()
-scratch_rootdir = home / ".scratch"
-scratch_rootdir.mkdir(exist_ok=True)
-scratch_dir = get_scratch_dir("honeycomb_hubbard",scratch_rootdir)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 ```{code-cell} ipython3

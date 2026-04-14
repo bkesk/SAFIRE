@@ -65,7 +65,7 @@ where $| \Phi_{n,k} \rangle$ are the usual forward-projected Slater determinant 
 and $| \tilde{\Phi}_{m,k} \rangle$ are the back-propagated walkers given by,
 $$
 | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_T \rangle
-$$.
+$$
 The index $n$ corresponds to the current forward projection step,
 and $m$ is the back-propagated step index.
 We note that each random walker has a corresponding back-propagated partner
@@ -79,16 +79,14 @@ i.e. the propagator is applied to different Slater determinants when moving in t
 ```{code-cell} ipython3
 :id: 616ca764-f070-434a-8146-e1511f273342
 
-%load_ext autoreload
 # Run me (shift+enter or click the play button) to setup the tutorial!
 from pathlib import Path
 
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-#TODO: update this to a good directory for scratch files
-home = Path.home() / ".scratch"
-scratch_dir = get_scratch_dir("04_observables_solids", home)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 # copy files to scratch
 import shutil

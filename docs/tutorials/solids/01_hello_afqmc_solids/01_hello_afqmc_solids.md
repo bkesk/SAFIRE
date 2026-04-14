@@ -527,46 +527,10 @@ On the other hand, the average energy should be stable if you use too large of a
 ## Some Tutorial Helper Python Functions
 
 Now that we have learned how to extract the AFQMC energy from the outputs of SAFIRE using afqmctools,
-we will introduce several tutorial helper functions to invoke SAFIRE and extract the AFQMC energy
+we are ready to how to use the tutorial helper functions to invoke SAFIRE and extract the AFQMC energy
 from within an interactive Python notebook.
 
-For convenience, we provide two helper functions in the `tutorials_utils` Python package.
-
-1. The `run_afqmc()` function runs the SAFIRE executable in one of the several ways that
-we described previously, depending on the `run_mode` parameter.
-2. the `get_scratch_dir()` function, will generate a scratch directory and return a Path pointing to the scratch directory.
-
-Together, these functions make it possible to complete the tutorials without leaving the interactive Python notebooks.
-We explain each function below.
-
-### get_scratch_dir()
-
-`get_scratch_dir()` will return a reference to the Path of a scratch directory that you get to set.
-By default, it will create the directory if it does not already exits.
-You can either specify the full path to the scratch directory as,
-
-```python
-    from tutorial_utils import get_scratch_dir
-    scratch_dir = get_scratch_dir('/path/to/my/scratch/hello_safire')
-```
-
-or, you can pass a scratch root directory and scratch directory name as
-
-```python
-    from tutorial_utils import get_scratch_dir
-    scratch_dir = get_scratch_dir('hello_safire', root_dir='/path/to/my/scratch/')
-```
-
-You can tell `get_scratch_dir()` to not attempt to create the directory with
-
-```python
-    from tutorial_utils import get_scratch_dir
-    scratch_dir = get_scratch_dir('/path/to/my/scratch/hello_safire',create=False)
-```
-
-+++ {"id": "N9bQJxCM-NIz"}
-
-### The run AFQMC convenience function
+For convenience, we provide the `run_afqmc()` helper function in the `tutorial_utils` Python package.
 
 `run_afqmc(input_file=input_file, np=np)` runs the SAFIRE executable as
 
@@ -576,16 +540,16 @@ You can tell `get_scratch_dir()` to not attempt to create the directory with
 
 <div class="alert alert-block alert-warning">
 <b>CAUTION:</b>
-    The `AFQMC_EXEC` environment variable must be set to the path to the SAFIRE executable
+    The AFQMC_EXEC environment variable must be set to the path to the SAFIRE executable
     in order to use `run_afqmc()`.
 </div>
 
 Here is a typical example of using `run_afqmc()`.
 
 ```python
-    from tutorial_utils import run_afqmc, get_scratch_dir
+    from tutorial_utils import run_afqmc
 
-    scratch_dir = get_scratch_dir('/path/to/my/scratch/hello_safire')
+    scratch_dir = Path("data")
     
     run_afqmc(
         run_dir=scratch_dir,                # directory to run SAFIRE in - output files will be there
@@ -603,18 +567,6 @@ Where the `np` parameter is forwarded directly to `-np [np]` and
     There is no difference between running SAFIRE via `run_afqmc()` or
     directly in the command line other than convenience.
 </div>
-
-### (afqmctools) the analyze scalar data function
-
-The same functionality as `$ scalar_stats`, from `afqmctools`, can
-be accessed directly in a Python script via the `analyze_scalar_data()` function.
-This is a standard component of `afqmctools`, and not just a part of these tutorials.
-
-For convenience, we will favor the use of `analyze_scalar_data()` within interactive Python
-notebooks; however, this invokes exactly the same code as using `$ scalar_stats` from
-the CLI.
-`scalar_stats` can generate plots of the data, both from the CLI and from within Python.
-We will make use of this feature during the tutorials to visualize results.
 
 ### Exercise: Run the full sample calculation using the convenience wrappers.
 
@@ -639,7 +591,7 @@ import numpy as np
 from afqmctools.hamiltonian.mol import write_hamiltonian_generic
 from afqmctools.wavefunction.mol import write_wfn
 from afqmctools.inputs.from_hdf import write_json
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 from stats.scalar_dat import analyze_scalar_data
 
 scratch_dir = Path("data")
@@ -648,9 +600,9 @@ scratch_dir.mkdir(parents=True, exist_ok=True)
 # copy the provided files
 files_dir = scratch_dir / "files"
 files_dir.mkdir(exist_ok=True)
-shutil.copy("files/input.json", scratch_dir / "files" )
-shutil.copy("files/wfn.h5", scratch_dir / "files" )
-shutil.copy("files/hamil.h5", scratch_dir / "files")
+shutil.copy("files/input.json", files_dir)
+shutil.copy("files/wfn.h5", files_dir)
+shutil.copy("files/hamil.h5", files_dir)
 
 run_afqmc(
     run_dir=scratch_dir,

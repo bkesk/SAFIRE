@@ -572,12 +572,10 @@ from afqmctools.wavefunction.mol import write_wfn
 from afqmctools.inputs.from_hdf import write_json
 from stats.scalar_dat import analyze_scalar_data
 
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-home = Path.home()
-scratch_rootdir = home / ".scratch"
-scratch_rootdir.mkdir(exist_ok=True)
-scratch_dir = get_scratch_dir("hello_mols",scratch_rootdir)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 number_of_electrons = (1,1) # up, down
 number_of_orbitals = 2
