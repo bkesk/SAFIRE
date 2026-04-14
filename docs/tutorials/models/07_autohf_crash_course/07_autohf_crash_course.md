@@ -49,10 +49,10 @@ outputId: ababa026-ef02-445e-cde1-fc1d1c20b9f5
 %autoreload
 from pathlib import Path
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-home = Path.home()
-scratch_dir = get_scratch_dir("07_hubbard_model_autohf",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "dfgyQ5OC5xcn"}
@@ -231,7 +231,6 @@ results = lattice_hf(
     hamiltonian=hamiltonian_autohf,
     settings=hf_settings
 )
-
 ```
 
 +++ {"id": "wGm8ARSAYhms"}
@@ -249,8 +248,6 @@ You should have gotten a HF energy of -17.7499999549238 $t$ (to within about $1 
 
 ```{code-cell} ipython3
 :id: fFMgfc_zU4oW
-
-autohf_to_afqmc
 
 autohf_to_afqmc(
     results,

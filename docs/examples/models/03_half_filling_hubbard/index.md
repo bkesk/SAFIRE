@@ -52,7 +52,14 @@ import afqmctools.observables.spin as spobs
 
 from stats.scalar_dat import analyze_scalar_data
 
+from tutorial_utils import run_afqmc
+
 import autohf
+from afqmctools.inputs.from_autohf import autohf_to_afqmc
+
+from pathlib import Path
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"editable": true, "id": "f91cf26c-5663-416e-9802-aeb1aa5a77c6"}
@@ -63,7 +70,7 @@ The Hubbard model at Half Filling ($n=1$) has a special "symmetry" known as part
 
 [1]: _Benchmark study of the two-dimensional Hubbard model with auxiliary-field quantum Monte Carlo method_  
 M Qin, H Shi, S Zhang Phys. Rev. B 94, 085103 4 August, 2016  
-DOI: https://doi.org/10.1103/PhysRevB.94.085103  
+DOI: https://doi.org/10.1103/PhysRevB.94.085103
 
 +++ {"id": "678e6d9b-4d8f-4f74-87ee-2420b8588c57"}
 
@@ -115,9 +122,11 @@ plt.show()
 The Hamiltonian will be simple,
 
 $$
+\begin{align}
 H &= H_t + H_U \\
 H_t &= -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
 H_U &= U\sum_i n_{i\uparrow}n_{i\downarrow}
+\end{align}
 $$
 
 ```{code-cell} ipython3
@@ -164,7 +173,7 @@ T = builderHF.hamiltonian.get_one_body().toarray().reshape(2,lattice.N_sites,lat
 Because of the open shell at half filling, we'll follow Ref. 1 and use a GHF trial w/ AFM constrained to the X-Y plane (eq 14)
 
 $$
-H_{GHF} = -t\sum_{\langle ij\rangle \sigma} c^\dagger_{i\sigma}c_{j\sigma} + h.c. + \sum_{i}M_i c^\dagger_{i\uparrow}c_{i\downarrow} + h.c.
+H_\mathrm{GHF} = -t\sum_{\langle ij\rangle \sigma} c^\dagger_{i\sigma}c_{j\sigma} + \text{h.c.} + \sum_{i}M_i c^\dagger_{i\uparrow}c_{i\downarrow} + \text{h.c.}
 $$
 where $M_i= (-1)^i\Delta_i$
 
@@ -175,7 +184,7 @@ where $M_i= (-1)^i\Delta_i$
 We'll want to optimize $M$ directly, and to do this we'll use AutoHF's custom ansatz power to build a modification of the `DIAG` ansatz
 
 To do that we'll need:
-* `orbFunc` This takes a `state` and produces the orbitals
+* `orbitalFunc` This takes a `state` and produces the orbitals
 * `rdmFunc` this takes a `state` and produces the rdm $\langle c^\dagger_{\sigma i}c_{\sigma^\prime j}\rangle$
 * `state0` the initial state
 * `state0_ref` the initial state that should correspond to e.g. $U=0$
@@ -206,7 +215,7 @@ def orbitalFunc(state):
 
 def rdmFunc(state):
     o = orbitalFunc(state)
-    return autohf.solver.sdToRDM_noncollinear(o)
+    return autohf.solver.sd_to_rdm_noncollinear(o)
 ```
 
 ```{code-cell} ipython3
@@ -230,27 +239,27 @@ def checkPH(state):
 hf_settings = {
     "verbose": False,
     "plot": False,
-    "numSteps": 200,
+    "steps": 200,
     "seed": 1479,
     "noncollinear": True,
     "gpu": False,
     "ansatz": "CUSTOM",
     "opt_method": "lbfgs",
-    "numTrials": 16,
+    "batch_size": 16,
     "nelec": [Ne, Ne],
 }
 
 rng = np.random.default_rng(42)
 state0_ref = 0.0 * np.arange(N).reshape(N)
-state0 = state0_ref + rng.normal(scale=0.01, size=(hf_settings["numTrials"], N))
+state0 = state0_ref + rng.normal(scale=0.01, size=(hf_settings["batch_size"], N))
 
 
 dataHFC = autohf.solver.lattice_hf(
-    hamiltonian=builderHF.hamiltonian,
+    hamiltonian=autohf.AutoHFHamiltonian(builderHF.hamiltonian),
     lattice=lattice,
     settings=hf_settings,
-    orbFunc=orbitalFunc,
-    rdmFunc=rdmFunc,
+    state2orbitals=orbitalFunc,
+    state2rdm=rdmFunc,
     state0=state0,
     state0_ref=state0_ref,
 )
@@ -264,14 +273,14 @@ Let's check out what M values we got
 :id: e650b2a3-278d-4bed-8849-bd9952a2d028
 :outputId: 0380df75-7c1d-4fca-8576-44afe3681c1b
 
-dataHFC["state"]
+dataHFC[0]["state"]
 ```
 
 ```{code-cell} ipython3
 :id: 5186a0f6-63c1-4eb9-ab05-33c912a696b5
 :outputId: 489164a5-5f87-437d-9711-54d8adb6eb94
 
-plt.imshow(dataHFC["state"].reshape(4,4))
+plt.imshow(dataHFC[0]["state"].reshape(4,4))
 ```
 
 +++ {"id": "7956d434-41e8-4d69-b88e-4d4dc2f364cb"}
@@ -293,31 +302,35 @@ wfn_fname = "autoHF_wfn.h5"
 hf_settings = {
     "verbose": False,
     "plot": False,
-    "numSteps": 2000,  # increase
-    "output": wfn_fname,
+    "steps": 2000,  # increase
     "seed": 1479,
     "noncollinear": True,
     "gpu": False,
     "ansatz": "CUSTOM",
     "opt_method": "lbfgs",
-    "numTrials": 16,
+    "num_batches": 16,
     "nelec": [Ne, Ne],
 }
 
 rng = np.random.default_rng(42)
 state0_ref = 0.0 * np.arange(N).reshape(N)
-state0 = state0_ref + rng.normal(scale=0.01, size=(hf_settings["numTrials"], N))
+state0 = state0_ref + rng.normal(scale=0.01, size=(hf_settings["num_batches"], N))
 
 
-dataHFC = autohf.solver.lattice_hf(
-    hamiltonian=builderHF.hamiltonian,
+dataHFC2 = autohf.solver.lattice_hf(
+    hamiltonian=autohf.AutoHFHamiltonian(builderHF.hamiltonian),
     lattice=lattice,
     settings=hf_settings,
-    orbFunc=orbitalFunc,
-    rdmFunc=rdmFunc,
+    state2orbitals=orbitalFunc,
+    state2rdm=rdmFunc,
     state0=state0,
     state0_ref=state0_ref,
     jaxoptargs=dict(tol=1e-14),  # secret sauce
+)
+
+autohf_to_afqmc(
+    dataHFC2,
+    output_fname = scratch_dir / wfn_fname
 )
 ```
 
@@ -325,21 +338,21 @@ dataHFC = autohf.solver.lattice_hf(
 :id: 1a7cd7e0-e3b2-404b-9fbf-27a2effea563
 :outputId: e1c36aad-d05a-47f2-e5b4-9dcb49bf3561
 
-dataHFC2["state"]
+dataHFC2[0]["state"]
 ```
 
 ```{code-cell} ipython3
 :id: 53b7ce8c-b10a-4376-ba29-bfaabbf18024
 :outputId: 69f5278f-29f3-403b-8a76-5ba41ed39688
 
-checkPH(dataHFC2["state"])
+checkPH(dataHFC2[0]["state"])
 ```
 
 ```{code-cell} ipython3
 :id: 1818b009-35b7-497f-b3bb-2fee961a09cd
 :outputId: c8e409c6-a625-440d-ccaa-644ddee64dc4
 
-plt.imshow(dataHFC2["state"].reshape(4,4))
+plt.imshow(dataHFC2[0]["state"].reshape(4,4))
 ```
 
 +++ {"id": "0bbfe20c-66db-4b99-9f69-dfa45a29f0d1"}
@@ -350,7 +363,7 @@ Let's check that this is a better energy than the previous energy
 :id: c489bd73-3ae7-4943-b8a6-90705f5e3654
 :outputId: 64057b24-c950-4eea-8870-709650f095cc
 
-dataHFC2["E_final"] < dataHFC["E_final"]
+dataHFC2[0]["E"] < dataHFC[0]["E"]
 ```
 
 +++ {"id": "d7142e2a-a771-496a-8300-8547e0eec68d"}
@@ -363,15 +376,15 @@ Now let's check if we can guess a better state, by removing translation invarian
 :id: 8f623772-48d7-4b53-a629-70d668e830c1
 :outputId: 00efbe7f-e45a-48bd-f6ec-77c17b0813b1
 
-dataHFC2["energy_func"](dataHFC2["state"]) < dataHFC2["energy_func"](dataHFC2["state"]/np.abs(dataHFC2["state"]))
+dataHFC2[1]["energy_func"](dataHFC2[0]["state"]) < dataHFC2[1]["energy_func"](dataHFC2[0]["state"]/np.abs(dataHFC2[0]["state"]))
 ```
 
 ```{code-cell} ipython3
 :id: b02b905f-2789-4a5d-bac2-5847467d31a4
 :outputId: 693f28ca-8e55-4eb7-e17e-1a95e26d77ad
 
-uni_state = np.ones(lattice.N_sites)*np.mean(np.abs(dataHFC2["state"]))
-dataHFC2["energy_func"](dataHFC2["state"]) < dataHFC2["energy_func"](uni_state)
+uni_state = np.ones(lattice.N_sites)*np.mean(np.abs(dataHFC2[0]["state"]))
+np.isclose(dataHFC2[1]["energy_func"](dataHFC2[0]["state"]),dataHFC2[1]["energy_func"](uni_state))
 ```
 
 +++ {"id": "8944c9a6-fc6c-4cb0-9e07-8b8712bb5f45"}
@@ -390,65 +403,53 @@ First we'll manually create a non-interacting state as our RHF initial state for
 :id: 85b8e2f7-d035-4a12-bd53-a2eccf5ae40e
 
 ham_fname = f"hamU{U}_afqmc.h5"
-io.write_model_hamiltonian(builder.hamiltonian, ham_fname,
+io.write_model_hamiltonian(builder.hamiltonian, scratch_dir / ham_fname,
                         nelec=nelec,spin_symm="collinear")
 ```
 
 ```{code-cell} ipython3
 :id: 10617b29-48f0-4a65-9cd2-40f6199035c1
 
-def getInputJson(series,wf_fname,h_fname=None):
-    if h_fname is None:
-        h_fname = wf_fname
-    return f'''{{
-  "afqmc": {{
-    "project": {{
-      "id": "qmc",
-      "series": {series},
-      "mixed_precision": false
-    }},
-    "execute": {{
-      "walker_set": {{
-        "walker_type": "NONCOLLINEAR"
-      }},
-      "wavefunction": {{
-        "filename": "{wf_fname}"
-      }},
-      "hamiltonian": {{
-        "filename": "{h_fname}"
-      }},
-      "timestep": 0.005,
-      "steps": 20000,
-      "accumlate_interval": 2,
-      "measure_interval": 2,
-      "population" : 10,
-      "n_walkers_per_mpi_task": 100
-    }}
-  }}
-}}
-'''
-```
+afqmc_params = {
+        "timestep": 0.005,
+        "steps": 10000,
+        "population_control_interval": 2,
+        "walker_ortho_interval": 2,
+        "n_walkers_per_mpi_task": 40,
+        "measure_interval_multiplier": 1,    
+        "estimator": {
+            "name": "energy",
+            "overwrite": True,
+            "print_components": True
+        },
+    }
 
-```{code-cell} ipython3
-:id: 7645d79c-7c45-4a13-89c4-46f96ec29f86
-
-with open("afqmc.json","w") as f:
-    lines = getInputJson(0,wfn_fname,ham_fname)
-    f.write(lines)
+write_json(
+    scratch_dir / "afqmc.json",
+    fwfn0=scratch_dir / wfn_fname,
+    fham0=scratch_dir / ham_fname,
+    exec_opts=afqmc_params,
+    series=0
+)
 ```
 
 ```{code-cell} ipython3
 :id: 33a63a5d-ea54-4b9c-bbdd-14a281bb5d73
 :outputId: cc66b225-6079-444f-d976-160bae2fe148
 
-!sbatch --wait run_afqmc.sh afqmc.json
+run_afqmc(
+    run_dir = scratch_dir,
+    input_file = "afqmc.json",
+    np = 16,
+    output_file = None,
+)
 ```
 
 ```{code-cell} ipython3
 :id: 66d213fc-1f02-41e4-adc3-e1449a04b403
 :outputId: b9242712-fde9-4c91-a990-61cc5cf271f0
 
-!energy_stats qmc.s000.scalar.dat -x time -t -e 20.0 --savefig energy_fe.png
+!energy_stats {scratch_dir / "qmc.s000.scalar.dat"} -t -e 20.0
 ```
 
 ```{code-cell} ipython3
@@ -456,17 +457,16 @@ with open("afqmc.json","w") as f:
 :outputId: 02f67500-9f6f-4c12-a4d9-a5a206ddc890
 
 settings = dict(
-fname = "qmc.s000.scalar.dat",
-xaxis = "time",
-nequil = 50,
-trace = True,
-return_data= True,
-verbose = False,
-# column = "weight"
+    fname = scratch_dir / "qmc.s000.scalar.dat",
+    nequil = 14,
+    trace = True,
+    return_data= True,
+    verbose = False,
 )
 
 data = analyze_scalar_data(settings)
-E,err = data["mean"],data["error"]
+E = data["mean_real"]
+err = data["error_real"]
 ```
 
 ```{code-cell} ipython3
