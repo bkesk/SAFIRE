@@ -562,7 +562,7 @@ Here is a typical example of using `run_afqmc()`.
 ```
 
 Where the `np` parameter is forwarded directly to `-np [np]` and
-`input_file` is passed to `qmcapp --filenames [input_file]`.
+`input_file` is passed to `safire --filenames [input_file]`.
 
 <div class="alert alert-block alert-info">
 <b>Note:</b>
