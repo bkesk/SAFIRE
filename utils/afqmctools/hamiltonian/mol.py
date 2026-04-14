@@ -114,6 +114,10 @@ def generate_hamiltonian(
     ):
 
     walker_type = _slater_enum_map(walker_type)
+    if walker_type != scf_data["walker_type"]:
+        raise ValueError(
+            f"Given walker_type {walker_type} inconsistent with scf_data[\"walker_type\"] = {scf_data['walker_type']}"
+        )
 
     # Unpack SCF data.
     # 1. core (1-body) Hamiltonian.
@@ -126,14 +130,14 @@ def generate_hamiltonian(
         else:
             raise ValueError(
                 "Attempted to use spin-orbit coupling "
-                "without ghf walker type"
+                "without noncollinear walker type"
             )
 
     # 2. Rotation matrix to orthogonalised basis.
     if ortho_ao:
         X = scf_data['X']
     else:
-        if scf_data['isUHF']:
+        if scf_data['walker_type'] == _SlaterType.COLLINEAR:
             raise ValueError(" # UHF integrals are not allowed. Use ortho AO option (-a/--ao).")
         X = scf_data['mo_coeff']
     

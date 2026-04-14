@@ -21,6 +21,7 @@ from pyscf.pbc.lib.chkfile import load_cell
 from afqmctools.utils.linalg import get_ortho_ao_mol
 from afqmctools.utils.slater_types import (
     _get_slater_type,
+    _SlaterType,
     )
 
 def chk_is_pbc(chkfile):
@@ -175,7 +176,6 @@ def load_from_pyscf_chk(chkfile,hcore=None,orthoAO=False):
         'cell': cell,
         'kpts': kpts,
         'Xocc': Xocc, 
-        'isUHF': isUHF,
         'hcore': hcore, 
         'X': X, 
         'nmo_pk': nmo_pk,
@@ -251,6 +251,14 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', with_sfx2c=False, with_x2c=Fals
         rohf = True
     else:
         rohf = False
+
+    walker_type = _get_slater_type(
+        phi=numpy.array(mo_coeff),
+        nelec=mol.nelec,
+        M=nmo
+    )
+
+    assert uhf == (walker_type == _SlaterType.COLLINEAR)
     scf_data = {
         'mol': mol,
         'nelec' : mol.nelec,
@@ -262,11 +270,7 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', with_sfx2c=False, with_x2c=Fals
         'isUHF': uhf,
         'df_ints': df_ints,
         'rohf': rohf,
-        'walker_type' : _get_slater_type(
-            phi=numpy.array(mo_coeff),
-            nelec=mol.nelec,
-            M=nmo
-        ),
+        'walker_type' : walker_type,
         'with_x2c' : with_x2c # identifies that hcore has SOC
         }
     return scf_data
