@@ -294,7 +294,7 @@ def slater_gto2mo(
     nmo = transform_matrix.shape[0]
 
     if slater_type is None:
-        slater_type = _get_slater_type(phi,nelec)
+        slater_type = _get_slater_type(phi,nelec,nmo)
         
     na,nb = nelec
 
