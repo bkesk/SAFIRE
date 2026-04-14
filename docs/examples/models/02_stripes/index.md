@@ -48,6 +48,7 @@ from afqmctools.analysis.rdm import average_afqmc_rdm
 
 from afqmctools.observables.greens import greens_1body
 import afqmctools.observables.spin as spobs
+from afqmctools.inputs.from_autohf import autohf_to_afqmc
 
 from tutorial_utils import run_afqmc
 
@@ -175,23 +176,19 @@ Now we'll write the file to run AFQMC. There are some better tools than this but
 from afqmctools.inputs.from_hdf import write_json
 
 # make an input file
-def afqmc_params(series):
-    return {
-        "project": {
-            "series": series,
-        },
+afqmc_params = {
         "timestep": 0.005,
-        "steps": 20000,
+        "steps": 10000,
         "population_control_interval": 2,
         "walker_ortho_interval": 2,
-        "n_walkers_per_mpi_task": 100,
+        "n_walkers_per_mpi_task": 40,
         "measure_interval_multiplier": 1,    
-        "estimator": {
+        "estimator1": {
             "name": "energy",
             "overwrite": True,
             "print_components": True
         },
-        "estimator": {
+        "estimator2": {
             "name":"back_propagation",
             "path_restoration": True,
             "extra_path_restoration": True,
@@ -210,10 +207,11 @@ def afqmc_params(series):
     }
 
 write_json(
-    "afqmc.json",
-    fwfn0="afqmc.h5",
-    fham0="afqmc.h5",
-    exec_opts=afqmc_params(0)
+    scratch_dir / "afqmc.json",
+    fwfn0=scratch_dir / "afqmc.h5",
+    fham0=scratch_dir / "afqmc.h5",
+    exec_opts=afqmc_params,
+    series=0
 )
 ```
 
@@ -224,7 +222,7 @@ outputId: 8c812e11-d1f3-454d-82c4-0322455b50bb
 colab:
   base_uri: https://localhost:8080/
 ---
-!mpirun -np 12 $AFQMC_EXEC data/afqmc.json
+!cd data; mpirun -np 16 $AFQMC_EXEC afqmc.json
 ```
 
 ```{code-cell} ipython3
@@ -305,12 +303,6 @@ SzDmrg = np.loadtxt("data_10x4_Ne16U6.0_15360.dat",usecols=(1,))
 ```
 
 ```{code-cell} ipython3
-:id: 3790867c-321a-4e47-84f8-e82a1a407d07
-
-
-```
-
-```{code-cell} ipython3
 :id: d2e9c723-0471-404c-acb5-30e862b7905f
 :outputId: a53dc884-c7ab-43d4-9b39-1ad5c3e23957
 
@@ -346,7 +338,8 @@ _Note:_ The Hartree-Fock code is faster if you use a GPU
 :id: ee2b575c-7d27-4a1d-a9b9-e9b02a682f8f
 :outputId: 743ad05d-6d2a-4eba-ec3c-92e78bcbe2e3
 
-for Ueff in [1,2,3,4]:
+Ueffs = [1,2,3,4]
+for Ueff in Ueffs:
 
     builder_eff = ham.HamiltonianBuilder(
               lattice=lattice,
@@ -365,27 +358,30 @@ for Ueff in [1,2,3,4]:
                             nelec=nelec,spin_symm="collinear")
 
     hf_settings = dict(
-        numSteps = 2000,
-        output = scratch_dir / f"afqmc_{Ueff}.h5", # change file name!
+        steps = 2000,
         opt_method="lbfgs",
         ansatz="SD_ROT",
         nelec = nelec,
-        numTrials = 8,
+        batch_size = 8,
         seed = 1,
         noncollinear = False
     )
-    data = autohf.solver.lattice_hf(
-        hamiltonian=builder_eff.hamiltonian,
+    results = autohf.solver.lattice_hf(
+        hamiltonian=autohf.AutoHFHamiltonian(builder_eff.hamiltonian),
         lattice=lattice,
         settings=hf_settings,
     )
-    print(data["E_final"])
+    autohf_to_afqmc(
+        results,
+        output_fname = scratch_dir / f"afqmc_{Ueff}.h5"
+    )
 
     write_json(
         scratch_dir / f"afqmc_{Ueff}.json",
-        fwfn0="afqmc.h5",
-        fham0="afqmc.h5",
-        exec_opts=afqmc_params(0)
+        fwfn0=scratch_dir / f"afqmc_{Ueff}.h5",
+        fham0=scratch_dir / "afqmc.h5",
+        exec_opts=afqmc_params,
+        id = f"afqmc_{Ueff}"
     )
     print(f"Written {Ueff}")
 ```
@@ -393,8 +389,13 @@ for Ueff in [1,2,3,4]:
 ```{code-cell} ipython3
 :id: 3d68db2c-e000-4c4f-8b48-2f4bd5836749
 
-for Ueff in [1,2,3,4]:
-    !sbatch --wait run_afqmc.sh afqmc_{Ueff}.json
+for Ueff in Ueffs:
+    run_afqmc(
+        run_dir = scratch_dir,
+        input_file = f"afqmc_{Ueff}.json",
+        np = 16,
+        output_file = None
+    )        
 ```
 
 ```{code-cell} ipython3
@@ -402,8 +403,12 @@ for Ueff in [1,2,3,4]:
 
 rhos, deltas = [],[]
 
-for Ueff in [0,1,2,3,4]:
-    rho_avg, delta_rho = average_afqmc_rdm(rdm_file=f"qmc.s00{Ueff}.stat.h5")
+for Ueff in Ueffs:
+    if Ueff==0:
+        fname = "qmc.s000.stat.h5"
+    else:
+        fname = f"afqmc_{Ueff}.s000.stat.h5"
+    rho_avg, delta_rho = average_afqmc_rdm(rdm_file=scratch_dir / fname)
     rhos.append(rho_avg)
     deltas.append(delta_rho)
 ```
@@ -411,7 +416,7 @@ for Ueff in [0,1,2,3,4]:
 ```{code-cell} ipython3
 :id: 7f7e1dc8-4378-4da3-a77a-8e2638ed3c0e
 
-for Ueff,rho_avg,delta_rho in zip([0,1,2,3,4],rhos,deltas):
+for Ueff,rho_avg,delta_rho in zip(Ueffs,rhos,deltas):
     Xs,Ys,Zs = spobs.local_spin(np.vstack(rho_avg[0]),"collinear").real
 
     delta_Sz = np.sqrt(delta_rho[0,0].diagonal()**2+delta_rho[0,1].diagonal()**2 )
@@ -421,42 +426,16 @@ for Ueff,rho_avg,delta_rho in zip([0,1,2,3,4],rhos,deltas):
 
     fig,axes = plt.subplots(1,2,figsize=(12,4))
     p = axes[0].matshow(Zs.reshape(*lattice.L).T)
-    plt.colorbar(p,ax= axes[0])
+    plt.colorbar(p,ax= axes[0], label = "$S^z$")
 
 
     p =axes[1].matshow(delta_Sz.reshape(*lattice.L).T)
-    plt.colorbar(p,ax= axes[1])
+    plt.colorbar(p,ax= axes[1], label="$ΔSz$")
     if Ueff==0:
         fig.suptitle(f"Free Electron")
     else:
         fig.suptitle(f"{Ueff=}")
     plt.show()
-```
-
-```{code-cell} ipython3
-:id: 283e9c2b-2cac-44e7-80d6-42225a466de9
-
-# now we'll average over the columns
-
-for Ueff,rho_avg,delta_rho in zip([0,1,2,3,4],rhos,deltas):
-    Xs,Ys,Zs = spobs.local_spin(np.vstack(rho_avg[0]),"collinear").real
-
-    delta_Sz = np.sqrt(delta_rho[0,0].diagonal()**2+delta_rho[0,1].diagonal()**2 )
-    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
-    if Ueff==0:
-        label = "AFQMC Free Electron"
-    else:
-        label = f"AFQMC W/ HF Ueff={Ueff}"
-    plt.errorbar(np.arange(lattice.L[0]),averageOverCols(Zs,*lattice.L),yerr=avg_delta_Sz,
-                 fmt='o-',label=label)
-plt.plot(-averageOverCols(SzDmrg,*lattice.L),'x-',label="DMRG",c='k')
-
-plt.xlabel("Col")
-plt.ylabel("Staggered Sz")
-plt.legend()
-
-# plt.ylim(-0.3,0.2)
-plt.show()
 ```
 
 +++ {"id": "8445abd3-e472-4406-9c2a-9ca3a8c8d3a3"}
@@ -487,16 +466,15 @@ for Ueff in Ueffs:
 :id: 2926392c-64b7-4c5b-be5a-d289adc38ff5
 
 # now we'll average over the columns
-Ueffs = [0,1,2,3,4]
-for Ueff,trial_rho in zip(Ueffs,trial_rhos):
-    Xs,Ys,Zs = spobs.local_spin(np.vstack(trial_rho),"collinear").real
-
-
+for Ueff,rho in zip(Ueffs,rhos):
+    Xs,Ys,Zs = spobs.local_spin(np.vstack(rho[0]),"collinear").real
+    
     avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
     if Ueff==0:
         label = "Free Electron"
     else:
         label = f"HF W/ HF Ueff={Ueff}"
+
     plt.errorbar(np.arange(lattice.L[0]),
                  averageOverCols(Zs,*lattice.L),yerr=avg_delta_Sz,
                  fmt='o--',label=label)
