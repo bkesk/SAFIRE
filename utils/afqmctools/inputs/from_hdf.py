@@ -19,7 +19,7 @@ JSON_EXECUTE_INPUT_BLOCKS = ("walker_set", "wavefunction", "hamiltonian", "proje
 def get_estimator_settings(exec_opts,args=None):
 
     if args is None:
-        return 0
+        return sum(k.startswith("estimator") for k in exec_opts.keys())
 
     if isinstance(args,dict):
         args = SimpleNamespace(args)
@@ -172,11 +172,11 @@ def write_json(fout, fwfn0, fham0=None, relpath=True, exec_opts=None, args_names
     #   KE: in principle, one could use a custom class based on dict along
     #      with a custom json.JSONEncoder class to do this "correctly"
     if num_est > 1:
-        with open(args_namespace.fout, 'r') as f:
+        with open(fout, 'r') as f:
             text = f.read()
-        for i in range(1, num_est):
+        for i in range(1, num_est+1):
             text = text.replace('estimator%d' % i, 'estimator')
-        with open(args_namespace.fout, 'w') as f:
+        with open(fout, 'w') as f:
             f.write(text)
 
 def read_info(fwfn):
