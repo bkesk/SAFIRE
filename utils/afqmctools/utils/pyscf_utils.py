@@ -122,13 +122,11 @@ def load_from_pyscf_chk(chkfile,hcore=None,orthoAO=False):
     hcore = numpy.reshape(hcore,(-1,nao,nao))
     assert(hcore.shape[0]==nkpts)
 
-    if(cell.spin!=0 and isUHF==False):
-        print(" cell.spin!=0 only allowed with UHF calculation \n")
-        comm.abort()
+    if(cell.spin!=0 and not isUHF):
+        raise ValueError("cell.spin!=0 only allowed with UHF calculation")
 
-    if(orthoAO==False and isUHF==True):
-        print(" orthoAO=True required with UHF calculation \n")
-        quit()
+    if(not orthoAO and isUHF):
+        raise ValueError("orthoAO=True required with UHF calculation\n")
 
     if orthoAO:
         X_ = numpy.asarray(lib.chkfile.load(chkfile, 'scf/orthoAORot')).reshape(nkpts,nao,-1)
@@ -258,7 +256,9 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', with_sfx2c=False, with_x2c=Fals
         M=nmo
     )
 
-    assert uhf == (walker_type == _SlaterType.COLLINEAR)
+    # if uhf is not true, the walker may still be ROHF, which counts as collinear
+    assert not uhf or uhf == (walker_type == _SlaterType.COLLINEAR)
+
     scf_data = {
         'mol': mol,
         'nelec' : mol.nelec,

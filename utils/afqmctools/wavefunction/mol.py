@@ -424,8 +424,6 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
     ----------
     scf_data : dict
         Dictionary containing scf data extracted from pyscf checkpoint file.
-    ortho_ao : bool
-        Whether we are working in orthogonalised AO basis or not.
     filename : string
         HDF5 file path to store wavefunction to.
     wfn : tuple
@@ -483,14 +481,20 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
         nfzv=nfzv
     )
 
-    if len(occa) != nelec[0]:
-        raise ValueError(
-            f"mo_occ defines {len(occa)} alpha occupied orbitals, expected {nelec[0]}"
-        )
-    if occb is not None and len(occb) != nelec[1]:
-        raise ValueError(
-            f"mo_occ defines {len(occb)} beta occupied orbitals, expected {nelec[1]}"
-        )
+    if walker_type == _SlaterType.NONCOLLINEAR:
+        if len(occa) != sum(nelec):
+            raise ValueError(
+                f"mo_occ defines {len(occa)} alpha occupied orbitals, expected {sum(nelec)}"
+            )
+    else:
+        if len(occa) != nelec[0]:
+            raise ValueError(
+                f"mo_occ defines {len(occa)} alpha occupied orbitals, expected {nelec[0]}"
+            )
+        if occb is not None and len(occb) != nelec[1]:
+            raise ValueError(
+                f"mo_occ defines {len(occb)} beta occupied orbitals, expected {nelec[1]}"
+            )
 
     # Catch spin-contaminated initial wavefunctions
     if walker_type == _SlaterType.COLLINEAR and init is None:
@@ -514,7 +518,6 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
         init[0][occa, np.arange(nelec[0])] = 1.0
 
     if wfn is None:
-
         if scf_data.get('orthAO',False):
             wfn = make_slater(
                 wfn_scf_data=scf_data,
