@@ -452,8 +452,10 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
     # the basis size
     ngto = norb = scf_data['norb']
     # ensure valid walkers up-front
-    walker_type = _slater_enum_map(
-        scf_data['walker_type']
+    walker_type = _get_slater_type(
+        phi=scf_data['mo_coeff'],
+        nelec=scf_data['nelec'],
+        M=scf_data['norb'],
     )
     nfzc = 0
     nfzv = 0

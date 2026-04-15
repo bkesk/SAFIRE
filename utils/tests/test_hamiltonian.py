@@ -44,6 +44,8 @@ import afqmctools.hamiltonian.kpoint as kp
 import afqmctools.hamiltonian.supercell as sc
 from afqmctools.utils.linalg import get_ortho_ao
 from afqmctools.utils.slater_types import _SlaterType
+from afqmctools.utils.linalg import get_ortho_ao_mol
+from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 
 
 class TestConverter:
@@ -204,13 +206,7 @@ class TestMol:
 
     def test_write_hamil_mol(self,tmp_path,neon_atom,neon_rhf):
         mf,_ = neon_rhf
-        C = mf.mo_coeff
-        scf_data = {
-            'mo_coeff': C, 
-            'mol': neon_atom, 
-            'hcore': mf.get_hcore(),
-            'walker_type' : _SlaterType.CLOSED,
-            }
+        scf_data = load_from_pyscf_chk_mol(mf.chkfile)
         h1e,chol,_,enuc,_ = mol.generate_hamiltonian(scf_data,walker_type='closed')
 
         mol.write_hamil_mol(scf_data, tmp_path/'ham.h5', 1e-5, verbose=False)
@@ -219,6 +215,31 @@ class TestMol:
         assert np.allclose(hamil['hcore'], h1e, atol=1e-12, rtol=1e-8)
         assert np.allclose(np.array(hamil['chol']).real.T, chol, atol=1e-12, rtol=1e-8)
         assert np.isclose(enuc, hamil['enuc'])
+
+    def test_ortho_ao(self, neon_atom, neon_hf):
+        mf, _, walker_type = neon_hf
+        scf_data = load_from_pyscf_chk_mol(mf.chkfile)
+        C = scf_data["mo_coeff"]
+
+        if len(C.shape) > 2 or walker_type == _SlaterType.NONCOLLINEAR:
+            with pytest.raises(ValueError):
+                mol.generate_hamiltonian(scf_data, walker_type=walker_type)
+        else:
+            Cinv = np.linalg.inv(C)
+            X = scf_data["X"]
+
+            if walker_type == _SlaterType.NONCOLLINEAR:
+                X = np.kron(np.eye(2), X)
+                Cinv = np.kron(np.eye(2), Cinv)
+
+            h1e, chol, _, enuc, _ = mol.generate_hamiltonian(scf_data, walker_type=walker_type)
+            h1e_ao, chol_ao, _, enuc_ao, _ = mol.generate_hamiltonian(
+                scf_data, walker_type=walker_type, ortho_ao=True
+            )
+
+            assert np.isclose(enuc_ao, enuc)
+            assert np.allclose(h1e_ao, X.T @ Cinv.T @ h1e @ Cinv @ X)
+            assert np.allclose(chol_ao, mol.transform_cholesky(chol, Cinv @ X))
 
 
 @pytest.mark.pyscf

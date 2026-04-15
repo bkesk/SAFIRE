@@ -20,7 +20,10 @@ from afqmctools.utils.pyscf_utils import (
 from afqmctools.wavefunction.mol import write_wfn_mol
 from afqmctools.wavefunction.pbc import write_wfn_pbc
 
-from afqmctools.utils.slater_types import _slater_enum_map
+from afqmctools.utils.slater_types import (
+    _slater_enum_map,
+    _get_slater_type,
+)
 
 # TODO: rename this across entire code base
 def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
@@ -68,15 +71,24 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                 "in serial."
             )
 
+        soc_type = None
+        if with_sfx2c:
+            soc_type = 'sfx2c'
+        elif with_x2c:
+            soc_type = 'x2c'
+        
         scf_data = load_from_pyscf_chk_mol(
             chkfile,
-            with_sfx2c=with_sfx2c,
-            with_x2c=with_x2c
+            soc_type=soc_type,
         )
         scf_data['orthAO'] = ortho_ao
 
         if walker_type is None:
-            walker_type = scf_data['walker_type']
+            walker_type = _get_slater_type(
+                scf_data['mo_coeff'],
+                scf_data['nelec'],
+                scf_data['norb']
+            )
         else: # override the scf_data based on user input!
             walker_type = _slater_enum_map(walker_type)
             scf_data['walker'] = walker_type
