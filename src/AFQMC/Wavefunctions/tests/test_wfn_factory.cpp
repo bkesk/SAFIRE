@@ -172,37 +172,28 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     app_log(1," EXX: {}", wset[0].get_property(EXX_));
   }
   
-  nda::array<ComplexType,1> nMF(2*NMO); 
-  // G_MF
-  {
-    auto gMF_d = wfn.G_MF();
-    auto gMF = nda::to_host(gMF_d());
-    nMF(nda::range(npol*NMO))= nda::diagonal(gMF()(0,nda::range::all,nda::range::all));
-    if(type == COLLINEAR_FT)
-      nMF(nda::range(npol*NMO,nspin*npol*NMO))= nda::diagonal(gMF()(1,nda::range::all,nda::range::all));
-  }
-
   // must initialize discrete propagators for lattice models before calling vMF, vbias, etc.
   // technically, only for discrete propagators, but we don't access to that info here.
   if (wfn.getHamType() == ModelHamiltonian) { 
       const long ncv = wfn.number_of_cholesky_vectors();
       memory::array<MEM,ComplexType, 1> vMF_discrete(ncv, ComplexType(0.0, 0.0));
-      memory::array<MEM,ComplexType, 1> nMF(2 * NMO, ComplexType(0.0, 0.0));
+      memory::host_array<ComplexType, 1> nMF(2 * NMO, ComplexType(0.0, 0.0));
       wfn.update_potentials(dt, nMF, vMF_discrete, false);
   }
 
   // vMF
   {
-    bool natural_shift = true;
     memory::array<MEM,ComplexType,1> v(wfn.number_of_cholesky_vectors());
-    // potentials must be initialized for discrete HS decomp.
-    wfn.update_potentials(dt,nMF,v,natural_shift);
     wfn.vMF(v,dt);
+  }
+
+  // G_MF
+  {
+    auto gMF = wfn.G_MF();
   }
 
   Time.reset();
   memory::array<MEM,ComplexType,2> X(nwalk,wfn.number_of_cholesky_vectors());
-
   wfn.vbias(wset, X, dt);
   //std::cout<<"X = "<<X()<<std::endl;
   {
