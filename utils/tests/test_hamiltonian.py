@@ -164,23 +164,23 @@ class TestMol:
         assert np.allclose(eri, eri_loc, atol=1e-5, rtol=1e-3)
 
 
-    def test_ao2mo_chol(self,neon_atom,neon_rhf,neon_eri):
+    def test_transform_cholesky(self,neon_atom,neon_rhf,neon_eri):
         eri = neon_eri 
         mf, energy = neon_rhf
         assert np.isclose(energy, -126.60452499805)
         assert eri.shape == (5,5,5,5)
         eri = eri.reshape(25,25)
         chol = mol.chunked_cholesky(neon_atom, max_error=1e-5)
-        mol.ao2mo_chol(chol, mf.mo_coeff)
+        mol.transform_cholesky(chol, mf.mo_coeff)
         assert np.isclose(np.linalg.norm(chol), 3.52947146946)
 
 
-    def test_ao2mo_chol_rect(self,random_real_hamiltonian):
+    def test_transform_cholesky_rect(self,random_real_hamiltonian):
         np.random.seed(7)
         _,chol,_,_ = random_real_hamiltonian
         X = np.random.random((17,15))
         nchol = chol.shape[0]
-        chol_ = mol.ao2mo_chol(chol, X)
+        chol_ = mol.transform_cholesky(chol, X)
         assert chol_.shape == (nchol, 15*15)
 
 
@@ -188,7 +188,7 @@ class TestMol:
         mf,_ = neon_rhf
         C = mf.mo_coeff
         chol = mol.chunked_cholesky(neon_atom, max_error=1e-5)
-        mol.ao2mo_chol(chol, C)
+        mol.transform_cholesky(chol, C)
         hcore = mf.get_hcore()
         h1e = np.dot(C.T, np.dot(hcore, C))
         h1e, chol, efzc = mol.freeze_core(h1e, chol, 0, 1, 4, verbose=False)
