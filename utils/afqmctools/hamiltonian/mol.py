@@ -173,8 +173,8 @@ def generate_hamiltonian(
     if verbose:
         print (" # Orthogonalising Cholesky vectors.")
     start = time.time()
-    # Step 2.a Orthogonalise Cholesky vectors.
-    chol_trans = ao2mo_chol(chol_vecs, X)
+    # Step 2.a Transform Cholesky vectors to orthogonal basis
+    chol_trans = transform_cholesky(chol_vecs, X)
     if verbose:
         print(f" # Time to orthogonalise: {(time.time() - start)}")
     enuc = mol.energy_nuc()
@@ -372,18 +372,19 @@ def freeze_core(h1e, chol, ecore, nc, ncas, verbose=True):
         print(f'   # Frozen 2-body contribution: {efzc[2]}')
     return h1e, chol, efzc[0]
 
-def ao2mo_chol(eri, C):
+def transform_cholesky(chol, C):
+    """Apply the basis rotation `C` to the cholesky vectors `chol`""" 
     nao = C.shape[0]
     nmo = C.shape[1]
     nik = nmo*nmo
-    nchol = eri.shape[0]
-    eri_ = eri.ravel()
+    nchol = chol.shape[0]
+    chol_ = chol.ravel()
     for i in range(nchol):
-        cv = eri[i].reshape(nao,nao)
+        cv = chol[i].reshape(nao,nao)
         half = np.dot(cv, C)
         # if nao < nmo we overwrite the data
-        eri_[i*nik:(i+1)*nik] = np.dot(C.T, half).ravel()
-    return eri_[:nchol*nik].reshape((nchol,nik))
+        chol_[i*nik:(i+1)*nik] = np.dot(C.T, half).ravel()
+    return chol_[:nchol*nik].reshape((nchol,nik))
 
 def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     """Modified cholesky decomposition from pyscf eris.
