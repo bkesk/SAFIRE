@@ -41,7 +41,7 @@
 #include <math.h>
 
 /* 
-   Implementation of the approximation to the probit funciton  
+   Implementation of the approximation to the probit function  
    by Peter John Acklam.
    See: An algorithm for computing the inverse normal cumulative distribution function
    http://home.online.no/~pjacklam/notes/invnorm/

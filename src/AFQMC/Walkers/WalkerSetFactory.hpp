@@ -62,7 +62,7 @@ public:
     {
       auto newwlk = handlers.insert(std::make_pair(ID, buildHandler(mpi, xml->second, rng)));
       if (!newwlk.second)
-        utils::check(false," Error: Problems inserting new hamiltonian in WalkerSetFactory::getHandler(streing&). ");
+        utils::check(false," Error: Problems inserting new hamiltonian. ");
       return (newwlk.first)->second;
     }
     else

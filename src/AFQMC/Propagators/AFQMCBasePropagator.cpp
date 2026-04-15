@@ -39,7 +39,7 @@ namespace afqmc
  * If Pinv is true, only the backward-direction propagators are constructed, P1x_inv.
  * If Pinv is false, forward-direction propagators are constructed.
  * In addition, if Pinv is false and the backward-direction propagators have previously been
- * constructed, they are upated for the current timestep.  
+ * constructed, they are updated for the current timestep.  
  */
 template<MEMORY_SPACE MEM>
 void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, bool Pinv)
@@ -136,7 +136,7 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
 
   // assemble H1(i,j) = dt * (h(i,j) + vn0(i,j) + sum_n vMF[n]*vn(i,j,n))
   // H1 should have the same spin structure as walker_type
-  // everypne computes until I write a csr_matrix in shared memory
+  // everyone computes until I write a csr_matrix in shared memory
   int nspin = (walker_type == COLLINEAR ? 2 : 1);
   int npol  = (walker_type == NONCOLLINEAR ? 2 : 1);
 

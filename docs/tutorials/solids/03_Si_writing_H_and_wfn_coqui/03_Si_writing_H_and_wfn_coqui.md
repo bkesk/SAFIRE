@@ -551,7 +551,7 @@ Your steps:
 In this tutorial we have learned,
 
 1.  How to write a Hamiltonian to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation 
-2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation 
+2.  How to write a Trial wavefunction to the SAFIRE HDF5 format, using CoQui, starting from a Quantum Espresso calculation
 
 ```{code-cell} ipython3
 :id: wF2XOkh7-D5X

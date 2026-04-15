@@ -163,7 +163,7 @@ void PHMSD<MEM>::energy_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov)
           // log_ov(n) - log_ov(0)
           nda::tensor::add(ComplexType(-1.0),log_ov(spin,all),"w",ComplexType(1.0),Ovmsd(spin,nd,all),"w");
           // Ovmsd = exp(log_ov(n) - log_ov(0)) -> Ov(n)/Ov(0)
-          nda::tensor::scale(ComplexType(1.0),Ovmsd(spin,nd,all),nda::tensor::op::EXP);
+          nda::apply(ComplexType(1.0),Ovmsd(spin,nd,all),nda::tensor::op::EXP);
         }
         // kernel for gpu???
         for(int a=0; a<nel[spin]; ++a)
@@ -267,15 +267,17 @@ void PHMSD<MEM>::energy_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov)
     for(int iw=0; iw<nwalk; iw++) 
       E(iw,all) /= Ov(iw);
   } else {
-    utils::check(false,"finish");
-    // need reduce
-//    nda::tensor::add(ComplexType(1.0),Emsd,"snwc",ComplexType(0.0),E,"wc");
+    // implemented in nda_functions.hpp
+    nda::tensor::reduce(ComplexType(1.0),Emsd,"snwc",ComplexType(0.0),E,"wc",nda::tensor::op::SUM);
     if(walker_type == COLLINEAR) 
       nda::tensor::add(ComplexType(1.0),opSpinEJ,"w",ComplexType(1.0),E(all,2),"w");
-    // how to divide???
+    memory::buffered_array<MEM,ComplexType,1> Ot(Ov);
+    nda::apply(ComplexType(1.0),Ot,nda::tensor::op::RCP);
+    nda::tensor::elementwise(ComplexType(1.0),Ot,"w",
+                             ComplexType(1.0),E,"wc",nda::tensor::op::MUL);
   }
   // Ov -> log( Ov(n)/Ov(0) ) 
-  nda::tensor::scale(ComplexType(1.0),Ov,nda::tensor::op::LOG);
+  nda::apply(ComplexType(1.0),Ov,nda::tensor::op::LOG);
   // Ov += log_ov(0) -> log(Ov)
   if(walker_type == COLLINEAR) 
     nda::tensor::add(ComplexType(1.0),log_ov(1,all),"w",ComplexType(1.0),log_ov(0,all),"w");
@@ -448,11 +450,13 @@ void PHMSD<MEM>::energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
     for(int iw=0; iw<nwalk; iw++)
       E(iw,all) /= Ov(iw);
   } else {
-    // how to divide???
-    utils::check(false,"finish");
+    memory::buffered_array<MEM,ComplexType,1> Ot(Ov);
+    nda::apply(ComplexType(1.0),Ot,nda::tensor::op::RCP);
+    nda::tensor::elementwise(ComplexType(1.0),Ot,"w",
+                             ComplexType(1.0),E,"wc",nda::tensor::op::MUL);
   }
   // Ov -> log( Ov(n)/Ov(0) ) 
-  nda::tensor::scale(ComplexType(1.0),Ov,nda::tensor::op::LOG);
+  nda::apply(ComplexType(1.0),Ov,nda::tensor::op::LOG);
   // Ov += log_ov(0) -> log(Ov)
   nda::tensor::add(ComplexType(1.0),log_ov,"w",ComplexType(1.0),Ov,"w");
 }
@@ -702,14 +706,18 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
       }
 
       // G -> G/Ov, where both G and Ov are missing a factor of ov(n=0)
-      if constexpr (MEM==HOST_MEMORY)  
+      if constexpr (MEM==HOST_MEMORY) { 
         for(int i=0; i<nw; ++i)
           G(iw+i,all) /= Ov(iw+i); 
-      else
-        utils::check(false,"finish");
-        //need kernel that performs G(iw+i,all) /= Ov(iw+i);
+        // Ov -> log( Ov ) + log_ov(n=0) 
+      } else {
+        memory::buffered_array<MEM,ComplexType,1> Ot(nw);
+        Ot() = Ov(range(iw,iw+nw)); 
+        nda::apply(ComplexType(1.0),Ot,nda::tensor::op::RCP);
+        nda::tensor::elementwise(ComplexType(1.0),Ot,"w",ComplexType(1.0),G(range(iw,iw+nw),all),"wi",nda::tensor::op::MUL);
+      }
       // Ov -> log( Ov ) + log_ov(n=0) 
-      nda::tensor::scale(ComplexType(1.0),Ov(range(iw,iw+nw)),nda::tensor::op::LOG);
+      nda::apply(ComplexType(1.0),Ov(range(iw,iw+nw)),nda::tensor::op::LOG);
       // 3. Ov(iw) += log_ov(iw)
       nda::tensor::add(ComplexType(1.0),log_ov,"w",ComplexType(1.0),Ov(range(iw,iw+nw)),"w");
     }
@@ -810,7 +818,7 @@ void PHMSD<MEM>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
       // 1. Ov(iw) = sum_n wgt(n,iw) * ov_up(n,iw) 
       nda::tensor::contract(ComplexType(1.0),ovlp_ratios_up,"nw",wgt,"nw",ComplexType(0.0),Ov(range(iw,iw+nw)),"w");
       // 2. Ov(iw) = log( Ov(iw) ) = log (sum_n wgt(n,iw) * ov_up(n,iw)) 
-      nda::tensor::scale(ComplexType(1.0),Ov(range(iw,iw+nw)),nda::tensor::op::LOG);
+      nda::apply(ComplexType(1.0),Ov(range(iw,iw+nw)),nda::tensor::op::LOG);
       // 3. Ov(iw) += log_ov(iw)
       nda::tensor::add(ComplexType(1.0),log_ov,"w",ComplexType(1.0),Ov(range(iw,iw+nw)),"w");
     }
@@ -1139,13 +1147,16 @@ auto PHMSD<MEM>::G_MF()
         {
           auto D = OpSpinDetCouplings[spin][nd];
           long nnz = D.nnz();
-          auto val = D.values();
-          auto jdet = D.columns();
+          auto val = nda::to_host(D.values());
+          auto jdet = nda::to_host(D.columns());
           for (size_t n=0; n<nnz; ++n)
             wgt += ovlps(other_spin,jdet(n)) * std::norm(val(n));
           wgt *= ovlps(spin,nd);
         } else {
-          wgt = ovlps(spin,nd) * ComplexType(OpSpinDetCouplings[1].values(nd));
+          auto D = OpSpinDetCouplings[1][nd];
+          auto val = nda::to_host(D.values());
+          //wgt = ovlps(spin,nd) * ComplexType(OpSpinDetCouplings[1].values(nd));
+          wgt = ovlps(spin,nd) * ComplexType(val(0));
         }
         nda::copy_select(true,0,confg,wgt,G2d,ComplexType(1.0),Gs);
       }
@@ -1162,8 +1173,8 @@ auto PHMSD<MEM>::G_MF()
         {
           auto D = OpSpinDetCouplings[other_spin][nd];
           long nnz = D.nnz();
-          auto val = D.values();
-          auto jdet = D.columns();
+          auto val = nda::to_host(D.values());
+          auto jdet = nda::to_host(D.columns());
           for (long n1=0; n1<nnz; ++n1)
           {
             long cf1 = long(jdet(n1));
@@ -1197,7 +1208,7 @@ auto PHMSD<MEM>::G_MF()
 //MAM: needs checking!!!
       auto D = OpSpinDetCouplings[1][0];
       long nunique = D.nnz();
-      auto val = D.values();
+      auto val = nda::to_host(D.values());
       for (size_t n1=0, n12=0; n1<nunique; ++n1)
       {
         abij.get_configuration(spin, n1, confg);
@@ -1362,13 +1373,16 @@ void PHMSD<MEM>::vMF(nda::MemoryVector  auto&& v, double dt)
 	{
           auto D = OpSpinDetCouplings[spin][nd];     
           long nnz = D.nnz();
-	  auto val = D.values(); 
-	  auto jdet = D.columns();
+	  auto val = nda::to_host(D.values()); 
+	  auto jdet = nda::to_host(D.columns());
           for (size_t n=0; n<nnz; ++n)
             wgt += ovlps(other_spin,jdet(n)) * std::norm(val(n));
           wgt *= ovlps(spin,nd);
 	} else {
-	  wgt = ovlps(spin,nd) * ComplexType(OpSpinDetCouplings[1].values(nd));
+          auto D = OpSpinDetCouplings[1][nd];     
+	  auto val = nda::to_host(D.values()); 
+	  //wgt = ovlps(spin,nd) * ComplexType(OpSpinDetCouplings[1].values(nd));
+	  wgt = ovlps(spin,nd) * ComplexType(val(0));
         }
         nda::copy_select(true,0,confg,wgt,G2d,ComplexType(1.0),Gs);
       }
@@ -1385,8 +1399,8 @@ void PHMSD<MEM>::vMF(nda::MemoryVector  auto&& v, double dt)
         {
           auto D = OpSpinDetCouplings[other_spin][nd];     
           long nnz = D.nnz();
-          auto val = D.values();
-          auto jdet = D.columns();
+          auto val = nda::to_host(D.values());
+          auto jdet = nda::to_host(D.columns());
           for (long n1=0; n1<nnz; ++n1)  
           {
             long cf1 = long(jdet(n1)); 
@@ -1420,7 +1434,7 @@ void PHMSD<MEM>::vMF(nda::MemoryVector  auto&& v, double dt)
 //MAM: needs checking!!!
       auto D = OpSpinDetCouplings[1][0];     
       long nunique = D.nnz();
-      auto val = D.values(); 
+      auto val = nda::to_host(D.values()); 
       for (size_t n1=0, n12=0; n1<nunique; ++n1)
       {
         abij.get_configuration(spin, n1, confg);

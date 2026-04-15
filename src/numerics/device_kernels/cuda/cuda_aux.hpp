@@ -126,7 +126,7 @@ namespace kernels::device
   /***************    to_cuda_std_mdspan   ***************/
  
   template<typename Arr>
-  auto to_cuda_std_mdspan(Arr& A)
+  auto to_cuda_std_mdspan(Arr&& A)
   {
     constexpr auto RANK = ::nda::get_rank<Arr>;
     using value_t = typename std::pointer_traits<decltype(cuda_std_ptr_cast(A.data()))>::element_type;
@@ -157,7 +157,7 @@ namespace kernels::device
   template<int rank, typename Arr>
   auto to_std_array(Arr const& A)
   {
-    sfqmc::utils::check(rank==A.size(), "Error in to_cuda_std_array: rank mismatch");
+    sfqmc::utils::check(rank==A.size(), "Error in to_std_array: rank mismatch");
     std::array<nda::get_value_t<Arr>, rank> stdA;
     std::copy_n(A.data(),rank,stdA.data());
     return stdA;

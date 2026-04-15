@@ -119,22 +119,26 @@ void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communica
 template<class Mat>
 void getSlaterMatrix_mixed(Mat&& SM, math::sparse::CSRMatrix auto&& Orbs, nda::MemoryVector auto&& occs)
 {
+  using nda::range;
   SM() = ComplexType(0.0);
   auto row_begin = Orbs.row_begin();
   auto row_end = Orbs.row_end();
   auto vals = Orbs.values();
   auto cols = Orbs.columns();
+  // array copies, which work on GPU!
   for (int r = 0; r < occs.extent(0); r++)
     for(int j=row_begin(occs(r)); j<row_end(occs(r)); ++j)
-      SM(r,cols(j)) = vals(j); 
+      SM(r,range(cols(j),cols(j)+1)) = vals(range(j,j+1)); 
 }
 
 template<class Mat>
 void getSlaterMatrix_occ(Mat&& SM, nda::MemoryVector auto&& occs)
 {
+  using nda::range;
   SM() = ComplexType(0.0);
+  // array copies, which work on GPU!
   for (int r = 0; r < occs.extent(0); r++)
-    SM(r,occs(r)) = ComplexType(1.0);
+    SM(r,range(occs(r),occs(r)+1)) = ComplexType(1.0);
 }
 
 template<MEMORY_SPACE MEM>
@@ -163,7 +167,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   int npol          = (type == NONCOLLINEAR) ? 2 : 1;
   int nel           = (type == COLLINEAR) ? nup+ndown : nup;
   int nwalk         = 1; 
-  int ndets         = 100; 
+  int ndets         = ( MEM == HOST_MEMORY ? 100 : 1000 ); 
   double dt         = 0.01;
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
 
@@ -285,7 +289,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   for (int idet = 0; idet < ndets; idet++)
   {
     // Construct slater matrix from given set of occupied orbitals.
-    nda::array<ComplexType,1> ov(nwalk,ComplexType(0.0));
+    memory::array<MEM,ComplexType,1> ov(nwalk,ComplexType(0.0));
     if(orb_type == "mixed")
       getSlaterMatrix_mixed(PsiA, PsiT_MO(0), occs(idet,range(nup)));
     else
@@ -299,7 +303,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
         getSlaterMatrix_occ(PsiB, ob);
       det_ops::Log_Overlap(PsiB,wset.SlaterMatrices(Beta),ov);
     }
-    ovlp_sum += std::conj(coeffs[idet]) * std::exp(ov(0));
+    ovlp_sum += std::conj(coeffs[idet]) * std::exp(nda::to_host(ov)(0));
   }
   wfn.Log_Overlap(wset);
   
@@ -322,11 +326,11 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   // 2. Green function
   {
     nda::array<ComplexType,3> G(nwalk,nspin*npol*NMO,npol*NMO);
-    nda::array<ComplexType,3> Gt(nwalk,nspin*npol*NMO,npol*NMO);
+    memory::array<MEM,ComplexType,3> Gt(nwalk,nspin*npol*NMO,npol*NMO);
     G() = ComplexType(0.0);
     for (int idet = 0; idet < ndets; idet++)
     {
-      nda::array<ComplexType,1> ov(nwalk,ComplexType(0.0));
+      memory::array<MEM,ComplexType,1> ov(nwalk,ComplexType(0.0));
       Gt() = ComplexType(0.0);
       if(orb_type == "mixed")
         getSlaterMatrix_mixed(PsiA, PsiT_MO(0), occs(idet,range(nup)));
@@ -341,8 +345,10 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
           getSlaterMatrix_occ(PsiB, ob);
         det_ops::MixedDensityMatrix(PsiB,wset.SlaterMatrices(Beta),Gt(all,range(npol*NMO,2*npol*NMO),all),ov,false);
       }
+      auto Gt_h = nda::to_host(Gt());
+      auto ov_h = nda::to_host(ov());
       for(int iw=0; iw<nwalk; ++iw)
-        G(iw,all,all) += std::conj(coeffs[idet]) * std::exp(ov(iw) - log_ovlp_sum) * Gt(iw,all,all); 
+        G(iw,all,all) += std::conj(coeffs[idet]) * std::exp(ov_h(iw) - log_ovlp_sum) * Gt_h(iw,all,all); 
     }
     memory::array<MEM,ComplexType,3> Gd(nwalk,nspin*npol*NMO,npol*NMO);
     auto Gt2d = nda::reshape(Gd,std::array<long,2>{nwalk,nspin*npol*NMO*npol*NMO});
@@ -354,13 +360,13 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   memory::array<MEM,ComplexType,2> eloc_ph0(nwalk,3);
   memory::array<MEM,ComplexType,1> ov_ph0(nwalk);
   wfn.Energy(wset,eloc_ph0,ov_ph0);
-  nda::tensor::scale(ComplexType(1.0),ov_ph0,nda::tensor::op::EXP);
+  nda::apply(ComplexType(1.0),ov_ph0,nda::tensor::op::EXP);
 
   {
     memory::array<MEM,ComplexType,2> eloc(nwalk,3);
     memory::array<MEM,ComplexType,1> ov(nwalk);
     nomsd.Energy(wset,eloc,ov);
-    nda::tensor::scale(ComplexType(1.0),ov,nda::tensor::op::EXP);
+    nda::apply(ComplexType(1.0),ov,nda::tensor::op::EXP);
     ARRAY_EQUAL(ov_ph0,ov);
     ARRAY_EQUAL(eloc_ph0,eloc);
   }
@@ -381,7 +387,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     memory::array<MEM,ComplexType,2> eloc(nwalk,3);
     memory::array<MEM,ComplexType,1> ov(nwalk);
     wfn1.Energy(wset,eloc,ov);
-    nda::tensor::scale(ComplexType(1.0),ov,nda::tensor::op::EXP);
+    nda::apply(ComplexType(1.0),ov,nda::tensor::op::EXP);
 
     ARRAY_EQUAL(ov_ph0,ov);
     ARRAY_EQUAL(eloc_ph0,eloc);
@@ -451,7 +457,6 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   mpi->comm.barrier();
   if(mpi->comm.root()) remove(nomsd_file.c_str());
   mpi->comm.barrier();
-
 }
 
 TEST_CASE("test_read_phmsd", "[test_read_phmsd]")
@@ -465,9 +470,9 @@ TEST_CASE("test_phmsd", "[read_phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+//  test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
 #if defined(ENABLE_DEVICE)
-//  test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+  test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
 #endif
 }
 

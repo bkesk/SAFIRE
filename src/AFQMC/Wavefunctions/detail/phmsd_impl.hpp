@@ -110,7 +110,7 @@ void ph_excited_2body_energy_dense_cholesky(nda::MemoryVector auto const& iexcit
           // R[p]*R[diagonal] term
           for(int j=0; j<nelec; j++) {
             int Oj = occps(j); 
-            nda::blas::gemv(one,Twina(iw,j,all,all),Twina(iw,ip,all,Oj),zero,Fa);
+            nda::blas::gemv(one,nda::transpose(Twina(iw,j,all,all)),Twina(iw,ip,all,Oj),zero,Fa);
             eX += two * nda::sum( Fa*Rxa(ie1,all) ); 
           }
 
@@ -136,13 +136,11 @@ void ph_excited_2body_energy_dense_cholesky(nda::MemoryVector auto const& iexcit
           Kn() += Twina(iw,i,all,occps(i));
 
         EX(iw) -= half * wgt(idet,iw) * eX;
-        EJ(iw) += half * wgt(idet,iw) * ( nda::sum( Kn*Kn ) - eJ0 );
+        EJ(iw) += half * wgt(idet,iw) * ( nda::sum( Kn*Kn )  - eJ0 );
       }
     }
   } else {
-    // custom kernel???
-    utils::check(false,"finish");
-//  kernels::ph_excited_1body_energy(iexcit,refc,S,R,wgt,E);
+    kernels::device::ph_excited_2body_energy_dense_cholesky_Tpna(refc.data(),iexcit.data(),Twina,R,wgt,EX,EJ,KE);
   }
 }
 
@@ -175,122 +173,8 @@ void ph_excited_1body_energy(nda::MemoryVector auto const& iexcit, nda::MemoryVe
       }
     }
   } else {
-    // custom kernel???
-    utils::check(false,"finish");
-//  kernels::ph_excited_1body_energy(iexcit,refc,S,R,wgt,E);
+    kernels::device::ph_excited_1body_energy(refc.data(),iexcit.data(),S,R,wgt,E);
   }
 }
-/*
-
-#if defined(ENABLE_DEVICE)
-namespace ma 
-{
-
-template<typename I1, class MatT, class MatR, class WVec, class EVec, class MatK,
-          typename = typename std::enable_if_t<(std::decay<MatT>::type::dimensionality == 4)>,
-          typename = typename std::enable_if_t<(std::decay<MatR>::type::dimensionality == 4)>,
-          typename = typename std::enable_if_t<(std::decay<WVec>::type::dimensionality == 2)>,
-          typename = typename std::enable_if_t<(std::decay<EVec>::type::dimensionality == 1)>,
-          typename = typename std::enable_if_t<(std::decay<MatK>::type::dimensionality == 3)>,
-          typename = std::enable_if_t< is_device_array<std::decay_t<MatT>>::value >,
-          typename = std::enable_if_t< is_device_array<std::decay_t<MatR>>::value >,
-          typename = std::enable_if_t< is_device_array<std::decay_t<WVec>>::value >,
-          typename = std::enable_if_t< is_device_array<std::decay_t<EVec>>::value >,
-          typename = std::enable_if_t< is_device_array<std::decay_t<MatK>>::value >
-         >
-void ph_excited_2body_energy_dense_cholesky_Tpan(device::device_pointer<I1> iexcit, device::device_pointer<I1> refc, 
-	MatT&& T, MatR&& R, WVec&& wgt, EVec&& EX, EVec&& EJ, MatK&& KE)
-{
-  APP_ABORT(" Error: ph_excited_2body_energy_dense_cholesky_Tpan should not be called in GPU. "); 
-}
-
-template<typename I1, class MatT, class MatR, class WVec, class EVec, class MatK,
-          typename = typename std::enable_if_t<(std::decay_t<MatT>::dimensionality == 4)>,
-          typename = typename std::enable_if_t<(std::decay_t<MatR>::dimensionality == 4)>,
-          typename = typename std::enable_if_t<(std::decay_t<WVec>::dimensionality == 2)>,
-          typename = typename std::enable_if_t<(std::decay_t<EVec>::dimensionality == 1)>,
-          typename = typename std::enable_if_t<(std::decay_t<MatK>::dimensionality == 3)>,
-          typename = std::enable_if_t< is_device_array<std::decay_t<MatT>>::value >,
-          typename = std::enable_if_t< is_device_array<std::decay_t<MatR>>::value >,
-          typename = std::enable_if_t< is_device_array<std::decay_t<WVec>>::value >,
-          typename = std::enable_if_t< is_device_array<std::decay_t<EVec>>::value >,
-          typename = std::enable_if_t< is_device_array<std::decay_t<MatK>>::value >
-         >
-void ph_excited_2body_energy_dense_cholesky_Tpna(device::device_pointer<I1> iexcit, device::device_pointer<I1> refc, 
-	MatT&& Twina, MatR&& R, WVec&& wgt, EVec&& EX, EVec&& EJ, MatK&& KE)
-{
-  int nwalk = R.size(0);
-  int ndet  = R.size(1);
-  int nex   = R.size(2);
-  int nact  = R.size(3);
-  int nelec = Twina.size(1);
-  int nchol = Twina.size(2);
-
-  RUNTIME_CHECK(Twina.size(0) == nwalk, "");
-  RUNTIME_CHECK(Twina.size(3) == nact, "");
-  RUNTIME_CHECK(wgt.size(0) == ndet, "");
-  RUNTIME_CHECK(wgt.size(1) == nwalk, "");
-  RUNTIME_CHECK(EJ.size(0) == nwalk, "");
-  RUNTIME_CHECK(EX.size(0) == nwalk, "");
-  RUNTIME_CHECK(KE.size(0) == ndet, "");
-  RUNTIME_CHECK(KE.size(1) == nwalk, "");
-  RUNTIME_CHECK(KE.size(2) == nchol, "");
-
-  // Twina continuous 
-  RUNTIME_CHECK(Twina.stride(0) == Twina.size(3) * Twina.size(2) * Twina.size(1), ""); 
-  RUNTIME_CHECK(Twina.stride(1) == Twina.size(3) * Twina.size(2), ""); 
-  RUNTIME_CHECK(Twina.stride(2) == Twina.size(3), ""); 
-  RUNTIME_CHECK(Twina.stride(3) == 1, ""); 
-  // R continuous 
-  RUNTIME_CHECK(R.stride(0) == R.size(3) * R.size(2) * R.size(1), ""); 
-  RUNTIME_CHECK(R.stride(1) == R.size(3) * R.size(2), ""); 
-  RUNTIME_CHECK(R.stride(2) == R.size(3), ""); 
-  RUNTIME_CHECK(R.stride(3) == 1, ""); 
-
-  RUNTIME_CHECK(wgt.stride(1) == 1, "");
-
-  kernels::ph_excited_2body_energy_dense_cholesky_Tpna(nwalk, ndet, nex, nact, nelec, nchol, 
-        raw_pointer_cast(iexcit), raw_pointer_cast(refc), raw_pointer_cast(Twina.origin()), 
-	raw_pointer_cast(R.origin()), raw_pointer_cast(wgt.origin()), wgt.stride(0),
-        raw_pointer_cast(EX.origin()), EX.stride(0), raw_pointer_cast(EJ.origin()), EJ.stride(0), 
-	raw_pointer_cast(KE.origin()), KE.stride(1), KE.stride(0));
-}
-
-template<typename I1, class MatS, class MatR, class MatW, class EVec,
-          typename = typename std::enable_if_t<(std::decay_t<MatS>::dimensionality == 3)>,
-          typename = typename std::enable_if_t<(std::decay_t<MatR>::dimensionality == 4)>,
-          typename = typename std::enable_if_t<(std::decay_t<MatW>::dimensionality == 2)>,
-          typename = typename std::enable_if_t<(std::decay_t<EVec>::dimensionality == 1)>
-          ,typename = std::enable_if_t< is_device_array<std::decay_t<MatS>>::value >
-          ,typename = std::enable_if_t< is_device_array<std::decay_t<MatR>>::value >
-          ,typename = std::enable_if_t< is_device_array<std::decay_t<MatW>>::value >
-          ,typename = std::enable_if_t< is_device_array<std::decay_t<EVec>>::value >
-         >
-void ph_excited_1body_energy(device::device_pointer<I1> iexcit, device::device_pointer<I1> refc,
-	MatS&& S, MatR&& R, MatW&& wgt, EVec&& E)
-{
-  int nwalk = R.size(0);
-  int ndet  = R.size(1);
-  int nex   = R.size(2);
-  int nact  = R.size(3);
-  int nelec = S.size(1);
-  
-  RUNTIME_CHECK(S.size(0) == nwalk, "");
-  RUNTIME_CHECK(S.size(2) == nact, "");
-  RUNTIME_CHECK(wgt.size(0) == ndet, "");
-  RUNTIME_CHECK(wgt.size(1) == nwalk, "");
-  RUNTIME_CHECK(E.size(0) == nwalk, "");
-
-  kernels::ph_excited_1body_energy(nwalk, ndet, nex, nact, nelec, 
-        raw_pointer_cast(iexcit), raw_pointer_cast(refc), raw_pointer_cast(S.origin()), 
-	raw_pointer_cast(R.origin()), raw_pointer_cast(wgt.origin()), wgt.stride(0),
-        raw_pointer_cast(E.origin()), E.stride(0));
-}
-
-
-} // namespace ma
-#endif
-*/
 
 } // sfqmc::afqmc
-

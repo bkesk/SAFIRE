@@ -83,11 +83,10 @@ i.e. the propagator is applied to different Slater determinants when moving in t
 from pathlib import Path
 
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-#TODO: update this to a good directory for scratch files
-home = Path.home() / ".scratch"
-scratch_dir = get_scratch_dir("observables_mols", home)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "4d4d8135-bc2d-4caa-bbaf-c88ab045176c"}
@@ -129,7 +128,6 @@ from pyscf import gto,scf,mcscf
 from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 from afqmctools.hamiltonian.mol import write_hamil_mol
 from afqmctools.inputs.from_hdf import write_json
-from afqmctools.hamiltonian.io import write_to_hdf5
 
 from stats.scalar_dat import analyze_scalar_data
 
@@ -193,7 +191,6 @@ write_hamil_mol(
     chol_cut = 1e-5,
     verbose=True
 )
-
 ```
 
 +++ {"id": "dSJ9e4tRBxxx"}
@@ -306,7 +303,7 @@ outputId: ce74d680-635b-456e-a468-0e7ada8b10f7
 run_afqmc(
     run_dir=scratch_dir,                # directory to run SAFIRE in - output files will be there as well
     input_file="afqmc.json",
-    np=64,                              # number of MPI tasks
+    np=16,                              # number of MPI tasks
     output_file=None
 )
 ```
@@ -506,7 +503,7 @@ outputId: 47d9ccce-e999-47e9-f36c-2a4005cd87a0
 run_afqmc(
     run_dir=scratch_dir,                # directory to run SAFIRE in - output files will be there as well
     input_file="afqmc_1.json",
-    np=64,                              # number of MPI tasks
+    np=16,                              # number of MPI tasks
     output_file=None
 )
 ```
@@ -834,7 +831,8 @@ outputId: fbf1e8a4-bc84-40c5-9135-0d6a6571b8e8
 from afqmctools.inputs.from_hdf import write_json
 
 # Create a scratch directory for BP calculations
-scratch_dir_bp = get_scratch_dir("observables_mols_bp", home)
+scratch_dir_bp = scratch_dir / "bp"
+scratch_dir_bp.mkdir(parents=True, exist_ok=True)
 
 # Copy the Hamiltonian and wavefunction files
 import shutil
@@ -850,7 +848,7 @@ execute_options_bp = {
     "measure_interval_multiplier": 2,
     "population_control_interval": 5,
     "walker_ortho_interval": 10,
-    "n_walkers_per_mpi_task": 20,
+    "n_walkers_per_mpi_task": 100,
     "seed": 42,
     "estimator": {
         "name": "back_propagation",
@@ -896,7 +894,7 @@ print("This will take longer than mixed estimators due to the additional back-pr
 run_afqmc(
     run_dir=scratch_dir_bp,
     input_file="afqmc_bp.json",
-    np=64,
+    np=16,
     output_file=None
 )
 ```
@@ -926,7 +924,7 @@ hermitize = hermitize_factory(
 # Extract one-RDM data from all BP averages
 print("\nExtracting one-RDM data from back-propagation averages...")
 
-# We specified 3 BP lengths: [60, 70, 80] * population_control_interval
+# We specified 3 BP lengths:
 bp_lengths = bp_metadata["BackPropSteps"]
 bp_onerdm_data = {}
 
@@ -998,16 +996,17 @@ E_mixed, dE_mixed = analyze_scalar_data(dict(
     nequil = 10
 ))
 
+bp_steps = bp_lengths * execute_options_bp['population_control_interval']
 fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
 # plot reference value from mixed
-ax.fill_between([min(bp_lengths), max(bp_lengths)],
+ax.fill_between([min(bp_steps)-1, max(bp_steps)+1],
                  E_mixed - dE_mixed, E_mixed + dE_mixed,
                  alpha=0.2, color='red')
 ax.axhline(y=E_mixed, color='red', linestyle='--', alpha=0.7, label=f'Mixed Estimator')
 
 # Plot convergence
-ax.errorbar(bp_lengths, bp_energy, yerr=bp_energy_err, marker='o', capsize=5, capthick=2, label='BP Estimator')
+ax.errorbar(bp_steps, bp_energy, yerr=bp_energy_err, marker='o', capsize=5, capthick=2, label='BP Estimator')
 
 ax.set_xlabel('BP Length (steps)')
 ax.set_ylabel('Mean One-body Energy (Ha)')
@@ -1056,4 +1055,3 @@ In this tutorial, you were acquainted with how to compute general observables wi
 1. What a mixed estimator is and when to use one to compute an observable
 2. What a back-propagated estimator is and when to use one to compute an observable
 3. How to compute observables in post-processing with afqmctools
-

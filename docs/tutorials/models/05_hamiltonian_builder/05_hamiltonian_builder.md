@@ -116,7 +116,11 @@ are included.
 
 from afqmctools.systems.lattice import get_lattice
 from afqmctools.hamiltonian.model.builder import HamiltonianBuilder
-from afqmctools.utils.io import write_model_hamiltion
+from afqmctools.utils.io import write_model_hamiltonian
+from pathlib import Path
+
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 lattice = get_lattice(
     params={
@@ -137,9 +141,9 @@ builder.onsite_hubbard(4.0)
 builder.finalize()
 
 # save for latter use
-write_model_hamiltion(
+write_model_hamiltonian(
     hamiltonian=builder.hamiltonian,
-    fname='hamiltonian.h5'
+    fname=scratch_dir / 'hamiltonian.h5'
 )
 ```
 
@@ -221,7 +225,6 @@ to cover
     - uniform
     - band/sublattice degrees of freedom (individual and combined)
 - hst over-rides (expert-mode)
-  
 
 ```{code-cell} ipython3
 :id: 91b862e0-881c-4e53-a5ee-cd23ede58378

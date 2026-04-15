@@ -33,11 +33,10 @@ Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 form
 from pathlib import Path
 
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-#TODO: update this to a good directory for scratch files
-home = Path.home() / ".scratch"
-scratch_dir = get_scratch_dir("04_mols_writing_a_trial", home)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "vt9PbuQhpw4u"}
