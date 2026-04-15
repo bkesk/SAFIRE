@@ -103,7 +103,7 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
 }
 
 
-inline constexpr auto lattice_unit_test_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd) 
+inline constexpr auto lattice_unit_test_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd, bool finiteT = false) 
 {
   std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> > files;
   auto pre = unit_test_base() + "models/";
@@ -135,6 +135,11 @@ inline constexpr auto lattice_unit_test_files(bool rhf, bool uhf, bool ghf, bool
                                           pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/wfn_fe_noncollinear.h5",
                                           afqmc::NONCOLLINEAR) );
     }
+    if(finiteT) {
+      files.emplace_back( std::make_tuple(pre + "finiteT/square_2x2_hubbard_Beta3_nt100/afqmc_inputs/ham_collinear.h5",
+                                          pre + "finiteT/square_2x2_hubbard_Beta3_nt100/afqmc_inputs/wfn_collinear_ft.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+    }
   }
   if (phmsd) {
     // no phmsd tests for lattice models yet
@@ -143,7 +148,7 @@ inline constexpr auto lattice_unit_test_files(bool rhf, bool uhf, bool ghf, bool
 }
 
 
-inline constexpr auto get_unit_tests_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd, 
+inline constexpr auto get_unit_tests_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd, bool finiteT = false, 
   bool molecules=false, bool lattices=true, bool solids=true)
 {
   auto unit_test_files = std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> >{};
@@ -153,7 +158,7 @@ inline constexpr auto get_unit_tests_files(bool rhf, bool uhf, bool ghf, bool no
     unit_test_files.insert(unit_test_files.end(), mol_files.begin(), mol_files.end());
   }
   if (lattices) {
-    auto lat_files = lattice_unit_test_files(rhf, uhf, ghf, nomsd, phmsd);
+    auto lat_files = lattice_unit_test_files(rhf, uhf, ghf, nomsd, phmsd, finiteT);
     unit_test_files.insert(unit_test_files.end(), lat_files.begin(), lat_files.end());
   }
   if (solids) {

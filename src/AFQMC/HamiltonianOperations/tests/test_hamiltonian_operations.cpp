@@ -593,7 +593,7 @@ TEST_CASE("ham_ops_basic_serial", "[hamiltonian_operations]")
 #endif
   } else {
     app_log(0,"HamiltonianOperations unit testing. Running standard tests.");
-    auto files = utils::get_unit_tests_files(true,true,true,true,false);
+    auto files = utils::get_unit_tests_files(true,true,true,true,false,true);
     for( auto f : files ) {
       try {
         ham_ops_basic_serial<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));

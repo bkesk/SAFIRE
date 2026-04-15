@@ -343,7 +343,7 @@ TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
 #endif
   } else {
     app_log(0,"WavefunctionFactory unit testing. Running standard tests.");
-    auto files = utils::get_unit_tests_files(true,true,true,true,false);
+    auto files = utils::get_unit_tests_files(true,true,true,true,false,true);
     for( auto f : files ) {
       try {
         wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
