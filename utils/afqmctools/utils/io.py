@@ -473,7 +473,10 @@ def write_pair_correlators(fname:str=None, pairs_dict=None):
     num_correlators = len(pairs_dict.keys())
 
     with h5.File(fname,"a") as f:
-        g = f.create_group("PairCorrelator/orbital_map")
+        group_name = "PairCorrelator/orbital_map"
+        if group_name in f:
+            del f[group_name]
+        g = f.create_group(group_name)
         g.create_dataset("num_pair",data=max_num_pairs)
         g.create_dataset("num_corr",data=num_correlators)
         for direction,pair in pairs_dict.items():

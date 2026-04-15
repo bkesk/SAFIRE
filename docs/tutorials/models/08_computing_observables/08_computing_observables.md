@@ -83,11 +83,10 @@ i.e. the propagator is applied to different Slater determinants when moving in t
 from pathlib import Path
 
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-#TODO: update this to a good directory for scratch files
-home = Path.home() / ".scratch"
-scratch_dir = get_scratch_dir("08_observables_lattice", home)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "4d4d8135-bc2d-4caa-bbaf-c88ab045176c"}
@@ -870,7 +869,8 @@ outputId: adbb5a65-99ad-49a9-d8a9-3e9b0a166bad
 from afqmctools.inputs.from_hdf import write_json
 
 # Create a scratch directory for BP calculations
-scratch_dir_bp = get_scratch_dir("observables_mols_bp", home)
+scratch_dir_bp = Path("data/bp")
+scratch_dir_bp.mkdir(parents=True, exist_ok=True)
 
 # Set up AFQMC parameters with back-propagation
 execute_options_bp = {

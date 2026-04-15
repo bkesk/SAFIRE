@@ -32,16 +32,10 @@ config.update("jax_enable_x64", True)
 ```
 
 ```{code-cell} ipython3
-:id: 6883d177-8f0e-4e90-bea0-54b6c711cad6
+:id: f6e937d2-fde5-4f1b-afd9-6afb3798244a
 
 import matplotlib.pyplot as plt
 import numpy as np
-```
-
-```{code-cell} ipython3
-:id: f6e937d2-fde5-4f1b-afd9-6afb3798244a
-
-# all the imports used later in the tutorial, but put here for convenience
 
 import afqmctools.systems.lattice as lat
 import afqmctools.utils.visualize as vis
@@ -51,19 +45,18 @@ import afqmctools.hamiltonian.model.director as ham
 from afqmctools.wavefunction.converter import read_wavefunction
 from afqmctools.wavefunction.model import write_free_electron_wfn
 from afqmctools.analysis.rdm import average_afqmc_rdm
-```
-
-```{code-cell} ipython3
-:id: a332abc9-fc0a-4774-b316-6016060e0091
 
 from afqmctools.observables.greens import greens_1body
 import afqmctools.observables.spin as spobs
-```
+from afqmctools.inputs.from_autohf import autohf_to_afqmc
 
-```{code-cell} ipython3
-:id: 8c9febda-fb02-489c-8c4f-422a343b80a2
+from tutorial_utils import run_afqmc
 
 import autohf
+
+from pathlib import Path
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"editable": true, "id": "083d8f36-02de-4281-a56c-7cd3d5add077"}
@@ -122,10 +115,12 @@ vis.plot_lattice(lattice)
 The Hamiltonian will be simple,
 
 $$
-H &= H_t + H_U + H_{pin} \\
+\begin{align}
+H &= H_t + H_U + H_\text{pin} \\
 H_t &= -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
 H_U &= U\sum_i n_{i\uparrow}n_{i\downarrow}\\
-H_{pin} &= \sum_{i\in \text{edge}} (-1)^{i_x+i_y} h_i S^z_i
+H_\text{pin} &= \sum_{i\in \text{edge}} (-1)^{i_x+i_y} h_i S^z_i
+\end{align}
 $$
 
 and we have a convenience function to add the edge pinning as well. We'll assume $t=1$, $h_i=0.5$ just like in the paper
@@ -140,7 +135,7 @@ colab:
 builder = ham.HamiltonianBuilder(
           lattice=lattice,
           spin_symm="collinear" # we have no spin-flip terms
-              )
+)
 # add standard Hubbard terms
 builder.nth_neighbor_hopping(1.0)
 builder.onsite_hubbard(U)
@@ -151,7 +146,7 @@ builder.finalize()
 ```{code-cell} ipython3
 :id: f94e92dd-9802-46ea-a1db-0baffb7efbb4
 
-io.write_model_hamiltonian(builder.hamiltonian, "afqmc.h5",
+io.write_model_hamiltonian(builder.hamiltonian, scratch_dir / "afqmc.h5",
                         nelec=nelec,spin_symm="collinear")
 ```
 
@@ -165,7 +160,7 @@ colab:
 # get a trial wavefunction: First, let's try a free-electron (i.e. non-interacting) wavefunction
 from afqmctools.wavefunction.model import write_free_electron_wfn
 write_free_electron_wfn(
-    hamiltonian_fname="afqmc.h5",
+    hamiltonian_fname=scratch_dir / "afqmc.h5",
     nelec=nelec
 )
 ```
@@ -177,79 +172,46 @@ Now we'll write the file to run AFQMC. There are some better tools than this but
 ```{code-cell} ipython3
 :id: 866c943b-b811-40b9-a8a5-e257e30bda24
 
-def getInputJson(series,wf_fname,h_fname=None):
-    if h_fname is None:
-        h_fname = wf_fname
-    return f'''{{
-  "afqmc": {{
-    "project": {{
-      "id": "qmc",
-      "series": {series},
-      "mixed_precision": false
-    }},
-    "execute": {{
-      "walker_set": {{
-        "walker_type": "COLLINEAR"
-      }},
-      "wavefunction": {{
-        "filename": "{wf_fname}"
-      }},
-      "hamiltonian": {{
-        "filename": "{h_fname}"
-      }},
-      "timestep": 0.005,
-      "steps": 20000,
-      "accumlate_interval": 2,
-      "measure_interval": 2,
-      "population_control_interval" : 2,
-      "walker_ortho_interval" : 2,
-      "n_walkers_per_mpi_task": 540,
-      "estimator": {{
-        "name": "energy",
-        "overwrite": true,
-        "print_components": true
-      }},
-      "estimator": {{
-        "name":"back_propagation",
-        "path_restoration":true,
-        "extra_path_restoration":true,
-        "bp_walker_ortho_interval":2,
-        "nsteps":500,
-        "naverages":1,
-        "equil":2000,
-        "onerdm" : {{
-          "name":"onerdm"
-	      }}
-      }}
-    }}
-  }}
-}}
-'''
-```
+from afqmctools.inputs.from_hdf import write_json
 
-```{code-cell} ipython3
----
-id: b343c03f-ab1d-490a-a421-86a44864ecf4
-outputId: 200baf2a-73d2-4f0e-d713-4cc0c39f277a
-colab:
-  base_uri: https://localhost:8080/
----
-print(getInputJson(0,"afqmc.h5"))
-```
+# make an input file
+afqmc_params = {
+        "timestep": 0.005,
+        "steps": 10000,
+        "population_control_interval": 2,
+        "walker_ortho_interval": 2,
+        "n_walkers_per_mpi_task": 40,
+        "measure_interval_multiplier": 1,    
+        "estimator1": {
+            "name": "energy",
+            "overwrite": True,
+            "print_components": True
+        },
+        "estimator2": {
+            "name":"back_propagation",
+            "path_restoration": True,
+            "extra_path_restoration": True,
+            "bp_walker_ortho_interval": 2,
+            "measure_interval_multiplier": 250,
+            "equil_multiplier": 1000,
+            "onerdm" : {
+                "name":"onerdm"
+    	    }
+        },
+        "seed" : 42,                          # just for reproducibility
+        "propagator": {
+            "use_cp_constraint": True,
+            "use_real_vbias" : True
+        }
+    }
 
-```{code-cell} ipython3
-:id: 6e930735-29d0-4dc0-838d-475283cc6bb4
-
-with open("afqmc.json","w") as f:
-    lines = getInputJson(0,"afqmc.h5")
-    f.write(lines)
-```
-
-```{code-cell} ipython3
-:id: 59c74aca-3a04-4677-b6ab-fa1e1d61d366
-:outputId: df9d0f96-bb53-4ec7-a6cc-42462bd0a27e
-
-!sbatch --wait run_afqmc.sh afqmc.json
+write_json(
+    scratch_dir / "afqmc.json",
+    fwfn0=scratch_dir / "afqmc.h5",
+    fham0=scratch_dir / "afqmc.h5",
+    exec_opts=afqmc_params,
+    series=0
+)
 ```
 
 ```{code-cell} ipython3
@@ -259,19 +221,31 @@ outputId: 8c812e11-d1f3-454d-82c4-0322455b50bb
 colab:
   base_uri: https://localhost:8080/
 ---
-!mpirun -np 12 $AFQMC_EXEC afqmc.json
+!cd data; mpirun -np 16 $AFQMC_EXEC afqmc.json
 ```
 
 ```{code-cell} ipython3
-:id: e8e41aff-0a7a-49fd-bbe8-821dc49fc7a8
-:outputId: 2091d2fd-7735-4d06-ef08-73f9d31f4ae8
+---
+id: nn3u7u8k5xcp
+colab:
+  base_uri: https://localhost:8080/
+  height: 921
+outputId: 78be3a24-0f0c-4577-cb48-6ad867cb1f1b
+---
+# analyze
+from stats.scalar_dat import analyze_scalar_data
 
-!scalar_stats qmc.s000.scalar.dat -s time -t -e 10.0 --savefig energy_fe.png
+nequil = 20.0
+
+analysis_settings = dict(
+    fname = scratch_dir / "qmc.s000.scalar.dat",
+    xaxis = "time",     # use units of imaginary time for equilibration
+    nequil = 5,    # length of equilibration phase (in units of imaginary time)
+    trace = True,       # plots a trace of the scalar data
+)
+
+E,dE = analyze_scalar_data(analysis_settings)
 ```
-
-+++ {"id": "711d86ce-c4f5-4b17-88b6-4f11c90a4f79"}
-
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/ex02_stripes/energy_fe.png" width="800px" />
 
 +++ {"id": "e5e2892a-59fe-412e-9d8b-42f42c05ff79"}
 
@@ -293,7 +267,7 @@ def averageOverCols(Sz,Nx,Ny):
 ```{code-cell} ipython3
 :id: 0a52fe29-2397-4436-b84d-48b95ac5f777
 
-rho_avg, delta_rho = average_afqmc_rdm(rdm_file="qmc.s000.stat.h5")
+rho_avg, delta_rho = average_afqmc_rdm(rdm_file=scratch_dir / "qmc.s000.stat.h5")
 ```
 
 ```{code-cell} ipython3
@@ -328,12 +302,6 @@ SzDmrg = np.loadtxt("data_10x4_Ne16U6.0_15360.dat",usecols=(1,))
 ```
 
 ```{code-cell} ipython3
-:id: 3790867c-321a-4e47-84f8-e82a1a407d07
-
-
-```
-
-```{code-cell} ipython3
 :id: d2e9c723-0471-404c-acb5-30e862b7905f
 :outputId: a53dc884-c7ab-43d4-9b39-1ad5c3e23957
 
@@ -357,7 +325,7 @@ plt.show()
 
 ## Self Consistency w/ Hartree-Fock
 
-The idea behind self-consistent AFQMC is to have the trial wave function match as much as possible the output of AFQMC. [cite me]
+The idea behind self-consistent AFQMC is to have the trial wave function match as much as possible the output of AFQMC.
 
 For this model, we can do this by introducing an effective Hubbard model, where $U$ is replaced with $U_{eff}$. By solving Hartree-Fock (mean field theory) for this effective model and using the result as a trial wave function, we can scan through different $U_{eff}$ to find the one that matches the best.
 
@@ -369,7 +337,8 @@ _Note:_ The Hartree-Fock code is faster if you use a GPU
 :id: ee2b575c-7d27-4a1d-a9b9-e9b02a682f8f
 :outputId: 743ad05d-6d2a-4eba-ec3c-92e78bcbe2e3
 
-for Ueff in [1,2,3,4]:
+Ueffs = [1,2,3,4]
+for Ueff in Ueffs:
 
     builder_eff = ham.HamiltonianBuilder(
               lattice=lattice,
@@ -382,39 +351,50 @@ for Ueff in [1,2,3,4]:
     builder_eff.finalize()
 
     # NOTICE: we must be careful here! We can either keep around afqmc.h5
-    # which has the original Hamiltonian (U=6) and keep the wf and its hamiltonian together
+    # which has the original Hamiltonian (U=6) and keep the wf and its Hamiltonian together
     # or we have one file with afqmc_Ueff which has both the wf and builder.hamiltonian
-    io.write_model_hamiltonian(builder_eff.hamiltonian, f"afqmc_{Ueff}.h5",
+    io.write_model_hamiltonian(builder_eff.hamiltonian, scratch_dir / f"afqmc_{Ueff}.h5",
                             nelec=nelec,spin_symm="collinear")
 
     hf_settings = dict(
-        numSteps = 2000,
-        output = f"afqmc_{Ueff}.h5", # change file name!
+        steps = 2000,
         opt_method="lbfgs",
         ansatz="SD_ROT",
         nelec = nelec,
-        numTrials = 8,
+        batch_size = 8,
         seed = 1,
         noncollinear = False
     )
-    data = autohf.solver.lattice_hf(
-        hamiltonian=builder_eff.hamiltonian,
+    results = autohf.solver.lattice_hf(
+        hamiltonian=autohf.AutoHFHamiltonian(builder_eff.hamiltonian),
         lattice=lattice,
         settings=hf_settings,
     )
-    print(data["E_final"])
+    autohf_to_afqmc(
+        results,
+        output_fname = scratch_dir / f"afqmc_{Ueff}.h5"
+    )
 
-    with open(f"afqmc_{Ueff}.json","w") as f:
-        lines = getInputJson(Ueff,f"afqmc_{Ueff}.h5","afqmc.h5")
-        f.write(lines)
+    write_json(
+        scratch_dir / f"afqmc_{Ueff}.json",
+        fwfn0=scratch_dir / f"afqmc_{Ueff}.h5",
+        fham0=scratch_dir / "afqmc.h5",
+        exec_opts=afqmc_params,
+        id = f"afqmc_{Ueff}"
+    )
     print(f"Written {Ueff}")
 ```
 
 ```{code-cell} ipython3
 :id: 3d68db2c-e000-4c4f-8b48-2f4bd5836749
 
-for Ueff in [1,2,3,4]:
-    !sbatch --wait run_afqmc.sh afqmc_{Ueff}.json
+for Ueff in Ueffs:
+    run_afqmc(
+        run_dir = scratch_dir,
+        input_file = f"afqmc_{Ueff}.json",
+        np = 16,
+        output_file = None
+    )        
 ```
 
 ```{code-cell} ipython3
@@ -422,8 +402,12 @@ for Ueff in [1,2,3,4]:
 
 rhos, deltas = [],[]
 
-for Ueff in [0,1,2,3,4]:
-    rho_avg, delta_rho = average_afqmc_rdm(rdm_file=f"qmc.s00{Ueff}.stat.h5")
+for Ueff in Ueffs:
+    if Ueff==0:
+        fname = "qmc.s000.stat.h5"
+    else:
+        fname = f"afqmc_{Ueff}.s000.stat.h5"
+    rho_avg, delta_rho = average_afqmc_rdm(rdm_file=scratch_dir / fname)
     rhos.append(rho_avg)
     deltas.append(delta_rho)
 ```
@@ -431,7 +415,7 @@ for Ueff in [0,1,2,3,4]:
 ```{code-cell} ipython3
 :id: 7f7e1dc8-4378-4da3-a77a-8e2638ed3c0e
 
-for Ueff,rho_avg,delta_rho in zip([0,1,2,3,4],rhos,deltas):
+for Ueff,rho_avg,delta_rho in zip(Ueffs,rhos,deltas):
     Xs,Ys,Zs = spobs.local_spin(np.vstack(rho_avg[0]),"collinear").real
 
     delta_Sz = np.sqrt(delta_rho[0,0].diagonal()**2+delta_rho[0,1].diagonal()**2 )
@@ -441,42 +425,16 @@ for Ueff,rho_avg,delta_rho in zip([0,1,2,3,4],rhos,deltas):
 
     fig,axes = plt.subplots(1,2,figsize=(12,4))
     p = axes[0].matshow(Zs.reshape(*lattice.L).T)
-    plt.colorbar(p,ax= axes[0])
+    plt.colorbar(p,ax= axes[0], label = "$S^z$")
 
 
     p =axes[1].matshow(delta_Sz.reshape(*lattice.L).T)
-    plt.colorbar(p,ax= axes[1])
+    plt.colorbar(p,ax= axes[1], label="$ΔSz$")
     if Ueff==0:
         fig.suptitle(f"Free Electron")
     else:
         fig.suptitle(f"{Ueff=}")
     plt.show()
-```
-
-```{code-cell} ipython3
-:id: 283e9c2b-2cac-44e7-80d6-42225a466de9
-
-# now we'll average over the columns
-
-for Ueff,rho_avg,delta_rho in zip([0,1,2,3,4],rhos,deltas):
-    Xs,Ys,Zs = spobs.local_spin(np.vstack(rho_avg[0]),"collinear").real
-
-    delta_Sz = np.sqrt(delta_rho[0,0].diagonal()**2+delta_rho[0,1].diagonal()**2 )
-    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
-    if Ueff==0:
-        label = "AFQMC Free Electron"
-    else:
-        label = f"AFQMC W/ HF Ueff={Ueff}"
-    plt.errorbar(np.arange(lattice.L[0]),averageOverCols(Zs,*lattice.L),yerr=avg_delta_Sz,
-                 fmt='o-',label=label)
-plt.plot(-averageOverCols(SzDmrg,*lattice.L),'x-',label="DMRG",c='k')
-
-plt.xlabel("Col")
-plt.ylabel("Staggered Sz")
-plt.legend()
-
-# plt.ylim(-0.3,0.2)
-plt.show()
 ```
 
 +++ {"id": "8445abd3-e472-4406-9c2a-9ca3a8c8d3a3"}
@@ -494,7 +452,7 @@ for Ueff in Ueffs:
         fname = "afqmc.h5"
     else:
         fname = f"afqmc_{Ueff}.h5"
-    (coeffs,wfn), psi0, (na, nb),spintype = read_wavefunction(fname)
+    (coeffs,wfn), psi0, (na, nb),spintype = read_wavefunction(scratch_dir / fname)
     # We assume spin balance below
     o = wfn.reshape(lattice.N_sites,na,2,order='F').real
     o = np.stack([o[:,:,0],o[:,:,1]])
@@ -507,16 +465,15 @@ for Ueff in Ueffs:
 :id: 2926392c-64b7-4c5b-be5a-d289adc38ff5
 
 # now we'll average over the columns
-Ueffs = [0,1,2,3,4]
-for Ueff,trial_rho in zip(Ueffs,trial_rhos):
-    Xs,Ys,Zs = spobs.local_spin(np.vstack(trial_rho),"collinear").real
-
-
+for Ueff,rho in zip(Ueffs,rhos):
+    Xs,Ys,Zs = spobs.local_spin(np.vstack(rho[0]),"collinear").real
+    
     avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
     if Ueff==0:
         label = "Free Electron"
     else:
         label = f"HF W/ HF Ueff={Ueff}"
+
     plt.errorbar(np.arange(lattice.L[0]),
                  averageOverCols(Zs,*lattice.L),yerr=avg_delta_Sz,
                  fmt='o--',label=label)
@@ -630,4 +587,3 @@ Lets use this as a test bed to explore how AFQMC responds to different settings.
 - Use a trial with a small number of steps so that the solver doesn't converge. How do the results change? How could you tell this trial isn't good?
 - The free electron trial isn't a valid RHF state (why?). What would be the corresponding RHF solution? What does that output look like?
 - Explore the parameters of backpropagation, how does the 1rdm change as a function of `nsteps`? you can include `naverages` to see the results converge
-

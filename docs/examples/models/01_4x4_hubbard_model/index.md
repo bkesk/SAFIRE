@@ -40,21 +40,16 @@ and spin density for the same filling and value of U.
 Next, we will demonstrated how to obtain exact results using AFQMC
 for the special case of half filling for which, if care is taken,
 there is no sign problem.
-We will end with an exercise where you will be asked to compute the ground state energy,
-charge density, and spin density of the Hubbard model on the 4x4 lattice at a different value
-of U than in the walk through.
 
 ```{code-cell} ipython3
 :id: d3YMrpqs5xcm
 
-%load_ext autoreload
-%autoreload
 from pathlib import Path
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-home = Path.home()
-scratch_dir = get_scratch_dir("4x4_square_hubbard1",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "dfgyQ5OC5xcn"}
@@ -190,7 +185,7 @@ It also accepts a user-supplied twist angle to used instead.
 ```
 Generating free-electron trial wavefunction with twist = [4.10803005e-06 4.58334805e-04]
 ```
-.
+
 
 We note that, because of the twist angle, the Hamiltonian will typically need to be rebuilt.
 All of this is done internally if `free_electron()` is given the original lattice, and hamiltonian parameters
@@ -370,10 +365,7 @@ outputId: 6de71736-72b7-4efa-bc41-8e0985c0759d
 # analyze
 from stats.scalar_dat import analyze_scalar_data
 
-### Exercise 1.1.1:####################################
-# change this value to a reasonable equilibration length
-nequil = 5.0 # Ha^{-1}
-#######################################################
+nequil = 5.0
 
 analysis_settings = dict(
     fname = fe_scratch_dir /"qmc.s000.scalar.dat",
@@ -392,10 +384,14 @@ ref_stoch_uncertainty = dE
 
 The Hubbard model at half-filling is sign-free, so we would expect numerically exact results; For U/t =4, the exact energy is -13.62185, so why do we disagree?
 
-1. the free-electron trial wavefunction may not always be sufficient, especially for sign-free cases. The trial wavefunction must exactly obey particle-hole symmetry, which requires special care for a free-electron trial wavefunction.
-2. We have used spin collinear Slater determinant random walkers. In general, we want to use spin noncollinear Slater determinant random walkers.
+Even if the underlying Hamiltonian is sign-free (i.e. $\langle \Psi_\mathrm{T}|\Phi\rangle \ge 0$ for all walkers $|\Phi\rangle$), in the importance sampled AFQMC random walk, an improperly chosen trial wavefunction can still induce a bias if its nodes $\langle \Psi_\mathrm{T}|\Phi\rangle = 0$ do not coincide with those of the ground state. Especially free-electron trial wavefunctions in open-shell geometries are susceptible to this problem.
 
-Next, we will use a Hartree-Fock trial wavefunction.
+There are different approaches to dealing with this problem. One can either
+
+1. move the nodes to the right position by choosing a trial wavefunction with the correct symmetry properties such as particle-hole symmetry or
+2. allow the walkers to move around the nodes ergodically by using a noncollinear wavefunction that is not aligned with the spin axis of the Hubbard-Stratonovich decoupling.
+
+Next, we will use a noncollinear Hartree-Fock trial wavefunction.
 
 +++ {"id": "tsMzr8175xcp"}
 
@@ -550,10 +546,7 @@ outputId: 78be3a24-0f0c-4577-cb48-6ad867cb1f1b
 # analyze
 from stats.scalar_dat import analyze_scalar_data
 
-### Exercise 1.1.1:####################################
-# change this value to a reasonable equilibration length
-nequil = 20.0 # Ha^{-1}
-#######################################################
+nequil = 20.0
 
 analysis_settings = dict(
     fname = fe_scratch_dir /"qmc.s000.scalar.dat",
@@ -564,10 +557,7 @@ analysis_settings = dict(
 
 E,dE = analyze_scalar_data(analysis_settings)
 
-print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f} Hartree")
-
-# we will use this value in Exercise 1.1.2 as well
-ref_stoch_uncertainty = dE
+print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f}")
 ```
 
 +++ {"id": "0vF3gnwWSgir"}
@@ -575,7 +565,7 @@ ref_stoch_uncertainty = dE
 If you used all of our settings, you should get see
 
 ```
-The AFQMC energy is -13.614404 +/- 0.004229 Hartree
+The AFQMC energy is -13.614404 +/- 0.004229
 ```
 
 Again, we expect to achieve very close to the exact energy for the Hubbard model at half filling which is -13.62185 for U/t=4.
@@ -590,7 +580,7 @@ Let's rerun with a smaller $\tau = 0.005$
 
 +++ {"id": "Q-t-66BmVVn5"}
 
-## Rerun AFQMC with a smaller Tau
+## Rerun AFQMC with a smaller τ
 
 When we decrease the step size, we will
 also need to increase the number of steps, and
@@ -650,11 +640,6 @@ outputId: 1d4d7374-5c21-43a7-eae5-46bafc88d52d
 # analyze
 from stats.scalar_dat import analyze_scalar_data
 
-### Exercise 1.1.1:####################################
-# change this value to a reasonable equilibration length
-nequil = 20.0 # Ha^{-1}
-#######################################################
-
 analysis_settings = dict(
     fname = fe_scratch_dir /"qmc.s000.scalar.dat",
     xaxis = "time",     # use units of imaginary time for equilibration
@@ -664,10 +649,7 @@ analysis_settings = dict(
 
 E,dE = analyze_scalar_data(analysis_settings)
 
-print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f} Hartree")
-
-# we will use this value in Exercise 1.1.2 as well
-ref_stoch_uncertainty = dE
+print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f}")
 ```
 
 +++ {"id": "SVS5nLE7YvBi"}
@@ -825,7 +807,6 @@ colab:
 id: fqLt304CwKks
 outputId: 4593e5a7-2e66-446b-e2b1-483f5193b453
 ---
-%autoreload
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -836,11 +817,11 @@ from afqmctools.hamiltonian.converter import read_hamiltonian
 from afqmctools.analysis.transform import hermitize_factory
 from afqmctools.analysis.average import WALKER_TYPE,get_metadata,average_observable
 
-SAIFRE_hdf5_output = fe_scratch_dir / "qmc.s003.stat.h5"
+SAFIRE_hdf5_output = fe_scratch_dir / "qmc.s003.stat.h5"
 nspins = 1 # this is a noncollinear calculation, so one (combined) spin sector!
 M = lattice.N_sites # get the number of sites to help with plotting
 
-walker_type = WALKER_TYPE[get_metadata(SAIFRE_hdf5_output)["WalkerType"]]
+walker_type = WALKER_TYPE[get_metadata(SAFIRE_hdf5_output)["WalkerType"]]
 
 # set up a transform the hermitize the one-rdm
 hermitize = hermitize_factory(
@@ -848,7 +829,7 @@ hermitize = hermitize_factory(
 )
 
 # get the metadata for plotting
-metadata = get_metadata(SAIFRE_hdf5_output,"/Observables/BackPropagated/")
+metadata = get_metadata(SAFIRE_hdf5_output,"/Observables/BackPropagated/")
 print(metadata)
 
 bp_steps = metadata["BackPropSteps"]
@@ -866,7 +847,7 @@ rho_downs = np.zeros((naverages,*lattice.L),dtype=np.complex128)
 for avg in range(naverages):
     # Extract and Transform data
     one_rdms[avg],one_rdms_err[avg] = average_observable(
-        SAIFRE_hdf5_output,
+        SAFIRE_hdf5_output,
         eqlb=5,
         estimator='back_propagated',
         name="one_rdm",
@@ -936,13 +917,6 @@ vis.plot_lattice(
 ```
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-  height: 690
-id: monDoPiFSqFB
-outputId: cb55b227-850c-44cc-fe35-55651c9d71e7
----
 import afqmctools.utils.visualize as vis
 
 avg_to_plot = 1
@@ -960,5 +934,3 @@ vis.plot_lattice(
     vmax=0.5
 )
 ```
-
-+++ {"id": "Ie07h4Hu2p5B"}

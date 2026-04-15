@@ -204,7 +204,7 @@ public:
   }
 
   /*
-   * Returns the Hubbard-Stratonovoch potential. 
+   * Returns the Hubbard-Stratonovich potential. 
    *  Input:
    *    - X: [# chol vecs][nW]
    *  Output:

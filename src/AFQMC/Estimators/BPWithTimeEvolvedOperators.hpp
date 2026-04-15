@@ -183,7 +183,7 @@ public:
     }
     pt1.add_child("measure_interval_multiplier", temp_tree);
 
-    // check for unkown input keys
+    // check for unknown input keys
     std::unordered_set<std::string> pass_through_keys = {
       "name",
       "onerdm",
@@ -362,13 +362,13 @@ private:
   int nblocks_equil = 0;
 
   // number of intervals to divide max_nback_prop into
-  //   BP will be peformed using each of these intervals for
+  //   BP will be performed using each of these intervals for
   //   'm' starting from the same 'n'
   int naverages = 1;
   // stores True if an 'average' has already been run since the last BP reset
   std::vector<bool> average_has_run;
 
-  // Whether to restore cosine projection and real local energy apprximation for weights
+  // Whether to restore cosine projection and real local energy approximation for weights
   // along back propagation path.
   bool path_restoration = true;
   bool importanceSampling = true;

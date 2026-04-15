@@ -109,7 +109,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
       auto dn = math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(dgrp);
       utils::check(up.extent(1) == NMO, "Shape mismatch");
       utils::check(dn.extent(1) == NMO, "Shape mismatch");
-      utils::check(up.extent(0) + dn.extent(1) /*FIX : should this be dn.extent(0)*/ == nel[0], "Shape mismatch");
+      utils::check(up.extent(0) + dn.extent(1) == nel[0], "Shape mismatch");
       // combining, shift dn by NMO 
       psi(id,0) = math::sparse::combine_csr(up,dn,NMO);
     }
@@ -118,7 +118,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
     utils::check(walker_type == COLLINEAR or walker_type == NONCOLLINEAR, "Error in getCommonInput(): Logic error."); 
     if(walker_type == COLLINEAR) {
       // upgrade from CLOSED to COLLINEAR 
-      utils::check(nup==ndown, "Problems upgrading wavefunction: nup!=ndown when upgrading to COLLINEAR");
+      utils::check(nup==ndown, "Problems upgrading wavefunction: nup != ndown when upgrading to COLLINEAR");
       for(int id=0; id<ndets; ++id) {
         h5::group pgrp = grp.open_group("PsiT_"+std::to_string(id));
         psi(id,0) = std::move(math::sparse::HDF2CSR<ComplexType,MEM,int,int>(pgrp));

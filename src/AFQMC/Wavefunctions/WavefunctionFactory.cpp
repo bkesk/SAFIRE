@@ -906,6 +906,9 @@ void WavefunctionFactory<MEM>::build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int
     } // separate_references
 
   } // trivial_ref
+  // generate compact form
+  for(int i=0; i<PsiT_MO.size(); ++i)
+    PsiT_MO(i).remove_empty_spaces();
 }
 
 // Instantiate templates

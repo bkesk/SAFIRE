@@ -89,7 +89,7 @@ TEST_CASE("ham_factory", "[hamiltonian_factory]")
     }
   } else {
     app_log(0,"Hamiltonian factory unit testing. Running standard tests.");
-    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    auto files = utils::get_unit_tests_files(true,true,true,true,false);
     for( auto f : files ) {
       DYNAMIC_SECTION("Hamiltonian file: " + std::get<0>(f)) {
         try {

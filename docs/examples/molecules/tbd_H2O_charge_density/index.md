@@ -39,15 +39,13 @@ from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 from afqmctools.hamiltonian.mol import write_hamil_mol
 from afqmctools.wavefunction.mol import write_cas_wfn
 from afqmctools.inputs.from_hdf import write_json
-from afqmctools.hamiltonian.io import write_to_hdf5
 
 from stats.scalar_dat import analyze_scalar_data
 
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-# For you TODO: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("example_h2o_density",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "6ZBVQf-6E6lv"}
