@@ -126,7 +126,7 @@ namespace kernels::device
   /***************    to_cuda_std_mdspan   ***************/
  
   template<typename Arr>
-  auto to_cuda_std_mdspan(Arr& A)
+  auto to_cuda_std_mdspan(Arr&& A)
   {
     constexpr auto RANK = ::nda::get_rank<Arr>;
     using value_t = typename std::pointer_traits<decltype(cuda_std_ptr_cast(A.data()))>::element_type;

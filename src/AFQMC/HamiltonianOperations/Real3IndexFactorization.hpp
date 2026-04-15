@@ -300,7 +300,7 @@ public:
               nda::MemoryArrayOfRank<3> auto && K,
               bool addH1 = true)
   {
-    memory::check_memory_space<MEM>(E,wgt,R,K);
+    memory::check_memory_space<MEM>(E,wgt,R,K,iexcit,refc);
     utils::check_strides(E,wgt,R,K);
     using nda::range;
     auto all = range::all; 
@@ -988,7 +988,7 @@ private:
           for(int i=0; i<nel; i++)
             E(iw,0) += Swia(iw,i,i);
       } else {
-// need kernel!!!
+// build 2d array with diagonal on second dimension, then call reduce
         for(int i=0; i<nel; i++)
           nda::tensor::add(ComplexType(1.0),Swia(all,i,i),"w",ComplexType(1.0),E(all,0),"w");
       }
@@ -1027,7 +1027,7 @@ private:
 
       auto Lna = Lnak(is)()(0,nda::ellipsis{});
       auto G4d = nda::reshape(G2d, std::array<long,4>{nwalk,nel,npol,NMO});
-      nda::tensor::contract(ComplexType(1.0),G,"wipk",Lna,"pnak",ComplexType(0.0),Twina,"wina");
+      nda::tensor::contract(ComplexType(1.0),G4d,"wipk",Lna,"pnak",ComplexType(0.0),Twina,"wina");
 
       // E[w] = -0.5*scl* sum_abn Twanb * Twina
       nda::tensor::contract(ComplexType(-0.5*scl),Twina(all,all,all,range(nel)),"winj",
