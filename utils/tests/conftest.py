@@ -26,6 +26,7 @@ if USE_PYSCF:
     from afqmctools.utils.pyscf_utils import ci2chk
 
 from afqmctools.utils.linalg import modified_cholesky_direct, get_ortho_ao
+from afqmctools.utils.slater_types import _SlaterType
 import afqmctools.systems.lattice as lat
 from afqmctools.hamiltonian.model.director import HamiltonianDirector
 
@@ -198,6 +199,21 @@ def neon_atom_tz():
     return gto.M(atom='Ne 0 0 0', basis='aug-ccpvtz',parse_arg=False)
 
 
+@pytest.fixture(scope='session', params = [
+    (scf.RHF, _SlaterType.CLOSED),
+    (scf.ROHF, _SlaterType.COLLINEAR),
+    (scf.UHF, _SlaterType.COLLINEAR),
+    (scf.GHF, _SlaterType.NONCOLLINEAR),
+])
+def neon_hf(tmp_path_factory, request, neon_atom):
+    HF, walker_type = request.param
+    mf = HF(neon_atom)
+    mf.chkfile = tmp_path_factory.mktemp('scf') / 'scf.chk'
+    energy = mf.kernel()
+
+    return mf, energy, walker_type
+
+
 @pytest.fixture(scope='session')
 def neon_rhf(tmp_path_factory,neon_atom):
     if not USE_PYSCF:
@@ -229,7 +245,6 @@ def neon_casscf(neon_rhf):
     ci2chk(mc.chkfile, ci=mc.ci)
     
     return mc
-
 
 @pytest.fixture(scope='session')
 def neon_eri(neon_atom):
