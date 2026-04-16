@@ -22,6 +22,7 @@ from afqmctools.wavefunction.free_electron import (
     _fill_shells,
     _collinear_free_elec
 )
+from afqmctools.utils.slater_types import _SlaterType
 
 #skip this file if pyscf can't import
 pyscf = pytest.importorskip("pyscf")
@@ -53,10 +54,10 @@ class TestMolWavefunction:
 
     def test_write_wfn_mol_init_uses_mo_occ_for_collinear(self, tmp_path):
         scf_data = {
-            'mo_coeff': np.arange(16).reshape(4,4),
             'mo_occ': np.array([2, 0, 2, 0]),
             'nelec': (2, 2),
             'norb': 4,
+            'walker_type': _SlaterType.COLLINEAR
         }
         wfn = np.eye(4, dtype=np.complex128)
 
@@ -79,10 +80,10 @@ class TestMolWavefunction:
 
     def test_write_wfn_mol_init_uses_mo_occ_for_fully_polarized(self, tmp_path):
         scf_data = {
-            'mo_coeff': np.arange(16).reshape(4,4),
             'mo_occ': np.array([1, 0, 1, 0]),
             'nelec': (2, 0),
             'norb': 4,
+            'walker_type': _SlaterType.FULLYPOLARIZED
         }
         wfn = np.eye(4, 2, dtype=np.complex128)
 

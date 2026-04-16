@@ -58,11 +58,7 @@ def write_hamil_mol(
     chol_vecs = chol_vecs.T
 
     if walker_type is None:
-        walker_type = _get_slater_type(
-            phi=scf_data['mo_coeff'],
-            nelec=scf_data['nelec'],
-            M=scf_data['norb']
-        )
+        walker_type = scf_data['walker_type']
     else:
         walker_type = _slater_enum_map(walker_type)
 
@@ -117,6 +113,9 @@ def generate_hamiltonian(
     hcore = scf_data['hcore']
 
     # 2. Rotation matrix to orthogonalised basis.
+    df_ints = scf_data.get('df_ints', None)
+    C = scf_data['mo_coeff']
+
     if ortho_ao:
         if verbose:
             print(" # Transforming hcore and eri to ortho AO basis.")
@@ -124,17 +123,13 @@ def generate_hamiltonian(
     else:
         if verbose:
             print(" # Transforming hcore and eri to MO basis.")
-        if scf_data['mo_type'] != 'rohf':
-            raise ValueError(f"{scf_data['mo_type'].upper()} molecular orbital bases are not supported. Use ortho_ao.")
+        if len(C.shape) == 3 or C.shape[0] == 2*scf_data["norb"]:
+            raise ValueError(f"UHF or GHF molecular orbital bases are not supported. Use ortho_ao.")
 
-        X = scf_data['mo_coeff']
- 
-    
+        X = C
+
     # 3. Pyscf mol object.
     mol = scf_data['mol']
-
-    df_ints = scf_data.get('df_ints', None)
-    C = scf_data['mo_coeff']
 
     nbasis = X.shape[-1]
 

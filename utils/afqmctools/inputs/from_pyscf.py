@@ -84,11 +84,7 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
         scf_data['orthAO'] = ortho_ao
 
         if walker_type is None:
-            walker_type = _get_slater_type(
-                scf_data['mo_coeff'],
-                scf_data['nelec'],
-                scf_data['norb']
-            )
+            walker_type = scf_data['walker_type']
         else: # override the scf_data based on user input!
             walker_type = _slater_enum_map(walker_type)
             scf_data['walker'] = walker_type
