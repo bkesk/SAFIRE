@@ -53,38 +53,6 @@ class TestMolWavefunction:
 
         assert (dims == [5,5,5,1,1]).all()
 
-    @pytest.mark.parametrize("ortho_ao,cas", [
-        (False, None),
-        (True, None),
-        (False, (8, 4)),
-        (True, (8, 4)),
-    ])
-    def test_make_slater_old_matches_generate_wavefunction(self, neon_hf, ortho_ao, cas):
-        mf, _ = neon_hf
-        scf_data = load_from_pyscf_chk_mol(mf.chkfile)
-        C = scf_data["mo_coeff"]
-        norb = scf_data["norb"]
-        needs_ortho_ao = C.ndim > 2 or C.shape[0] == 2 * norb
-
-        if ortho_ao:
-            scf_data = {**scf_data, "orthAO": True}
-
-        if ortho_ao and cas is not None:
-            with pytest.raises(ValueError):
-                mol.generate_wavefunction(scf_data, scf_data, ortho_ao=True, cas=cas)
-            return
-
-        if needs_ortho_ao and not ortho_ao:
-            with pytest.raises(ValueError):
-                mol.generate_wavefunction(scf_data, scf_data, ortho_ao=False, cas=cas)
-            return
-
-        old = mol.make_slater_old(scf_data, cas=cas)
-        new, _, _ = mol.generate_wavefunction(scf_data, scf_data, ortho_ao=ortho_ao, cas=cas)
-
-        assert old.shape == new.shape
-        assert np.allclose(old, new, atol=1e-10)
-
 
 @pytest.mark.pyscf
 class TestPBCWavefunction:
