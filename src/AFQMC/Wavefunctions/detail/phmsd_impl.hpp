@@ -140,7 +140,12 @@ void ph_excited_2body_energy_dense_cholesky(nda::MemoryVector auto const& iexcit
       }
     }
   } else {
+#if defined(ENABLE_DEVICE)
     kernels::device::ph_excited_2body_energy_dense_cholesky_Tpna(refc.data(),iexcit.data(),Twina,R,wgt,EX,EJ,KE);
+#else
+     sfqmc::utils::check(false,"Error: Missing device function ph_excited_2body_energy_dense_cholesky_Tpna.");
+#endif
+
   }
 }
 
@@ -173,7 +178,11 @@ void ph_excited_1body_energy(nda::MemoryVector auto const& iexcit, nda::MemoryVe
       }
     }
   } else {
+#if defined(ENABLE_DEVICE)
     kernels::device::ph_excited_1body_energy(refc.data(),iexcit.data(),S,R,wgt,E);
+#else
+    sfqmc::utils::check(false,"Error: Missing device function ph_excited_1body_energy.");
+#endif
   }
 }
 
