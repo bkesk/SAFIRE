@@ -95,6 +95,31 @@ def write_hamil_mol(
             ortho=X
         )
 
+def _transform_from_scf_data(scf_data, ortho_ao, cas = None):
+    C = scf_data['mo_coeff']
+
+    if ortho_ao:
+        if cas is not None:
+            raise ValueError("cas and ortho_ao cannot be used at the same time")
+        return scf_data['X'], (0, 0)
+    else:
+        if C.ndim == 3 or C.shape[0] == 2*scf_data["norb"]:
+            raise ValueError("UHF or GHF molecular orbital bases are not supported. Use ortho_ao.")
+        if cas is not None:
+            nfzc = (sum(scf_data["nelec"])-cas[0])//2
+            ncas = cas[1]
+            nbasis = C.shape[-1]
+
+            if ncas == -1:
+                ncas = nbasis - nfzc
+
+            nfzv = nbasis - ncas - nfzc
+        else:
+            nfzc = nfzv = 0
+
+        return C, (nfzc, nfzv)
+
+
 def generate_hamiltonian(
         scf_data, 
         chol_cut=1e-5, 
@@ -114,19 +139,8 @@ def generate_hamiltonian(
 
     # 2. Rotation matrix to orthogonalised basis.
     df_ints = scf_data.get('df_ints', None)
-    C = scf_data['mo_coeff']
 
-    if ortho_ao:
-        if verbose:
-            print(" # Transforming hcore and eri to ortho AO basis.")
-        X = scf_data['X']
-    else:
-        if verbose:
-            print(" # Transforming hcore and eri to MO basis.")
-        if len(C.shape) == 3 or C.shape[0] == 2*scf_data["norb"]:
-            raise ValueError(f"UHF or GHF molecular orbital bases are not supported. Use ortho_ao.")
-
-        X = C
+    X, (nfzc, nfzv) = _transform_from_scf_data(scf_data, ortho_ao, cas)
 
     # 3. Pyscf mol object.
     mol = scf_data['mol']
@@ -165,21 +179,15 @@ def generate_hamiltonian(
     enuc = mol.energy_nuc()
     # Step 3. (Optionally) freeze core / virtuals.
     nelec = mol.nelec
-    if cas is not None:
-        nfzc = (sum(mol.nelec)-cas[0])//2
-        ncas = cas[1]
-        if ncas == -1:
-            ncas = nbasis - nfzc
-        nfzv = nbasis - ncas - nfzc
-        h1e, chol_trans, enuc = freeze_core(h1e, chol_trans, enuc, nfzc, ncas,
-                                           verbose)
+
+    if (nfzc, nfzv) != (0, 0):
+        h1e, chol_trans, enuc = freeze_core(
+            h1e, chol_trans, enuc, nfzc, nbasis - nfzv - nfzc, verbose
+        )
         h1e = h1e[0]
-        nelec = (mol.nelec[0]-nfzc, mol.nelec[1]-nfzc)
-        orbs = np.identity(h1e.shape[-1])
-        orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
-        X = C[:,nfzc:nbasis-nfzv]
-    
-    return h1e, chol_trans, nelec, enuc, X
+
+    return h1e, chol_trans, nelec, enuc, X[:, nfzc:nbasis - nfzv]
+
 
 def process_generic_hamiltonian(
         H_one_body:np.array,

@@ -104,7 +104,9 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
             )
         write_wfn_mol(
             scf_data,
-            wfn_file
+            wfn_file,
+            ortho_ao=ortho_ao,
+            cas=cas,
         )
         if verbose > 1:
             print(" # Recomputing single-determinant Hartree--Fock energy.")

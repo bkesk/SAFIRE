@@ -16,8 +16,9 @@ import numpy as np
 import h5py
 import scipy.linalg
 
+from collections.abc import Iterable
+
 try: # PySCF is now considered an optional dependency!
-    from pyscf import fci
     from afqmctools.utils.pyscf_utils import (
         ci_wavefunction,
         read_cas_meta
@@ -44,6 +45,7 @@ from afqmctools.wavefunction.common import (
     write_phmsd
 ) 
 
+from afqmctools.hamiltonian.mol import _transform_from_scf_data
 
 def slater_gto2mo(
         phi,
@@ -166,7 +168,7 @@ def slater_gto2mo(
 
         phi_mo = transform_matrix @ phi[:,nfzc:nfzc+na]
         return phi_mo
-    
+
     elif _SlaterType(slater_type) is _SlaterType.COLLINEAR:
         if nb == 0:
             raise ValueError(
@@ -215,7 +217,56 @@ def slater_gto2mo(
         raise ValueError("invalid Slater determinant type")
 
 
-def make_slater(wfn_scf_data,basis_scf_data=None,cas=None):
+def _make_slater_closed(mo_coeffs: np.ndarray, nocc: Iterable[int], nelec: int) -> np.ndarray:
+    wfn = np.zeros((mo_coeffs.shape[1], nelec))
+    wfn[nocc, np.arange(nelec)] = 1
+
+    return mo_coeffs @ wfn + 0j
+
+
+def _make_slater_collinear(
+    mo_coeffs: np.ndarray, nocc: Iterable[Iterable[int]], nelec: Iterable[int]
+) -> np.ndarray:
+    if len(nocc) != len(nelec):
+        raise ValueError(
+            f"Lengths of nocc ({len(nocc)}) and nelec ({len(nelec)}) are not the same."
+        )
+
+    if len(mo_coeffs.shape) == 3:
+        return np.concatenate(
+            [
+                _make_slater_closed(spin_mo_coeffs, spin_nocc, spin_nelec)
+                for spin_mo_coeffs, spin_nocc, spin_nelec in zip(mo_coeffs, nocc, nelec)
+            ],
+            axis=1,
+        )
+    return np.concatenate(
+        [
+            _make_slater_closed(mo_coeffs, spin_nocc, spin_nelec)
+            for spin_nocc, spin_nelec in zip(nocc, nelec)
+        ],
+        axis=1,
+    )
+
+
+def _make_slater(walker_type: _SlaterType, mo_coeffs: np.ndarray, nocc: Iterable[Iterable[int]], nelec: Iterable[int]) -> np.ndarray:
+    if walker_type == _SlaterType.CLOSED:
+        return _make_slater_closed(mo_coeffs, nocc[0], nelec[0])
+    elif walker_type == _SlaterType.COLLINEAR:
+        return _make_slater_collinear(mo_coeffs, nocc, nelec)
+    elif walker_type == _SlaterType.NONCOLLINEAR:
+        return _make_slater_closed(mo_coeffs, nocc[0], sum(nelec))
+    elif walker_type == _SlaterType.FULLYPOLARIZED:
+        return np.array([_make_slater_closed(mo_coeffs[0,:,:], nocc[0], nelec[0])])
+
+
+def _transform_slater(wfn: np.ndarray, X: np.ndarray):
+    if X.shape[0] != wfn.shape[0]:
+        X = np.kron(np.eye(2), X)
+    return X.conj().T @ wfn
+
+
+def make_slater_old(wfn_scf_data,basis_scf_data=None,cas=None):
     """
     make a single Slater determinant based on the contents of the
     the input 'scf_data' dictionary.
@@ -374,13 +425,7 @@ def _get_occupied_indices(mo_occ, walker_type, nfzc=0, nfzv=0):
     walker_type = _slater_enum_map(walker_type)
 
     def _trim_active_space(indices):
-        indices = np.asarray(indices, dtype=np.int32)
-        if nfzc == 0 and nfzv == 0:
-            return indices
-
-        active_stop = mo_occ.shape[-1] - nfzv
-        active_indices = indices[(indices >= nfzc) & (indices < active_stop)]
-        return active_indices - nfzc
+        return indices[(indices >= nfzc) & (indices < mo_occ.shape[-1] - nfzv)]
 
     if walker_type == _SlaterType.CLOSED:
         occ = np.flatnonzero(mo_occ >= 1)
@@ -416,68 +461,28 @@ def _get_occupied_indices(mo_occ, walker_type, nfzc=0, nfzv=0):
     raise ValueError("Invalid Slater determinant type")
 
 
-def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
-                  init=None, verbose=False, cas=None):
-    """Generate SAFIRE format trial wavefunction.
-
-    Parameters
-    ----------
-    scf_data : dict
-        Dictionary containing scf data extracted from pyscf checkpoint file.
-    filename : string
-        HDF5 file path to store wavefunction to.
-    wfn : tuple
-        User defined wavefunction. Not fully supported. Default None.
-    init : optional
-        Initial wavefunction to use in AFQMC. Default is None.
-    basis_scf_data : dict, optional
-        Dictionary containing scf data for the basis set in which to express
-        the wavefunction. If None, the wavefunction will be expressed in the
-        basis defined by `scf_data`. Default is None.
-    verbose : bool, optional
-        If True, print additional information. Default is False.
-    cas : tuple, optional
-        If provided, indicates that the wavefunction is to be expressed
-        in a CAS active space as (# active electrons, # active orbitals).
-        Default is None.
-
-    Returns
-    -------
-    wfn : :class:`np.ndarray`
-        Wavefunction as numpy array. Format depends on wavefunction.
-    """
+def generate_wavefunction(scf_data, basis_scf_data=None, ortho_ao=False, cas=None, verbose=False):
+    if basis_scf_data is None:
+        basis_scf_data = scf_data
 
     nelec = scf_data['nelec']
-    occ = scf_data['mo_occ']
-    # the basis size
-    ngto = norb = scf_data['norb']
-    # ensure valid walkers up-front
-    walker_type = _get_slater_type(
-        phi=scf_data['mo_coeff'],
-        nelec=scf_data['nelec'],
-        M=scf_data['norb'],
+    norb = scf_data['norb']
+
+    walker_type = _slater_enum_map(
+        scf_data['walker_type']
     )
-    nfzc = 0
-    nfzv = 0
-    if cas is not None:
-        nfzc = (sum(nelec) - cas[0]) // 2
-        nfzv = norb - nfzc - (cas[1] if cas[1] != -1 else
-                  norb - nfzc)
-        if nfzc < 0 or nfzv < 0:
-            raise ValueError(
-                f"Invalid CAS specification cas={cas} for system with "
-                f"nelec={nelec} and norb={norb}"
-            )
-        if verbose:
-            print(f"Freezing {nfzc} core orbitals and {nfzv} virtual orbitals.")
-        norb -= (nfzc + nfzv)
-        nelec = (nelec[0]-nfzc, nelec[1]-nfzc)
-        # a collinear walker can become fully-polarized with a sufficiently large frozen core!
-        if walker_type == _SlaterType.COLLINEAR and nelec[1] == 0:
-            walker_type = _SlaterType.FULLYPOLARIZED
+
+    X, (nfzc, nfzv) = _transform_from_scf_data(basis_scf_data, ortho_ao, cas)
+
+    nelec = tuple(n-nfzc for n in nelec)
+    norb -= (nfzc + nfzv)
+
+    # a collinear walker can become fully-polarized with a sufficiently large frozen core!
+    if walker_type == _SlaterType.COLLINEAR and nelec[1] == 0:
+        walker_type = _SlaterType.FULLYPOLARIZED
 
     occa, occb = _get_occupied_indices(
-        occ,
+        scf_data["mo_occ"],
         walker_type,
         nfzc=nfzc,
         nfzv=nfzv
@@ -498,67 +503,67 @@ def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
                 f"mo_occ defines {len(occb)} beta occupied orbitals, expected {nelec[1]}"
             )
 
-    # Catch spin-contaminated initial wavefunctions
-    if walker_type == _SlaterType.COLLINEAR and init is None:
-        print("Walker type is UHF/collinear; using RHF/ROHF-like initial wavefunction "
-              "for a pure spin state. See J. Chem. Phys. 128, 114309 (2008) DOI: /10.1063/1.2838983")
-        init = [
-            np.zeros((norb,nelec[0]),dtype=np.complex128),
-            np.zeros((norb,nelec[1]),dtype=np.complex128)
-        ]
-        init[0][occa, np.arange(nelec[0])] = 1.0
-        init[1][occb, np.arange(nelec[1])] = 1.0
-    elif walker_type == _SlaterType.NONCOLLINEAR and init is None:
-        print("Walker type is GHF/noncollinear; using RHF-like initial wavefunction "
-              "for a pure spin state. See J. Chem. Phys. 128, 114309 (2008) DOI: /10.1063/1.2838983")
-        init = np.zeros((1,2*norb,nelec[0]+nelec[1]),dtype=np.complex128)
-        init[0, occa, np.arange(nelec[0] + nelec[1])] = 1.0
-    elif walker_type == _SlaterType.FULLYPOLARIZED and init is None:
-        print("Walker type is fully polarized; using RHF-like initial wavefunction "
-              "for a pure spin state. See J. Chem. Phys. 128, 114309 (2008) DOI: /10.1063/1.2838983")
-        init = np.zeros((1,norb,nelec[0]),dtype=np.complex128)
-        init[0][occa, np.arange(nelec[0])] = 1.0
+    wfn = _make_slater(
+        walker_type,
+        scf_data["mo_coeff"],
+        (occa, occb),
+        nelec
+    )
 
+    overlap = scf_data["mol"].intor("int1e_ovlp")
+
+    wfn = _transform_slater(wfn, overlap @ X[:, nfzc:X.shape[-1]-nfzv])
+
+    return wfn + 0j, nelec, norb
+
+def write_wfn_mol(scf_data, filename, basis_scf_data=None, wfn=None,
+                  init=None, verbose=False, ortho_ao=False, cas=None):
+    """Generate SAFIRE format trial wavefunction.
+
+    Parameters
+    ----------
+    scf_data : dict
+        Dictionary containing scf data extracted from pyscf checkpoint file.
+    filename : string
+        HDF5 file path to store wavefunction to.
+    wfn : tuple
+        User defined wavefunction. Not fully supported. Default None.
+    init : optional
+        Initial wavefunction to use in AFQMC. Default is None.
+    basis_scf_data : dict, optional
+        Dictionary containing scf data for the basis set in which to express
+        the wavefunction. If None, the wavefunction will be expressed in the
+        basis defined by `scf_data`.
+    verbose : bool, optional
+        If True, print additional information. Default is False.
+    ortho_ao : bool, optional
+        Work in Löwdin orthogonalized atomic orbitals instead of molecular orbitals.
+        Make sure this is consistent with the Hamiltonian.
+    cas : tuple, optional
+        If provided, indicates that the wavefunction is to be expressed
+        in a CAS active space as (# active electrons, # active orbitals).
+        Cannot be combined with `ortho_ao`.
+
+    Returns
+    -------
+    wfn : :class:`np.ndarray`
+        Wavefunction as numpy array. Format depends on wavefunction.
+    """
     if wfn is None:
-        if scf_data.get('orthAO',False):
-            wfn = make_slater(
-                wfn_scf_data=scf_data,
-                basis_scf_data=None
-            )
-        elif basis_scf_data is not None:
-            basis_type = _slater_enum_map(
-                basis_scf_data['walker_type']
-            )
-            if basis_type == _SlaterType.COLLINEAR:
-                mo_coeff = basis_scf_data['mo_coeff']
-                # check that it's ROHF-like
-                if mo_coeff.shape == (2,ngto,ngto) and not np.allclose(mo_coeff[0],mo_coeff[1]):
-                    raise ValueError(
-                        "Currently, only RHF/ROHF orbital basis sets "
-                        "are supported. Alternatively, orthogonalized atomic orbital basis sets are supported"
-                    )
-                elif not mo_coeff.shape == (ngto,ngto):
-                    raise ValueError(
-                        f"mo_coeff shape {mo_coeff.shape} is not valid for collinear basis set. Check scf_data dictionary."
-                    )
-            elif basis_type is not _SlaterType.CLOSED:
-                raise ValueError(
-                    "Currently, only RHF/ROHF orbital basis sets "
-                    "are supported. Alternatively, orthogonalized atomic orbital basis sets are supported"
-                )
-        wfn = make_slater(
-            wfn_scf_data=scf_data,
-            basis_scf_data=basis_scf_data,
-            cas=cas
-        )
-
+        wfn, nelec, norb = generate_wavefunction(scf_data=scf_data, basis_scf_data=basis_scf_data, ortho_ao=ortho_ao, cas=cas, verbose=verbose)
+    else:
+        nelec = scf_data["nelec"]
+        norb = scf_data["norb"]
+    
+    walker_type = _get_slater_type(wfn, nelec, norb)
+    
     # Wavefunctions are assumed to be a 1-D iterable of wavefunctions, even for a single determinant!
     write_wfn(
         filename,
-        (np.array([1.0+0j]),np.array([wfn],dtype=wfn.dtype)),
-        walker_type,
-        nelec,
-        norb,
+        (np.array([1.0+0j]),np.array([wfn])),
+        nelec=nelec,
+        norb=norb,
+        walker_type=walker_type,
         verbose=verbose,
         init=init
     )
