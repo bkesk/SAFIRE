@@ -210,26 +210,28 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', soc_type=None):
     mo_occ = numpy.array(lib.chkfile.load(chkfile, base+'/mo_occ'))
     mo_coeff = numpy.array(lib.chkfile.load(chkfile, base+'/mo_coeff'))
 
-    mo_type = 'rhf'
-    if len(mo_coeff.shape) == 3:
-        mo_type = 'uhf'
-    elif mo_coeff.shape[0] == 2*nmo:
-        mo_type = 'ghf'
-    else:
-        mo_type = 'rohf'  # or rhf
-    
+    walker_type = _get_slater_type(
+        mo_coeff,
+        mol.nelec,
+        nmo
+    )
+
     with h5.File(chkfile, 'r') as fh5:
         if '/scf/hcore' in fh5:
             if soc_type is not None:
                 warn("Reading hcore from file, but it is unclear if the requested spin orbit coupling is included!")
             hcore = fh5['/scf/hcore'][:]
+            if hcore.shape[-1] == 2*nmo:
+                walker_type = _SlaterType.NONCOLLINEAR,
         else:
             if soc_type == "sfx2c":
-                scf.hf.sfx2c1e(mol).get_hcore()
+                hcore = mol.RHF().sfx2c1e().get_hcore()
             elif soc_type == "x2c":
-                scf.hf.x2c1e(mol).get_hcore()
+                hcore = mol.GHF().x2c1e().get_hcore()
+                walker_type = _SlaterType.NONCOLLINEAR
             elif soc_type == "ecp":
                 hcore = scf.GHF(mol).get_hcore() + get_ecp_soc(mol)
+                walker_type = _SlaterType.NONCOLLINEAR
             elif soc_type is None:
                 hcore = scf.hf.get_hcore(mol)
             else:
@@ -247,7 +249,6 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', soc_type=None):
             df_ints = fh5['j3c'][:]
         else:
             df_ints = None
-    
 
     scf_data = {
         'mol': mol,
@@ -258,9 +259,9 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', soc_type=None):
         'X': X,
         'mo_coeff': mo_coeff,
         'df_ints': df_ints,
-        'mo_type' : mo_type,
+        'walker_type' : walker_type, # suggested walker type
         'soc_type' : soc_type # identifies that hcore has SOC
-        }
+    }
     return scf_data
 
 def ci2chk(chkfile,ci):
@@ -360,4 +361,4 @@ def get_ecp_soc(mol):
 
     s = .5 * lib.PauliMatrices
     ecpso = -1j * lib.einsum('sxy,spq->xpyq', s, mol.intor('ECPso'))
-    return ecpso
+    return ecpso.reshape(ecpso.shape[0] * ecpso.shape[1], ecpso.shape[2] * ecpso.shape[3])

@@ -199,19 +199,35 @@ def neon_atom_tz():
     return gto.M(atom='Ne 0 0 0', basis='aug-ccpvtz',parse_arg=False)
 
 
+@pytest.fixture(scope='session')
+def carbon_ecp():
+    if not USE_PYSCF:
+        pytest.skip("pyscf is not installed")
+    return gto.M(atom='C 0 0 0', basis={'C': 'crenbl'}, ecp={'C': 'crenbl'})
+
+
+@pytest.fixture(scope='session')
+def carbon_ghf(tmp_path_factory, carbon_ecp):
+    mf = scf.GHF(carbon_ecp)
+    mf.chkfile = tmp_path_factory.mktemp('scf') / 'scf.chk'
+    energy = mf.kernel()
+
+    return mf, energy
+
+
 @pytest.fixture(scope='session', params = [
-    (scf.RHF, _SlaterType.CLOSED),
-    (scf.ROHF, _SlaterType.COLLINEAR),
-    (scf.UHF, _SlaterType.COLLINEAR),
-    (scf.GHF, _SlaterType.NONCOLLINEAR),
+    scf.RHF,
+    scf.ROHF,
+    scf.UHF,
+    scf.GHF,
 ])
 def neon_hf(tmp_path_factory, request, neon_atom):
-    HF, walker_type = request.param
+    HF = request.param
     mf = HF(neon_atom)
     mf.chkfile = tmp_path_factory.mktemp('scf') / 'scf.chk'
     energy = mf.kernel()
 
-    return mf, energy, walker_type
+    return mf, energy
 
 
 @pytest.fixture(scope='session')

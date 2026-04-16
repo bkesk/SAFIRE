@@ -216,21 +216,30 @@ class TestMol:
         assert np.allclose(np.array(hamil['chol']).real.T, chol, atol=1e-12, rtol=1e-8)
         assert np.isclose(enuc, hamil['enuc'])
 
-    def test_ortho_ao(self, neon_atom, neon_hf):
-        mf, _, walker_type = neon_hf
-        scf_data = load_from_pyscf_chk_mol(mf.chkfile)
-        C = scf_data["mo_coeff"]
+    @pytest.mark.parametrize(
+        "soc_type",
+        [None, "sfx2c", "x2c"],
+    )
+    def test_ortho_ao(self, neon_hf, soc_type):
+        self._run_ortho_ao(neon_hf, soc_type)
 
-        if len(C.shape) > 2 or walker_type == _SlaterType.NONCOLLINEAR:
+    def test_ecp(self, carbon_ghf):
+        self._run_ortho_ao(carbon_ghf, "ecp")
+    
+    def _run_ortho_ao(self, hf, soc_type):
+        mf, _ = hf
+
+        scf_data = load_from_pyscf_chk_mol(mf.chkfile, soc_type=soc_type)
+        C = scf_data["mo_coeff"]
+        walker_type = scf_data["walker_type"]
+
+        if len(C.shape) > 2 or C.shape[0] == scf_data['norb'] * 2:
             with pytest.raises(ValueError):
                 mol.generate_hamiltonian(scf_data, walker_type=walker_type)
+            mol.generate_hamiltonian(scf_data, walker_type=walker_type, ortho_ao=True)
         else:
             Cinv = np.linalg.inv(C)
             X = scf_data["X"]
-
-            if walker_type == _SlaterType.NONCOLLINEAR:
-                X = np.kron(np.eye(2), X)
-                Cinv = np.kron(np.eye(2), Cinv)
 
             h1e, chol, _, enuc, _ = mol.generate_hamiltonian(scf_data, walker_type=walker_type)
             h1e_ao, chol_ao, _, enuc_ao, _ = mol.generate_hamiltonian(
@@ -238,8 +247,11 @@ class TestMol:
             )
 
             assert np.isclose(enuc_ao, enuc)
-            assert np.allclose(h1e_ao, X.T @ Cinv.T @ h1e @ Cinv @ X)
             assert np.allclose(chol_ao, mol.transform_cholesky(chol, Cinv @ X))
+            if walker_type == _SlaterType.NONCOLLINEAR:
+                X = np.kron(np.eye(2), X)
+                Cinv = np.kron(np.eye(2), Cinv)
+            assert np.allclose(h1e_ao, X.T @ Cinv.T @ h1e @ Cinv @ X)
 
 
 @pytest.mark.pyscf
