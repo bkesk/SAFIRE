@@ -23,6 +23,7 @@ from afqmctools.wavefunction.free_electron import (
     _collinear_free_elec
 )
 from afqmctools.utils.slater_types import _SlaterType
+from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 
 #skip this file if pyscf can't import
 pyscf = pytest.importorskip("pyscf")
@@ -52,55 +53,37 @@ class TestMolWavefunction:
 
         assert (dims == [5,5,5,1,1]).all()
 
-    def test_write_wfn_mol_init_uses_mo_occ_for_collinear(self, tmp_path):
-        scf_data = {
-            'mo_occ': np.array([2, 0, 2, 0]),
-            'nelec': (2, 2),
-            'norb': 4,
-            'walker_type': _SlaterType.COLLINEAR
-        }
-        wfn = np.eye(4, dtype=np.complex128)
+    @pytest.mark.parametrize("ortho_ao,cas", [
+        (False, None),
+        (True, None),
+        (False, (8, 4)),
+        (True, (8, 4)),
+    ])
+    def test_make_slater_old_matches_generate_wavefunction(self, neon_hf, ortho_ao, cas):
+        mf, _ = neon_hf
+        scf_data = load_from_pyscf_chk_mol(mf.chkfile)
+        C = scf_data["mo_coeff"]
+        norb = scf_data["norb"]
+        needs_ortho_ao = C.ndim > 2 or C.shape[0] == 2 * norb
 
-        mol.write_wfn_mol(scf_data, tmp_path/'collinear_init.h5', wfn=wfn)
+        if ortho_ao:
+            scf_data = {**scf_data, "orthAO": True}
 
-        with h5py.File(tmp_path/'collinear_init.h5', 'r') as fh5:
-            init_alpha = from_complex(fh5['Wavefunction/NOMSD/Psi0_alpha'][:], shape=(4, 2))
-            init_beta = from_complex(fh5['Wavefunction/NOMSD/Psi0_beta'][:], shape=(4, 2))
+        if ortho_ao and cas is not None:
+            with pytest.raises(ValueError):
+                mol.generate_wavefunction(scf_data, scf_data, ortho_ao=True, cas=cas)
+            return
 
-        expected = np.array(
-            [[1, 0],
-             [0, 0],
-             [0, 1],
-             [0, 0]],
-            dtype=np.complex128
-        )
+        if needs_ortho_ao and not ortho_ao:
+            with pytest.raises(ValueError):
+                mol.generate_wavefunction(scf_data, scf_data, ortho_ao=False, cas=cas)
+            return
 
-        assert np.allclose(init_alpha, expected)
-        assert np.allclose(init_beta, expected)
+        old = mol.make_slater_old(scf_data, cas=cas)
+        new, _, _ = mol.generate_wavefunction(scf_data, scf_data, ortho_ao=ortho_ao, cas=cas)
 
-    def test_write_wfn_mol_init_uses_mo_occ_for_fully_polarized(self, tmp_path):
-        scf_data = {
-            'mo_occ': np.array([1, 0, 1, 0]),
-            'nelec': (2, 0),
-            'norb': 4,
-            'walker_type': _SlaterType.FULLYPOLARIZED
-        }
-        wfn = np.eye(4, 2, dtype=np.complex128)
-
-        mol.write_wfn_mol(scf_data, tmp_path/'fp_init.h5', wfn=wfn)
-
-        with h5py.File(tmp_path/'fp_init.h5', 'r') as fh5:
-            init_alpha = from_complex(fh5['Wavefunction/NOMSD/Psi0_alpha'][:], shape=(4, 2))
-
-        expected = np.array(
-            [[1, 0],
-             [0, 0],
-             [0, 1],
-             [0, 0]],
-            dtype=np.complex128
-        )
-
-        assert np.allclose(init_alpha, expected)
+        assert old.shape == new.shape
+        assert np.allclose(old, new, atol=1e-10)
 
 
 @pytest.mark.pyscf
