@@ -16,7 +16,7 @@ import numpy
 from afqmctools.hamiltonian.mol import (
         write_sparse,write_dense
         )
-from afqmctools.wavefunction.mol import (
+from afqmctools.wavefunction.common import (
         write_wfn
         )
 from afqmctools.hamiltonian.converter import read_fcidump
