@@ -291,7 +291,11 @@ template<typename V, nda::MemoryArray A>
 requires(std::decay_t<A>::is_stride_order_C())
 void apply(V alpha, A&& a, nda::tensor::op::TENSOR_OP oper) {
   if constexpr(nda::mem::have_device_compatible_addr_space<A>) {
+#if defined(ENABLE_DEVICE)
     kernels::device::apply(alpha,a,oper);
+#else
+    sfqmc::utils::check(false,"Error: Missing device function apply.");
+#endif
   } else {
     nda::tensor::scale(alpha,a,oper);
   }

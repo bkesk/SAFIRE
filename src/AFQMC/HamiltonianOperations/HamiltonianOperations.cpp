@@ -177,6 +177,7 @@ __vbias__(DEVICE_MEMORY)
   template void HamiltonianOperations<M1>::update_potentials_impl(double,memory::array_view<M2,ComplexType const,1,nda::C_layout>const&,memory::array_view<M1,ComplexType,1,nda::C_layout>&,bool); 
 __update_potentials__(HOST_MEMORY,HOST_MEMORY)
 #if defined(ENABLE_DEVICE)
+__update_potentials__(DEVICE_MEMORY,DEVICE_MEMORY)
 __update_potentials__(DEVICE_MEMORY,HOST_MEMORY)
 #endif
 

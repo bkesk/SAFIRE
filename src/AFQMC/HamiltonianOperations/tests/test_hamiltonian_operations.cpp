@@ -41,14 +41,6 @@
 
 #include "numerics/sparse/sparse.hpp"
 
-using std::cerr;
-using std::complex;
-using std::cout;
-using std::endl;
-using std::ifstream;
-using std::setprecision;
-using std::string;
-
 extern std::string UTEST_HAMIL, UTEST_WFN;
 namespace sfqmc
 {
