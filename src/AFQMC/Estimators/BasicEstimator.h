@@ -49,10 +49,6 @@ public:
     int population_control_interval = pt.get<int>("_population_control_interval");
     measure_interval = pt.get<int>("measure_interval_multiplier") * population_control_interval;
 
-#ifndef ENABLE_TIMERS
-    timers = false;
-#endif
-
     utils::check(nwfacts >= 0, "Error: nwfacts<0");
     weight_product = ComplexType(1.0, 0.0);
     for (int i = 0; i < nwfacts; i++)
