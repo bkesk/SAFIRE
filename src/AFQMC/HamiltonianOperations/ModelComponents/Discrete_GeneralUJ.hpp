@@ -90,8 +90,8 @@ public:
   {
 
     utils::check(initialized, " Error: Using uninitialized Discrete_GeneralUJ object. Call update first."); 
-    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol  = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
+    int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     int NMO = H1.extent(1) / npol;
 
     utils::check(H1.shape() == std::array<long,3>{nspin, npol*NMO, npol*NMO}, "Shape mismatch");
@@ -142,11 +142,17 @@ public:
     ComplexType ia(0.0, dt);
 
     // v(w,n) = v(w,n) + ia*h0(n);
-    if constexpr (MEM==HOST_MEMORY)
+    if constexpr (MEM==HOST_MEMORY){
       for(int iw=0; iw<v.extent(0); ++iw) v(iw,all) += ia*(h0()+hMF());     
+    }
     else {
-      nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
-      nda::tensor::add(ia,hMF(),"i",ComplexType(1.0),v,"wi");
+      //nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
+      //nda::tensor::add(ia,hMF(),"i",ComplexType(1.0),v,"wi");
+      //FIX: need a better solution here
+      for(int iw=0; iw<v.extent(0); ++iw){
+        nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v(iw,all),"i");
+        nda::tensor::add(ia,hMF(),"i",ComplexType(1.0),v(iw,all),"i");
+      }
     }
   }
 
@@ -197,7 +203,7 @@ private:
   // interacting term.
   memory::shared_array<MEM,ComplexType,1> h0;
 
-  // 1-body part of MF substaction. Not given by vMF in discrete case!!!
+  // 1-body part of MF subtraction. Not given by vMF in discrete case!!!
   memory::shared_array<MEM,ComplexType,1> hMF;
 
   // need to keep a copy of the U matrix. Keeping on host memory.
@@ -213,7 +219,7 @@ private:
   // and on MF onsite occupations.    
   // follows addComponent from Hamiltonians/ModelHamOpsGenerator.icc, 
   // but uses correct prefactors, which are now functions of dt*U and nMFJ = <nI +- nJ>   
-  // assumes nMF[i] = <c^{+}_i c_i>_MF is the mean-field site occupations. UHF convenstion for
+  // assumes nMF[i] = <c^{+}_i c_i>_MF is the mean-field site occupations. UHF convention for
   // spin ordering (e.g. all up, followed by all down).   
   // assuming onsite densities are real...
   // This is a collective call!
@@ -236,15 +242,15 @@ private:
     RealType sign = (propg_type == DiscreteChargePropagator) ? RealType(1.0) : RealType(-1.0);
     ComplexType scl = (propg_type == DiscreteChargePropagator?(1.0):ComplexType(0.0,-1.0));
     int M = NMO;	
-    int M2 = (walker_type == NONCOLLINEAR) ? 2*M : M;
-    int Madd = (walker_type == NONCOLLINEAR) ? M : 0;
+    int M2 = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2*M : M;
+    int Madd = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? M : 0;
     bool head_shared = ( MEM==HOST_MEMORY ? mpi->node_comm.root() : true ); 
 
     if(mpi->comm.root()) {
  
       nda::array<ComplexType,1> hMF_h(nIJ, ComplexType(0.0));
       math::sparse::csr_matrix<ComplexType, HOST_MEMORY, int, int> VnT({SpVnT.extent(0),SpVnT.extent(1)},4); 
-      // save parameters to avoid excesve recalculation
+      // save parameters to avoid excessive recalculation
       std::vector<std::tuple<RealType,RealType,ComplexType,ComplexType>> params; 
 
       // opposite spin terms

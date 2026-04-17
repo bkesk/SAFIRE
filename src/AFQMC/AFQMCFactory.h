@@ -112,7 +112,7 @@ private:
   // WalkerHandler factory
   WalkerSetFactory<MEM> WSetFac;
 
-  // Wavefunction factoru
+  // Wavefunction factory
   WavefunctionFactory<MEM> WfnFac;
 
   // Propagator factory
@@ -124,7 +124,7 @@ private:
   //
   //  Traverse input tree and creates all non-executable objects.
   //  Created objects (pointers actually) are stored in maps based on name in xml block.
-  //  Executable sections (drivers) are created with objects already exiting
+  //  Executable sections (drivers) are created with objects already existing
   //  in the maps.
   //
   bool parse(const ptree pt);

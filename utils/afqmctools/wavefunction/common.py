@@ -55,7 +55,8 @@ def modified_gram_schmidt(mat, tol=1.0e-12):
   ValueError
     If a column is (near) linearly dependent on the previous ones.
   """
-  print("Orthonormalizing Slater matrix using modified Gram-Schmidt...")
+  if mat.ndim != 2:
+      raise ValueError(f"Expected 2D array, got {mat.ndim}D")
   q = np.zeros_like(mat, dtype=np.complex128)
 
   for j in range(mat.shape[1]):
@@ -280,7 +281,7 @@ def write_wfn(
         wfn_group['dims'] = np.array(dims, dtype=np.int32)
 
 
-def write_nomsd_old(fh5, wfn, uhf, nelec, thresh=1e-8, init=None, orthonormalize=True):
+def write_nomsd(fh5, wfn, uhf, nelec, thresh=1e-8, init=None, orthonormalize=True):
     """Write NOMSD to HDF.
 
     Parameters
@@ -302,21 +303,24 @@ def write_nomsd_old(fh5, wfn, uhf, nelec, thresh=1e-8, init=None, orthonormalize
     """
     nalpha, nbeta = nelec
 
+    # copy and ensure floatness
+    wfn = wfn.copy() + 0.0
+
     wfn[abs(wfn) < thresh] = 0.0
     
     # Check and optionally orthonormalize wfn Slater matrices
     for idet, w in enumerate(wfn):
         # Check alpha block
         norm_a, is_ortho_a = check_slater_matrix_orthonormality(
-            w[:,:nalpha], nelec=nalpha, matrix_type=f'wfn[{idet}] alpha'
+            w[:,:nalpha], nelec=nalpha, matrix_type=f'wfn[{idet}] alpha', verbose=not orthonormalize
         )
         if not is_ortho_a and orthonormalize:
             wfn[idet, :, :nalpha] = modified_gram_schmidt(w[:,:nalpha])
-        
+
         # Check beta block if present
         if uhf and nbeta > 0:
             norm_b, is_ortho_b = check_slater_matrix_orthonormality(
-                w[:,nalpha:nalpha+nbeta], nelec=nbeta, matrix_type=f'wfn[{idet}] beta'
+                w[:,nalpha:nalpha+nbeta], nelec=nbeta, matrix_type=f'wfn[{idet}] beta', verbose=not orthonormalize,
             )
             if not is_ortho_b and orthonormalize:
                 wfn[idet, :, nalpha:nalpha+nbeta] = modified_gram_schmidt(w[:,nalpha:nalpha+nbeta])
@@ -326,14 +330,14 @@ def write_nomsd_old(fh5, wfn, uhf, nelec, thresh=1e-8, init=None, orthonormalize
         if isinstance(init, (tuple, list)) and len(init) == 2:
             init_alpha, init_beta = init
             norm_a, is_ortho_a = check_slater_matrix_orthonormality(
-                init_alpha, nelec=nalpha, matrix_type='init alpha'
+                init_alpha, nelec=nalpha, matrix_type='init alpha', verbose=not orthonormalize
             )
             if not is_ortho_a and orthonormalize:
                 init[0] = modified_gram_schmidt(init_alpha)
             
             if uhf and nbeta > 0:
                 norm_b, is_ortho_b = check_slater_matrix_orthonormality(
-                    init_beta, nelec=nbeta, matrix_type='init beta'
+                    init_beta, nelec=nbeta, matrix_type='init beta', verbose=not orthonormalize
                 )
                 if not is_ortho_b and orthonormalize:
                     init[1] = modified_gram_schmidt(init_beta)
@@ -343,18 +347,17 @@ def write_nomsd_old(fh5, wfn, uhf, nelec, thresh=1e-8, init=None, orthonormalize
     else:
         # Check and optionally orthonormalize wfn[0] for use as init
         norm_a, is_ortho_a = check_slater_matrix_orthonormality(
-            wfn[0,:,:nalpha], nelec=nalpha, matrix_type='wfn[0] alpha (used as init)'
+            wfn[0,:,:nalpha], nelec=nalpha, matrix_type='wfn[0] alpha (used as init)', verbose=not orthonormalize
         )
         if not is_ortho_a and orthonormalize:
             wfn[0, :, :nalpha] = modified_gram_schmidt(wfn[0,:,:nalpha])
-        
         add_dataset(fh5, 'Psi0_alpha',
                     to_complex(wfn[0,:,:nalpha].copy()))  
         if uhf:
             warn(
                 "Using UHF Slater determinant for initial Walkers with a Collinear Trial Wavefunction. " 
                 "This can lead to very slow equilibration in AFQMC calculations. " 
-                "using ROHF Slater determinants for intiail Walkers is recommended."
+                "using ROHF Slater determinants for initial Walkers is recommended."
             )
             norm_b, is_ortho_b = check_slater_matrix_orthonormality(
                 wfn[0,:,nalpha:nalpha+nbeta], nelec=nbeta, matrix_type='wfn[0] beta (used as init)'
@@ -405,14 +408,13 @@ def write_nomsd_ghf(fh5, wfn, nelec, thresh=1e-8, init=None, orthonormalize=True
             " NONCOLLINER or FULLYPOLARIZED Slater determinants."
         )
 
+    wfn = wfn.copy() + 0.0j
     wfn[abs(wfn) < thresh] = 0.0
-    
-    wfn = np.array(wfn,dtype=np.complex128) 
     
     # Check and optionally orthonormalize wfn Slater matrices
     for idet, w in enumerate(wfn):
         norm, is_ortho = check_slater_matrix_orthonormality(
-            w[:,:nalpha], nelec=nalpha, matrix_type=f'wfn[{idet}] noncollinear'
+            w[:,:nalpha], nelec=nalpha, matrix_type=f'wfn[{idet}] noncollinear', verbose=not orthonormalize
         )
         if not is_ortho and orthonormalize:
             wfn[idet, :, :nalpha] = modified_gram_schmidt(w[:,:nalpha])
@@ -420,7 +422,7 @@ def write_nomsd_ghf(fh5, wfn, nelec, thresh=1e-8, init=None, orthonormalize=True
     if init is not None:
         # Check and optionally orthonormalize init parameter
         norm, is_ortho = check_slater_matrix_orthonormality(
-            init[0], nelec=nalpha, matrix_type='init (noncollinear)'
+            init[0], nelec=nalpha, matrix_type='init (noncollinear)', verbose=not orthonormalize
         )
         if not is_ortho and orthonormalize:
             init[0] = modified_gram_schmidt(init[0])
@@ -429,7 +431,7 @@ def write_nomsd_ghf(fh5, wfn, nelec, thresh=1e-8, init=None, orthonormalize=True
     else:
         # Check and optionally orthonormalize wfn[0] for use as init
         norm, is_ortho = check_slater_matrix_orthonormality(
-            wfn[0,:,:nalpha], nelec=nalpha, matrix_type='wfn[0] (used as init)'
+            wfn[0,:,:nalpha], nelec=nalpha, matrix_type='wfn[0] (used as init)', verbose=not orthonormalize
         )
         if not is_ortho and orthonormalize:
             wfn[0, :, :nalpha] = modified_gram_schmidt(wfn[0,:,:nalpha])
@@ -440,8 +442,6 @@ def write_nomsd_ghf(fh5, wfn, nelec, thresh=1e-8, init=None, orthonormalize=True
         psia = scipy.sparse.csr_array(w[:,:nalpha].conj().T)
         write_nomsd_single(fh5, psia, idet)
 
-
-write_nomsd = write_nomsd_old
 
 def write_nomsd_single(fh5, psi, idet):
     """Write single component of NOMSD to hdf.

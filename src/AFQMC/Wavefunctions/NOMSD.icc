@@ -18,7 +18,6 @@
 
 #include "AFQMC/SlaterDeterminantOperations/density_matrix.hpp"
 #include "numerics/operations/product.hpp"
-#include "numerics/operations/log_of_sum.hpp"
 
 namespace sfqmc
 {
@@ -184,7 +183,7 @@ void NOMSD<MEM,devPsiT>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&&
       // doing in host for now!!!
       
       nda::tensor::add(ComplexType(-1.0),log_m,"w",ComplexType(1.0),Ot,"w");
-      nda::tensor::scale(std::conj(ci(d)),Ot,nda::tensor::op::EXP);
+      nda::apply(std::conj(ci(d)),Ot,nda::tensor::op::EXP);
       nda::tensor::add(ComplexType(1.0),Ot,"w",ComplexType(1.0),Ov,"w");
       if constexpr (MEM==HOST_MEMORY) {
         for(int w=0; w<nw; ++w) 
@@ -201,7 +200,7 @@ void NOMSD<MEM,devPsiT>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&&
         G(w,all) /= Ov(w); 
     } else {
       Ot() = Ov();
-      nda::tensor::scale(ComplexType(1.0),Ot,nda::tensor::op::RCP);
+      nda::apply(ComplexType(1.0),Ot,nda::tensor::op::RCP);
       // is this doing the righ thing???
       nda::tensor::elementwise(ComplexType(1.0),Ot,"w",ComplexType(1.0),G,"wi",nda::tensor::op::MUL);
     }
@@ -249,8 +248,18 @@ void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
   
     // now assemble avoiding round-off problems 
     // Ov(w) = sum_d log_ovlp(d,w) 
-    Ov() = ComplexType(0.0);
-    math::log_of_sum(0,log_ovlps,Ov); 
+    auto log_h = nda::to_host(log_ovlps);
+    nda::array<ComplexType,1> ov_h(nw);
+    for(int i=0; i<nw; ++i) {
+      auto ai = log_h(nda::range::all,i);
+      // find largest determinant for each walker to use as reference
+      ComplexType log_m = *std::max_element(ai.begin(),ai.end());
+      ComplexType sum = 0.0;
+      for(int p=0; p<ndet; ++p)
+        sum += std::exp( ai(p) - log_m );
+      ov_h(i) = log_m + std::log(sum);
+    }
+    Ov() = ov_h();
   }
 }
 
@@ -351,7 +360,7 @@ void NOMSD<MEM,devPsiT>::accumulate_estimators(int iav, WlkSet& wset, nda::Memor
 
         //2.accumulate Ov[m] += ci[n] * exp(LogOv[n]-log_m[n]) 
         nda::tensor::add(ComplexType(-1.0),log_m,"w",ComplexType(1.0),Ot,"w");
-        nda::tensor::scale(std::conj(ci(d)),Ot,nda::tensor::op::EXP);
+        nda::apply(std::conj(ci(d)),Ot,nda::tensor::op::EXP);
         nda::tensor::add(ComplexType(1.0),Ot,"w",ComplexType(1.0),Ov,"w");
       }
 
@@ -359,7 +368,7 @@ void NOMSD<MEM,devPsiT>::accumulate_estimators(int iav, WlkSet& wset, nda::Memor
       if constexpr (MEM==HOST_MEMORY) {
         scl_wgt() /= Ov();
       } else {
-        nda::tensor::scale(ComplexType(1.0),Ov,nda::tensor::op::RCP);
+        nda::apply(ComplexType(1.0),Ov,nda::tensor::op::RCP);
         nda::tensor::elementwise(ComplexType(1.0),Ov,"w",ComplexType(1.0),scl_wgt,"w",nda::tensor::op::MUL);
       }
     }
@@ -394,7 +403,7 @@ void NOMSD<MEM,devPsiT>::accumulate_estimators(int iav, WlkSet& wset, nda::Memor
       
       // Ot = conj(ci) * exp(Ot-log_m) 
       nda::tensor::add(ComplexType(-1.0),log_m,"w",ComplexType(1.0),Ot,"w");
-      nda::tensor::scale(std::conj(ci(d)),Ot,nda::tensor::op::EXP);
+      nda::apply(std::conj(ci(d)),Ot,nda::tensor::op::EXP);
       // Ov += Ot 
       nda::tensor::add(ComplexType(1.0),Ot,"w",ComplexType(1.0),Ov,"w");
       if(properties_1body.size() > 0) {
@@ -424,7 +433,7 @@ void NOMSD<MEM,devPsiT>::accumulate_estimators(int iav, WlkSet& wset, nda::Memor
         Gfull(w,nda::ellipsis{}) /= Ov(w); 
     } else {
       Ot() = Ov();
-      nda::tensor::scale(ComplexType(1.0),Ot,nda::tensor::op::RCP);
+      nda::apply(ComplexType(1.0),Ot,nda::tensor::op::RCP);
       // is this doing the righ thing???
       nda::tensor::elementwise(ComplexType(1.0),Ot,"w",ComplexType(1.0),Gfull,"wiab",nda::tensor::op::MUL);
     }

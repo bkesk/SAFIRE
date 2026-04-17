@@ -271,7 +271,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   }
   mpi->comm.barrier();
 
-  // exchange potential, parallelize over i:{0,NMO} to avoid temporary mamory
+  // exchange potential, parallelize over i:{0,NMO} to avoid temporary memory
   auto v0 = memory::make_shared_array<HOST_MEMORY,RealType,3>(mpi,std::array<long,3>{nspin_in_H2*npol_in_H2, NMO, NMO});
   auto [n0, n1] = itertools::chunk_range(0, NMO, mpi->comm.size(), mpi->comm.rank());
   // calculate v0(i,l) = -0.5 sum_j sum_n L[i][j][n] L[j][l][n] = -0.5 sum_j sum_n L[i][j][n] L[l][j][n]

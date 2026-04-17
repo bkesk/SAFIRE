@@ -98,6 +98,10 @@ WALKER_TYPES getWalkerType(std::string filename, std::string type)
     return NONCOLLINEAR;
   else if (wfn_type == 4)
     return FULLYPOLARIZED;
+  else if (wfn_type == 5)
+    return COLLINEAR_FT;
+  else if (wfn_type == 6)
+    return NONCOLLINEAR_FT;
   else
     return UNDEFINED_WALKER_TYPE;
 }
@@ -127,6 +131,10 @@ WALKER_TYPES getWalkerType(std::string filename)
     return NONCOLLINEAR;
   else if (wfn_type ==4)
     return FULLYPOLARIZED;
+  else if (wfn_type == 5)
+    return COLLINEAR_FT;
+  else if (wfn_type == 6)
+    return NONCOLLINEAR_FT;
   else
     return UNDEFINED_WALKER_TYPE;
 }

@@ -43,9 +43,6 @@
 /* Enable device code, with some backend. */
 #cmakedefine ENABLE_DEVICE @ENABLE_DEVICE@
 
-/* Use NCCL library, only with ENABLE_CUDA=ON  */
-#cmakedefine USE_NCCL @USE_NCCL@
-
 /* Disable trace manager and associated features */
 #cmakedefine DISABLE_TRACEMANAGER @DISABLE_TRACEMANAGER@
 

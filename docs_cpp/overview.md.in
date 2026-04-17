@@ -2,29 +2,5 @@
 
 [TOC]
 
-> This is the homepage of The AFQMC C++ documentation.
-The source code can be found on [GitHub](https://github.com/mmorale3/unnamed_afqmc_code.git).
-
-Some features include
-* coded in C++17
-* GPU-acceleration available
-* ... 
-
-@section motivation Here's a sample code-block
-
-```cpp
-#include "iostream"
-
-int main() {
-    std::cout << "Hello, World!\n";
-}
-```
-
-
-@section start Where to start?
-
-... 
-
-If you experience any problem with the code, you can post an "Issue" on GitHub.
-
-@ref documentation
+This is the homepage of The SAFIRE C++ documentation.
+The source code can be found on [GitHub](https://github.com/SFQMC/SAFIRE.git).

@@ -140,7 +140,7 @@ std::vector<long> find_active_space(WALKER_TYPES walker_type, excitations const&
 }
 
 /*
- * - exct stores, for each electron excitaion, the location of the orbital in the reference 
+ * - exct stores, for each electron excitation, the location of the orbital in the reference 
  *    being excited and the index of the excited orbital.
  */
 template<class Vector, class T>

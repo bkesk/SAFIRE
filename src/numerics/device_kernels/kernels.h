@@ -15,6 +15,8 @@
 #include "numerics/device_kernels/cuda/split_singular_vals.cuh"
 #include "numerics/device_kernels/cuda/add_diagonal.cuh"
 #include "numerics/device_kernels/cuda/add_scalar.cuh"
+#include "numerics/device_kernels/cuda/phmsd_routines.cuh"
+#include "numerics/device_kernels/cuda/apply.cuh"
 
 #endif
 

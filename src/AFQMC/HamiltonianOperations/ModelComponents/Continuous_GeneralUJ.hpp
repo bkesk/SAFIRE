@@ -84,8 +84,8 @@ public:
                                   [[maybe_unused]] nda::array<ComplexType, 1> const& vMF,
                                   nda::array<long,1> const& n2IJ)
   {
-    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol  = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
+    int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     int NMO = H1.extent(1) / npol;
     long nIJ = n2IJ.extent(0);
 
@@ -142,8 +142,11 @@ public:
     // v(w,n) = v(w,n) + ia*h0(n);
     if constexpr (MEM==HOST_MEMORY) 
       for(int iw=0; iw<v.extent(0); ++iw) v(iw,all) += ia*h0(); 
-    else
-      nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
+    else{
+      //FIX: need a better solution here
+      for(int iw=0; iw<v.extent(0); ++iw) nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v(iw,all),"i");
+      //nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
+    }
   }
 
   // v(n,w) = sum_IJ VnT(n,IJ) G(w,IJ)

@@ -71,7 +71,7 @@ public:
     {
       auto newham = hamiltonians.insert(std::make_pair(ID, buildHamiltonian(mpi, xml->second)));
       if (!newham.second)
-        APP_ABORT(" Error: Problems inserting new hamiltonian in HamiltonianFactory::getHamiltonian(streing&). ");
+        APP_ABORT(" Error: Problems inserting new hamiltonian in HamiltonianFactory::getHamiltonian. ");
       return (newham.first)->second;
     }
     else

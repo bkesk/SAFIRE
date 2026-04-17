@@ -78,8 +78,6 @@ public:
         OrbMats(std::move(orbs_)),
         RefOrbMats(memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{0,0,0})),
         NuclearCoulombEnergy(nce) 
-//        maxnactive(std::max(OrbMats[0].size(0), OrbMats[1].size(0))),
-//        max_exct_n(std::max(abij.maximum_excitation_number()[0], abij.maximum_excitation_number()[1]))
   {
     /* To me, PHMSD is not compatible with walker_type=CLOSED unless
      * the MSD expansion is symmetric with respect to spin. For this, 
@@ -97,7 +95,7 @@ public:
       APP_ABORT("PHMSD has not yet been implemented for FULLYPOLARIZED walkers.");
 
     const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
-    utils::check(OrbMats.extent(0)==1 or OrbMats.extent(0)==nspin, "PHMSD: Invalid sise of OrbMats");
+    utils::check(OrbMats.extent(0)==1 or OrbMats.extent(0)==nspin, "PHMSD: Invalid size of OrbMats");
 
     // setup device structures
 
@@ -255,7 +253,7 @@ public:
   }
 
   /*
-   * Returns the Hubbard-Stratonovoch potential. 
+   * Returns the Hubbard-Stratonovich potential. 
    *  Input:
    *    - X: [# chol vecs][nW]
    *  Output:
@@ -457,10 +455,6 @@ protected:
 
   ComplexType NuclearCoulombEnergy;
 
-  // shared memory arrays for temporary calculations
-  size_t maxnactive;        // maximum number of states in active space
-  size_t max_exct_n;        // maximum excitation number (number of electrons excited simultaneously)
-
   /* Implementation of various energy evaluation algorithms. */
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
   void energy_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov);
@@ -470,7 +464,7 @@ protected:
 
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
   void energy_alg2(const WlkSet& wset, Mat&& E, TVec&& Ov)
-  { utils::check(false, "fiinish"); }
+  { utils::check(false, "not implemented"); }
 
 };
 

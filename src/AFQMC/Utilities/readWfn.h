@@ -118,7 +118,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
     utils::check(walker_type == COLLINEAR or walker_type == NONCOLLINEAR, "Error in getCommonInput(): Logic error."); 
     if(walker_type == COLLINEAR) {
       // upgrade from CLOSED to COLLINEAR 
-      utils::check(nup==ndown, "Problesms upgrading wavefunction: nup!=ndown when upgrading to COLLINEAR");
+      utils::check(nup==ndown, "Problems upgrading wavefunction: nup != ndown when upgrading to COLLINEAR");
       for(int id=0; id<ndets; ++id) {
         h5::group pgrp = grp.open_group("PsiT_"+std::to_string(id));
         psi(id,0) = std::move(math::sparse::HDF2CSR<ComplexType,MEM,int,int>(pgrp));

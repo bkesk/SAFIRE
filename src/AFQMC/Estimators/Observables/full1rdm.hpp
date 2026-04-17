@@ -252,7 +252,7 @@ private:
 
   bool apply_rotation;
 
-  // currenlty spin/polarization independent rotation. Can generalize if needed
+  // currently spin/polarization independent rotation. Can generalize if needed
   memory::shared_array<HOST_MEMORY,ComplexType,3> XRot;
 
   bool print_from_list;

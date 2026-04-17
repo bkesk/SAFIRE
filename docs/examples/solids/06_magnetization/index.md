@@ -532,9 +532,8 @@ If you are running remotely, you can add the `--savefig [filename].png` option t
 Note, you must still use `-t` to generate the plot.
 
 ```{code-cell} ipython3
----
-id: pmR1rRGJAenu
----
+:id: pmR1rRGJAenu
+
 !scalar_stats 3_afqmc/qmc.s000.scalar.dat -s time -t -e 5.0 --savefig 3_afqmc/energy_vs_beta.png
 ```
 

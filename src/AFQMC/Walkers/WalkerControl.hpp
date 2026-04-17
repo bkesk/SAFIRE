@@ -252,7 +252,7 @@ inline void serial_comb(std::vector<std::pair<double, int>>& buff, Random& rng)
 }
 
 /**
- * Implements the paired branching algorithm on a popultion of walkers,
+ * Implements the paired branching algorithm on a population of walkers,
  * given a list of walker weights. For each walker in the list, returns the weight
  * and number of times the walker should appear in the new list.
  *   - buff: array of walker info (weight,num).
@@ -321,7 +321,7 @@ inline void pair_branch(std::vector<std::pair<double, int>>& buff, Random& rng, 
 }
 
 /**
- * Implements the paired branching algorithm on a popultion of walkers,
+ * Implements the paired branching algorithm on a population of walkers,
  * given a list of walker weights. For each walker in the list, returns the branching
  * count {0, 1, 2} and the index of the walker paired to the current walker, if branching count is 2. 
  *   - buff: array of walker weights. 

@@ -73,7 +73,7 @@ void init()
   cuda_check(cudaSetDevice(node.rank()%num_devices), "cudaSetDevice()");
   int devn = 0;
   cuda_check(cudaGetDevice(&devn), "cudaGetDevice()");
-  app_debug(3,"MPI world rank: {}, node rank{}, cuda device number: {}",
+  app_debug(3,"MPI world rank: {}, node rank: {}, cuda device number: {}",
 	    world.rank(),node.rank(),devn);
 }
 

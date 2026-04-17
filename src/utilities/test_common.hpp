@@ -106,32 +106,61 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
 inline constexpr auto lattice_unit_test_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd) 
 {
   std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> > files;
-  auto pre = unit_test_base() + "lattices/";
+  auto pre = unit_test_base() + "models/";
   if(nomsd) {
     if(rhf) {
       // Closed spin symmetry is not implemented - no tests expected to pass
     } 
     if(uhf) {
-      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_collinear.h5",
-                                          pre + "square4x4/afqmc_inputs/afqmc_uhf_nomsd.h5",
+      // HST is discrete spin for the following case
+      files.emplace_back( std::make_tuple(pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/ham_collinear.h5",
+                                          pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/uhf_U0.1_wfn_nup5_ndn5.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      files.emplace_back( std::make_tuple(pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/ham_collinear_cont_spin.h5",
+                                          pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/uhf_U0.1_wfn_nup5_ndn5.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      files.emplace_back( std::make_tuple(pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/ham_collinear_Um4_cont_charge.h5",
+                                          pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/uhf_U0.1_wfn_nup5_ndn5.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      files.emplace_back( std::make_tuple(pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/ham_collinear_Um4_disc_charge.h5",
+                                          pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/uhf_U0.1_wfn_nup5_ndn5.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+
+      files.emplace_back( std::make_tuple(pre + "square_6x1_hubbard_kanamori_nup6_ndn6/afqmc_inputs/ham_collinear.h5",
+                                          pre + "square_6x1_hubbard_kanamori_nup6_ndn6/afqmc_inputs/wfn_fe_collinear.h5",
                                           afqmc::UNDEFINED_WALKER_TYPE) );
     }    
     if(ghf) {
-      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_noncollinear.h5",
-                                          pre + "square4x4/afqmc_inputs/afqmc_ghf_nomsd.h5",
+      files.emplace_back( std::make_tuple(pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/ham_noncollinear.h5",
+                                          pre + "square_4x4_hubbard_nup5_ndn5/afqmc_inputs/wfn_fe_noncollinear.h5",
                                           afqmc::NONCOLLINEAR) );
     }
   }
   if (phmsd) {
-    if (uhf) {
-      files.emplace_back( std::make_tuple(pre + "square4x4/afqmc_inputs/afqmc_H_rhf_collinear.h5",
-                                          pre + "square4x4/afqmc_inputs/afqmc_casci_uhf_phmsd.h5",
-                                          afqmc::UNDEFINED_WALKER_TYPE) );
-    }
+    // no phmsd tests for lattice models yet
   }
   return files;
 }
 
+
+inline constexpr auto get_unit_tests_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd, 
+  bool molecules=false, bool lattices=true, bool solids=true)
+{
+  auto unit_test_files = std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> >{};
+
+  if (molecules) {
+    auto mol_files = molecule_unit_tests_files(rhf, uhf, ghf, nomsd, phmsd);
+    unit_test_files.insert(unit_test_files.end(), mol_files.begin(), mol_files.end());
+  }
+  if (lattices) {
+    auto lat_files = lattice_unit_test_files(rhf, uhf, ghf, nomsd, phmsd);
+    unit_test_files.insert(unit_test_files.end(), lat_files.begin(), lat_files.end());
+  }
+  if (solids) {
+    // add solid state unit test files here
+  }
+  return unit_test_files;
+}
 
 /* Checks if a file exists in the file system */
 inline bool file_exists(const std::string& name)

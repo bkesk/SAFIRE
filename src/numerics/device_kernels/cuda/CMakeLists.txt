@@ -14,6 +14,9 @@ if(ENABLE_CUDA)
     split_singular_vals.cu
     add_diagonal.cu
     add_scalar.cu
+    phmsd_determinants.cu
+    phmsd_energy.cu
+    apply.cu
 #    symmetry_tools.cu
 #    potentials.cu
 #    kpoint_tools.cu

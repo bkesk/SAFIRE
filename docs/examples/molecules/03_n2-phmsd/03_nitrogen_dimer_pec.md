@@ -24,31 +24,30 @@ using an appropriate trial wavefunction.
 1. How to select the number of Slater determinants to include in the trial wavefunction, balancing computational cost and accuracy
 2. How to automate the computation of a potential energy curve using afqmctools within Python
 
-## Run the code block below (shift+enter or click the play button) to set up the example
+## Run the code block below to set up the example
 
 ```{code-cell} ipython3
 :id: ljFeTy3vE6ls
 
-# Run me (shift+enter or click the play button) to setup the example!
 from pathlib import Path
 
 import h5py as h5
 import numpy as np
-from pyscf import gto,scf,mcscf
+from pyscf import gto,scf,mcscf,lib
 
 from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 from afqmctools.hamiltonian.mol import write_hamil_mol
 from afqmctools.wavefunction.mol import write_cas_wfn
 from afqmctools.inputs.from_hdf import write_json
-from afqmctools.hamiltonian.io import write_to_hdf5
 
 from stats.scalar_dat import analyze_scalar_data
 
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-# Note: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("n2_pec",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
+
+num_mpi_tasks = 16 # adjust based on your resources
 ```
 
 +++ {"id": "6ZBVQf-6E6lv"}
@@ -87,7 +86,7 @@ Next, we will reproduce the PEC of the Nitrogen dimer using AFQMC / CASSCF(12o,6
 
 ### References:
 
-[1] W. A. Al-Saidi, S. Zhang, H. Krakauer. "Bond breaking with auxiliary-field quantum Monte Carlo." *J. Chem. Phys.* **127**, 144101 (2007).  
+[1] W. A. Al-Saidi, S. Zhang, H. Krakauer. "Bond breaking with auxiliary-field quantum Monte Carlo." *J. Chem. Phys.* **127**, 144101 (2007).
 
 +++ {"id": "ESezCWGWE6lv"}
 
@@ -156,12 +155,6 @@ as a basis.
 (alternatively, run your favorite Quantum Chemistry code, and save the CASSCF wavefunction in the wavefunction HDF5 file).
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-id: banZfkP9E6lv
-outputId: f22826a2-4673-46ae-d474-e205edbf34b7
----
 # Here, we'll generate the mol object
 
 delta = 3.0 # Bohr
@@ -177,27 +170,23 @@ mol = gto.M(
 )
 
 # run CASSCF to get an orbital basis AND a CAS wavefunction
-casscf_chkfile = 'rhf_chkfile.h5'
+casscf_chkfile = scratch_dir / 'rhf_chkfile.h5'
+casscf_chkfile.unlink(missing_ok=True) # delete if already exists
 
 rhf = scf.RHF(mol)
-rhf.chkfile = scratch_dir / casscf_chkfile
+rhf.chkfile = casscf_chkfile
 rhf.run()
-
 mc = mcscf.CASSCF(rhf, 12, 6).run() # (12o,6e)
-
-# save some extra data to the checkpoint file
-with h5.File(scratch_dir/casscf_chkfile, 'a') as fp:
-    write_to_hdf5(fp,'mcscf/ci', data=mc.ci)
-    write_to_hdf5(fp,'mcscf/ncore', data=mc.ncore)
-    write_to_hdf5(fp,'mcscf/ncas', data=mc.ncas)
+# save the ci to the chkfile too
+lib.chkfile.save(mc.chkfile, 'mcscf/ci', mc.ci)
 
 # write the CAS wavefunction to a file
 write_cas_wfn(
     mol=mol,
-    cas_chkfile=scratch_dir / casscf_chkfile,
-    tol_trunc=1.0e-4, # use a small value to save *many* determinants.
+    cas_chkfile= casscf_chkfile,
+    tol_trunc=1.0e-3, # use a small value to save *many* determinants.
     outname=scratch_dir / 'afqmc.h5',
-    max_det=10000
+    max_det=2000
 )
 ```
 
@@ -225,15 +214,9 @@ afqmctools provides a helper function, `load_from_pyscf_chk_mol()`,  to read all
 </div>
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-id: HsY52mSwHNUP
-outputId: 203092b0-1f3c-4c78-91a8-f4ea6a7e71e5
----
 # Save the Hamiltonian
 basis_scf_data = load_from_pyscf_chk_mol(
-    chkfile = scratch_dir / casscf_chkfile,
+    chkfile = casscf_chkfile,
     base = 'mcscf'
 )
 
@@ -308,15 +291,6 @@ will generate a "wavefunction" block that points to the wavefunction file, with 
 Note: This might take some time. You might want to run this on a computing cluster instead.
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-  height: 1000
-id: LHnnxCprE6lv
-outputId: c1d0381b-92bd-43d2-b9eb-9b7d0a42aeeb
----
-num_mpi_tasks = 64
-
 # some shared parameters for the AFQMC run
 execute_options = {
     "timestep": 0.01,
@@ -329,7 +303,7 @@ execute_options = {
 }
 
 
-ndets = [14,50,200,500,1000] # list of Ndet values to run
+ndets = [50,250,500,750] # list of Ndet values to run
 energies = []
 stochastic_uncertainties = []
 # compute E(N_det) for the CAS trial wavefunction
@@ -342,11 +316,10 @@ for ndet in ndets:
     execute_options["wavefunction"] = { "ndets_to_read" : ndet }
 
     write_json(
-        scratch_dir_local/ "afqmc.json",
+        scratch_dir_local / "afqmc.json",
         fwfn0=scratch_dir / "afqmc.h5",
         exec_opts=execute_options
     )
-
     # run AFQMC
     run_afqmc(
         run_dir=scratch_dir_local,
@@ -377,13 +350,6 @@ for ndet in ndets:
 ### Plot $E_{AFQMC}$ vs $N_{det}$
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-  height: 487
-id: wvlfZ8AJns9f
-outputId: b1f69758-5328-45bd-a247-810893ba95a8
----
 # plot the results
 import matplotlib.pyplot as plt
 
@@ -398,7 +364,7 @@ plt.show()
 
 ### Result
 
-From the plot of energy vs $N_{det}$, we have converged the AFQMC energy to within our target stochastic uncertainty of less than 1.6 $mE_{Ha}$ at about $N_{det} = 500$.
+From the plot of energy vs $N_{det}$, we have converged the AFQMC energy to within our target stochastic uncertainty of less than 1.6 m$E_\text{Ha}$ at about $N_{det} = 500$.
 Since we performed this test at a point on the PEC where there are strong static correlation effects, we expect this
 value to provide converged results across the PEC.
 Now, we can automate the calculation of the PEC using this value for $N_{det}$.
@@ -424,12 +390,12 @@ Run the cell block below in order to load the "run_afqmc_on_dimer()" function in
 ```{code-cell} ipython3
 :id: 8u68vNTFE6lw
 
-def run_afqmc_on_dimer(delta,ndets_to_read=None,scratch_root_dir=home / ".scratch", num_mpi_tasks=16):
+def run_afqmc_on_dimer(delta,ndets_to_read=None, num_mpi_tasks=16):
 
-    scratch_dir = get_scratch_dir(f"N2_bondlength_{delta:.4f}", scratch_root_dir)
+    scratch_dir = Path("data") / f"N2_bondlength_{delta:.4f}"
+    scratch_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Running AFQMC on dimer with bond length {delta:.4f} Angstroms")
-    print("  [+] scratch_dir: ", scratch_dir)
 
     # 1. run CASSCF to get a basis and a trial wavefunction
     atom = f'''
@@ -450,12 +416,7 @@ def run_afqmc_on_dimer(delta,ndets_to_read=None,scratch_root_dir=home / ".scratc
     rhf.run()
 
     mc = mcscf.CASSCF(rhf, 12, 6).run() # (12o,6e)
-
-    # save some extra data to the checkpoint file
-    with h5.File(scratch_dir/casscf_chkfile, 'a') as fp:
-        write_to_hdf5(fp,'mcscf/ci', data=mc.ci)
-        write_to_hdf5(fp,'mcscf/ncore', data=mc.ncore)
-        write_to_hdf5(fp,'mcscf/ncas', data=mc.ncas)
+    lib.chkfile.save(mc.chkfile, 'mcscf/ci', mc.ci)
 
     # write the CAS wavefunction to a file
     fout = scratch_dir / 'afqmc.h5'
@@ -537,15 +498,19 @@ Now we can use the `run_afqmc_on_dimer()` function to compute the PEC of the $N_
 
 # we can simply use the automation function above to compute the PEC
 
-num_mpi_tasks = 64 # set this based on your resources!
+num_mpi_tasks = 16 # set this based on your resources!
 
-bondlengths = [2.118,2.4,2.7,3.0,3.6,4.2]
+# full dataset from the paper
+# bondlengths = [2.118,2.4,2.7,3.0,3.6,4.2]
+# reduced dataset for the example
+bondlengths = [2.118,2.7,3.6]
+
 ndets_to_read = 500
 
 energies = []
 stochastic_uncertainties = []
 for delta in bondlengths:
-  _, E, dE = run_afqmc_on_dimer(delta,ndets_to_read,scratch_root_dir=home / ".scratch",num_mpi_tasks=num_mpi_tasks)
+  _, E, dE = run_afqmc_on_dimer(delta,ndets_to_read, num_mpi_tasks=num_mpi_tasks)
   energies.append(E)
   stochastic_uncertainties.append(dE)
 ```
@@ -565,6 +530,7 @@ plt.errorbar(bondlengths, energies, yerr=stochastic_uncertainties, fmt='o:', lab
 plt.xlabel("Bond length (Bohr)")
 plt.ylabel("Energy (Ha)")
 plt.title(r"$N_2$ molecule PEC")
+plt.grid(True)
 plt.tight_layout()
 plt.show()
 ```
@@ -585,5 +551,3 @@ You have computed the potential energy curve (PEC) of the $N_2$ molecule, which 
 
 1. How to select the number of Slater determinants to include in the trial wavefunction, balancing computational cost and accuracy
 2. How to automate the computation of a potential energy curve using afqmctools within Python
-3. (optional) How to perform task 2 using bash and afqmctools instead
-

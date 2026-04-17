@@ -148,6 +148,15 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     app_log(1," EXX: {}", wset[0].get_property(EXX_));
   }
 
+  // must initialize discrete propagators for lattice models before calling vMF, vbias, etc.
+  // technically, only for discrete propagators, but we don't access to that info here.
+  if (wfn.getHamType() == ModelHamiltonian) { 
+      const long ncv = wfn.number_of_cholesky_vectors();
+      memory::array<MEM,ComplexType, 1> vMF_discrete(ncv, ComplexType(0.0, 0.0));
+      memory::array<MEM,ComplexType, 1> nMF(2 * NMO, ComplexType(0.0, 0.0));
+      wfn.update_potentials(dt, nMF, vMF_discrete, false);
+  }
+
   // vMF
   {
     memory::array<MEM,ComplexType,1> v(wfn.number_of_cholesky_vectors());
@@ -307,13 +316,29 @@ TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
 #endif
   } else {
     app_log(0,"WavefunctionFactory unit testing. Running standard tests.");
-    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    auto files = utils::get_unit_tests_files(true,true,true,true,false);
     for( auto f : files ) {
-      wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
-      wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      try {
+        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
+      }
+      try {
+        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
+      }
 #if defined(ENABLE_DEVICE)
-      wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
-      wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      try {
+        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
+      }
+      try {
+        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
+      }
 #endif
     }
   }

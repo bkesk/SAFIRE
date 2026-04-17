@@ -65,7 +65,7 @@ where $| \Phi_{n,k} \rangle$ are the usual forward-projected Slater determinant 
 and $| \tilde{\Phi}_{m,k} \rangle$ are the back-propagated walkers given by,
 $$
 | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_T \rangle
-$$.
+$$
 The index $n$ corresponds to the current forward projection step,
 and $m$ is the back-propagated step index.
 We note that each random walker has a corresponding back-propagated partner
@@ -79,16 +79,14 @@ i.e. the propagator is applied to different Slater determinants when moving in t
 ```{code-cell} ipython3
 :id: 616ca764-f070-434a-8146-e1511f273342
 
-%load_ext autoreload
 # Run me (shift+enter or click the play button) to setup the tutorial!
 from pathlib import Path
 
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-#TODO: update this to a good directory for scratch files
-home = Path.home() / ".scratch"
-scratch_dir = get_scratch_dir("04_observables_solids", home)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 # copy files to scratch
 import shutil
@@ -183,7 +181,7 @@ execute_options = {
         "walker_type" : "COLLINEAR"
     },
     "timestep": 0.01,
-    "steps": 10000,
+    "steps": 7000,
     "population_control_interval" : 10,
     "measure_interval_multiplier": 1,
     "walker_ortho_interval" : 10 ,
@@ -378,11 +376,11 @@ execute_options = {
         "walker_type" : "COLLINEAR"
     },
     "timestep": 0.01,
-    "steps": 10000,
+    "steps": 7000,
     "population_control_interval" : 10,
     "measure_interval_multiplier": 1,
     "walker_ortho_interval" : 10 ,
-    "n_walkers_per_mpi_task": 200,
+    "n_walkers_per_mpi_task": 50,
     "seed" : 42,
     "estimator" : {
         "name" : "mixed",
@@ -445,7 +443,6 @@ colab:
 id: c9LgOOxOA_xI
 outputId: b3c1c8c5-e7ac-4ffb-c212-1e7aec371f79
 ---
-%autoreload
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -549,22 +546,20 @@ colab:
 id: afFNaJpQdymb
 outputId: b681facb-f520-49ed-a2c2-cfceff7c2d40
 ---
-%autoreload
 import numpy as np
 import matplotlib.pyplot as plt
 
 from afqmctools.analysis.transform import hermitize_factory,eval_one_body_obs_factory,eval_two_body_obs_factory
 
 ncv_k = H["nchol_pk"]
-k_idk = 0 # gamma only for this tutorial
-ncv = ncv_k[k]
+k_idx = 0 # gamma only for this tutorial
+ncv = ncv_k[k_idx]
 print(ncv)
 
 # taking the k=0 Cholesky vectors!
-#cholesky_vectors = np.transpose(H["chol"][k].reshape((M,M,ncv)),(2,0,1))
 
-cholesky_vectors = np.transpose(H["chol"][k].reshape((M,M,ncv)),(2,0,1))
-cholesky_vectors_dagger = np.transpose(H["chol"][k].reshape((M,M,ncv)),(2,1,0)).conj()
+cholesky_vectors = np.transpose(H["chol"][k_idx].reshape((M,M,ncv)),(2,0,1))
+cholesky_vectors_dagger = np.transpose(H["chol"][k_idx].reshape((M,M,ncv)),(2,1,0)).conj()
 eri = np.einsum("gil,gjk->iljk",cholesky_vectors,cholesky_vectors_dagger).flatten()
 
 eval_two_body_energy = eval_two_body_obs_factory(
@@ -667,7 +662,7 @@ from stats.scalar_dat import analyze_scalar_data
 _ = analyze_scalar_data(dict(
     fname = scratch_dir/"qmc.s000.scalar.dat",
     series_column = "time",
-    nequil = 5,
+    nequil = 15,
     trace = True
 ))
 ```
@@ -705,7 +700,7 @@ Since BP involves an additional projection, the measurement interval controls th
 Just as in the execute block or a mixed estimator block, the input file includes a measurement interval "multiplier", and the actual measurement interval, $m$, is determined as:
 
 $$
-m = (\textrm{measure_interval_multiplier}) \times (\textrm{population_control_interval})
+m = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}
 $$
 
 ### Multiple BP Lengths
@@ -736,7 +731,7 @@ The BP estimator implements an equilibration phase at the beginning of the AFQMC
 This is recommended since computing observables is expensive and since AFQMC needs to equilibrate before samples can meaningfully contribute to the average.
 Similarly to the measure_interval_multiplier, the equilibration time is specified as an equilibration multiplier (`"equil_multiplier"`) and the actual equilibration time is given by:
 
-$$\text{equil_time} = (\text{equil_multiplier}) \times (\text{population_control_interval})$$
+$$\text{equil\_time} = \text{equil\_multiplier} \times \text{population\_control\_interval}$$
 
 ### All Settings
 
@@ -748,8 +743,8 @@ td, th {
   
 |<b>setting</b>|<b>default</b>|<b>description</b>|
 |--:|:-:|:--|
-| <b>        measure_interval_multiplier</b> |   1  |  controls the number of back propagation steps which are determined as $$(\text{number of BP steps}) = (\text{measure_interval_multiplier}) \times (\text{population_control_interval})$$. Can be either a single value or multiple values. If multiple values are provided, BP will be performed with each corresponding number of BP steps and observables are accumulated and saved for each distinct BP length.  |
-| <b> equil_multiplier </b> | 0 |  The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $(equilibration\_length) = (equil\_multiplier) * (population\_control\_inveral)$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. |
+| <b>        measure_interval_multiplier</b> |   1  |  controls the number of back propagation steps which are determined as $$\text{number\_of\_BP\_steps} = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}$$. Can be either a single value or multiple values. If multiple values are provided, BP will be performed with each corresponding number of BP steps and observables are accumulated and saved for each distinct BP length.  |
+| <b> equil_multiplier </b> | 0 |  The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $\text{equilibration\_length} = \text{equil\_multiplier} \times \text{population\_control\_inveral}$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. |
 | <b>        bp_walker_ortho_interval</b> |   1  |   interval for performing walker orthonormalization during back-propagation (i.e. for the left-hand side Walkers)  |
 | <b>        path_restoration</b> |   false  |  If true, perform path restoration.  |
 | <b>        extra_path_restoration</b> |   false  |   If true, perform an extra path restoration.  |
@@ -780,7 +775,7 @@ execute_options_bp = {
     "measure_interval_multiplier": 1,
     "population_control_interval": 10,
     "walker_ortho_interval": 10,
-    "n_walkers_per_mpi_task": 200,
+    "n_walkers_per_mpi_task": 100,
     "seed": 42,
     "estimator": {
         "name": "back_propagation",
@@ -949,4 +944,3 @@ In this tutorial, you were acquainted with how to compute general observables wi
 1. What a mixed estimator is and when to use one to compute an observable
 2. What a back-propagated estimator is and when to use one to compute an observable
 3. How to compute observables in post-processing with afqmctools
-

@@ -72,7 +72,7 @@ public:
       : AFQMCInfo(info), mpi(_mpi), project_title(title), dt(dt), hdf_output(false)
   {
     estimators.reserve(10);
-    // handling this at runtimeto avoid templating everything
+    // handling this at runtime to avoid templating everything
     utils::check(MEM == wfn0.get_memory_space(), "Memory space mismatch");
 
     app_log(1,"\n****************************************************");
@@ -359,7 +359,7 @@ public:
 
   Notes:
   - All EnergyEstimators and BasicEstimators need to have the same measurement interval since
-    they print inline scalar data to the same outout file.
+    they print inline scalar data to the same output file.
   */
   int get_max_common_interval(std::vector<int>&& intervals)
   { 
