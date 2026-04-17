@@ -8,6 +8,8 @@
 #
 #      http://www.apache.org/licenses/LICENSE-2.0
 
+from warnings import warn
+
 from afqmctools.hamiltonian.supercell import write_hamil_supercell
 from afqmctools.hamiltonian.kpoint import write_hamil_kpoints
 from afqmctools.hamiltonian.mol import write_hamil_mol
@@ -84,10 +86,7 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
         scf_data['orthAO'] = ortho_ao
 
         if walker_type is None:
-            walker_type = scf_data['walker_type']
-        else: # override the scf_data based on user input!
-            walker_type = _slater_enum_map(walker_type)
-            scf_data['walker'] = walker_type
+            warn("walker_type argument is no longer used")
         
         if write_hamil:
             write_hamil_mol(
@@ -100,7 +99,6 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                 real_chol=real_chol,
                 dense=dense,
                 df=df,
-                walker_type=walker_type
             )
         write_wfn_mol(
             scf_data,

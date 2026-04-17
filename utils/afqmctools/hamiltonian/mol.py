@@ -38,11 +38,8 @@ def write_hamil_mol(
     real_chol=True,
     dense=True,
     df=False,
-    walker_type=_SlaterType.CLOSED,
     ):
-    """
-    Write hamiltonian from pyscf scf calculation on mol object.
-    """
+    """Write hamiltonian from pyscf scf calculation on mol object."""
     hcore, chol_vecs, nelec, enuc, X = generate_hamiltonian(
         scf_data,
         verbose=verbose,
@@ -51,33 +48,19 @@ def write_hamil_mol(
         ortho_ao=ortho_ao,
         nelec=nelec,
         df=df,
-        walker_type=walker_type,
     )
 
     # Want L_{(ik),n}
     chol_vecs = chol_vecs.T
+    norb = X.shape[-1]
 
-    if walker_type is None:
-        walker_type = scf_data['walker_type']
-    else:
-        walker_type = _slater_enum_map(walker_type)
-
-    if walker_type in (
-        _SlaterType.CLOSED,
-        _SlaterType.COLLINEAR,
-        _SlaterType.FULLYPOLARIZED
-    ):
-        nbasis = hcore.shape[-1]
-    elif walker_type == _SlaterType.NONCOLLINEAR:
-        nbasis = hcore.shape[-1] // 2   
-    
     if dense:
         write_dense(
             hcore,
             chol_vecs,
             nelec,
-            nbasis,
-            enuc,
+            nmo=norb,
+            enuc=enuc,
             real_chol=real_chol,
             filename=hamil_file,
             ortho=X
@@ -87,8 +70,8 @@ def write_hamil_mol(
             hcore,
             chol_vecs,
             nelec,
-            nbasis,
-            enuc,
+            nmo=norb,
+            e0=enuc,
             filename=hamil_file,
             real_chol=real_chol,
             verbose=verbose,
@@ -131,7 +114,10 @@ def generate_hamiltonian(
         walker_type=None,
     ):
 
-    walker_type = _slater_enum_map(walker_type)
+    if walker_type is None:
+        walker_type = scf_data["walker_type"]
+    else:
+        walker_type = _slater_enum_map(walker_type)
 
     # Unpack SCF data.
     # 1. core (1-body) Hamiltonian.
