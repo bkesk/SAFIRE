@@ -33,8 +33,8 @@ void ph_excited_2body_energy_dense_cholesky_Tpna_impl(int const* refc, int const
 /*
  *   Evaluates phmsd determinants 
  */
-template<nda::MemoryArrayOfRank<3> T_t, nda::MemoryMatrix Mat>
-void calculate_overlaps(int spin, sfqmc::afqmc::ph_excitations<int, ComplexType, memory::get_memory_space<Mat>()>& abij,  T_t const& T, Mat&& ov)
+template<typename abij_t, nda::MemoryArrayOfRank<3> T_t, nda::MemoryMatrix Mat>
+void calculate_overlaps(int spin, abij_t& abij,  T_t const& T, Mat&& ov)
 {
   using nda::range;
   auto all = range::all;
@@ -57,8 +57,8 @@ void calculate_overlaps(int spin, sfqmc::afqmc::ph_excitations<int, ComplexType,
 /*
  *   Evaluates R matrix 
  */
-template<nda::MemoryArrayOfRank<3> T_t, nda::MemoryMatrix Mat, nda::MemoryArrayOfRank<3> R_t>
-void calculate_R(int spin, sfqmc::afqmc::ph_excitations<int, ComplexType, memory::get_memory_space<Mat>()>& abij,  T_t const& T, Mat const& wgt, R_t &R)
+template<typename abij_t, nda::MemoryArrayOfRank<3> T_t, nda::MemoryMatrix Mat, nda::MemoryArrayOfRank<3> R_t>
+void calculate_R(int spin, abij_t& abij,  T_t const& T, Mat const& wgt, R_t &R)
 {
   using nda::range;
   auto all = range::all;
@@ -92,7 +92,6 @@ void calculate_R(int spin, sfqmc::afqmc::ph_excitations<int, ComplexType, memory
       auto Rbuff_b = to_basic_layout(Rbuff());
       detail::phmsd_compact_R_impl(nex,refc.data(),iexcit.data(),T_b,Rbuff_b);
       detail::phmsd_reduce_R_impl(nex,refc.data(),iexcit.data(),wgt_b,Rbuff_b,R_b);
-      // contract 
       idet += ndet;
     }
   }
