@@ -18,7 +18,6 @@
 
 #include "AFQMC/SlaterDeterminantOperations/density_matrix.hpp"
 #include "numerics/operations/product.hpp"
-#include "numerics/operations/log_of_sum.hpp"
 
 namespace sfqmc
 {
@@ -249,13 +248,18 @@ void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov)
   
     // now assemble avoiding round-off problems 
     // Ov(w) = sum_d log_ovlp(d,w) 
-    Ov() = ComplexType(0.0);
-//    math::log_of_sum(0,log_ovlps,Ov); 
-app_log(0,"finish!!!");
-auto log_h = nda::to_host(log_ovlps);
-auto ov_h = nda::to_host(Ov);
-math::log_of_sum(0,log_h,ov_h);
-Ov() = ov_h();
+    auto log_h = nda::to_host(log_ovlps);
+    nda::array<ComplexType,1> ov_h(nw);
+    for(int i=0; i<nw; ++i) {
+      auto ai = log_h(nda::range::all,i);
+      // find largest determinant for each walker to use as reference
+      ComplexType log_m = *std::max_element(ai.begin(),ai.end());
+      ComplexType sum = 0.0;
+      for(int p=0; p<ndet; ++p)
+        sum += std::exp( ai(p) - log_m );
+      ov_h(i) = log_m + std::log(sum);
+    }
+    Ov() = ov_h();
   }
 }
 

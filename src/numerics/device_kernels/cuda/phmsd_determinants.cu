@@ -12,15 +12,30 @@
 
 namespace kernels::device::detail
 {
-/*
-template<class T>
-__device__ T D3x3( T const a11, T const a12, T const a13, 
+template<typename T>
+__device__ T _D3x3_( T const a11, T const a12, T const a13, 
                    T const a21, T const a22, T const a23, 
                    T const a31, T const a32, T const a33)
 {
   return   a11 * (a22 * a33 - a32 * a23)
          - a21 * (a12 * a33 - a32 * a13)
          + a31 * (a12 * a23 - a22 * a13);
+}
+
+template<typename T>
+__device__ void I3x3(T const a11, T const a12, T const a13,
+                     T const a21, T const a22, T const a23,
+                     T const a31, T const a32, T const a33, T const scl, T* M)
+{
+  M[0] = (a22 * a33 - a32 * a23) * scl;
+  M[1] = (a13 * a32 - a12 * a33) * scl;
+  M[2] = (a12 * a23 - a13 * a22) * scl;
+  M[3] = (a23 * a31 - a21 * a33) * scl;
+  M[4] = (a11 * a33 - a13 * a31) * scl;
+  M[5] = (a13 * a21 - a11 * a23) * scl;
+  M[6] = (a21 * a32 - a22 * a31) * scl;
+  M[7] = (a12 * a31 - a11 * a32) * scl;
+  M[8] = (a11 * a22 - a12 * a21) * scl;
 }
 
 //#ifdef NDEBUG
@@ -34,6 +49,97 @@ __device__ T D4x4( T const a11, T const a12, T const a13, T const a14,
           a21 * (a12 * (a33 * a44 - a43 * a34) - a32 * (a13 * a44 - a43 * a14) + a42 * (a13 * a34 - a33 * a14)) +
           a31 * (a12 * (a23 * a44 - a43 * a24) - a22 * (a13 * a44 - a43 * a14) + a42 * (a13 * a24 - a23 * a14)) -
           a41 * (a12 * (a23 * a34 - a33 * a24) - a22 * (a13 * a34 - a33 * a14) + a32 * (a13 * a24 - a23 * a14)));
+}
+
+template<class T>
+__device__ void I4x4(T const a11, T const a12, T const a13, T const a14,
+                     T const a21, T const a22, T const a23, T const a24,
+                     T const a31, T const a32, T const a33, T const a34,
+                     T const a41, T const a42, T const a43, T const a44, T const scl, T* M)
+{
+  M[0] = scl * _D3x3_(
+    a22, a23, a24,
+    a32, a33, a34,
+    a42, a43, a44
+    );
+  M[4] = -scl * _D3x3_(
+    a21, a23, a24,
+    a31, a33, a34,
+    a41, a43, a44
+    );
+  M[8] = scl * _D3x3_(
+    a21, a22, a24,
+    a31, a32, a34,
+    a41, a42, a44
+    );
+  M[12] = -scl * _D3x3_(
+    a21, a22, a23,
+    a31, a32, a33,
+    a41, a42, a43
+    );
+
+  M[1] = -scl * _D3x3_(
+    a12, a13, a14,
+    a32, a33, a34,
+    a42, a43, a44
+    );
+  M[5] = scl * _D3x3_(
+    a11, a13, a14,
+    a31, a33, a34,
+    a41, a43, a44
+    );
+  M[9] = -scl * _D3x3_(
+    a11, a12, a14,
+    a31, a32, a34,
+    a41, a42, a44
+    );
+  M[13] = scl * _D3x3_(
+    a11, a12, a13,
+    a31, a32, a33,
+    a41, a42, a43
+    );
+
+  M[2] = scl * _D3x3_(
+    a12, a13, a14,
+    a22, a23, a24,
+    a42, a43, a44
+    );
+  M[6] = -scl * _D3x3_(
+    a11, a13, a14,
+    a21, a23, a24,
+    a41, a43, a44
+    );
+  M[10] = scl * _D3x3_(
+    a11, a12, a14,
+    a21, a22, a24,
+    a41, a42, a44
+    );
+  M[14] = -scl * _D3x3_(
+    a11, a12, a13,
+    a21, a22, a23,
+    a41, a42, a43
+    );
+
+  M[3] = -scl * _D3x3_(
+    a12, a13, a14,
+    a22, a23, a24,
+    a32, a33, a34
+    );
+  M[7] = scl * _D3x3_(
+    a11, a13, a14,
+    a21, a23, a24,
+    a31, a33, a34
+    );
+  M[11] = -scl * _D3x3_(
+    a11, a12, a14,
+    a21, a22, a24,
+    a31, a32, a34
+    );
+  M[15] = scl * _D3x3_(
+    a11, a12, a13,
+    a21, a22, a23,
+    a31, a32, a33
+    );
 }
 
 template<class T>
@@ -69,7 +175,6 @@ __device__  T D5x5( T const a11, T const a12, T const a13, T const a14, T const 
                a32 * (a13 * (a24 * a45 - a44 * a25) - a23 * (a14 * a45 - a44 * a15) + a43 * (a14 * a25 - a24 * a15)) -
                a42 * (a13 * (a24 * a35 - a34 * a25) - a23 * (a14 * a35 - a34 * a15) + a33 * (a14 * a25 - a24 * a15))));
 }
-*/
 //#endif
 
 template<typename T_t, typename Ov_t>
@@ -97,32 +202,26 @@ void phmsd_det_impl(int nex, int const* iex, T_t const& T, Ov_t& ov)
         long iw   = n/ndet;
         long idet = n - iw*ndet;
         int const* x = iex + 4*idet; 
-        /*        | 20   21| 
-         * D = det| 30   21|
-         */
         ov_d(idet,iw) = T_d(iw,x[2],x[0])*T_d(iw,x[3],x[1]) - T_d(iw,x[2],x[1])*T_d(iw,x[3],x[0]);
       };
       cub::DeviceFor::Bulk(nwalk*ndet,f);
       break;
     }
-/*
     case 3:
     {
       auto f = [=] __device__(long n) {
         long iw   = n/ndet;
         long idet = n - iw*ndet;
         int const* x = iex + 6*idet; 
-        ov_d(idet,iw) = D3x3(T_d(iw,x[3],x[0]),T_d(iw,x[3],x[1]),T_d(iw,x[3],x[2]),
+        ov_d(idet,iw) = _D3x3_(T_d(iw,x[3],x[0]),T_d(iw,x[3],x[1]),T_d(iw,x[3],x[2]),
                              T_d(iw,x[4],x[0]),T_d(iw,x[4],x[1]),T_d(iw,x[4],x[2]),
                              T_d(iw,x[5],x[0]),T_d(iw,x[5],x[1]),T_d(iw,x[5],x[2]));
       };
       cub::DeviceFor::Bulk(nwalk*ndet,f);
       break;
     }
-// MAM: not clear when the default implementation is faster, test and make a heuristic choice!
     case 4:
     {
-      // at this point this is too much work for a single thread, consider evaluating sub-determinants on separate threads and then collecting results in shared memory
       auto f = [=] __device__(long n) {
         long iw   = n/ndet;
         long idet = n - iw*ndet;
@@ -150,53 +249,6 @@ void phmsd_det_impl(int nex, int const* iex, T_t const& T, Ov_t& ov)
       cub::DeviceFor::Bulk(nwalk*ndet,f);
       break;
     }
-    case 6:
-    {
-      auto f = [=] __device__(long n) {
-        long iw   = n/ndet;
-        long idet = n - iw*ndet;
-        int const* x = iex + 12*idet;
-        auto A0 = D5x5(T_d(iw,x[7],x[1]),T_d(iw,x[7],x[2]),T_d(iw,x[7],x[3]),T_d(iw,x[7],x[4]),T_d(iw,x[7],x[5]),
-                       T_d(iw,x[8],x[1]),T_d(iw,x[8],x[2]),T_d(iw,x[8],x[3]),T_d(iw,x[8],x[4]),T_d(iw,x[8],x[5]),
-                       T_d(iw,x[9],x[1]),T_d(iw,x[9],x[2]),T_d(iw,x[9],x[3]),T_d(iw,x[9],x[4]),T_d(iw,x[9],x[5]),
-                       T_d(iw,x[10],x[1]),T_d(iw,x[10],x[2]),T_d(iw,x[10],x[3]),T_d(iw,x[10],x[4]),T_d(iw,x[10],x[5]),
-                       T_d(iw,x[11],x[1]),T_d(iw,x[11],x[2]),T_d(iw,x[11],x[3]),T_d(iw,x[11],x[4]),T_d(iw,x[11],x[5]));
-        auto A1 = D5x5(T_d(iw,x[6],x[1]),T_d(iw,x[6],x[2]),T_d(iw,x[6],x[3]),T_d(iw,x[6],x[4]),T_d(iw,x[6],x[5]),
-                       T_d(iw,x[8],x[1]),T_d(iw,x[8],x[2]),T_d(iw,x[8],x[3]),T_d(iw,x[8],x[4]),T_d(iw,x[8],x[5]),
-                       T_d(iw,x[9],x[1]),T_d(iw,x[9],x[2]),T_d(iw,x[9],x[3]),T_d(iw,x[9],x[4]),T_d(iw,x[9],x[5]),
-                       T_d(iw,x[10],x[1]),T_d(iw,x[10],x[2]),T_d(iw,x[10],x[3]),T_d(iw,x[10],x[4]),T_d(iw,x[10],x[5]),
-                       T_d(iw,x[11],x[1]),T_d(iw,x[11],x[2]),T_d(iw,x[11],x[3]),T_d(iw,x[11],x[4]),T_d(iw,x[11],x[5]));
-        auto A2 = D5x5(T_d(iw,x[6],x[1]),T_d(iw,x[6],x[2]),T_d(iw,x[6],x[3]),T_d(iw,x[6],x[4]),T_d(iw,x[6],x[5]),
-                       T_d(iw,x[7],x[1]),T_d(iw,x[7],x[2]),T_d(iw,x[7],x[3]),T_d(iw,x[7],x[4]),T_d(iw,x[7],x[5]),
-                       T_d(iw,x[9],x[1]),T_d(iw,x[9],x[2]),T_d(iw,x[9],x[3]),T_d(iw,x[9],x[4]),T_d(iw,x[9],x[5]),
-                       T_d(iw,x[10],x[1]),T_d(iw,x[10],x[2]),T_d(iw,x[10],x[3]),T_d(iw,x[10],x[4]),T_d(iw,x[10],x[5]),
-                       T_d(iw,x[11],x[1]),T_d(iw,x[11],x[2]),T_d(iw,x[11],x[3]),T_d(iw,x[11],x[4]),T_d(iw,x[11],x[5]));
-        auto A3 = D5x5(T_d(iw,x[6],x[1]),T_d(iw,x[6],x[2]),T_d(iw,x[6],x[3]),T_d(iw,x[6],x[4]),T_d(iw,x[6],x[5]),
-                       T_d(iw,x[7],x[1]),T_d(iw,x[7],x[2]),T_d(iw,x[7],x[3]),T_d(iw,x[7],x[4]),T_d(iw,x[7],x[5]),
-                       T_d(iw,x[8],x[1]),T_d(iw,x[8],x[2]),T_d(iw,x[8],x[3]),T_d(iw,x[8],x[4]),T_d(iw,x[8],x[5]),
-                       T_d(iw,x[10],x[1]),T_d(iw,x[10],x[2]),T_d(iw,x[10],x[3]),T_d(iw,x[10],x[4]),T_d(iw,x[10],x[5]),
-                       T_d(iw,x[11],x[1]),T_d(iw,x[11],x[2]),T_d(iw,x[11],x[3]),T_d(iw,x[11],x[4]),T_d(iw,x[11],x[5]));
-        auto A4 = D5x5(T_d(iw,x[6],x[1]),T_d(iw,x[6],x[2]),T_d(iw,x[6],x[3]),T_d(iw,x[6],x[4]),T_d(iw,x[6],x[5]),
-                       T_d(iw,x[7],x[1]),T_d(iw,x[7],x[2]),T_d(iw,x[7],x[3]),T_d(iw,x[7],x[4]),T_d(iw,x[7],x[5]),
-                       T_d(iw,x[8],x[1]),T_d(iw,x[8],x[2]),T_d(iw,x[8],x[3]),T_d(iw,x[8],x[4]),T_d(iw,x[8],x[5]),
-                       T_d(iw,x[9],x[1]),T_d(iw,x[9],x[2]),T_d(iw,x[9],x[3]),T_d(iw,x[9],x[4]),T_d(iw,x[9],x[5]),
-                       T_d(iw,x[11],x[1]),T_d(iw,x[11],x[2]),T_d(iw,x[11],x[3]),T_d(iw,x[11],x[4]),T_d(iw,x[11],x[5]));
-        auto A5 = D5x5(T_d(iw,x[6],x[1]),T_d(iw,x[6],x[2]),T_d(iw,x[6],x[3]),T_d(iw,x[6],x[4]),T_d(iw,x[6],x[5]),
-                       T_d(iw,x[7],x[1]),T_d(iw,x[7],x[2]),T_d(iw,x[7],x[3]),T_d(iw,x[7],x[4]),T_d(iw,x[7],x[5]),
-                       T_d(iw,x[8],x[1]),T_d(iw,x[8],x[2]),T_d(iw,x[8],x[3]),T_d(iw,x[8],x[4]),T_d(iw,x[8],x[5]),
-                       T_d(iw,x[9],x[1]),T_d(iw,x[9],x[2]),T_d(iw,x[9],x[3]),T_d(iw,x[9],x[4]),T_d(iw,x[9],x[5]),
-                       T_d(iw,x[10],x[1]),T_d(iw,x[10],x[2]),T_d(iw,x[10],x[3]),T_d(iw,x[10],x[4]),T_d(iw,x[10],x[5]));
-        ov_d(idet,iw) =  T_d(iw,x[6],x[0])  * A0 
-                       - T_d(iw,x[7],x[0])  * A1 
-                       + T_d(iw,x[8],x[0])  * A2 
-                       - T_d(iw,x[9],x[0])  * A3 
-                       + T_d(iw,x[10],x[0]) * A4 
-                       - T_d(iw,x[11],x[0]) * A5; 
-      };
-      cub::DeviceFor::Bulk(nwalk*ndet,f);
-      break;
-    }
-*/
     default:
     {
       // M[iwalk][idet][ip][iq]
@@ -259,19 +311,64 @@ void phmsd_compact_R_impl(int nex, int const* refc, int const* iex, T_t const& T
       cub::DeviceFor::Bulk(nwalk*ndet,f);
       break;
     }
-/*
     case 2:
     {
       auto f = [=] __device__(long n) {
         long iw   = n/ndet;
         long idet = n - iw*ndet;
         int const* x = iex + 4*idet;
-        ov_d(idet,iw) = T_d(iw,x[2],x[0])*T_d(iw,x[3],x[1]) - T_d(iw,x[2],x[1])*T_d(iw,x[3],x[0]);
+        ov_d(iw,idet) = T_d(iw,x[2],x[0])*T_d(iw,x[3],x[1]) - T_d(iw,x[2],x[1])*T_d(iw,x[3],x[0]);
+        if(abs(ov_d(iw,idet)) != 0) { 
+          value_t scl = value_t(1.0)/ov_d(iw,idet);
+          M_d(iw,idet,0,0) = T_d(iw,x[3],x[1]) * scl; 
+          M_d(iw,idet,0,1) = -T_d(iw,x[2],x[1]) * scl; 
+          M_d(iw,idet,1,0) = -T_d(iw,x[3],x[0]) * scl; 
+          M_d(iw,idet,1,1) = T_d(iw,x[2],x[0]) * scl; 
+        }
       };
       cub::DeviceFor::Bulk(nwalk*ndet,f);
       break;
     }
-*/
+    case 3:
+    {
+      auto f = [=] __device__(long n) {
+        long iw   = n/ndet;
+        long idet = n - iw*ndet;
+        int const* x = iex + 6*idet;
+        ov_d(idet,iw) = _D3x3_(T_d(iw,x[3],x[0]),T_d(iw,x[3],x[1]),T_d(iw,x[3],x[2]),
+                             T_d(iw,x[4],x[0]),T_d(iw,x[4],x[1]),T_d(iw,x[4],x[2]),
+                             T_d(iw,x[5],x[0]),T_d(iw,x[5],x[1]),T_d(iw,x[5],x[2]));
+        if(abs(ov_d(iw,idet)) != 0) { 
+          value_t scl = value_t(1.0)/ov_d(iw,idet);
+          I3x3(T_d(iw,x[3],x[0]),T_d(iw,x[3],x[1]),T_d(iw,x[3],x[2]),
+               T_d(iw,x[4],x[0]),T_d(iw,x[4],x[1]),T_d(iw,x[4],x[2]),
+               T_d(iw,x[5],x[0]),T_d(iw,x[5],x[1]),T_d(iw,x[5],x[2]),scl,&M_d(iw,idet,0,0));
+        }
+      };
+      cub::DeviceFor::Bulk(nwalk*ndet,f);
+      break;
+    }
+    case 4:
+    {
+      auto f = [=] __device__(long n) {
+        long iw   = n/ndet;
+        long idet = n - iw*ndet;
+        int const* x = iex + 8*idet;
+        ov_d(idet,iw) = D4x4(T_d(iw,x[4],x[0]),T_d(iw,x[4],x[1]),T_d(iw,x[4],x[2]),T_d(iw,x[4],x[3]),
+                             T_d(iw,x[5],x[0]),T_d(iw,x[5],x[1]),T_d(iw,x[5],x[2]),T_d(iw,x[5],x[3]),
+                             T_d(iw,x[6],x[0]),T_d(iw,x[6],x[1]),T_d(iw,x[6],x[2]),T_d(iw,x[6],x[3]),
+                             T_d(iw,x[7],x[0]),T_d(iw,x[7],x[1]),T_d(iw,x[7],x[2]),T_d(iw,x[7],x[3]));
+        if(abs(ov_d(iw,idet)) != 0) {
+          value_t scl = value_t(1.0)/ov_d(iw,idet);
+          I4x4(T_d(iw,x[4],x[0]),T_d(iw,x[4],x[1]),T_d(iw,x[4],x[2]),T_d(iw,x[4],x[3]),
+               T_d(iw,x[5],x[0]),T_d(iw,x[5],x[1]),T_d(iw,x[5],x[2]),T_d(iw,x[5],x[3]),
+               T_d(iw,x[6],x[0]),T_d(iw,x[6],x[1]),T_d(iw,x[6],x[2]),T_d(iw,x[6],x[3]),
+               T_d(iw,x[7],x[0]),T_d(iw,x[7],x[1]),T_d(iw,x[7],x[2]),T_d(iw,x[7],x[3]),scl,&M_d(iw,idet,0,0));
+        }
+      };
+      cub::DeviceFor::Bulk(nwalk*ndet,f);
+      break;
+    }
     default:
     {
       // M[iwalk][idet][ip][iq]
@@ -307,23 +404,25 @@ void phmsd_compact_R_impl(int nex, int const* refc, int const* iex, T_t const& T
       n -= iw*n1;
       long idet = n/n2;
       n -= idet*n2;
-      if(abs(ov_d(iw,idet)) == 0) return;
-      long p = n/nel;
-      int i = int(n-p*nel); 
-      int a = refc[i];   
-      auto iex_ = iex + idet*2*nex;
-      for (int q = 0; q < nex; ++q)
-        if(i == iex_[q]) 
-          a = iex_[q+nex];
-      for (int q = 0; q < nex; ++q) {
-        R_d(iw,idet,p,a) -= M_d(iw,idet,p,q) * T_d(iw,iex_[q+nex],i);
-        if(i == iex_[q]) 
-          R_d(iw,idet,p,a) += M_d(iw,idet,p,q); 
+      if(abs(ov_d(iw,idet)) != 0) {
+        long p = n/nel;
+        long i = n-p*nel; 
+        int a = refc[i];   
+        auto iex_ = iex + idet*2*nex;
+        for (int q = 0; q < nex; ++q) {
+          if(i == iex_[q]) 
+            a = iex_[q+nex];
+        }
+        for (int q = 0; q < nex; ++q) {
+          R_d(iw,idet,p,a) -= M_d(iw,idet,p,q) * T_d(iw,iex_[q+nex],i);
+          if(i == iex_[q]) 
+            R_d(iw,idet,p,a) += M_d(iw,idet,p,q); 
+        }
       }
     };
     cub::DeviceFor::Bulk(nwalk*ndet*nex*nel,f);
   }
-  sfqmc::arch::synchronize();
+  sfqmc::arch::synchronize_if_set();
 }
 
 template<typename W_t, typename Rb_t, typename R_t>
@@ -337,26 +436,29 @@ void phmsd_reduce_R_impl(int nex, int const* refc, int const* iex, W_t const& wg
   auto R_d = to_cuda_std_mdspan(R);
   auto w_d = to_cuda_std_mdspan(wgt);
   long ndet = Rbuff.extent(1);
+  long ndet_per_thread = 16;
+  long nblk = (ndet + ndet_per_thread - 1)/ndet_per_thread;
   long nwalk = R.extent(0);
   long nel = R.extent(1);
   long nact = R.extent(2);
   using value_t = std::decay_t<decltype(R_d(0,0,0))>;
 
-  long n1 = ndet*nel*nact;
+  long n1 = nblk*nel*nact;
   long n2 = nel*nact;
   auto f = [=] __device__(long n) {
     long iw = n/n1;
     n -= iw*n1; 
-    long idet = n/n2;
-    n -= idet*n2;
-    int i = n/nact;
-    int a = n-i*nact;
+    long iblk = n/n2;
+    n -= iblk*n2;
+    long i = n/nact;
+    long a = n-i*nact;
     int orb_i = refc[i];   
-    auto iex_ = iex + idet*2*nex;
     value_t y(0);
-// MAM: loop over ~16 determinants, time and test
-    //for()
+    long max_ndet = min(ndet,(iblk+1)*ndet_per_thread);
+    for(long idet=iblk*ndet_per_thread; idet<max_ndet; ++idet)
     {
+      auto iex_ = iex + idet*2*nex;
+      orb_i = refc[i];   
       for (int q = 0; q < nex; ++q) 
         if(i == iex_[q]) { 
           orb_i = iex_[q+nex];
@@ -370,7 +472,7 @@ void phmsd_reduce_R_impl(int nex, int const* refc, int const* iex, W_t const& wg
     atomicAdd(re_, re);
     atomicAdd(re_ + 1, im);    
   };
-  cub::DeviceFor::Bulk(nwalk*ndet*nel*nact,f);
+  cub::DeviceFor::Bulk(nwalk*nblk*nel*nact,f);
   sfqmc::arch::synchronize();
 }
 

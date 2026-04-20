@@ -470,7 +470,7 @@ TEST_CASE("test_phmsd", "[read_phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-//  test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+  test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
 #if defined(ENABLE_DEVICE)
   test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
 #endif
