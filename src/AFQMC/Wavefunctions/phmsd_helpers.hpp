@@ -99,7 +99,6 @@ void calculate_overlaps(int spin, ph_excitations<int, ComplexType, memory::get_m
     } // nex
   } else { // MEM
 #if defined(ENABLE_DEVICE)
-    // device implementation
     kernels::device::calculate_overlaps(spin,abij,T,ov);
 #else
     utils::check(false, "Error in calculate_overlaps: DEVICE_MEMORY without device support.");
@@ -190,7 +189,6 @@ void calculate_R(int spin, ph_excitations<int, ComplexType, memory::get_memory_s
     } // nex
   } else {
 #if defined(ENABLE_DEVICE)
-    // device implementation
     kernels::device::calculate_R(spin,abij,T,weights,R);
 #else
     utils::check(false, "Error in calculate_overlaps: DEVICE_MEMORY without device support.");
@@ -280,8 +278,6 @@ void get_compact_ph_R_matrices(nda::MemoryVector auto const& iexcit,
     } // iw
   } else {
 #if defined(ENABLE_DEVICE)
-    // device implementation
-    // ndet, nex from shape of Tw
     kernels::device::calculate_compact_ph_R(refc.data(),iexcit.data(),Tw,Rw);
 #else
     utils::check(false, "Error in calculate_overlaps: DEVICE_MEMORY without device support.");

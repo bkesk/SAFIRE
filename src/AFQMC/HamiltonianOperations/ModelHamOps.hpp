@@ -96,11 +96,10 @@ public:
     // setup n2IJ_vHS_dev, only needed for NONCOLLINEAR 
     // for COLLINEAR, n2IJ_vHS == n2IJ, so no need to update 
     if(walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) {
-      //nda::array<int,1> n2IJ_vHS_h(n2IJ);
       nda::array<long,1> n2IJ_vHS_h(n2IJ);
       for(auto& v : n2IJ_vHS_h) {
-        int In = int(v/M);
-        int Jn = int(v%M);
+        long In = long(v/M);
+        long Jn = long(v%M);
         v = In*NMO + (Jn%NMO);  
       }
       n2IJ_vHS_dev() = n2IJ_vHS_h();
