@@ -17,7 +17,6 @@
 #include <cmath>
 
 #include "AFQMC/SlaterDeterminantOperations/density_matrix.hpp"
-#include "numerics/operations/log_of_sum.hpp"
 
 namespace sfqmc
 {
