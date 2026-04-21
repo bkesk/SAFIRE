@@ -58,6 +58,13 @@ struct mpi_context_t {
     utils::check(A.is_contiguous(),"mpi_context_t::all_reduce: Array must be contiguous.");
     comm.all_reduce_in_place_n(A.data(),A.size(),op);
   }
+  
+  template<typename Op, bool use_gpu = true>
+  void reduce(nda::Array auto&& A, Op&& op, int root = 0)
+  {
+    utils::check(A.is_contiguous(),"mpi_context_t::all_reduce: Array must be contiguous.");
+    comm.reduce_in_place_n(A.data(),A.size(), op, root);
+  }
 
 };
 
