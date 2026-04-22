@@ -12,7 +12,7 @@ import h5py as h5
 import numpy
 from afqmctools.utils.io import to_complex
 
-# TODO: some parameter names are highly mislreading. ex: "real_chol" usually refers to 
+# TODO: some parameter names are highly misleading. ex: "real_chol" usually refers to
 #         whether the one-body terms are real valued (vs. the Cholesky vectors as the name implies)
 
 def write_sparse(hcore, chol, nelec, nmo, e0=0.0, filename='hamiltonian.h5',
@@ -101,12 +101,14 @@ def write_sparse_basic(filename, hcore, e0, nelec, real_chol=False):
         fh5['Hamiltonian/occups'] = numpy.array(occups)
 
 
-def write_to_hdf5(f,dataset,data):
+def write_to_hdf5(f,dataset,data,dtype=None):
+    if dtype is None:
+        dtype = data.dtype
     if not isinstance(f,h5.File):
         raise ValueError("[Developer Error] called write_to_hdf5 on a non-h5py.File instance")
     if dataset in f:
         del f[dataset]
-    f.create_dataset(dataset,data=data)
+    f.create_dataset(dataset,data=data.astype(dtype), dtype=dtype)
 
 def write_dense(
         hcore,
@@ -117,14 +119,17 @@ def write_dense(
         filename='hamiltonian.h5',
         real_chol=None,
         ortho=None,
-        verbose=None # unused - kept for backwards compatability
+        verbose=None # unused - kept for backwards compatibility
         ):
     
 
     with h5.File(filename, 'a') as fh5:
 
-        write_to_hdf5(fh5,'Hamiltonian/Energies',data=numpy.array([enuc,0]))
-        
+        write_to_hdf5(fh5,'Hamiltonian/Energies',
+                      data=numpy.array([enuc,0.]),
+                      dtype=numpy.float64
+        )
+
         if real_chol is None:
             real_chol = not numpy.any(numpy.iscomplex(chol))
 
@@ -140,7 +145,7 @@ def write_dense(
 
         write_to_hdf5(fh5,'Hamiltonian/dims', data = numpy.array([0, 0, 0, nmo,
                                                nelec[0], nelec[1], 0,
-                                               chol.shape[-1]]))
+                                               chol.shape[-1]], dtype=numpy.int32))
         write_to_hdf5(fh5,'Hamiltonian/ComplexIntegrals', data=numpy.array([not int(real_chol)],
                                                           dtype=numpy.int32))
         if ortho is not None:

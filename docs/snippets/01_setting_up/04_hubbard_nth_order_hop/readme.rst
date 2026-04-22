@@ -1,7 +1,7 @@
 .. _setup_ex_4:
 
-04 Hubbard with nth-order hopping
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Hubbard with nth-order hopping
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers building a Hubbard model Hamiltonian on square Lattice with a t' (i.e next-nearest neighbor hopping), 
 and generating a free-electron trial wavefunction.
@@ -43,9 +43,9 @@ The `free_electron()` function accepts a `twist` keyword argument for the sake o
 reproducibility for open-shell systems. 
 `twist` should be a 2-d iterable containing :math:`\vec{\theta}=(\theta_1,\theta_2)`
 in radians even if one component is set to 0.0.
-By default, a small incomensurate twist angle is used.
+By default, a small incommensurate twist angle is used.
 
-If the sample Pyhton script is run above with the sample input file, the following
+If the sample Python script is run above with the sample input file, the following
 should be present at the end of the output.
 
 .. code-block:: text

@@ -44,12 +44,12 @@ namespace det_ops
       // Selecting last element as the pivot
       auto pivot = A(high);
 
-      // Index of elemment just before the last element
+      // Index of element just before the last element
       // It is used for swapping
       int i = (low - 1);
 
       for (int j = low; j <= high - 1; j++) {
-        // If current element is great than pivot
+        // If current element is greater than pivot
         if (A(j).real() >= pivot.real()) {
             i++;
             std::swap(A(i), A(j));
@@ -173,7 +173,7 @@ void orthogonalize(A_t && A, B_t && log_detR)
  /**
    * @brief Performs batched finite temperature stabilization procedure for product of propagator matrices
    * @details Given the arrays \f$ \mathbf{U}\f$, \f$ \mathbf{D}\f$ and \f$ \mathbf{V}\f$ representing the product
-   * of progator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
+   * of propagator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
    * function stabilizes the matrices by first computing the pivoted-QR decomposition of 
    * \f$\mathbf{U}\mathbf{D} = \mathbf{Q}\mathbf{R}\mathbf{P}^{\mathsf T}\f$.
    *
@@ -233,7 +233,7 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
         UT(nda::range::all,col) = Dh(b,col) * Uh(b,nda::range::all,col);
 
       // pivoted QR : U*D = Q*R*P^T
-      // NOTE : non-batched version of geqp3 return jpvt indexed starting from 0
+      // NOTE : non-batched version of geqp3 returns jpvt indexed starting from 0
       nda::lapack::geqp3(UT,jpvt,tau,work);
 
       // get Q, R
@@ -270,15 +270,18 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
       nda::blas::scal(std::exp(-scl_new),Dh(b,nda::range::all));
       sclh(b) += scl_new; 
 
+      //nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),Vh(b,nda::ellipsis{}),
+      //                ComplexType(0.0),Vh(b,nda::ellipsis{}));
       nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),Vh(b,nda::ellipsis{}),
-                      ComplexType(0.0),Vh(b,nda::ellipsis{}));
-
+                      ComplexType(0.0),UT);
+              
+      V(b,nda::ellipsis{}) = nda::to_device(UT);
 
     }
 
     U = nda::to_device(Uh);
     D = nda::to_device(Dh);
-    V = nda::to_device(Vh);
+    //V = nda::to_device(Vh);
     scl = nda::to_device(sclh);
 
   }
@@ -328,8 +331,13 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
       nda::blas::scal(std::exp(-scl_new),D(b,nda::range::all));
       scl(b) += scl_new; 
 
+      //nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),V(b,nda::ellipsis{}),
+      //                ComplexType(0.0),V(b,nda::ellipsis{}));
+
       nda::blas::gemm(ComplexType(1.0),VT(nda::range::all,nda::range::all),V(b,nda::ellipsis{}),
-                      ComplexType(0.0),V(b,nda::ellipsis{}));
+                      ComplexType(0.0),UT);
+      
+      V(b,nda::ellipsis{}) = UT;
 
     }
   }
@@ -341,7 +349,7 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
  /**
    * @brief Performs batched finite temperature stabilization procedure for product of propagator matrices
    * @details Given the arrays \f$ \mathbf{U}\f$, \f$ \mathbf{D}\f$ and \f$ \mathbf{V}\f$ representing the product
-   * of progator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
+   * of propagator matrices at time-step \f$ \tau \f$, \f$ \mathbf{B}(\tau,0) = \mathbf{U}\mathbf{D}\mathbf{V} \f$, this
    * function stabilizes the matrices using the SVD decomposition of 
    * \f$\mathbf{U}\mathbf{D} = \tilde{\mathbf{U}}\tilde{\mathbf{D}}\tilde{\mathbf{V}}^\dagger\f$.
    *
@@ -397,10 +405,15 @@ void orthogonalize_wSVD(U_t && U, D_t && D, V_t && V, B_t && scl)
       scl(b) += scl_new; 
       math::copy(S(nda::range::all),D(b,nda::range::all));
 
-      U(b,nda::range::all,nda::range::all) = UT();
+      U(b,nda::ellipsis{}) = UT;
       
+      //nda::blas::gemm(ComplexType(1.0),VT,V(b,nda::ellipsis{}),
+      //                ComplexType(0.0),V(b,nda::ellipsis{}));
+      // UT used for temporary storage
       nda::blas::gemm(ComplexType(1.0),VT,V(b,nda::ellipsis{}),
-                      ComplexType(0.0),V(b,nda::ellipsis{}));
+                      ComplexType(0.0),UT);
+
+      V(b,nda::ellipsis{}) = UT;
     }
   }
 

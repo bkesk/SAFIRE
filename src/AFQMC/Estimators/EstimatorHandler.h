@@ -27,7 +27,7 @@
 #include "AFQMC/Estimators/BasicEstimator.h"
 #include "AFQMC/Estimators/MixedEstimator.hpp"
 #include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
-//#include "AFQMC/Estimators/BPWithTimeEvolvedOperators.hpp"
+#include "AFQMC/Estimators/BPWithTimeEvolvedOperators.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
@@ -72,7 +72,7 @@ public:
       : AFQMCInfo(info), mpi(_mpi), project_title(title), dt(dt), hdf_output(false)
   {
     estimators.reserve(10);
-    // handling this at runtimeto avoid templating everything
+    // handling this at runtime to avoid templating everything
     utils::check(MEM == wfn0.get_memory_space(), "Memory space mismatch");
 
     app_log(1,"\n****************************************************");
@@ -199,12 +199,11 @@ public:
           }
           else if (name == "time_evolved_operators")
           {
-utils::check(false, "finish BPWithTimeEvolvedOperators");
             utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
             est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
-//            estimators.emplace_back(static_cast<EstimPtr>(
-//                std::make_shared<BPWithTimeEvolvedOperators<MEM>>(mpi, info, title, 
-//                            est_pt, walker_type, wset, *wfn, prop0, impsamp)));
+            estimators.emplace_back(static_cast<EstimPtr>(
+                std::make_shared<BPWithTimeEvolvedOperators<MEM>>(mpi, info, title, 
+                            est_pt, walker_type, wset, *wfn, prop0, impsamp)));
             measure_schedule[est_index] = estimators.back()->get_measurement_interval();
             est_index++;
             hdf_output = true;
@@ -360,7 +359,7 @@ utils::check(false, "finish BPWithTimeEvolvedOperators");
 
   Notes:
   - All EnergyEstimators and BasicEstimators need to have the same measurement interval since
-    they print inline scalar data to the same outout file.
+    they print inline scalar data to the same output file.
   */
   int get_max_common_interval(std::vector<int>&& intervals)
   { 

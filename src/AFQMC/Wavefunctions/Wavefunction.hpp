@@ -159,13 +159,12 @@ public:
     std::visit([&](auto&& a) { a.getReferences(std::forward<Args>(args)...); }, var);
   }
 
-/*
   template<class... Args>
   void accumulate_estimators(Args&&... args)
   {
     std::visit([&](auto&& a) { a.accumulate_estimators(std::forward<Args>(args)...); }, var);
   }
-
+/*
   template<class... Args>
   void generalizedFockMatrix(Args&&... args)
   {

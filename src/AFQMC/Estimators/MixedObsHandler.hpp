@@ -40,7 +40,7 @@ namespace afqmc
  * This class also handles all the hdf5 I/O (given a hdf archive).
  * Since n-body observables (n>1) require an explicit sum over references, 
  * they are treated separately if the number of references is > 1.
- * A customized implementation for PHMSD will be ubilt in the future if needed. 
+ * A customized implementation for PHMSD will be built in the future if needed. 
  */
 template<MEMORY_SPACE MEM>
 class MixedObsHandler : public AFQMCInfo
@@ -141,121 +141,13 @@ public:
   void accumulate(WlkSet& wset)
   {
     int nwalk = wset.size();
-    int nspin = ( walker_type == COLLINEAR ? 2 : 1 );
-    int npol = ( walker_type == NONCOLLINEAR ? 2 : 1 );    
-    int nrefs = wfn->total_number_of_references();
 
     nda::array<ComplexType, 1> wgt(nwalk);
     wset.getProperty(WEIGHT, wgt);
     ncalls++;
     denominator(0) += std::accumulate(wgt.begin(), wgt.end(), ComplexType(0.0));
 
-// MAM: Implement this in the wavefuntion with a lambda function that is applied
-// e.g. [] (auto && G) { 
-//        for (auto& v : properties)
-//          v.accumulate(0, G, G, wgt, true);
-// }
-// This way each wfn can optimize their evaluation of green functions and 
-// there is no need reimplement algorithms here
-
-    memory::buffered_array<MEM,ComplexType,1> Ov(nwalk);
-    memory::buffered_array<MEM,ComplexType,4> G(nwalk,nspin,npol*NMO,npol*NMO); 
-    auto G2D = nda::reshape(G,std::array<long,2>{nwalk,nspin*npol*NMO*npol*NMO});
-
-    if( nrefs==1 || properties.size()==0 )  {
-
-      // 1. Calculate mixed density matrix
-      wfn->MixedDensityMatrix(wset,G2D,Ov,false);
-
-      //2. accumulate 
-      if constexpr (MEM == HOST_MEMORY) {
-        for (auto& v : properties_1body)
-          v.accumulate(0, G, G, wgt, true);
-        for (auto& v : properties)
-          v.accumulate(0, G, G, wgt, true);
-      } else {
-        auto Gh = nda::to_host(G);
-        for (auto& v : properties_1body)
-          v.accumulate(0, G, Gh, wgt, true);
-        for (auto& v : properties)
-          v.accumulate(0, G, Gh, wgt, true);
-      }
-
-    }
-    else 
-    {
-      utils::check(false, "finish");
-/*
-      // use the fact that Observables accumulate between calls to print to sum over configurations
-      // MAM: UNTESTED!!!
-      auto Orbs = wfn->getReferences();  // (ndet,nspin)(nel,npol*NMO)
-      int nrefs = Orbs.extent(0); 
-
-      memory::buffered_array<M,ComplexType,2> Gtmp(nwalk,nspin*npol*NMO*npol*NMO); 
-      nda::array<ComplexType, 1> Xw(nwalk, ComplexType(1.0, 0.0));
-      nda::array<ComplexType, 1> Oh(nwalk, ComplexType(1.0, 0.0));
-      nda::array<ComplexType, 1> detR(nwalk, ComplexType(1.0, 0.0));
-      nda::array<ComplexType, 1> log_m(nwalk);
-      wset.getProperty(OVLP, log_m);  // use as reference
-
-      if (impsamp)
-        denominator[0] += std::accumulate(wgt.begin(), wgt.end(), ComplexType(0.0));
-      else
-      {
-        utils::check(false, " Finish implementation of free projection. \n\n");
-      }
-
-      for (int iref = 0; iref < nrefs; iref++)
-      {
-        // conjugated here!
-        ComplexType CIcoeff(std::conj(wfn->getReferenceWeight(iref)));
-
-        wfn->DensityMatrix(wset, OrbMats(iref,all), Gtmp, Ov, false);
-
-        Oh() = Ov(); 
-        if (nrefs > 1)
-        {
-          if (walker_type == CLOSED)
-          {
-            for (int iw = 0; iw < nw; iw++)
-              Xw[iw] = CIcoeff * Ov[iw] * Ov[iw] * std::conj(detR[iw][iref] * detR[iw][iref]);
-          }
-          else if (walker_type == COLLINEAR)
-          {
-            for (int iw = 0; iw < nw; iw++)
-              Xw[iw] = CIcoeff * Ov[iw] * Ov[iw + nw] * std::conj(detR[iw][2 * iref] * detR[iw][2 * iref + 1]);
-          }
-          else if (walker_type == NONCOLLINEAR)
-          {
-            for (int iw = 0; iw < nw; iw++)
-            Xw[iw] = CIcoeff * Ov[iw] * std::conj(detR[iw][iref]);
-          }
-        }
-
-        //3. accumulate references
-        if constexpr (MEM == HOST_MEMORY) {
-          for (auto& v : properties)
-            v.accumulate_reference(0, iref, Gtmp, Gtmp, wgt, Xw, Ov, impsamp);
-        } else {
-          auto Gh = nda::to_host(G);
-          for (auto& v : properties)
-            v.accumulate_reference(0, iref, G, Gh, wgt, Xw, Ov, impsamp);
-        }
-      }
-      //4. accumulate block (normalize and accumulate sum over references)
-      if constexpr (MEM == HOST_MEMORY) {
-        for (auto& v : properties)
-          v.accumulate_reference(0, iref, G, G, wgt, Xw, Ov, impsamp);
-      } else {
-        auto Gh = nda::to_host(G);
-        for (auto& v : properties)
-          v.accumulate_reference(0, iref, G, Gh, wgt, Xw, Ov, impsamp);
-    for (auto& v : properties)
-        v.accumulate_block(0, wgt, impsamp);
-      }
-    }
-*/
-    }
+    wfn->accumulate_estimators(0,wset,wgt,properties_1body,properties);
   }
 
 private:

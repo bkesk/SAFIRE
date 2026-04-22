@@ -117,7 +117,7 @@ public:
     pt1.put("weight_reset", weight_reset);
     pt1.put("timestep", timestep);
     pt1.put("dshift", dshift);
-    // check for unkown input keys
+    // check for unknown input keys
     std::unordered_set<std::string> pass_through_keys = {
       "walker_set",
       "wavefunction",

@@ -20,6 +20,7 @@
 #include "numerics/device_kernels/cuda/add_scalar.cuh"
 #include "utilities/check_strides.hpp"
 #include "numerics/operations/determinants.hpp"
+#include "numerics/operations/product.hpp"
 #include "numerics/operations/split_singular_vals.hpp"
 #include "numerics/operations/add_diagonal.hpp"
 #include "numerics/nda_functions.hpp"
@@ -32,7 +33,7 @@ namespace afqmc
 namespace det_ops 
 {
 
-  using math::sparse::CSRMatrix;
+using math::sparse::CSRMatrix;
 
 namespace detail
 {
@@ -123,6 +124,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool herm = true, bool invert = false)
 {
+  auto _ = nda::ellipsis{};
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
@@ -138,17 +140,10 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  if constexpr (CSRMatrix<A_t>) {
-    if(herm)
-      math::sparse::csrmm<'N'>(A,B,TNN);
-    else
-      math::sparse::csrmm<'H'>(A,B,TNN);
-  } else {
-    if(herm)
-      nda::tensor::contract(A,"ij",B,"njk",TNN,"nik");
-    else
-      nda::tensor::contract(nda::conj(A),"ji",B,"njk",TNN,"nik");
-  }
+  if(herm) 
+    math::product(A,B,TNN);
+  else
+    math::product<'H'>(A,B,TNN);
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);
@@ -173,6 +168,7 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
+  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
@@ -182,7 +178,8 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  nda::tensor::contract(nda::conj(A),"nji",B,"njk",TNN,"nik");
+  // T = dagger(A) * B
+  math::product<'H'>(A,B,TNN);
 
   // LU 
   nda::lapack::getrf(TNN,ipiv,work);
@@ -246,13 +243,19 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
         math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
 
         // M0 <-- VL * DLmin
-        nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
+        //nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
+        // FIX: copy because elementwise is in-place (is there an alternative?) 
+        M0 = VL;
+        nda::tensor::elementwise(ComplexType(1.0),DLmin,"j",ComplexType(1.0),M0,"ij",nda::tensor::op::MUL);
 
-        // TNN <-- DRmin * VR
-        nda::tensor::contract(VR,"nij",DRmin,"ni",TNN,"nij");
+        // M1 <-- DRmin * VR
+        //nda::tensor::contract(VR,"nij",DRmin,"ni",M1,"nij");
+        // FIX: copy because elementwise is in-place (is there an alternative?)  
+        M1 = VR;
+        nda::tensor::elementwise(ComplexType(1.0),DRmin,"ni",ComplexType(1.0),M1,"nij",nda::tensor::op::MUL);
 
         // G <-- DRmin*VR*VL*DLmin
-        nda::tensor::contract(ComplexType(1.0),TNN,"nij",M0,"jk",ComplexType(0.0),TNN,"nik");
+        nda::tensor::contract(ComplexType(1.0),M1,"nij",M0,"jk",ComplexType(0.0),TNN,"nik");
 
         // M0 <-- UL^-1
         if(!unitaryL){
@@ -262,7 +265,8 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
           // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
-          M0() = nda::dagger(UL);
+          // M0() = nda::dagger(UL);
+          nda::tensor::add(nda::conj(UL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -276,10 +280,12 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
         }
 
         // M0 <-- UL^-1*DLmax^-1
-        nda::tensor::contract(ComplexType(1.0),M0,"ij",DLmax_inv,"j",ComplexType(0.0),M0,"ij");  
+        //nda::tensor::contract(ComplexType(1.0),M0,"ij",DLmax_inv,"j",ComplexType(0.0),M0,"ij");  
+        nda::tensor::elementwise(ComplexType(1.0),DLmax_inv,"j",ComplexType(1.0),M0,"ij",nda::tensor::op::MUL);
 
         // M1 <-- DRmax^-1*UR^-1
-        nda::tensor::contract(M1,"nij",DRmax_inv,"ni",M1,"nij"); 
+        //nda::tensor::contract(M1,"nij",DRmax_inv,"ni",M1,"nij"); 
+        nda::tensor::elementwise(ComplexType(1.0),DRmax_inv,"ni",ComplexType(1.0),M1,"nij",nda::tensor::op::MUL);
 
       } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
 
@@ -320,10 +326,10 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
           // G <-- DRmin * VR (G used as temporary storage)
           // FIX : is there a way to do this with BLAS/LAPACK?
           for(int row = 0; row < VR.extent(2); ++row)
-            TNN(b,row,nda::ellipsis{}) = DRmin(b,row) * VR(b,row,nda::range::all);
+            M1(b,row,nda::ellipsis{}) = DRmin(b,row) * VR(b,row,nda::range::all);
 
           // G <-- DRmin*VR*VL*DLmin
-          nda::blas::gemm(ComplexType(1.0),TNN(b,nda::ellipsis{}),M0,ComplexType(0.0),TNN(b,nda::ellipsis{}));
+          nda::blas::gemm(ComplexType(1.0),M1(b,nda::ellipsis{}),M0,ComplexType(0.0),TNN(b,nda::ellipsis{}));
         }
         // M0 <-- UL^-1
         if(!unitaryL){
@@ -334,7 +340,8 @@ void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
           // U -> U^+ = U^-1 (for U unitary) 
-          M0() = nda::dagger(UL);
+          //M0() = nda::dagger(UL);
+          nda::tensor::add(nda::conj(UL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -483,6 +490,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
 void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ0, IVec && ref)
 {
   auto all = nda::range::all;
+  auto _ = nda::ellipsis{};
   utils::check_strides(B,ovlp,QQ0,ref);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -500,12 +508,8 @@ void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  if constexpr (CSRMatrix<A_t>) {
-    math::sparse::csrmm<'N'>(A,B,TMN);
-  } else {
-    utils::check_strides(A);
-    nda::tensor::contract(A,"ij",B,"njk",TMN,"nik");
-  }
+  // TMN = A*B
+  math::product(A,B,TMN);
 
   // TNN(i,:) = TMN(ref(i),:)
   for(int n=0; n<nbatch; ++n)
@@ -523,7 +527,7 @@ void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ
   // fill_if_zero()
 
   // QQ0 = TMN * inv(TNN)
-  nda::tensor::contract(TMN,"nij",TNN,"njk",QQ0,"nik");
+  math::product(TMN,TNN,QQ0);
 }
 
 // Density Matrices
@@ -538,6 +542,7 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool compact = true, bool herm = true)
 {
+  auto _ = nda::ellipsis{};
   utils::check_strides(B,C,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -563,49 +568,32 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
 
   if(compact) {
 
-    nda::tensor::contract(TNN,"nji",B,"nkj",C,"nik");
+    // C = T(TNN) * T(B)
+    math::product<'T','T'>(TNN,B,C);
 
   } else {
     memory::buffered_array<MEM,Type,3> TNM(nbatch,NEL,NMO);
 
-    if constexpr (CSRMatrix<A_t>) {
-      if (herm)
-      {
-        // T2 = T(T1) * T(B)
-        nda::tensor::contract(TNN,"nji",B,"nkj",TNM,"nik");
+    if (herm)
+    {
+      // T2 = T(T1) * T(B)
+      math::product<'T','T'>(TNN,B,TNM);
 
-        // C = conj(A) * T2
-        math::sparse::csrmm<'T'>(A,TNM,C);
+      // C = conj(A) * T2
+      math::product<'T'>(A,TNM,C);
+    }
+    else
+    {
+      // T2 = T1 * H(A)
+      if constexpr (CSRMatrix<A_t>) {
+        utils::check(false, "finish implementation!!!");
+      } else {
+        math::product<'N','H'>(TNN,A,TNM);
       }
-      else
-      {
-        // T2 = T1 * H(A)
-        // can't do TNN*H(A), what to do???
-        //ma::productStridedBatched(TNN3D, ma::H(hermA), TNM3D);  
-        sfqmc::utils::check(false, "finish implementation");
 
-        // T2 = T(T1) * T(B)
-        // C = T( B * T2) = T(T2) * T(B)
-        nda::tensor::contract(TNM,"nji",B,"nkj",C,"nik");
-      }
-    } else {
-      if (herm)
-      { 
-        // T2 = T(T1) * T(B)
-        nda::tensor::contract(TNN,"nji",B,"nkj",TNM,"nik");
-        
-        // C = conj(A) * T2
-        nda::tensor::contract(A,"ji",TNM,"njk",C,"nik");
-      }
-      else
-      { 
-        // T2 = T1 * H(A)
-        nda::tensor::contract(TNN,"nij",nda::conj(A),"kj",TNM,"nik");
-        
-        // T2 = T(T1) * T(B)
-        // C = T( B * T2) = T(T2) * T(B)
-        nda::tensor::contract(TNM,"nji",B,"nkj",C,"nik");
-      }
+      // T2 = T(T1) * T(B)
+      // C = T( B * T2) = T(T2) * T(B)
+      math::product<'T','T'>(TNM,B,C);
     }
   }
 }
@@ -624,6 +612,7 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
+  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = A.shape();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
@@ -642,17 +631,19 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
 
   if(compact) {
 
-    nda::tensor::contract(TNN,"nji",B,"nkj",C,"nik");
+    math::product<'T','T'>(TNN,B,C);
 
   } else {
+
     memory::buffered_array<MEM,Type,3> TNM(nbatch,NEL,NMO);
 
     // T2 = T1 * H(A)
-    nda::tensor::contract(TNN,"nij",nda::conj(A),"kj",TNM,"nik");
-        
+    math::product<'N','H'>(TNN,A,TNM);
+
     // T2 = T(T1) * T(B)
     // C = T( B * T2) = T(T2) * T(B)
-    nda::tensor::contract(TNM,"nji",B,"nkj",C,"nik");
+    math::product<'T','T'>(TNM,B,C);
+
   }
 }
 
@@ -670,6 +661,7 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
+  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   auto NACT = A.extent(0);
   utils::check(A.shape() == std::array<long,2>{NACT,NMO}, "Size mismatch");
@@ -687,11 +679,8 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  if constexpr (CSRMatrix<A_t>) {
-    math::sparse::csrmm<'N'>(A,B,TAB);
-  } else {
-    nda::tensor::contract(A,"ij",B,"njk",TAB,"nik");
-  }
+  // TAB = A*B
+  math::product(A,B,TAB);
 
   // TNN(i,:) = TAB(ref(i),:)
   for(int n=0; n<nbatch; ++n)
@@ -709,26 +698,22 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   // fill_if_zero()
 
   // QQ0 = TAB * inv(TNN)
-  nda::tensor::contract(TAB,"nij",TNN,"njk",QQ0,"nik");
+  math::product(TAB,TNN,QQ0);
 
   if(compact) {
 
     // C = T(TNN) * T(B)
-    nda::tensor::contract(TNN,"nji",B,"nkj",C,"nik");
+    math::product<'T','T'>(TNN,B,C);
 
   } else {
 
     memory::buffered_array<MEM,Type,3> TNM(nbatch,NEL,NMO);
 
     // TNM = T(TNN) * T(B)
-    nda::tensor::contract(TNN,"nji",B,"nkj",TNM,"nik");
+    math::product<'T','T'>(TNN,B,TNM);
 
     // C = conj(A) * TNM
-    if constexpr (CSRMatrix<A_t>) {
-      math::sparse::csrmm<'T'>(A,TNM,C);
-    } else {
-      nda::tensor::contract(A,"nji",TNM,"njk",C,"nik");
-    }
+    math::product<'T'>(A,TNM,C);
 
   } 
 }
@@ -746,6 +731,7 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
+  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   auto NACT = A.extent(0);
   utils::check(A.shape() == std::array<long,2>{NACT,NMO}, "Size mismatch");
@@ -762,11 +748,8 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   memory::buffered_array<MEM,Type,1> work;
   ipiv() = 0;
 
-  if constexpr (CSRMatrix<A_t>) {
-    math::sparse::csrmm<'N'>(A,B,TAB);
-  } else {
-    nda::tensor::contract(A,"ij",B,"njk",TAB,"nik");
-  }
+  // TAB = A*B
+  math::product(A,B,TAB);
 
   // TNN(i,:) = TAB(ref(i),:)
   for(int n=0; n<nbatch; ++n)
@@ -786,21 +769,16 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   if(compact) {
 
     // C = T(TNN) * T(B)
-    nda::tensor::contract(TNN,"nji",B,"nkj",C,"nik");
+    math::product<'T','T'>(TNN,B,C);
 
   } else {
 
     memory::buffered_array<MEM,Type,3> TNM(nbatch,NEL,NMO);
-
     // TNM = T(TNN) * T(B)
-    nda::tensor::contract(TNN,"nji",B,"nkj",TNM,"nik");
+    math::product<'T','T'>(TNN,B,TNM);
 
     // C = conj(A) * TNM
-    if constexpr (CSRMatrix<A_t>) {
-      math::sparse::csrmm<'T'>(A,TNM,C);
-    } else {
-      nda::tensor::contract(A,"nji",TNM,"njk",C,"nik");
-    }
+    math::product<'T'>(A,TNM,C);
 
   } 
 }
@@ -910,13 +888,19 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
         math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
       
         // M0 <-- VL * DLmin
-        nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
+        //nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
+        // FIX: copy because elementwise is in-place (is there an alternative?)  
+        M0 = VL;
+        nda::tensor::elementwise(ComplexType(1.0),DLmin,"j",ComplexType(1.0),M0,"ij",nda::tensor::op::MUL);
 
-        // G <-- DRmin * VR (G used as temporary storage)
-        nda::tensor::contract(VR,"nij",DRmin,"ni",G,"nij");
+        // M1 <-- DRmin * VR (M1 used as temporary storage)
+        //nda::tensor::contract(VR,"nij",DRmin,"ni",M1,"nij");
+        // FIX: copy because elementwise is in-place (is there an alternative?)  
+        M1 = VR;
+        nda::tensor::elementwise(ComplexType(1.0),DRmin,"ni",ComplexType(1.0),M1,"nij",nda::tensor::op::MUL);
 
         // G <-- DRmin*VR*VL*DLmin
-        nda::tensor::contract(ComplexType(1.0),G,"nij",M0,"jk",ComplexType(0.0),G,"nik");
+        nda::tensor::contract(ComplexType(1.0),M1,"nij",M0,"jk",ComplexType(0.0),G,"nik");
 
         // M0 <-- UL^-1
         if(!unitaryL){
@@ -926,7 +910,8 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
           // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
-          M0() = nda::dagger(UL);
+          //M0() = nda::dagger(UL);
+          nda::tensor::add(nda::conj(UL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -940,10 +925,12 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
         }
 
         // M0 <-- UL^-1*DLmax^-1
-        nda::tensor::contract(ComplexType(1.0),M0,"ij",DLmax_inv,"j",ComplexType(0.0),M0,"ij");  
+        //nda::tensor::contract(ComplexType(1.0),M0,"ij",DLmax_inv,"j",ComplexType(0.0),M0,"ij");
+        nda::tensor::elementwise(ComplexType(1.0),DLmax_inv,"j",ComplexType(1.0),M0,"ij",nda::tensor::op::MUL);  
 
         // M1 <-- DRmax^-1*UR^-1
-        nda::tensor::contract(M1,"nij",DRmax_inv,"ni",M1,"nij"); 
+        //nda::tensor::contract(M1,"nij",DRmax_inv,"ni",M1,"nij"); 
+        nda::tensor::elementwise(ComplexType(1.0),DRmax_inv,"ni",ComplexType(1.0),M1,"nij",nda::tensor::op::MUL); 
 
       } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
 
@@ -985,13 +972,13 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
           M0(nda::range::all,col) = VL(nda::range::all,col)*DLmin(col);
 
         for(int b = 0; b < nbatch; ++b){
-          // G <-- DRmin * VR (G used as temporary storage)
+          // M1 <-- DRmin * VR (M1 used as temporary storage)
           // FIX : is there a way to do this with BLAS/LAPACK?
           for(int row = 0; row < VR.extent(2); ++row)
-            G(b,row,nda::ellipsis{}) = DRmin(b,row) * VR(b,row,nda::range::all);
+            M1(b,row,nda::ellipsis{}) = DRmin(b,row) * VR(b,row,nda::range::all);
 
           // G <-- DRmin*VR*VL*DLmin
-          nda::blas::gemm(ComplexType(1.0),G(b,nda::ellipsis{}),M0,ComplexType(0.0),G(b,nda::ellipsis{}));
+          nda::blas::gemm(ComplexType(1.0),M1(b,nda::ellipsis{}),M0,ComplexType(0.0),G(b,nda::ellipsis{}));
         }
         // M0 <-- UL^-1
         if(!unitaryL){
@@ -1002,7 +989,8 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(UL,ovlp,M0,nbatch,false);
           // U -> U^+ = U^-1 (for U unitary) 
-          M0() = nda::dagger(UL);
+          //M0() = nda::dagger(UL);
+          nda::tensor::add(nda::conj(UL),"ji",M0,"ij");
         }
         // M1 <-- UR^-1
         if(!unitaryR){
@@ -1034,12 +1022,12 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
       // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
       detail::LUsolve(G,M1,ovlp);
 
-      // Gp^T = <c_i c_j^+>^T
+      // Gp = <c_i c_j^+>
       //    = UL^-1*DLmax^-1*[DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
       for(int b = 0; b < nbatch; ++b){
         nda::blas::gemm(ComplexType(-1.0),nda::transpose(M1(b,nda::ellipsis{})),nda::transpose(M0),
                         ComplexType(0.0),G(b,nda::ellipsis{}));
-        //FIX: is there a better way to do I-G^T ? 
+        //I-Gp^T  
         for(int i = 0; i < NMO; ++i){
           G(b,i,i) += Type(1.0);
         }
@@ -1096,7 +1084,9 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
    * @param sclR Input scalar Used to scale \f$ \mathbf{D}_R\f$.
    * @return The equal-time density matrix, \f$ \mathbf{G} \f$
    */
-template<typename A_t, typename B_t, typename C_t,
+template<nda::MemoryMatrix A_t, 
+         nda::MemoryVector B_t, 
+         nda::MemoryMatrix C_t,
          nda::MemoryArrayOfRank<3> D_t,
          nda::MemoryArrayOfRank<2> E_t,
          nda::MemoryArrayOfRank<3> F_t,
@@ -1104,8 +1094,7 @@ template<typename A_t, typename B_t, typename C_t,
          nda::MemoryArrayOfRank<1> O_t,
          typename SL_t,
          nda::MemoryArrayOfRank<1> SR_t>
-requires(  nda::MemoryMatrix<A_t> and nda::MemoryVector<B_t> and nda::MemoryMatrix<C_t> and
-          nda::mem::have_compatible_addr_space<A_t,B_t,C_t,D_t,E_t,F_t,G_t,O_t,SR_t> and
+requires( nda::mem::have_compatible_addr_space<A_t,B_t,C_t,D_t,E_t,F_t,G_t,O_t,SR_t> and
           nda::have_same_value_type_v<A_t, B_t, C_t, D_t, E_t, F_t, G_t, O_t, SR_t> and
           std::decay_t<D_t>::is_stride_order_C() and std::decay_t<E_t>::is_stride_order_C() and
           std::decay_t<F_t>::is_stride_order_C() and std::decay_t<G_t>::is_stride_order_C()
@@ -1153,7 +1142,7 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
         kernels::device::add_scalar(ovlp_loc,ovlp,nbatch);
         math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
 
-        // M0 <-- UL^-1
+        // M0 <-- VL^-1
         if(!unitaryL){
           detail::inverse_logdet(VL,ovlp,M0,nbatch);  
         }
@@ -1161,37 +1150,44 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
           // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(VL,ovlp,M0,nbatch,false);
-          M0() = nda::dagger(VL);
+          //M0() = nda::dagger(VL);
+          nda::tensor::add(nda::conj(VL),"ji",M0,"ij");
         }
-        // M1 <-- UR^-1
+        // M1 <-- VR^-1
         if(!unitaryR){
-          detail::inverse_logdet(VR,ovlp,G); 
+          detail::inverse_logdet(VR,ovlp,M1); 
         }
         else{
           // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
           // and det(UR) has a phase (i.e. det(UR) =/= +-1)
-          detail::inverse_logdet(VR,ovlp,G,false); 
-          nda::tensor::add(nda::conj(VR),"nij",G,"nji");
+          detail::inverse_logdet(VR,ovlp,M1,false); 
+          nda::tensor::add(nda::conj(VR),"nij",M1,"nji");
         }
 
         // M0 <-- DLmax^-1*VL^-1
-        nda::tensor::contract(M0,"ij",DLmax_inv,"i",M0,"ij");
+        nda::tensor::elementwise(ComplexType(1.0),DLmax_inv,"i",ComplexType(1.0),M0,"ij",nda::tensor::op::MUL);
 
-        // G <-- VR^-1*DRmax^-1   (G used as temporary storage)
-        nda::tensor::contract(ComplexType(1.0),G,"nij",DRmax_inv,"nj",ComplexType(0.0),G,"nij");
+        // M1 <-- VR^-1*DRmax^-1   (M1 used as temporary storage)
+        nda::tensor::elementwise(ComplexType(1.0),DRmax_inv,"nj",ComplexType(1.0),M1,"nij",nda::tensor::op::MUL);
 
         // G <-- (DLmax^-1*VL^-1*VR^-1*DRmax^-1)^T
-        nda::tensor::contract(ComplexType(1.0),G,"nkj",M0,"ik",ComplexType(0.0),G,"nji");
+        nda::tensor::contract(ComplexType(1.0),M1,"nkj",M0,"ik",ComplexType(0.0),G,"nji");
 
         // M0 <-- UL^T*DLmin
-        nda::tensor::contract(ComplexType(1.0),UL,"ij",DLmin,"i",ComplexType(0.0),M0,"ji");  
+        //nda::tensor::contract(ComplexType(1.0),UL,"ij",DLmin,"i",ComplexType(0.0),M0,"ji");  
+        // FIX: copy because elementwise is in-place (is there an alternative?) 
+        M0 = nda::transpose(UL);
+        nda::tensor::elementwise(ComplexType(1.0),DLmin,"j",ComplexType(1.0),M0,"ij",nda::tensor::op::MUL);
 
         // M1 <-- DRmin*UR^T
-        nda::tensor::contract(ComplexType(1.0),UR,"nij",DRmin,"nj",ComplexType(0.0),M1,"nji"); 
+        //nda::tensor::contract(ComplexType(1.0),UR,"nij",DRmin,"nj",ComplexType(0.0),M1,"nji");
+        // FIX: copy because elementwise is in-place (is there an alternative?) 
+        nda::tensor::add(UR,"nij",M1,"nji");
+        nda::tensor::elementwise(ComplexType(1.0),DRmin,"ni",ComplexType(1.0),M1,"nij",nda::tensor::op::MUL);
 
       } // end of scope for DRmin, DRmax_inv, DLmin, DLmax_inv 
 
-      // G <-- (DLmin*UL*UR*DRmin + DRmax^-1*VL^-1*VR^-1*DRmax^-1)^T , i.e. G = (M1^T*M0^T + G)^T
+      // G <-- (DLmin*UL*UR*DRmin + DLmax^-1*VL^-1*VR^-1*DRmax^-1)^T , i.e. G = (M1^T*M0^T + G)^T
       nda::tensor::contract(ComplexType(1.0),M1,"nij",M0,"jk",ComplexType(1.0),G,"nik"); 
 
       // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
@@ -1228,18 +1224,20 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
           // still need to compute log(det(UL)) if it is not stored, in the event UL is complex
           // and det(UL) has a phase (i.e. det(UL) =/= +-1)
           detail::inverse_logdet(VL,ovlp,M0,nbatch,false);
-          M0() = nda::dagger(VL);
+          // M0() = nda::dagger(VL);
+          nda::tensor::add(nda::conj(VL),"ji",M0,"ij");
         }
         // M1 <-- VR^-1
         if(!unitaryR){
-          detail::inverse_logdet(VR,ovlp,G); 
+          detail::inverse_logdet(VR,ovlp,M1); 
         }
         else{
           // still need to compute log(det(UR)) if it is not stored, in the event UR is complex
           // and det(UR) has a phase (i.e. det(UR) =/= +-1)
-          detail::inverse_logdet(VR,ovlp,G,false); 
-          for(int b = 0; b < nbatch; ++b)
-            G(b,nda::range::all,nda::range::all) = nda::dagger(VR(b,nda::ellipsis{}));
+          detail::inverse_logdet(VR,ovlp,M1,false); 
+//          for(int b = 0; b < nbatch; ++b)
+//            M1(b,nda::range::all,nda::range::all) = nda::dagger(VR(b,nda::ellipsis{}));
+          nda::tensor::add(nda::conj(VR),"bji",M1,"bij");
         }
 
         // M0 <-- DLmax^-1*VL^-1
@@ -1247,14 +1245,14 @@ void MixedDensityMatrix_v2(A_t const& UL, B_t const& DL, C_t const& VL,
           nda::blas::scal(DLmax_inv(row),M0(row,nda::range::all));
           //M0(row,nda::range::all) *= DLmax_inv(row);
 
-        // G <-- VR^-1*DRmax^-1   (G used as temporary storage)
+        // M1 <-- VR^-1*DRmax^-1   (M1 used as temporary storage)
         for(int b = 0; b < nbatch; ++b){
           for(int col = 0; col < NMO; ++col)
-            nda::blas::scal(DRmax_inv(b,col),G(b,nda::range::all,col));
-            //G(b,nda::range::all,col) *= DRmax_inv(b,col);
+            nda::blas::scal(DRmax_inv(b,col),M1(b,nda::range::all,col));
+            //M1(b,nda::range::all,col) *= DRmax_inv(b,col);
 
           // G <-- (DLmax^-1*VL^-1*VR^-1*DRmax^-1)^T
-          nda::blas::gemm(ComplexType(1.0),nda::transpose(G(b,nda::ellipsis{})),
+          nda::blas::gemm(ComplexType(1.0),nda::transpose(M1(b,nda::ellipsis{})),
                     nda::transpose(M0),ComplexType(0.0),G(b,nda::ellipsis{})); 
         }
 

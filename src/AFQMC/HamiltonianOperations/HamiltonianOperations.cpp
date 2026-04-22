@@ -28,7 +28,7 @@
 
 // MAM: Once all hamiltonians are implemented, measure the compilation time 
 //      with and without instantiations. Remove all this and go back to the
-//      header only version if the compilation times are not reduced signifficantly
+//      header only version if the compilation times are not reduced significantly
 
 namespace sfqmc
 {
@@ -177,6 +177,7 @@ __vbias__(DEVICE_MEMORY)
   template void HamiltonianOperations<M1>::update_potentials_impl(double,memory::array_view<M2,ComplexType const,1,nda::C_layout>const&,memory::array_view<M1,ComplexType,1,nda::C_layout>&,bool); 
 __update_potentials__(HOST_MEMORY,HOST_MEMORY)
 #if defined(ENABLE_DEVICE)
+__update_potentials__(DEVICE_MEMORY,DEVICE_MEMORY)
 __update_potentials__(DEVICE_MEMORY,HOST_MEMORY)
 #endif
 

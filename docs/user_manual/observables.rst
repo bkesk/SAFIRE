@@ -12,10 +12,6 @@ It is the user's responsibility to ensure that the observable is appropriate
 for their specific use case.
 Below is a summary of all observables currently implemented in SAFIRE.
 
-.. seealso::
-
-	:ref:`Post-processing with afqmctools <post_processing_tools>`
-
 Full 1-RDM
 ----------
 
@@ -290,6 +286,8 @@ Not implemented for CLOSED walkers.
    Atom-Centered Correlators
    -------------------------
 
+.. only:: developer
+
 	Sample Input Block
 	~~~~~~~~~~~~~~~~~~
 	
@@ -322,12 +320,16 @@ Not implemented for CLOSED walkers.
 
 
 
+.. only:: developer
+
 	Real-Space Correlators
 	----------------------
 
 	.. math::
 		\langle \psi_i^*(\mathbf{r}) \psi_j^*(\mathbf{r}') c_{i\sigma}^\dagger c_{j\sigma} \rangle
 
+
+.. only:: developer
 
 	Sample Input Block
 	------------------
@@ -351,6 +353,8 @@ Not implemented for CLOSED walkers.
 
 	- Requires grid-based orbital definitions.
 
+
+.. only:: developer
 
 	Structure Factor
 	----------------
@@ -382,6 +386,8 @@ Not implemented for CLOSED walkers.
 	- Requires pair densities and k-point information in HDF5.
 
 
+.. only:: developer
+
 	Generalized Fock Matrix
 	------------------------
 
@@ -411,6 +417,8 @@ Not implemented for CLOSED walkers.
 	~~~~~~~~~~~~
 
 	- Output includes spin blocks depending on walker type.
+
+.. only:: developer
 
 	On-Top Pair Density
 	-------------------

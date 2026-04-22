@@ -1,7 +1,7 @@
 .. _analysis_ex_1:
 
-01 Analyzing Scalar Data
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Analyzing Scalar Data
+^^^^^^^^^^^^^^^^^^^^^
 This example covers analyzing the scalar stochastic data output by SAFIRE.
 
 This example assumes that you have already run an AFQMC calculation using
@@ -25,7 +25,7 @@ We assume this name for the remainder of the example.
 
 The scalar data file is organized as a series of columns, corresponding to scalar data, 
 and rows, corresponding to samples to taken at each measurement.
-There are many columns inlcuded in the scalar datafile.
+There are many columns included in the scalar datafile.
 A typical user will usually be most interested in the following columns.
 
 * "time" gives the total projection time, in units of inverse energy, at which the current sample was taken.
@@ -69,7 +69,7 @@ and the right panel shows a histogram of the stochastic samples of the scalar da
 The vertical dotted line in the left panel illustrates the end of the equilibration phase, 
 as specified by the "nequil" setting passed to "analyze_scalar_data" via the 
 "analysis_settings" dictionary.
-This plot should be visually inspected to check that the AFQMC energy has equilbrated
+This plot should be visually inspected to check that the AFQMC energy has equilibrated
 by the end of the equilibration phase, and that the histogram resembles a normal distribution.
 
 

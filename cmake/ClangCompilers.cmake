@@ -4,10 +4,6 @@ IF ( CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 )
   MESSAGE(FATAL_ERROR "Requires clang 7.0 or higher ")
 ENDIF()
 
-IF ( CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 11.0.0 AND QMC_CXX_STANDARD EQUAL 17 AND BUILD_AFQMC )
-  MESSAGE(FATAL_ERROR "Avoid Clang 11.0.0 which cannot compile AFQMC properly with C++17!")
-ENDIF()
-
 # Set the std
 SET(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} -std=c99")
 
@@ -37,11 +33,16 @@ IF(QMC_OMP)
   ENDIF()
 ENDIF(QMC_OMP)
 
-# Set clang specific flags (which we always want)
+# Set clang specific flags (which we always want, unless coverage is enabled)
 ADD_DEFINITIONS( -Drestrict=__restrict__ )
 
-SET(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} -fstrict-aliasing")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstrict-aliasing -D__forceinline=inline")
+# Skip optimization flags when coverage is enabled
+IF(NOT ENABLE_COVERAGE)
+  SET(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} -fstrict-aliasing")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstrict-aliasing -D__forceinline=inline")
+ELSE()
+  MESSAGE(STATUS "Coverage mode enabled: skipping optimization flags for Clang")
+ENDIF()
 
 # treat VLA as error
 SET(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} -Werror=vla")

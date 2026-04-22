@@ -39,7 +39,7 @@ namespace afqmc
  * If Pinv is true, only the backward-direction propagators are constructed, P1x_inv.
  * If Pinv is false, forward-direction propagators are constructed.
  * In addition, if Pinv is false and the backward-direction propagators have previously been
- * constructed, they are upated for the current timestep.  
+ * constructed, they are updated for the current timestep.  
  */
 template<MEMORY_SPACE MEM>
 void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, bool Pinv)

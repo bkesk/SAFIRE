@@ -56,7 +56,7 @@ void log_determinant_from_getrf(A const& aM, IPIV const& ipiv_v, nda::get_value_
   static_assert(nda::is_complex_v<T>, "log_determinant_from_getrf expects complex numbers.");
   sfqmc::utils::check(aM.extent(0) == ipiv_v.extent(0), "Size mismatch");
   sfqmc::utils::check(aM.extent(0) == aM.extent(1), "Size mismatch");
-  sfqmc::utils::check(aM.is_contiguous(), "Expects contiguos array. Fix if needed!");
+  sfqmc::utils::check(aM.is_contiguous(), "Expects contiguous array. Fix if needed!");
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A>();
   auto a = nda::reshape(aM,std::array<long,3>{1,aM.extent(0),aM.extent(1)});
   memory::array_view<MEM,const nda::get_value_t<IPIV>,2> ipiv(std::array<long,2>{1,ipiv_v.size()},ipiv_v.data());
