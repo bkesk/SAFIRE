@@ -77,12 +77,12 @@ def _transform_from_scf_data(scf_data, ortho_ao, cas = None):
         if cas is not None:
             nfzc = (sum(scf_data["nelec"])-cas[0])//2
             ncas = cas[1]
-            nbasis = C.shape[-1]
+            nmo = C.shape[-1]
 
             if ncas == -1:
-                ncas = nbasis - nfzc
+                ncas = nmo - nfzc
 
-            nfzv = nbasis - ncas - nfzc
+            nfzv = nmo - ncas - nfzc
         else:
             nfzc = nfzv = 0
 
