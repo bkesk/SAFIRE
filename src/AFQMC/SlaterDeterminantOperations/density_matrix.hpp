@@ -848,6 +848,8 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
                         bool unitaryL = false, bool unitaryR = false)
 {
 
+  // FIX : unitaryL, unitaryR are not currently used
+
   utils::check_strides(UR,DR,VR,G,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;

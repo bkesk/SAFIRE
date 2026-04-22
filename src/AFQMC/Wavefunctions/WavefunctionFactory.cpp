@@ -56,8 +56,10 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   int NMO  = AFinfo.NMO;
   int nup = AFinfo.nup;
   int ndown = AFinfo.ndown;
-  int nspin = (walker_type == COLLINEAR) ? 2 : 1;
-  int npol = (walker_type == NONCOLLINEAR) ? 2 : 1;
+  int ntau = AFinfo.ntau;
+  int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
+  int npol = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
+  // FIX : add check for finite-T
   utils::check((walker_type != NONCOLLINEAR) or (ndown == 0),
     " Error in Wavefunctions/WavefunctionFactory::fromHDF5: noncollinear && ndown!=0. \n\n\n ");
 
@@ -77,85 +79,169 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   h5::group grp(file);
   h5::group wgrp = grp.open_group("Wavefunction");
 
+  
   if (wfn_type == NOMSD_WFN)
   {
-    app_log(1," Wavefunction type: NOMSD");
-    h5::group ngrp = wgrp.open_group("NOMSD");
-    nda::array<ComplexType,1> ci;
+    if (walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
+      app_log(1," Wavefunction type: NOMSD");
+      h5::group ngrp = wgrp.open_group("NOMSD");
+      nda::array<ComplexType,1> ci;
 
-    // Read common trial wavefunction input options.
-    WALKER_TYPES input_wtype;
-    getCommonInput(ngrp, NMO, nup, ndown, ndets_to_read, ci, input_wtype);
-    
-    // validation blocks
-    utils::check(input_wtype != NONCOLLINEAR or walker_type == NONCOLLINEAR,
-        "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers.");
-    
-    NCE = h.getNuclearCoulombEnergy();
+      // Read common trial wavefunction input options.
+      WALKER_TYPES input_wtype;
+      getCommonInput(ngrp, NMO, nup, ndown, ndets_to_read, ci, input_wtype);
+      
+      // validation blocks
+      utils::check(input_wtype != NONCOLLINEAR or walker_type == NONCOLLINEAR,
+          "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers.");
+      
+      NCE = h.getNuclearCoulombEnergy();
 
-    //mpi->comm.broadcast_n(ci.data(), ci.size());
-    //mpi->comm.broadcast_value(NCE);
+      //mpi->comm.broadcast_n(ci.data(), ci.size());
+      //mpi->comm.broadcast_value(NCE);
 
-    // Create Trial wavefunction.
-    auto PsiT = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,nup,ndown);
-    utils::check(PsiT.shape() == std::array<long,2>{ndets_to_read,nspin}, "Shape mismatch");
+      // Create Trial wavefunction.
+      auto PsiT = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,nup,ndown);
 
-    // Set initial walker's Slater matrix.
-    getInitialGuess(ngrp, mpi, name, NMO, nup, ndown, walker_type);
+      // Set initial walker's Slater matrix.
+      getInitialGuess(ngrp, mpi, name, NMO, nup, ndown, walker_type);
 
-    // if not set, get default based on HamTYpe
-    // use sparse trial only on KP runs
-    if (dense_trial_opt == boost::none)
-    {
-      dense_trial = true; 
-      if (h.getHamType() == KPFactorized || h.getHamType() == KPTHC)
-        dense_trial = false; 
-    } else {
-      dense_trial = *dense_trial_opt;
-    }
+      // if not set, get default based on HamTYpe
+      // use sparse trial only on KP runs
+      if (dense_trial_opt == boost::none)
+      {
+        dense_trial = true; 
+        if (h.getHamType() == KPFactorized || h.getHamType() == KPTHC)
+          dense_trial = false; 
+      } else {
+        dense_trial = *dense_trial_opt;
+      }
 
-    auto HOps = h.getHamiltonianOperations<MEM>(walker_type, mpi, PsiT);
-    if (dense_trial)
-    {
-      using MType = memory::shared_array<MEM,ComplexType,2>; 
-      nda::array<MType,2> PsiT_dense(ndets_to_read,nspin);
-      // insert empty matrices 
-      for(int id=0; id<ndets_to_read; ++id)
-        for(int is=0; is<nspin; ++is)
-          PsiT_dense(id,is) = memory::make_shared_array<MEM,ComplexType,2>(mpi,PsiT(id,is).shape());
-      mpi->comm.barrier();
-      if constexpr (MEM==HOST_MEMORY) {
-        if(mpi->node_comm.root()) 
+      auto HOps = h.getHamiltonianOperations<MEM>(walker_type, mpi, PsiT);
+
+      if (dense_trial)
+      {
+        using MType = memory::shared_array<MEM,ComplexType,2>; 
+        nda::array<MType,2> PsiT_dense(ndets_to_read,nspin);
+        // insert empty matrices 
+        for(int id=0; id<ndets_to_read; ++id)
+          for(int is=0; is<nspin; ++is)
+            PsiT_dense(id,is) = memory::make_shared_array<MEM,ComplexType,2>(mpi,PsiT(id,is).shape());
+        mpi->comm.barrier();
+        if constexpr (MEM==HOST_MEMORY) {
+          if(mpi->node_comm.root()) 
+            for(int id=0; id<ndets_to_read; ++id)
+              for(int is=0; is<nspin; ++is)
+                PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
+        } else {
           for(int id=0; id<ndets_to_read; ++id)
             for(int is=0; is<nspin; ++is)
               PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
-      } else {
-        for(int id=0; id<ndets_to_read; ++id)
-          for(int is=0; is<nspin; ++is)
-            PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
+        } 
+        mpi->comm.barrier();
+        return Wavefunction(NOMSD<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+                                      std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
       }
-      mpi->comm.barrier();
-      return Wavefunction(NOMSD<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
-                                     std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
+      else
+      {
+        return Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+                                      std::move(ci), std::move(PsiT),NCE,targetNW)); 
+      }
     }
     else
-    {
-      return Wavefunction<MEM>(NOMSD<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
-                                     std::move(ci), std::move(PsiT),NCE,targetNW)); 
+    {     
+      app_log(1," Wavefunction type: NOMSD");
+      h5::group ngrp = wgrp.open_group("NOMSD");
+      nda::array<ComplexType,1> ci;
+
+      // Read common trial wavefunction input options.
+      WALKER_TYPES input_wtype;
+      //ndown not used for finite-T
+      getCommonInput(ngrp, NMO, ntau, 0, ndets_to_read, ci, input_wtype);
+      
+      // validation blocks
+      utils::check(input_wtype != NONCOLLINEAR_FT or walker_type == NONCOLLINEAR_FT,
+          "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers.");
+      
+      NCE = h.getNuclearCoulombEnergy();
+
+      //mpi->comm.broadcast_n(ci.data(), ci.size());
+      //mpi->comm.broadcast_value(NCE);
+
+      // Create Trial wavefunction.
+      auto PsiT = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,ntau);
+
+      // Set initial walker's Slater matrix.
+      getInitialGuess(ngrp, mpi, name, NMO, nup, ndown, walker_type);
+
+      // if not set, get default based on HamTYpe
+      // use sparse trial only on KP runs
+      if (dense_trial_opt == boost::none)
+      {
+        dense_trial = true; 
+        if (h.getHamType() == KPFactorized || h.getHamType() == KPTHC)
+          dense_trial = false; 
+      } else {
+        dense_trial = *dense_trial_opt;
+      }
+
+      nda::array<PsiT_Matrix<MEM>, 2> IMat(ndets_to_read,nspin);
+      // dim = NMO
+      int dim = PsiT(0,0,0).extent(1);
+      for(int i = 0; i < ndets_to_read; ++i)
+        for(int s = 0; s < nspin; ++s)
+          IMat(i,s) = math::sparse::identity<ComplexType>(dim);
+
+      auto HOps = h.getHamiltonianOperations<MEM>(walker_type, mpi, IMat);
+
+      if (dense_trial)
+      {
+        using MType = memory::shared_array<MEM,ComplexType,2>; 
+        nda::array<MType,3> PsiT_dense(ndets_to_read,nspin,3);
+        // insert empty matrices 
+        for(int id=0; id<ndets_to_read; ++id)
+          for(int is=0; is<nspin; ++is)
+            for(int m=0; m<3; ++m)
+              PsiT_dense(id,is,m) = memory::make_shared_array<MEM,ComplexType,2>(mpi,PsiT(id,is,m).shape());
+        mpi->comm.barrier();
+        if constexpr (MEM==HOST_MEMORY) {
+          if(mpi->node_comm.root()) 
+            for(int id=0; id<ndets_to_read; ++id)
+              for(int is=0; is<nspin; ++is)
+                for(int m=0; m<3; ++m)
+                  PsiT_dense(id,is,m)() = math::sparse::to_array<'N'>(PsiT(id,is,m));
+        } else {
+          for(int id=0; id<ndets_to_read; ++id)
+            for(int is=0; is<nspin; ++is)
+              for(int m=0; m<3; ++m)
+                PsiT_dense(id,is,m)() = math::sparse::to_array<'N'>(PsiT(id,is,m));
+        }
+
+        mpi->comm.barrier();
+        return Wavefunction(NOMSD_FT<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+                                      std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
+      }
+      else
+      {
+        return Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+                                      std::move(ci), std::move(PsiT),NCE,targetNW));
+      }
+
     }
 
   }
   else if (wfn_type == PHMSD_WFN)
   {
+
     app_log(1," Wavefunction type: PHMSD");
 
-    /* Implementation notes:
-     *  - PsiT: [Nact, NMO] where Nact is the number of active space orbitals,
-     *                     those that participate in the ci expansion
-     *  - The half rotation is done with respect to the supermatrix PsiT
-     *  - Need to calculate Nact and create a mapping from orbital index to actice space index.
-     *    Those orbitals in the corresponding virtual space (not in active) map to -1 as a precaution.
-     */
+    // Implementation notes:
+    //  - PsiT: [Nact, NMO] where Nact is the number of active space orbitals,
+    //                     those that participate in the ci expansion
+    //  - The half rotation is done with respect to the supermatrix PsiT
+    //  - Need to calculate Nact and create a mapping from orbital index to actice space index.
+    //    Those orbitals in the corresponding virtual space (not in active) map to -1 as a precaution.
+    //
 
     nda::array<PsiT_Matrix<HOST_MEMORY>, 1> PsiT_MO;
 
@@ -380,38 +466,80 @@ void WavefunctionFactory<MEM>::getInitialGuess(h5::group grp,
          std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
          std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type)
 {
-  int nspin = (walker_type == COLLINEAR) ? 2 : 1;
-  int npol = (walker_type == NONCOLLINEAR) ? 2 : 1;
+  int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
+  int npol = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
   nda::array<int,1> dims(5);
   nda::h5_read(grp,"dims",dims);
   WALKER_TYPES wtype(initWALKER_TYPES(dims[3]));
-  auto guess = initial_guess.find(name);
-  utils::check(guess == initial_guess.end(), 
+  if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
+    auto guess = initial_guess.find(name);
+    utils::check(guess == initial_guess.end(), 
                "Error: Problems adding new initial guess, already exists.");
-  auto newg = initial_guess.insert(std::make_pair(name, memory::make_shared_array<HOST_MEMORY,ComplexType, 3>(mpi,{nspin, npol * NMO, nup})));
-  utils::check(newg.second, " Error: Problems adding new initial guess. ");
-  if(mpi->comm.root()) {  
-    auto M = ((newg.first)->second)();
-    M() = ComplexType(0.0, 0.0);
-    auto Mup = M(0,nda::ellipsis{});
-    utils::h5_read(grp,"Psi0_alpha",Mup);
-    if (walker_type == COLLINEAR)
-    {
-      if (wtype == COLLINEAR)
+    auto newg = initial_guess.insert(std::make_pair(name, memory::make_shared_array<HOST_MEMORY,ComplexType, 3>(mpi,{nspin, npol * NMO, nup})));
+    utils::check(newg.second, " Error: Problems adding new initial guess. ");
+    if(mpi->comm.root()) {  
+      auto M = ((newg.first)->second)();
+      M() = ComplexType(0.0, 0.0);
+      auto Mup = M(0,nda::ellipsis{});
+      utils::h5_read(grp,"Psi0_alpha",Mup);
+      if (walker_type == COLLINEAR)
       {
-        auto Mdn = M(1,nda::range::all,nda::range(ndown));
-        utils::h5_read(grp,"Psi0_beta",Mdn);
+        if (wtype == COLLINEAR)
+        {
+          auto Mdn = M(1,nda::range::all,nda::range(ndown));
+          utils::h5_read(grp,"Psi0_beta",Mdn);
+        }
+        else if (wtype == CLOSED)
+        {
+          utils::check(nup == ndown, "Error: wfn_type:Closed with nup != ndown.");
+          M(1,nda::ellipsis{}) = Mup();
+        }
+        else
+          utils::check(false," Error: Unknown wtype. ");
       }
-      else if (wtype == CLOSED)
-      {
-        utils::check(nup == ndown, "Error: wfn_type:Closed with nup != ndown.");
-        M(1,nda::ellipsis{}) = Mup();
-      }
-      else
-        utils::check(false," Error: Unknown wtype. ");
     }
+    mpi->comm.barrier();
   }
-  mpi->comm.barrier();
+  else
+  {
+    auto guess = initial_guess_ft.find(name);
+    utils::check(guess == initial_guess_ft.end(), 
+               "Error: Problems adding new initial guess, already exists.");
+    auto newg = initial_guess_ft.insert(std::make_pair(name, memory::make_shared_array<HOST_MEMORY,ComplexType, 4>(mpi,{3, nspin, npol * NMO, NMO})));
+    utils::check(newg.second, " Error: Problems adding new initial guess. ");
+    if(mpi->comm.root()) {  
+      auto M = ((newg.first)->second)();
+      M() = ComplexType(0.0, 0.0);
+      auto URup = M(0,0,nda::ellipsis{});
+      utils::h5_read(grp,"UR_alpha",URup);
+      auto DRup = M(1,0,nda::ellipsis{});
+      utils::h5_read(grp,"DR_alpha",DRup);
+      auto VRup = M(2,0,nda::ellipsis{});
+      utils::h5_read(grp,"VR_alpha",VRup);
+      if (walker_type == COLLINEAR_FT)
+      {
+        if (wtype == COLLINEAR_FT)
+        {
+          auto URdn = M(0,1,nda::range::all,nda::range(NMO));
+          utils::h5_read(grp,"UR_beta",URdn);
+          auto DRdn = M(1,1,nda::range::all,nda::range(NMO));
+          utils::h5_read(grp,"DR_beta",DRdn);
+          auto VRdn = M(2,1,nda::range::all,nda::range(NMO));
+          utils::h5_read(grp,"VR_beta",VRdn);
+        }
+        else if (wtype == CLOSED)
+        {
+          //utils::check(nup == ndown, "Error: wfn_type:Closed with nup != ndown.");
+          M(0,1,nda::ellipsis{}) = URup();
+          M(1,1,nda::ellipsis{}) = DRup();
+          M(2,1,nda::ellipsis{}) = VRup();
+        }
+        else
+          utils::check(false," Error: Unknown wtype. ");
+      }
+    }
+    mpi->comm.barrier();
+  }
 }
 
 

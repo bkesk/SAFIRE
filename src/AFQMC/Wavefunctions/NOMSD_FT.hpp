@@ -25,11 +25,11 @@
 #include "utilities/check.hpp"
 #include "utilities/check_strides.hpp"
 #include "IO/ptree/ptree_utilities.hpp"
-#include "numerics/sparse/csr_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
+//#include "AFQMC/SlaterDeterminantOperations/
 
 namespace sfqmc
 {
@@ -43,22 +43,22 @@ namespace afqmc
  * For particle-hole orthogonal MSD wfns, use FastMSD.
  */
 template<MEMORY_SPACE MEM, class devPsiT>
-class NOMSD : public AFQMCInfo
+class NOMSD_FT : public AFQMCInfo
 {
 
 public:
 
-  NOMSD() {
+  NOMSD_FT() {
     utils::check(false,"Default constructor for NOMSD disabled.");
   }
 
-  NOMSD(AFQMCInfo& info,
+  NOMSD_FT(AFQMCInfo& info,
         ptree pt_in,
         WALKER_TYPES wlk,
         std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
         HamiltonianOperations<MEM>&& hop_,
         nda::array<ComplexType,1>&& ci_,
-        nda::array<devPsiT,2>&& orbs_,
+        nda::array<devPsiT,3>&& orbs_,
         ComplexType nce,
         [[maybe_unused]] int targetNW = 1)
       : AFQMCInfo(info),
@@ -67,8 +67,12 @@ public:
         HamOp(std::move(hop_)),
         ci(std::move(ci_)),
         OrbMats(std::move(orbs_)),
+        RefOrbMats(0, 0, 0, 0),
         NuclearCoulombEnergy(nce)
   {
+
+    //std::cout<<"OrbMats(0,1,1)"<<std::endl;
+
     utils::check(OrbMats.extent(0) == ci.size(), "Size mismatch");
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
@@ -97,18 +101,19 @@ public:
       "name",
       "ndets_to_read",
       "filename",
+      "compute",
       "dense_trial"
     };
     io::compare_known_keys("Non-orthogonal multi-Slater det. (NOMSD) Wavefunction",pt1, pt0,pass_through_keys);
     return pt1;
   }
 
-  ~NOMSD() = default; 
+  ~NOMSD_FT() = default; 
 
-  NOMSD(NOMSD const& other) = delete;
-  NOMSD& operator=(NOMSD const& other) = delete;
-  NOMSD(NOMSD&& other)                 = default;
-  NOMSD& operator=(NOMSD&& other) = delete;
+  NOMSD_FT(NOMSD_FT const& other) = delete;
+  NOMSD_FT& operator=(NOMSD_FT const& other) = delete;
+  NOMSD_FT(NOMSD_FT&& other)                 = default;
+  NOMSD_FT& operator=(NOMSD_FT&& other) = delete;
 
   int number_of_cholesky_vectors() const { return HamOp.number_of_cholesky_vectors(); }
 
@@ -180,31 +185,31 @@ public:
   /*
    * Calculates the bias potential.
    */
+  
   template<class WlkSet>
-  void vbias(WlkSet& wset, nda::MemoryMatrix auto && v, double dt)
+  void vbias(WlkSet& wset, nda::MemoryMatrix auto && v, double dt, int nt = 0)
   {
     memory::check_memory_space<MEM>(v);
     AFQMCTimer.start(G_for_vbias_timer);
-    bool compact_G_for_vbias = (ci.size() == 1); 
-    int nel   = (walker_type==COLLINEAR ? nup+ndown : nup);
-    int nspin = (walker_type==COLLINEAR ? 2 : 1);
-    int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
+    int nspin = (walker_type==COLLINEAR_FT ? 2 : 1);
+    int npol  = (walker_type==NONCOLLINEAR_FT ? 2 : 1);
     int nw = wset.size();
-    int nc = (compact_G_for_vbias ? nel*npol*NMO : nspin*npol*NMO*npol*NMO );
+    int nc = nspin*npol*NMO*npol*NMO;
     utils::check(v.shape() == std::array<long,2>{nw,HamOp.number_of_cholesky_vectors()}, 
                  "Shape mismatch");
     memory::buffered_array<MEM,ComplexType,2> G(nw,nc);
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw);
-    MixedDensityMatrix(wset, G, ovlp, compact_G_for_vbias);
+    MixedDensityMatrix(wset, G, ovlp, nt);
     AFQMCTimer.stop(G_for_vbias_timer);
     AFQMCTimer.start(vbias_timer);
     v() = ComplexType(0.0);
     HamOp.vbias(G, v, dt);
     AFQMCTimer.stop(vbias_timer);
   }
+  
 
   /*
-   * Returns the Hubbard-Stratonovich potential. 
+   * Returns the Hubbard-Stratonovoch potential. 
    *  Input:
    *    - X: [# chol vecs][nW]
    *  Output:
@@ -222,14 +227,14 @@ public:
    * them in the wset data
    */
   template<class WlkSet>
-  void Energy(WlkSet& wset)
+  void Energy(WlkSet& wset, int nt = 0)
   {
     auto all = nda::range::all;
     int nw = wset.size();
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
     memory::buffered_array<MEM,ComplexType,2> eloc(nw,3);
     eloc() = ComplexType(0.0);
-    Energy(wset, eloc(), ovlp());
+    Energy(wset, eloc(), ovlp(), nt);
     wset.setProperty(OVLP, ovlp);
     wset.setProperty(E1_, eloc(all, 0));
     wset.setProperty(EXX_, eloc(all, 1));
@@ -241,7 +246,7 @@ public:
    * returns them in the appropriate data structures
    */
   template<class WlkSet,  nda::MemoryMatrix TMat, nda::MemoryVector TVec>
-  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov);
+  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt = 0);
 
   /*
    * Calculates the mixed density matrix for all walkers in the walker set. 
@@ -250,39 +255,38 @@ public:
    *                 otherwise returns full form with Dim: [NMO*NMO]. 
    */ 
   template<class WlkSet, nda::MemoryMatrix MatG>
-  void MixedDensityMatrix(const WlkSet& wset, MatG&& G, bool compact = true)
+  void MixedDensityMatrix(const WlkSet& wset, MatG&& G, int nt)
   {
     int nw = wset.size();
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
-    MixedDensityMatrix(wset, std::forward<MatG>(G), ovlp, compact);
+    MixedDensityMatrix(wset, std::forward<MatG>(G), ovlp, nt);
   }
 
   template<class WlkSet, nda::MemoryMatrix MatG, nda::MemoryVector TVec>
-  void MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, bool compact = true);
+  void MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, int nt);
 
   /*
    * Calculates the density matrix with respect to a given Reference
    * for all walkers in the walker set. 
    */
-  template<class WlkSet, nda::MemoryVector RVec, nda::MemoryMatrix MatG, nda::MemoryVector TVec>
-  void DensityMatrix(const WlkSet& wset, RVec&& Ref, MatG&& G, TVec&& Ov, 
-                     bool compact = true, bool herm = true);
+  template<class WlkSet, nda::MemoryMatrix RVec, nda::MemoryMatrix MatG, nda::MemoryVector TVec>
+  void DensityMatrix(const WlkSet& wset, RVec&& Ref, MatG&& G, TVec&& Ov, int nt);
 
   /*
    * Calculates the overlaps of all walkers in the set. Returns values in arrays. 
    */
   template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-  void Log_Overlap(const WlkSet& wset, TVec && Ov);
+  void Log_Overlap(const WlkSet& wset, TVec && Ov, int nt = 0);
 
   /*
    * Calculates the overlaps of all walkers in the set. Updates values in wset. 
    */
   template<class WlkSet>
-  void Log_Overlap(WlkSet& wset)
+  void Log_Overlap(WlkSet& wset, int nt = 0)
   {
     int nw = wset.size();
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
-    Log_Overlap(wset, ovlp);
+    Log_Overlap(wset, ovlp, nt);
     wset.setProperty(OVLP, ovlp);
   }
 
@@ -293,68 +297,56 @@ public:
   void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
         std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
         nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
-        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true);
-
+        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true, int nt=0);
+  
   /*
    * Calculates Green functions and calls Observables.
    */
   template<class WlkSet, class Observable>
   void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
         std::vector<Observable>& properties_1body,
-        std::vector<Observable>& properties, bool importanceSampling = true)
+        std::vector<Observable>& properties, bool importanceSampling = true, int nt = 0)
   {
     memory::buffered_array<MEM,ComplexType,4> *X = nullptr;
-    accumulate_estimators(iav,wset,wgt,properties_1body,properties,X,X,X,false,importanceSampling);
+    accumulate_estimators(iav,wset,wgt,properties_1body,properties,X,X,X,false,importanceSampling,nt);
   }
 
-  ComplexType getReferenceWeight(int i) const { return ci[i]; }
-
-  int total_number_of_references() const { return OrbMats.extent(0); }
-
   /*
-   * Returns the reference Slater Matrices needed for back propagation.  
-   */ 
+   * Calculates Green functions and calls Observables.
+   */
+  /*
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
+        bool importanceSampling=true, int nt=0);
+  */
+  ComplexType getReferenceWeight(int i) const { 
+    utils::check(false, "back propagation not implemented for finite-T");
+  }
+
+  int total_number_of_references() const { 
+    utils::check(false, "back propagation not implemented for finite-T");
+  }
+
   void getReferences(int number_of_references, nda::MemoryArrayOfRank<3> auto&& Refs) const
   {
-    using nda::range;
-    auto all = range::all;
-    memory::check_memory_space<MEM>(Refs);
-    int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
-    int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
-    int nspin = (walker_type == COLLINEAR ? 2 : 1);
-    if(number_of_references==0) return;
-    if(number_of_references < 0) number_of_references = OrbMats.extent(0);
-    utils::check(number_of_references > 0 and 
-                 number_of_references <= OrbMats.extent(0) and
-                 number_of_references <= Refs.extent(0), 
-                 "Invalid number_of_references:{}", number_of_references);
-    utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
-    if constexpr (math::sparse::CSRMatrix<devPsiT>) {
-      for(int i=0; i<number_of_references; ++i) {
-        Refs(i,all,range(nup)) = math::sparse::to_array<'H'>(OrbMats(i,0)());
-        if(walker_type == COLLINEAR)
-          Refs(i,all,range(nup,nel)) = math::sparse::to_array<'H'>(OrbMats(i,1)());
-      }
-    } else { 
-      for(int i=0; i<number_of_references; ++i) {
-        nda::tensor::add(nda::conj(OrbMats(i,0)()),"ji",Refs(i,all,range(nup)),"ij");
-        if(walker_type == COLLINEAR)
-          nda::tensor::add(nda::conj(OrbMats(i,0)()),"ji",Refs(i,all,range(nup,nel)),"ij");
-//        Refs(i,all,range(nup)) = nda::dagger(OrbMats(i,0)());
-//        if(walker_type == COLLINEAR)
-//          Refs(i,all,range(nup,nel)) = nda::dagger(OrbMats(i,1)());
-      }
-    }
+    utils::check(false, "back propagation not implemented for finite-T");
   }
 
   void updateLogScale(auto scl_new, SpinTypes s)
   {
-    utils::check(false, "updateLogScale is not implemented for ground state calculations");
+    if(s==Alpha) 
+        sclL_up += scl_new;
+    else if(s==Beta)
+        sclL_dn += scl_new;     
   }
 
   auto getLogScale(SpinTypes s)
   {
-    utils::check(false, "getLogScale is not implemented for ground state calculations"); 
+    if(s==Alpha) 
+        return sclL_up;
+    else
+        return sclL_dn;     
   }
 
 protected:
@@ -367,13 +359,30 @@ protected:
 
   nda::array<ComplexType, 1> ci;
 
-  // OrbMats[ndet][nspin](nel,NMO)
-  nda::array<devPsiT,2> OrbMats;
+  // OrbMats[ndet][nspin][3](nel,NMO)
+  nda::array<devPsiT,3> OrbMats;
+
+  // RefOrbMats[ndet][nspin][nel][NMO]
+  // this should be a shared_array!!!
+  memory::array<MEM,ComplexType,4> RefOrbMats;
+
+  // log scale for DL
+  ComplexType sclL_up = 0.0, sclL_dn = 0.0;
 
   ComplexType NuclearCoulombEnergy;
 
 /*
   void recompute_ci();
+
+  template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
+  void accumulate_estimators_general_impl(int iav, WlkSet& wset, TVec& wgt, 
+        std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
+        Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
+
+  template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
+  void accumulate_estimators_single_ref_impl(int iav, WlkSet& wset, TVec& wgt, 
+        std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
+        Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
 */
 };
 
@@ -381,5 +390,5 @@ protected:
 
 } // namespace sfqmc
 
-#include "AFQMC/Wavefunctions/NOMSD.icc"
+#include "AFQMC/Wavefunctions/NOMSD_FT.icc"
 

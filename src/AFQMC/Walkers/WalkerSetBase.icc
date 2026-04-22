@@ -573,14 +573,14 @@ void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<4> auto const& UDV
     { 
       walker_buffer(pos,all) = ComplexType(0.0);
       reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
-      w0.template UMatrix<_M_>(Alpha) = UDV(0,0,nda::ellipsis{});
-      w0.template DMatrix<_M_>(Alpha) = nda::diagonal(UDV(1,0,nda::ellipsis{}));
-      w0.template VMatrix<_M_>(Alpha) = UDV(2,0,nda::ellipsis{});
+      w0.UMatrix(Alpha) = UDV(0,0,nda::ellipsis{});
+      w0.DMatrix(Alpha) = nda::diagonal(UDV(1,0,nda::ellipsis{}));
+      w0.VMatrix(Alpha) = UDV(2,0,nda::ellipsis{});
       if (walkerType == COLLINEAR_FT)
       {
-        w0.template UMatrix<_M_>(Beta) = UDV(0,1,all,nda::range(wlk_desc[2]));
-        w0.template DMatrix<_M_>(Beta) = nda::diagonal(UDV(1,1,all,nda::range(wlk_desc[2])));
-        w0.template VMatrix<_M_>(Beta) = UDV(2,1,all,nda::range(wlk_desc[2]));
+        w0.UMatrix(Beta) = UDV(0,1,all,nda::range(wlk_desc[2]));
+        w0.DMatrix(Beta) = nda::diagonal(UDV(1,1,all,nda::range(wlk_desc[2])));
+        w0.VMatrix(Beta) = UDV(2,1,all,nda::range(wlk_desc[2]));
       }
       pos++;
     }

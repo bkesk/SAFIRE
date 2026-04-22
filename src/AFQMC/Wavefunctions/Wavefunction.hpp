@@ -21,6 +21,7 @@
 
 #include "AFQMC/Wavefunctions/NOMSD.hpp"
 #include "AFQMC/Wavefunctions/PHMSD.hpp"
+#include "AFQMC/Wavefunctions/NOMSD_FT.hpp"
 
 namespace sfqmc
 {
@@ -41,6 +42,14 @@ public:
 
   explicit Wavefunction(PHMSD<MEM>&& other) : var(std::move(other)) {}
   explicit Wavefunction(PHMSD<MEM> const& other) : var(other) {} 
+
+  // Add finite-T NOMSD wavefunctions
+  explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>> const& other) = delete;
+
+  explicit Wavefunction(NOMSD_FT<MEM,memory::shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD_FT<MEM,memory::shared_array<MEM,ComplexType,2>> const& other) = delete; 
+
 
   Wavefunction(Wavefunction const& other) = delete;
   Wavefunction(Wavefunction&& other)      = default;
@@ -106,6 +115,7 @@ public:
     return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
   }
 
+
   template<class... Args>
   void Energy(Args&&... args)
   {
@@ -118,6 +128,7 @@ public:
     std::visit([&](auto&& a) { a.DensityMatrix(std::forward<Args>(args)...); }, var);
   }
 
+  
   template<class... Args>
   void MixedDensityMatrix(Args&&... args)
   {
@@ -129,6 +140,7 @@ public:
   {
     std::visit([&](auto&& a) { a.Log_Overlap(std::forward<Args>(args)...); }, var);
   }
+  
 
   auto total_number_of_references() const
   {
@@ -181,11 +193,26 @@ public:
   {
     return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); }, var);
   }
+
+  template<class... Args>
+  void updateLogScale(Args&&... args)
+  {
+    std::visit([&](auto&& a) { a.updateLogScale(std::forward<Args>(args)...); }, var);
+  }
   
+  template<class... Args>
+  auto getLogScale(Args&&... args)
+  {
+    std::visit([&](auto&& a) { a.getLogScale(std::forward<Args>(args)...); }, var);
+  }
+
   private:
+
 
   std::variant<NOMSD<MEM,PsiT_Matrix<MEM>>,
                NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>,
+               NOMSD_FT<MEM,PsiT_Matrix<MEM>>,
+               NOMSD_FT<MEM,memory::shared_array<MEM,ComplexType,2>>,
                PHMSD<MEM>
               > var;
 

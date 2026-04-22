@@ -428,6 +428,16 @@ public:
     Refs() = RefOrbMats()(range(number_of_references),all,all);
   }
 
+  void updateLogScale(auto scl_new, SpinTypes s)
+  {
+    utils::check(false, "updateLogScale is not compatible with ground state calculations");
+  }
+
+  auto getLogScale(SpinTypes s)
+  {
+    utils::check(false, "getLogScale is not compatible with ground state calculations"); 
+  }
+
 protected:
 
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;

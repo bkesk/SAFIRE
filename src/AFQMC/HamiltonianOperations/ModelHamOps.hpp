@@ -102,9 +102,10 @@ public:
         long Jn = long(v%M);
         v = In*NMO + (Jn%NMO);  
       }
-      n2IJ_vHS_dev() = n2IJ_vHS_h(); 
+      n2IJ_vHS_dev() = n2IJ_vHS_h();
     }
     mpi->comm.barrier();
+  
   }
 
   ~ModelHamOps() {}
