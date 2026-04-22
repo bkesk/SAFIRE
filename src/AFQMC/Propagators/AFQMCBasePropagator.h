@@ -279,7 +279,7 @@ public:
   AFQMCBasePropagator& operator=(AFQMCBasePropagator&& other) = delete;
 
   template<class WlkSet>
-  void Propagate(WlkSet& wset, RealType E1, RealType dt);
+  void Propagate(WlkSet& wset, RealType E1, RealType dt, int nt = 0);
 
   template<class WlkSet>
   void BackPropagate(int nbpsteps, int nStabalize, WlkSet& wset, 
