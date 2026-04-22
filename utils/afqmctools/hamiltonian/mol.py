@@ -36,7 +36,6 @@ def write_hamil_mol(
     ortho_ao=False,
     nelec=None,
     real_chol=True,
-    dense=True,
     df=False,
     ):
     """Write hamiltonian from pyscf scf calculation on mol object."""
@@ -54,29 +53,16 @@ def write_hamil_mol(
     chol_vecs = chol_vecs.T
     norb = X.shape[-1]
 
-    if dense:
-        write_dense(
-            hcore,
-            chol_vecs,
-            nelec,
-            nmo=norb,
-            enuc=enuc,
-            real_chol=real_chol,
-            filename=hamil_file,
-            ortho=X
-            )
-    else:
-        write_sparse(
-            hcore,
-            chol_vecs,
-            nelec,
-            nmo=norb,
-            e0=enuc,
-            filename=hamil_file,
-            real_chol=real_chol,
-            verbose=verbose,
-            ortho=X
-        )
+    write_dense(
+        hcore,
+        chol_vecs,
+        nelec,
+        nmo=norb,
+        enuc=enuc,
+        real_chol=real_chol,
+        filename=hamil_file,
+        ortho=X
+    )
 
 def _transform_from_scf_data(scf_data, ortho_ao, cas = None):
     C = scf_data['mo_coeff']

@@ -32,7 +32,7 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                   ortho_ao=False, df=False, kpoint=False, verbose=False,
                   cas=None, wfn_file=None,
                   write_hamil=True, ndet_max=None, real_chol=False,
-                  phdf=False, low=0.1, high=0.95, dense=False, 
+                  phdf=False, low=0.1, high=0.95,
                   walker_type=None, with_sfx2c=False,
                   with_x2c=False):
     """Dispatching routine dependent on options.
@@ -97,7 +97,6 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                 cas=cas,
                 ortho_ao=ortho_ao,
                 real_chol=real_chol,
-                dense=dense,
                 df=df,
             )
         write_wfn_mol(
