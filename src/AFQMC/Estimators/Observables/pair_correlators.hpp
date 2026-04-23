@@ -71,7 +71,7 @@ public:
     mpi->node_comm.barrier();
 
     int x = walker_type == NONCOLLINEAR ? 2 : 1;
-    dm_size = x*NMO*(x*NMO-1)/2;
+    int dm_size = x*NMO*(x*NMO-1)/2;
 
     pair_corr_average.resize(nave_, num_correlators, num_correlators, dm_size);
     nda::tensor::set(0, pair_corr_average);
@@ -237,8 +237,6 @@ private:
   int num_correlators{}; // number of correlators which are actually used! (vs number of correlators defined in the HDF5 input)
 
   WALKER_TYPES walker_type{};
-
-  int dm_size{};
 
   std::vector<memory::host_array<int,2>> pair_map;
 
