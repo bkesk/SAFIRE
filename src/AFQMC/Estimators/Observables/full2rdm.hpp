@@ -63,7 +63,7 @@ public:
       if (mpi->node_comm.root())
       {
         h5::file file(rot_file, 'r');
-        h5::group grp = h5::group(file).open_group(h5_path);
+        h5::group grp = h5::group(file).create_group(h5_path);
         memory::default_array<ComplexType,2> R;
         h5::read(grp, "RotationMatrix", XRot);
 
@@ -75,11 +75,11 @@ public:
       XRot.resize(dim);
       mpi->node_comm.broadcast_n(XRot.data(), XRot.size(), 0);
 
-      dm_size = XRot.shape(0) * XRot.shape(0);
+      dm_size = XRot.shape(0);
     }
     else
     {
-      dm_size = NMO * NMO;
+      dm_size = NMO;
     }
 
     // (a,a,a,a), (a,a,b,b)
@@ -91,12 +91,12 @@ public:
     else if (walker_type == NONCOLLINEAR)
       APP_ABORT(" Error: NONCOLLINEAR not yet implemented. \n\n");
 
-    DMAverage.resize(nave_, nspinblocks, dm_size, dm_size);
-    DMAverage() = 0;
+    dm_average.resize(nave_, nspinblocks, dm_size, dm_size, dm_size, dm_size);
+    nda::tensor::set(0,dm_average());
   }
 
 /*******   Interface for sum over references, e.g. NOMSD ********/
-  auto accumulate(int iav, nda::MemoryArrayOfRank<4> auto&& G, nda::MemoryVector auto&& Xw, [[maybe_unused]] bool impsamp)
+  auto accumulate(int iav, nda::MemoryArrayOfRank<4> auto&& G, nda::MemoryArrayOfRank<4> auto&& G_host, nda::MemoryVector auto&& Xw, [[maybe_unused]] bool impsamp)
   {
     // assumes G[nwalk][spin][M][M]
     utils::check(G.shape(0) == Xw.shape(0), "G and Xw number of columns (walkers) mismatch: {} != {}", G.shape(0), Xw.shape(0));
@@ -128,20 +128,21 @@ public:
 
   auto print(int iblock, h5::group *group, nda::Vector auto&& Wsum)
   {
-    DMAverage() *= 1.0 / block_size;
-    mpi->reduce(DMAverage, std::plus<>(), 0);
+    nda::tensor::scale(1.0 / block_size, dm_average());
+    mpi->reduce(dm_average, std::plus<>(), 0);
     if(mpi->comm.root())
     {
       assert(group);
-      for (int i = 0; i < DMAverage.shape(0); ++i)
+      h5::group parent = group->create_group("FullTwoRDM");
+      for (int i = 0; i < dm_average.shape(0); ++i)
       {
-        h5::group obs_group = group->open_group(std::format("FullTwoRDM/Average_{}", i));
+        h5::group obs_group = parent.create_group(std::format("Average_{}", i));
         std::string padded_iblock = std::format("{:09}", iblock);
-        h5::write(obs_group, "two_rdm_" + padded_iblock, nda::flatten(DMAverage(i, nda::ellipsis{})));
+        h5::write(obs_group, "two_rdm_" + padded_iblock, nda::flatten(dm_average(i, nda::ellipsis{})));
         h5::write(obs_group, "denominator_" + padded_iblock, Wsum[i]);
       }
     }
-    DMAverage() = 0;
+    nda::tensor::set(0, dm_average());
   }
 
 private:
@@ -155,8 +156,8 @@ private:
   memory::default_array<ComplexType,2> XRot;
   memory::default_array<ComplexType,1> Grot;
 
-  // DMAverage (nave, nspinblocks, x*NMO^2, x*NMO^2), x=(1:CLOSED/COLLINEAR, 2:NONCOLLINEAR)
-  memory::default_array<ComplexType,4> DMAverage;
+  // dm_average (nave, nspinblocks, x*NMO, x*NMO, x*NMO, xNMO), x=(1:CLOSED/COLLINEAR, 2:NONCOLLINEAR)
+  memory::default_array<ComplexType,6> dm_average;
 
   auto acc_no_rotation(int iav, nda::MemoryArrayOfRank<4> auto&& G, nda::MemoryVector auto&& Xw)
   {
@@ -173,30 +174,18 @@ private:
       memory::default_array<ComplexType,2> R(NMO * NMO, NMO * NMO);
       memory::default_array<ComplexType,2> Q(NMO, NMO * NMO * NMO);
     
-      memory::default_array<ComplexType,2> Gt(NMO, NMO);
+      memory::default_array<ComplexType,4> XwG(G.shape());
+      nda::tensor::contract(Xw, "w", G, "wsij", XwG, "wsij");
 
-      for (int iw = 0; iw < nw; iw++)
-      {
-        // same spin
-        for(int ispin = 0; ispin < 2; ispin++) {
-          auto Gv = reshape(G(iw, ispin, ellipsis{}), M2, 1);
-          math::product<'N', 'T'>(Gv, Gv, R);
-          DMAverage(iav, 2*ispin, ellipsis{}) += Xw(iw) * R;
-
-          // reshape trick to get the -Gil Gjk term
-          // Note: nda/tensor will not reshape transposed arrays correctly.
-          // Therefore we make sure to materialize the transpose first
-          Gt() = transpose(G(iw, ispin, ellipsis{}));
-          math::product<'N', 'T'>(reshape(Gt, M2,1), reshape(Gt,M2,1), R);
-          Q() = transpose(reshape(R, NMO*M2, NMO));
-          DMAverage(iav, 2*ispin, ellipsis{}) -= Xw(iw) * reshape(Q, M2, M2);
-        }
-        // mixed spin: no exchange term
-        auto Gv1 = reshape(G(iw, 0, ellipsis{}), M2, 1);
-        auto Gv2 = reshape(G(iw, 1, ellipsis{}), M2, 1);
-        math::product<'N', 'T'>(Gv1, Gv2, R);
-        DMAverage(iav, 1, ellipsis{}) += Xw(iw) * R;
+      for(int ispin = 0; ispin < 2; ispin++) {
+        auto XwGs = XwG(nda::range::all, ispin, ellipsis{});
+        auto Gs = G(nda::range::all, ispin, ellipsis{});
+        nda::tensor::contract(1, XwGs, "wik", Gs, "wjl", 1, dm_average(iav, 2*ispin, ellipsis{}), "ikjl");
+        nda::tensor::contract(-1, XwGs, "wil", Gs, "wjk", 1, dm_average(iav, 2*ispin, ellipsis{}), "ikjl");
       }
+      auto XwGu = XwG(nda::range::all, 0, ellipsis{});
+      auto Gd = G(nda::range::all, 1, ellipsis{});
+      nda::tensor::contract(1,XwGu, "wik", Gd, "wjl", 1, dm_average(iav, 1, ellipsis{}), "ikjl");
     }
     else
     {
