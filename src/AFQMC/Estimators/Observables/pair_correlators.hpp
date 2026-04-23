@@ -33,10 +33,9 @@ namespace afqmc
 class pair_correlator : public AFQMCInfo
 {
 public:
-   pair_correlator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, AFQMCInfo& info, ptree pt0, WALKER_TYPES wlk, int nave_ = 1, int bsize = 1)
+   pair_correlator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, AFQMCInfo& info, ptree pt0, WALKER_TYPES wlk, int nave_ = 1)
       : AFQMCInfo(info),
         mpi{mpi},
-        block_size{bsize},
         num_correlators{0},
         walker_type{wlk}
   {
@@ -124,6 +123,7 @@ public:
   {
     // assumes G[nwalk][spin][M][M]
     using nda::range;
+    ncalls++;
 
     // not implemented on GPU yet
     auto Xwhost = nda::to_host(Xw);
@@ -214,7 +214,7 @@ public:
   
   void print(int iblock, h5::group *group, nda::Vector auto&& Wsum)
   {
-    nda::tensor::scale(ComplexType(1.0 / block_size), pair_corr_average);
+    nda::tensor::scale(ComplexType(1.0 / double(ncalls)), pair_corr_average);
     mpi->reduce(pair_corr_average, std::plus<>(), 0);
     if (mpi->comm.root()) {
       assert(group);
@@ -228,11 +228,12 @@ public:
       }
     }
     nda::tensor::set(0, pair_corr_average);
+    ncalls = 0;
   }
 
 private:
   std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
-  int block_size{};
+  int ncalls = 0;
 
   int num_correlators{}; // number of correlators which are actually used! (vs number of correlators defined in the HDF5 input)
 

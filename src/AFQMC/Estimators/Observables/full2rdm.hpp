@@ -42,11 +42,10 @@ namespace afqmc
 class full2rdm : public AFQMCInfo
 {
 public:
-  full2rdm(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi_, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave_ = 1, int bsize = 1)
+  full2rdm(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi_, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave_ = 1)
       : AFQMCInfo{info},
         mpi{mpi_},
         walker_type{wlk},
-        block_size{bsize},
         apply_rotation{false}
   {
     app_log(1,"  --  Adding 2RDM (TwoRDM) estimator. -- ");
@@ -100,6 +99,7 @@ public:
   {
     // assumes G[nwalk][spin][M][M]
     utils::check(G.shape(0) == Xw.shape(0), "G and Xw number of columns (walkers) mismatch: {} != {}", G.shape(0), Xw.shape(0));
+    ncalls++;
 
     if (apply_rotation)
       acc_with_rotation(iav, G, Xw);
@@ -128,7 +128,7 @@ public:
 
   auto print(int iblock, h5::group *group, nda::Vector auto&& Wsum)
   {
-    nda::tensor::scale(1.0 / block_size, dm_average());
+    nda::tensor::scale(1.0 / double(ncalls), dm_average());
     mpi->reduce(dm_average, std::plus<>(), 0);
     if(mpi->comm.root())
     {
@@ -143,6 +143,7 @@ public:
       }
     }
     nda::tensor::set(0, dm_average());
+    ncalls = 0;
   }
 
 private:
@@ -150,7 +151,7 @@ private:
 
   WALKER_TYPES walker_type;
 
-  int block_size{};
+  int ncalls = 0;
   bool apply_rotation{};
 
   memory::default_array<ComplexType,2> XRot;

@@ -81,57 +81,57 @@ public:
       {
         properties.emplace_back(Observable(full1rdm(mpi, info, it.second, walker_type, nave)));
       }
-/*
-      else if (cname == "gfock" || cname == "genfock" || cname == "ekt")
-      {
-        properties.emplace_back(Observable(
-            generalizedFockMatrix(TG, info, it.second, walker_type, wfn0, nave, block_size)));
-      }
+
+//       else if (cname == "gfock" || cname == "genfock" || cname == "ekt")
+//       {
+//         properties.emplace_back(Observable(
+//             generalizedFockMatrix(TG, info, it.second, walker_type, wfn0, nave, block_size)));
+//       }
       else if (cname == "diag2rdm")
       {
-        properties.emplace_back(Observable(diagonal2rdm(TG, info, it.second, walker_type, nave, block_size)));
+        properties.emplace_back(Observable(diagonal2rdm(mpi, info, it.second, walker_type, nave)));
       }
       else if (cname == "twordm")
       {
-        properties.emplace_back(Observable(full2rdm(TG, info, it.second, walker_type, nave, block_size)));
+        properties.emplace_back(Observable(full2rdm(mpi, info, it.second, walker_type, nave)));
       }
-      else if (cname == "n2r" || cname == "ontop2rdm")
-      {
-#if defined(ENABLE_DEVICE)
-        ptree pt1 = it.second;
-        bool use_host_memory = pt1.get<bool>("use_host_memory", false);
-        if (use_host_memory)
-        {
-          properties.emplace_back(Observable(
-              n2r<device_allocator<ComplexType>>(TG, info, it.second, walker_type, false, device_allocator<ComplexType>{},
-                                                 device_allocator<ComplexType>{}, nave, block_size)));
-        }
-        else
-#endif
-        {
-          properties.emplace_back(Observable(
-              n2r<shared_allocator<ComplexType>>(TG, info, it.second, walker_type, true,
-                                                 shared_allocator<ComplexType>{TG.TG_local()},
-                                                 shared_allocator<ComplexType>{TG.Node()}, nave, block_size)));
-        }
-      }
-      else if (cname == "realspace_correlators")
-      {
-        properties.emplace_back(Observable(realspace_correlators(TG, info, it.second, walker_type, nave, block_size)));
-      }
-      else if (cname == "correlators")
-      {
-        properties.emplace_back(Observable(atomcentered_correlators(TG, info, it.second, walker_type, nave, block_size)));
-      }
+//       else if (cname == "n2r" || cname == "ontop2rdm")
+//       {
+// #if defined(ENABLE_DEVICE)
+//         ptree pt1 = it.second;
+//         bool use_host_memory = pt1.get<bool>("use_host_memory", false);
+//         if (use_host_memory)
+//         {
+//           properties.emplace_back(Observable(
+//               n2r<device_allocator<ComplexType>>(TG, info, it.second, walker_type, false, device_allocator<ComplexType>{},
+//                                                  device_allocator<ComplexType>{}, nave, block_size)));
+//         }
+//         else
+// #endif
+//         {
+//           properties.emplace_back(Observable(
+//               n2r<shared_allocator<ComplexType>>(TG, info, it.second, walker_type, true,
+//                                                  shared_allocator<ComplexType>{TG.TG_local()},
+//                                                  shared_allocator<ComplexType>{TG.Node()}, nave, block_size)));
+//         }
+//       }
+//       else if (cname == "realspace_correlators")
+//       {
+//         properties.emplace_back(Observable(realspace_correlators(TG, info, it.second, walker_type, nave, block_size)));
+//       }
+//       else if (cname == "correlators")
+//       {
+//         properties.emplace_back(Observable(atomcentered_correlators(TG, info, it.second, walker_type, nave, block_size)));
+//       }
       else if (cname == "pair_correlators")
       {
-        properties.emplace_back(Observable(pair_correlator(TG, info, it.second, walker_type, nave, block_size)));
+        properties.emplace_back(Observable(pair_correlator(mpi, info, it.second, walker_type, nave)));
       }
       else if (cname == "spinspin")
       {
-        properties.emplace_back(Observable(spinspinobs(TG, info, it.second, walker_type, nave, block_size)));
+        properties.emplace_back(Observable(spinspinobs(mpi, info, it.second, walker_type, nave)));
       }
-*/
+
     }
 
     utils::check(properties.size() > 0, "empty observables list is not allowed.");

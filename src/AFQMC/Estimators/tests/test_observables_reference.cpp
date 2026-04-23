@@ -136,7 +136,7 @@ void compare_diagonal2rdm_case(std::string const& case_group, WALKER_TYPES wt)
 
   AFQMCInfo info{"diagonal2rdm_test_info", ref.NMO, ref.NAEA, ref.NAEB};
   ptree obs_pt;
-  diagonal2rdm obs(mpi, info, obs_pt, wt, ref.nave, /*block_size=*/1);
+  diagonal2rdm obs(mpi, info, obs_pt, wt, ref.nave);
 
   obs.accumulate(0, ref.G, ref.G, ref.Xw, true);
 
@@ -189,7 +189,7 @@ void compare_spinspin_case(std::string const& case_group, WALKER_TYPES wt)
 
   AFQMCInfo info{"spinspin_test_info", ref.NMO, ref.NAEA, ref.NAEB};
   ptree obs_pt;
-  spinspinobs obs(mpi, info, obs_pt, wt, ref.nave, /*block_size=*/1);
+  spinspinobs obs(mpi, info, obs_pt, wt, ref.nave);
 
   obs.accumulate(0, ref.G, ref.G, ref.Xw, true);
 
@@ -244,7 +244,7 @@ TEST_CASE("full2rdm_vs_old_reference", "[estimators][observables][full2rdm]")
 
   AFQMCInfo info{"full2rdm_test_info", ref.NMO, ref.NAEA, ref.NAEB};
   ptree obs_pt;
-  full2rdm obs(mpi, info, obs_pt, COLLINEAR, ref.nave, /*block_size=*/1);
+  full2rdm obs(mpi, info, obs_pt, COLLINEAR, ref.nave);
 
   obs.accumulate(0, ref.G, ref.G, ref.Xw, true);
 

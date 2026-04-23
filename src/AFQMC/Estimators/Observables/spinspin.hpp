@@ -32,10 +32,9 @@ namespace afqmc
 class spinspinobs : public AFQMCInfo
 {
 public:
-  spinspinobs(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave_ = 1, int bsize = 1)
+  spinspinobs(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave_ = 1)
       : AFQMCInfo{info},
         mpi{mpi},
-        block_size{bsize},
         walker_type{wlk}
   {
     app_log(1,"  --  Adding Spin*Spin (spinspinobs) estimator. -- ");
@@ -52,9 +51,10 @@ public:
 /*******   Interface for sum over references, e.g. NOMSD ********/
   auto accumulate(int iav, nda::MemoryArrayOfRank<4> auto&& G, nda::MemoryArrayOfRank<4> auto&& G_host, nda::MemoryVector auto&& Xw, [[maybe_unused]] bool impsamp)
   {
+    ncalls++;
 
     // assumes G[nwalk][spin][M][M]
-    // no parallelization over ncores for now, fix if needed 
+    // no parallelization over ncores for now, fix if needed
 
     auto avg_xy = dm_average(iav, 0, nda::range::all);
     auto avg_z = dm_average(iav, 1, nda::range::all);
@@ -178,7 +178,7 @@ public:
 
   void print(int iblock, h5::group *group, nda::Vector auto&& Wsum)
   {
-    nda::tensor::scale(1.0 / block_size, dm_average);
+    nda::tensor::scale(1.0 / double(ncalls), dm_average);
     mpi->reduce(dm_average, std::plus<>(), 0);
     if(mpi->comm.root()) {
       assert(group);
@@ -192,11 +192,12 @@ public:
       }
     }
     nda::tensor::set(0, dm_average());
+    ncalls = 0;
   }
 
 private:
   std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
-  int block_size;
+  int ncalls = 0;
 
   WALKER_TYPES walker_type;
 

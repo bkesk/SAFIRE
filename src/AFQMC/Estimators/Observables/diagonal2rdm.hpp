@@ -38,10 +38,9 @@ namespace afqmc
 class diagonal2rdm : public AFQMCInfo
 {
 public:
-  diagonal2rdm(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave_ = 1, int bsize = 1)
+  diagonal2rdm(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave_ = 1)
       : AFQMCInfo{info},
         mpi{mpi},
-        block_size{bsize},
         walker_type{wlk}
   {
     app_log(1,"  --  Adding Diagonal 2RDM (Diag2RDM) estimator. -- ");
@@ -62,6 +61,7 @@ public:
     using nda::ellipsis;
     using nda::range;
     // assumes G[nwalk][spin][M][M]
+    ncalls++;
 
     int nspin = walker_type == COLLINEAR ? 2 : 1;
     int npol = walker_type == NONCOLLINEAR ? 2 : 1;
@@ -104,7 +104,7 @@ public:
 
   auto print(int iblock, h5::group *group, const nda::Vector auto& Wsum)
   {
-    dm_average() *= 1.0 / block_size;
+    dm_average() *= 1.0 / double(ncalls);
     mpi->reduce(dm_average, std::plus<>(), 0);
     
     if(mpi->comm.root())
@@ -122,6 +122,7 @@ public:
       }
     }
     dm_average() = 0;
+    ncalls = 0;
   }
 
 
@@ -170,7 +171,7 @@ private:
   
   std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
 
-  int block_size{};
+  int ncalls = 0;
   WALKER_TYPES walker_type{};
   std::string hdf_walker_output{};
   

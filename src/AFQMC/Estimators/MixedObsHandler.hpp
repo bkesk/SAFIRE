@@ -74,11 +74,11 @@ public:
       }
       else if (cname == "diag2rdm")
       {
-//        properties.emplace_back(Observable(diagonal2rdm(mpi, info, it.second, walker_type, 1, block_size)));
+       properties.emplace_back(Observable(diagonal2rdm(mpi, info, it.second, walker_type, 1)));
       }
       else if (cname == "twordm")
       {
-//        properties.emplace_back(Observable(full2rdm(mpi, info, it.second, walker_type, 1, block_size)));
+       properties.emplace_back(Observable(full2rdm(mpi, info, it.second, walker_type, 1)));
       }
       else if (cname == "n2r" || cname == "ontop2rdm")
       {
@@ -110,11 +110,11 @@ public:
       }
       else if (cname == "pair_correlators")
       {
-//        properties.emplace_back(Observable(pair_correlator(mpi, info, it.second, walker_type, 1, block_size)));
+        properties.emplace_back(Observable(pair_correlator(mpi, info, it.second, walker_type, 1)));
       }
       else if (cname == "spinspin")
       {
-//        properties.emplace_back(Observable(spinspinobs(mpi, info, it.second, walker_type, 1, block_size)));
+        properties.emplace_back(Observable(spinspinobs(mpi, info, it.second, walker_type, 1)));
       }
     }
 
