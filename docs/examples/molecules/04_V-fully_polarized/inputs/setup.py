@@ -39,7 +39,6 @@ def main():
         basis_scf_data,
         fout, 
         chol_tol, 
-        dense=True,
         real_chol=True, 
         verbose=True,
         walker_type='fullypolarized',

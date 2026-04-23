@@ -529,7 +529,6 @@ write_hamil_mol(
     mf_data,
     fout,
     chol_cut=1e-6,
-    dense=True,
     real_chol=True,
     verbose=True
     )
