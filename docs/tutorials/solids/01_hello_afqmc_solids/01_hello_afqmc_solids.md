@@ -204,7 +204,6 @@ AF App version: 1.0.0
 app git branch: fix_compiler_warnings
 app git commit: 83a5e18c30fe824a77185cdb5df6e4dba2918f5c
  AFQMCFactory Project settings:
-    -- mixed_precision: false
     -- ncores (local) : 1
     -- n_groups       : 1
     -- id             : qmc
@@ -359,7 +358,6 @@ app git branch: develop
 app git commit: ee49a5e69208e2afc03aab970572b9e79759e543
 app git commit date: Fri Nov 7 13:27:02 2025 -0500
  AFQMCFactory Project settings:
-    -- mixed_precision: false
     -- ncores (local) : 1
     -- n_groups       : 1
     -- id             : qmc

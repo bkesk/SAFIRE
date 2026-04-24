@@ -115,8 +115,7 @@ SAFIRE provides a keyword in the "wavefunction" json input block to limit the nu
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {
@@ -268,8 +267,7 @@ will generate a "wavefunction" block that points to the wavefunction file, with 
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {
