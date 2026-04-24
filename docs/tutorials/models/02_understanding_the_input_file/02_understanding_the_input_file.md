@@ -166,7 +166,6 @@ files as `[id].s[series].scalar.dat` and `[id].s[series].stat.h5`.
 "project" : {
   "id" : "your_project_name",
   "series" : 0,
-  "mixed_precision" : false,
   "ncores" : 1
 }
 ```
@@ -194,7 +193,6 @@ td, th {
   
 | <b>        Parameter</b>   |  Default | Description |
 |--:|---|:--|
-| <b>mixed_precision</b> | `false` | Turn on mixed precision mode |
 | <b>ncores</b> | `1` | Set the number of cores to use per MPI task |
 
 +++ {"id": "6981f73f"}

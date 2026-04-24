@@ -221,7 +221,7 @@ Similarly to the measure_interval_multiplier, the equilibration time is specifie
 
 .. math::
 
-    \text{equil_time} = \text{equil\_multiplier} \times \text{population\_control\_interval}
+    \text{equil\_time} = \text{equil\_multiplier} \times \text{population\_control\_interval}
 
 
 Settings
