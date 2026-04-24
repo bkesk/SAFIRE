@@ -14,10 +14,10 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_FULL2RDM_HPP
-#define SFQMC_AFQMC_FULL2RDM_HPP
+#pragma once
 
 #include "AFQMC/config.h"
+#include <configuration.hpp>
 #include <string>
 #include <h5/group.hpp>
 #include <nda/layout/range.hpp>
@@ -25,9 +25,7 @@
 #include <nda/h5.hpp>
 #include <mpi3/communicator.hpp>
 
-#include "numerics/operations/product.hpp"
 #include "utilities/check.hpp"
-#include "AFQMC/Walkers/WalkerSet.hpp"
 
 namespace sfqmc
 {
@@ -39,6 +37,7 @@ namespace afqmc
  * where x:2 for NONCOLLINEAR and 1 for everything else.
  * For collinear, the spin ordering is (a,a,a,a), (a,a,b,b), (b,b,b,b) 
  */
+template<MEMORY_SPACE MEM>
 class full2rdm : public AFQMCInfo
 {
 public:
@@ -63,7 +62,7 @@ public:
       {
         h5::file file(rot_file, 'r');
         h5::group grp = h5::group(file).create_group(h5_path);
-        memory::default_array<ComplexType,2> R;
+        memory::array<MEM, ComplexType,2> R;
         h5::read(grp, "RotationMatrix", XRot);
 
         utils::check(XRot.shape(1) != NMO, "Rotation has wrong number of rows {} (expected {})", XRot.shape(1), NMO);
@@ -138,7 +137,7 @@ public:
       {
         h5::group obs_group = parent.create_group(std::format("Average_{}", i));
         std::string padded_iblock = std::format("{:09}", iblock);
-        h5::write(obs_group, "two_rdm_" + padded_iblock, nda::flatten(dm_average(i, nda::ellipsis{})));
+        h5::write(obs_group, "two_rdm_" + padded_iblock, nda::to_host(nda::flatten(dm_average(i, nda::ellipsis{}))));
         h5::write(obs_group, "denominator_" + padded_iblock, Wsum[i]);
       }
     }
@@ -154,11 +153,11 @@ private:
   int ncalls = 0;
   bool apply_rotation{};
 
-  memory::default_array<ComplexType,2> XRot;
-  memory::default_array<ComplexType,1> Grot;
+  memory::array<MEM, ComplexType,2> XRot;
+  memory::array<MEM, ComplexType,1> Grot;
 
   // dm_average (nave, nspinblocks, x*NMO, x*NMO, x*NMO, xNMO), x=(1:CLOSED/COLLINEAR, 2:NONCOLLINEAR)
-  memory::default_array<ComplexType,6> dm_average;
+  memory::array<MEM, ComplexType,6> dm_average;
 
   auto acc_no_rotation(int iav, nda::MemoryArrayOfRank<4> auto&& G, nda::MemoryVector auto&& Xw)
   {
@@ -172,11 +171,11 @@ private:
       size_t M2(NMO * NMO);
       size_t M4(M2 * M2);
 
-      memory::default_array<ComplexType,2> R(NMO * NMO, NMO * NMO);
-      memory::default_array<ComplexType,2> Q(NMO, NMO * NMO * NMO);
+      memory::buffered_array<MEM,ComplexType,2> R(NMO * NMO, NMO * NMO);
+      memory::buffered_array<MEM,ComplexType,2> Q(NMO, NMO * NMO * NMO);
     
-      memory::default_array<ComplexType,4> XwG(G.shape());
-      nda::tensor::contract(Xw, "w", G, "wsij", XwG, "wsij");
+      memory::buffered_array<MEM,ComplexType,4> XwG(G.shape());
+      nda::tensor::contract(memory::to_memory_space<MEM>(Xw), "w", G, "wsij", XwG, "wsij");
 
       for(int ispin = 0; ispin < 2; ispin++) {
         auto XwGs = XwG(nda::range::all, ispin, ellipsis{});
@@ -203,5 +202,3 @@ private:
 
 } // namespace afqmc
 } // namespace sfqmc
-
-#endif

@@ -14,10 +14,10 @@
 // and LICENSES/NCSA.txt for details.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SFQMC_AFQMC_DIAGONAL2RDM_HPP
-#define SFQMC_AFQMC_DIAGONAL2RDM_HPP
+#pragma once
 
 #include "AFQMC/config.h"
+#include <configuration.hpp>
 #include <vector>
 #include <memory>
 #include <string>
@@ -35,6 +35,7 @@ namespace afqmc
 /* 
  * Observable class that calculates the walker averaged diagonal of the 2 RDM 
  */
+template<MEMORY_SPACE MEM>
 class diagonal2rdm : public AFQMCInfo
 {
 public:
@@ -66,8 +67,8 @@ public:
     int nspin = walker_type == COLLINEAR ? 2 : 1;
     int npol = walker_type == NONCOLLINEAR ? 2 : 1;
 
-    memory::default_array<ComplexType,4> XwG(G.shape());
-    nda::tensor::contract(Xw, "w", G, "wsij", XwG, "wsij");
+    memory::buffered_array<MEM, ComplexType,4> XwG(G.shape());
+    nda::tensor::contract(memory::to_memory_space<MEM>(Xw), "w", G, "wsij", XwG, "wsij");
     
     // (aaaa), (bbbb)
     for(int spin = 0; spin < G.shape(1); spin++) {
@@ -104,13 +105,13 @@ public:
 
   auto print(int iblock, h5::group *group, const nda::Vector auto& Wsum)
   {
-    dm_average() *= 1.0 / double(ncalls);
+    nda::tensor::scale(1.0 / ncalls, dm_average);
     mpi->reduce(dm_average, std::plus<>(), 0);
     
     if(mpi->comm.root())
     {
       assert(group);
-      auto compressed_average = compress_dm_average(dm_average);
+      auto compressed_average = nda::to_host(compress_dm_average(dm_average));
       
       h5::group parent = group->create_group("DiagTwoRDM");
       for (int i = 0; i < dm_average.shape(0); ++i)
@@ -121,7 +122,7 @@ public:
         h5::write(obs_group, "denominator_" + padded_iblock, Wsum[i]);
       }
     }
-    dm_average() = 0;
+    nda::tensor::set(0, dm_average);
     ncalls = 0;
   }
 
@@ -173,17 +174,14 @@ private:
 
   int ncalls = 0;
   WALKER_TYPES walker_type{};
-  std::string hdf_walker_output{};
   
   // dm_average (nave, spin, x*NMO, x*NMO)
   // x=(1:CLOSED/COLLINEAR, 2:NONCOLLINEAR)
   // spin = [(aaaa), (aabb), (bbbb)] for COLLINEAR
   // spin = [(aaaa), (aabb)] for CLOSED
   // spin = [(aaaa)] for NONCOLLINEAR
-  memory::default_array<ComplexType,4> dm_average;
+  memory::array<MEM, ComplexType,4> dm_average;
 };
 
 } // namespace afqmc
 } // namespace sfqmc
-
-#endif

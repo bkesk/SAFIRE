@@ -11,11 +11,9 @@
  *
  */
 
-#ifndef SFQMC_AFQMC_PAIRCORR_HPP
-#define SFQMC_AFQMC_PAIRCORR_HPP
+#pragma once
 
 #include "AFQMC/config.h"
-#include "nda/layout/range.hpp"
 #include <utilities/mpi_context.h>
 #include <vector>
 #include <string>
@@ -74,11 +72,6 @@ public:
 
     pair_corr_average.resize(nave_, num_correlators, num_correlators, dm_size);
     nda::tensor::set(0, pair_corr_average);
-
-#ifdef HAVE_DEVICE
-      app_warning("PairCorrelator is not implemented on GPU. Will run slower.");
-#endif
-
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -247,5 +240,3 @@ private:
 
 } // namespace afqmc
 } // namespace sfqmc
-
-#endif

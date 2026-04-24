@@ -112,6 +112,7 @@ std::string reference_file_path()
   return std::string(PROJECT_SOURCE_DIR_STR) + "/tests/unit_test_files/rdm_reference.h5";
 }
 
+template<MEMORY_SPACE MEM>
 void compare_diagonal2rdm_case(std::string const& case_group, WALKER_TYPES wt)
 {
   auto& mpi = utils::make_unit_test_mpi_context();
@@ -136,11 +137,13 @@ void compare_diagonal2rdm_case(std::string const& case_group, WALKER_TYPES wt)
 
   AFQMCInfo info{"diagonal2rdm_test_info", ref.NMO, ref.NAEA, ref.NAEB};
   ptree obs_pt;
-  diagonal2rdm obs(mpi, info, obs_pt, wt, ref.nave);
+  diagonal2rdm<MEM> obs(mpi, info, obs_pt, wt, ref.nave);
 
-  obs.accumulate(0, ref.G, ref.G, ref.Xw, true);
+  auto G_mem = memory::to_memory_space<MEM>(ref.G);
+  obs.accumulate(0, G_mem, ref.G, ref.Xw, true);
 
-  const std::string out_file = "test_diagonal2rdm_" + case_group + "_output.h5";
+  const std::string out_file =
+      "test_diagonal2rdm_" + case_group + "_" + memory_space_to_string(MEM) + "_output.h5";
   {
     h5::file file(out_file, 'w');
     h5::group root(file);
@@ -191,7 +194,7 @@ void compare_spinspin_case(std::string const& case_group, WALKER_TYPES wt)
   ptree obs_pt;
   spinspinobs obs(mpi, info, obs_pt, wt, ref.nave);
 
-  obs.accumulate(0, ref.G, ref.G, ref.Xw, true);
+  obs.accumulate(0, ref.G, nda::to_host(ref.G), ref.Xw, true);
 
   const std::string out_file = "test_spinspin_" + case_group + "_output.h5";
   {
@@ -217,9 +220,8 @@ void compare_spinspin_case(std::string const& case_group, WALKER_TYPES wt)
   if (mpi->comm.root())
     std::remove(out_file.c_str());
 }
-} // namespace
-
-TEST_CASE("full2rdm_vs_old_reference", "[estimators][observables][full2rdm]")
+template<MEMORY_SPACE MEM>
+void compare_full2rdm_case()
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -244,11 +246,13 @@ TEST_CASE("full2rdm_vs_old_reference", "[estimators][observables][full2rdm]")
 
   AFQMCInfo info{"full2rdm_test_info", ref.NMO, ref.NAEA, ref.NAEB};
   ptree obs_pt;
-  full2rdm obs(mpi, info, obs_pt, COLLINEAR, ref.nave);
+  full2rdm<MEM> obs(mpi, info, obs_pt, COLLINEAR, ref.nave);
 
-  obs.accumulate(0, ref.G, ref.G, ref.Xw, true);
+  auto G_mem = memory::to_memory_space<MEM>(ref.G);
+  obs.accumulate(0, G_mem, ref.G, ref.Xw, true);
 
-  const std::string out_file = "test_full2rdm_output.h5";
+  const std::string out_file =
+      "test_full2rdm_" + memory_space_to_string(MEM) + "_output.h5";
   {
     h5::file file(out_file, 'w');
     h5::group root(file);
@@ -272,23 +276,41 @@ TEST_CASE("full2rdm_vs_old_reference", "[estimators][observables][full2rdm]")
   if (mpi->comm.root())
     std::remove(out_file.c_str());
 }
+} // namespace
+
+TEST_CASE("full2rdm_vs_old_reference", "[estimators][observables][full2rdm]")
+{
+  compare_full2rdm_case<HOST_MEMORY>();
+#if defined(ENABLE_DEVICE)
+  compare_full2rdm_case<DEVICE_MEMORY>();
+#endif
+}
 
 TEST_CASE("diagonal2rdm_vs_old_reference_closed",
           "[estimators][observables][diagonal2rdm]")
 {
-  compare_diagonal2rdm_case("closed", CLOSED);
+  compare_diagonal2rdm_case<HOST_MEMORY>("closed", CLOSED);
+#if defined(ENABLE_DEVICE)
+  compare_diagonal2rdm_case<DEVICE_MEMORY>("closed", CLOSED);
+#endif
 }
 
 TEST_CASE("diagonal2rdm_vs_old_reference_collinear",
           "[estimators][observables][diagonal2rdm]")
 {
-  compare_diagonal2rdm_case("collinear", COLLINEAR);
+  compare_diagonal2rdm_case<HOST_MEMORY>("collinear", COLLINEAR);
+#if defined(ENABLE_DEVICE)
+  compare_diagonal2rdm_case<DEVICE_MEMORY>("collinear", COLLINEAR);
+#endif
 }
 
 TEST_CASE("diagonal2rdm_vs_old_reference_noncollinear",
           "[estimators][observables][diagonal2rdm]")
 {
-  compare_diagonal2rdm_case("noncollinear", NONCOLLINEAR);
+  compare_diagonal2rdm_case<HOST_MEMORY>("noncollinear", NONCOLLINEAR);
+#if defined(ENABLE_DEVICE)
+  compare_diagonal2rdm_case<DEVICE_MEMORY>("noncollinear", NONCOLLINEAR);
+#endif
 }
 
 TEST_CASE("spinspin_vs_old_reference_closed",

@@ -17,6 +17,7 @@
 #pragma once
 
 #include "AFQMC/config.h"
+#include <configuration.hpp>
 #include <variant>
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/check.hpp"
@@ -41,6 +42,7 @@ namespace afqmc
  * Variant class for observables. 
  * Defines a common interface for all observable classes.
  */
+template<MEMORY_SPACE MEM>
 class Observable  
 {
 public:
@@ -82,7 +84,8 @@ public:
 
 private:
 
-  std::variant<full1rdm, diagonal2rdm, pair_correlator, full2rdm, spinspinobs> var;
+  std::variant<full1rdm, diagonal2rdm<MEM>, full2rdm<MEM>, pair_correlator, spinspinobs
+    > var;
 /*
                                          realspace_correlators,
                                          atomcentered_correlators,
@@ -94,7 +97,6 @@ private:
 #endif
                                          ,sk<true>
                                          ,sk<false>,
-                                         spinspinobs
                                          >
 */
 
