@@ -109,14 +109,14 @@ For technical details on the hamiltonian HDF5 format, see [the User Guide](https
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
 </div>
 
-An HDF5 file containing the trial wavefunction, $| \Psi_T \rangle$. As we will see later, the json input file is used to select a trial wavefunction in a calculation.
+An HDF5 file containing the trial wavefunction, $| \Psi_\mathrm{T} \rangle$. As we will see later, the json input file is used to select a trial wavefunction in a calculation.
 
 We will learn how to generate this file in later tutorials.
 For this tutorial, we have supplied an HDF5 file containing the RHF
 ground state as the trial wavefunction.
 
 $$
-| \Psi_T \rangle = | \Phi_{RHF} \rangle
+| \Psi_\mathrm{T} \rangle = | \Phi_\mathrm{RHF} \rangle
 $$
 
 For technical details on the wavefunction HDF5 format, see [the User Guide](http://users.flatironinstitute.org/~beskridge/safire/user_manual/wavefunctions.html).
@@ -396,8 +396,8 @@ So, the total number of walkers using the sample input file above and 64 MPI tas
 would be
 
 $$
-N_{walkers} = n_{walkers\_per\_mpi} * n_{mpi\_task} = 200 * 64 = 12800
-$$.
+N_\mathrm{walkers} = n_\mathrm{walkers\_per\_mpi} * n_\mathrm{mpi\_task} = 200 * 64 = 12800.
+$$
 
 For the sample inputs, this is significantly more walkers than is necessary,
 and for calculations that run on a CPU only build of SAFIRE,

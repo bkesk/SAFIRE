@@ -46,7 +46,7 @@ scratch_dir.mkdir(parents=True, exist_ok=True)
 In general, the trial wavefunction in AFQMC is a linear combination of Slater determinants,
 
 $$
-|\Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle,
+|\Psi_\mathrm{T} \rangle = \sum^{N_\mathrm{det}}_n C_n | \Phi_n \rangle,
 $$
 
 where

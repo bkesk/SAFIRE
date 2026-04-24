@@ -230,7 +230,7 @@ write_hamiltonian_generic(
 We will explore how to write trial wavefunctions in {doc}`../04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction`.
 In general, the trial wavefunction is a linear combination of Slater determinants,
 $$
-| \Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle,
+| \Psi_\mathrm{T} \rangle = \sum^{N_\mathrm{det}}_n C_n | \Phi_n \rangle,
 $$
 where $C_n$ is a coefficient,
 and $|\Phi_n\rangle$ are Slater determinants which are not necessarily

@@ -31,8 +31,8 @@ In this tutorial, we will explore how the Lattice class works, and the available
 We consider lattices with primitive lattice vectors $\vec{a}_1$, and $\vec{a}_2$ (as determined by the lattice "type") which may have a basis, $\{ \delta_p \}$ where $p$ runs over sub-lattice degrees of freedom, and the full cell has dimension $L_1$ x $L_2$.
 The positions of lattice sites on sublattice $p$ are given by  
 $$
-\vec{r}_p = n_1 \vec{a}_1 + n_2 \vec{a}_2  + \vec{\delta}_p
-$$,
+\vec{r}_p = n_1 \vec{a}_1 + n_2 \vec{a}_2  + \vec{\delta}_p,
+$$
 where $n_1$, and $n_2$ are integers.
 Additionally, boundaries are defined normal to the primitive vectors and are labelled according to the primitive vector which they are normal to.
 For example, "boundary 1" is normal to $\vec{a}_1$.
