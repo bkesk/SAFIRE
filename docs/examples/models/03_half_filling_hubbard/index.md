@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.19.1
 kernelspec:
-  display_name: ceph_afqmccode
+  display_name: Python 3 (ipykernel)
   language: ipython3
-  name: ceph_afqmccode
+  name: python3
 ---
 
 +++ {"id": "a9e290f7-823f-4240-8398-1e11040ab402"}
