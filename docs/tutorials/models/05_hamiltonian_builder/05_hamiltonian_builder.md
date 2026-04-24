@@ -23,7 +23,7 @@ The Hamiltonian builder (`HamiltonianBuilder` class in afqmctools) is
 responsible for performing "build steps".
 A "build step" consists of constructing a Hamiltonian component (i.e. term),
 and adding it to the `Hamiltonian` that it has.
-As we saw in the Hamiltonian director tutorial (__HAMILTONIAN_DIRECTOR_TUT__),
+As we saw in the Hamiltonian director tutorial ({doc}`../04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian`),
 the Hamiltonian director can be used to build a lattice model Hamiltonian by
 "directing" the Hamiltonian builder to perform build steps.
 This is the recommended way of building lattice model Hamiltonians;
