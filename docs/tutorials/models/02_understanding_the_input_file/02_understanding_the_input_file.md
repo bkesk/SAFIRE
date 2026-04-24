@@ -535,20 +535,20 @@ The available "name" / types are:
 
 - **"mixed"** : This adds a generic mixed estimator where the user may select which observables to compute. For observable, $\hat{O}$. the mixed estimator is given by
 $$
-\langle \hat{O} ⟩_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
+\langle \hat{O} ⟩_\mathrm{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_\mathrm{T} | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_\mathrm{T} | \Phi_{n,k} \rangle}
 $$
 where $n$ is the projection step index,
 $| \Phi_{n,k} \rangle$ are Slater determinant random walkers with weight $W_{n,k}$ (from importance sampling),
-and $| \Psi_T \rangle$ is the trial wavefunction.
+and $| \Psi_\mathrm{T} \rangle$ is the trial wavefunction.
 
 - **"back-propagated"** : Similar to the "mixed" estimator, but the back-propagation algorithm is used to evaluate user-specified observables. The back-propagated estimator has the form,
 $$
-\langle O_{BP} \rangle = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle}
+\langle O_\mathrm{BP} \rangle = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle}
 $$
 where $| \Phi_{n,k} \rangle$ are the usual forward-projected Slater determinant random walkers,
 and $| \tilde{\Phi}_{m,k} \rangle$ are the back-propagated walkers given by,
 $$
-| \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_T \rangle.
+| \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_\mathrm{T} \rangle.
 $$
 The index $n$ corresponds to the current forward projection step,
 and $m$ is the back-propagated step index.

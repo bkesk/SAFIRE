@@ -119,14 +119,14 @@ plt.show()
 
 +++ {"id": "5f7f1b9d-6230-41a0-8037-da334866defb"}
 
-The Hamiltonian will be simple,
+The Hamiltonian will be
 
 $$
-\begin{align}
+\begin{aligned}
 H &= H_t + H_U \\
 H_t &= -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
 H_U &= U\sum_i n_{i\uparrow}n_{i\downarrow}
-\end{align}
+\end{aligned}
 $$
 
 ```{code-cell} ipython3
