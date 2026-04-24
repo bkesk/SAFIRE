@@ -245,7 +245,10 @@ write_hamil_mol(
     basis_scf_data,
     fout_soc,
     chol_tol,
-    dense=True,    
+    real_chol=True,
+    walker_type='noncollinear',
+    with_soc=True,
+    ortho_ao=True,
 )
 
 #####################################
@@ -429,7 +432,9 @@ write_hamil_mol(
     basis_scf_data,
     fout_soc,
     chol_tol,
-    dense=True,
+    real_chol=True,
+    walker_type='noncollinear',
+    with_soc=True
 )
 
 #####################################
@@ -525,7 +530,3 @@ print(f"The electron affinity is {EA*eV} +/- {dEA*eV} eV")
 
 You should reproduce the result above if you ran with the same parameters and settings as we did.
 Specifically ensure that the seed and number of MPI processes is the same.
-
-```{code-cell} ipython3
-
-```

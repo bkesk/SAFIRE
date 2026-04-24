@@ -267,6 +267,7 @@ write_wfn(
     nelec=number_of_electrons,
     norb=number_of_orbitals
 )
+
 write_json(scratch_dir / "afqmc.json", scratch_dir / "wfn.h5", scratch_dir / "hamil.h5", exec_opts=dict(timestep=0.005, steps=20000))
 ```
 
