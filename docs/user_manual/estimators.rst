@@ -56,16 +56,7 @@ Settings
      - Inherited from execute block (default: 1)
      - Used to determine the number of projection steps between measurements using the formula below. Measurement is the most expensive operation in AFQMC. A larger "measure_interval_multiplier" will reduce the CPU time necessary to perform AFQMC calculations.
 
-.. important::
-
-  The measure_interval and equilibration lengths are specified indirectly using the measure_interval_multiplier and equil_multiplier parameters, respectively. 
-  They are computed using the population_control_interval according to the formula
-
-  .. math::
-
-    measure\_interval = measure\_interval\_multiplier \times population\_control\_interval
-
-  and similarly for the equilibration time.
+.. include:: ../_include/measure_interval_admonition.rst
 
 Energy Estimator
 ----------------
@@ -247,17 +238,6 @@ Settings
    * - **equil_multiplier**
      - 0
      - Used to determine the number of projection steps in the equilibration phase before back-propagation measurements begin.
-
-.. important::
-
-  The measure_interval and equilibration lengths are specified indirectly using the measure_interval_multiplier and equil_multiplier parameters, respectively. 
-  They are computed using the population_control_interval according to the formula
-
-  .. math::
-
-    \text{measure\_interval} = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}
-
-  and similarly for the equilibration time.
 
 .. only:: developer
 

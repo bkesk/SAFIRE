@@ -284,18 +284,7 @@ Settings
      - 
      - The seed for the random number generator. This value only needs to be set when strict reproducibility is necessary.
 
-.. important::
-
-  The measure_interval is specified indirectly using the measure_interval_multiplier parameter. 
-  It is computed using the population_control_interval according to the formula
-
-  .. math::
-
-    measure\_interval = measure\_interval\_multiplier \times population\_control\_interval
-
-.. caution::
-
-  Take care to update `measure_interval_multiplier` if you change `population_control_interval`
+.. include:: ../_include/measure_interval_admonition.rst
 
 .. _wavefunction_block:
 
