@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.19.1
 kernelspec:
-  display_name: auxiliary_fields_kernel
+  display_name: Python 3 (ipykernel)
   language: ipython3
-  name: auxiliary_fields_kernel
+  name: python3
 ---
 
 +++ {"id": "e9d26b92-e165-4baf-8fc1-dd312330f9d0"}
