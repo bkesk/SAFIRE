@@ -113,8 +113,8 @@ Observables are computed on the fly to achieve low-order polynomial scaling with
 For example, the energy is evaluated as
 
 .. math::
-  E = \frac{\langle \Psi_T | \hat{H} | \Psi^s \rangle}{\langle \Psi_T | \Psi^s \rangle} \approx 
-  \frac{1}{\sum_n W^s_n} \sum_n W^s_n \frac{\langle \Psi_T | \hat{H} | \Phi^s_n \rangle}{\langle \Psi_T | \Phi^s_n \rangle},
+  E = \frac{\langle \Psi_\mathrm{T} | \hat{H} | \Psi^s \rangle}{\langle \Psi_\mathrm{T} | \Psi^s \rangle} \approx 
+  \frac{1}{\sum_n W^s_n} \sum_n W^s_n \frac{\langle \Psi_\mathrm{T} | \hat{H} | \Phi^s_n \rangle}{\langle \Psi_\mathrm{T} | \Phi^s_n \rangle},
 
 
 Importance sampling
@@ -131,9 +131,9 @@ Formally, the force bias is given by
 .. math::
   :name: forceBias
 
-  \bar{\mathbf{\sigma}}=-\sqrt{\tau}\frac{\langle\Psi_T|\hat{\mathbf{v}}|\Phi^s_n \rangle}{\langle\Psi_T|\Phi^s_n \rangle},
+  \bar{\mathbf{\sigma}}=-\sqrt{\tau}\frac{\langle\Psi_\mathrm{T}|\hat{\mathbf{v}}|\Phi^s_n \rangle}{\langle\Psi_\mathrm{T}|\Phi^s_n \rangle},
 
-where :math:`|\Psi_T \rangle` is the trial wavefunction which is essentially a guess of the true many-body wavefunction.
+where :math:`|\Psi_\mathrm{T} \rangle` is the trial wavefunction which is essentially a guess of the true many-body wavefunction.
 The walkers weights are updated at each projection step based on the importance function as 
 
 .. math::
@@ -146,8 +146,8 @@ where :math:`I(\mathbf{\sigma},\bar{\mathbf{\sigma}},\Phi^{s-1}_n)` is given by
 .. math::
   :name: importanceFunction
 
-  I(\mathbf{\sigma},\bar{\mathbf{\sigma}},\Phi) \equiv \frac{\langle\Psi_T|\hat{B}(\mathbf{\sigma} - \bar{\mathbf{\sigma}})|\Phi \rangle}
-  {\langle\Psi_T|\Phi \rangle} \textrm{Exp}\left(\bar{\mathbf{\sigma}} \cdot \mathbf{\sigma} - \frac{\bar{\mathbf{\sigma}} 
+  I(\mathbf{\sigma},\bar{\mathbf{\sigma}},\Phi) \equiv \frac{\langle\Psi_\mathrm{T}|\hat{B}(\mathbf{\sigma} - \bar{\mathbf{\sigma}})|\Phi \rangle}
+  {\langle\Psi_\mathrm{T}|\Phi \rangle} \textrm{Exp}\left(\bar{\mathbf{\sigma}} \cdot \mathbf{\sigma} - \frac{\bar{\mathbf{\sigma}} 
   \cdot \bar{\mathbf{\sigma}}}{2}\right)
 
 
@@ -161,21 +161,21 @@ which arises from the invariance of any observable to an overall phase of the ma
 This is a manifestation of the generic fermionic sign problem that arises in all quantum Monte Carlo approaches.
 The projector, :math:`B(\mathbf{\sigma})`, is typically complex-valued and introduces an arbitrary phase to the Slater determinant random walkers.
 As the projection proceeds, the random walkers accumulate random phases, leading to a finite density of walkers
-in the complex plane defined by :math:`\langle \Psi_T | \Phi^s_n \rangle`.
+in the complex plane defined by :math:`\langle \Psi_\mathrm{T} | \Phi^s_n \rangle`.
 This leads to large fluctuations in the weights that ultimately diverge.
 This is known as the phase problem in the AFQMC literature :cite:`PhysRevLett.90.136401`.
 For lattice models, it is possible to choose a HS transformation such that :math:`B(\mathbf{\sigma})` is real-valued.
 In this case, the random walkers accumulate random signs — i.e., :math:`\theta \in \{0, \pi\}` — leading to the fermionic sign problem.
 
 The sign/phase problem is controlled using importance sampling, as shown above, and by imposing
-a constraint based on the trial wavefunction, :math:`| \Psi_T \rangle`.
+a constraint based on the trial wavefunction, :math:`| \Psi_\mathrm{T} \rangle`.
 For the phase problem, the so-called "phaseless" approximation :cite:`PhysRevLett.90.136401` is used.
 At each step, walkers are individually projected onto an
-evolving line in the complex plane defined by :math:`\langle \Psi_T | \Phi^s_n \rangle` by multiplying
+evolving line in the complex plane defined by :math:`\langle \Psi_\mathrm{T} | \Phi^s_n \rangle` by multiplying
 the walker weights by :math:`\max\{0, \cos(\Delta \theta)\}`, where 
-:math:`\Delta \theta = \arg\left[\frac{\langle\Psi_T|\hat{B}(\mathbf{\sigma} - \bar{\mathbf{\sigma}})|\Phi^s_n \rangle}{\langle\Psi_T|\Phi^s_n \rangle}\right]`.
+:math:`\Delta \theta = \arg\left[\frac{\langle\Psi_\mathrm{T}|\hat{B}(\mathbf{\sigma} - \bar{\mathbf{\sigma}})|\Phi^s_n \rangle}{\langle\Psi_\mathrm{T}|\Phi^s_n \rangle}\right]`.
 For the sign problem, the "constrained path" approximation :cite:`ZhangConstrained1997` is used,
-where walkers are eliminated if :math:`\langle \Psi_T | \Phi^s_n \rangle < 0`.
+where walkers are eliminated if :math:`\langle \Psi_\mathrm{T} | \Phi^s_n \rangle < 0`.
 This can be viewed as a special case of the phaseless approximation.
 In both cases, the constraint introduces a bias that can be reduced based on the quality of the trial wavefunction.
 
@@ -188,12 +188,12 @@ Observables are evaluated stochastically as
 .. math::
   :name: mixedEstimators-af
 
-  \langle \hat{O} \rangle_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
+  \langle \hat{O} \rangle_\mathrm{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_\mathrm{T} | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_\mathrm{T} | \Phi_{n,k} \rangle}
 
 
 where :math:`n` is the projection step index,
 :math:`| \Phi_{n,k} \rangle` are Slater determinant random walkers with weight :math:`W_{n,k}` (from importance sampling),
-and :math:`| \Psi_T \rangle` is the trial wavefunction.
+and :math:`| \Psi_\mathrm{T} \rangle` is the trial wavefunction.
 The mixed estimator provides an unbiased estimate for any observable which commutes with the Hamiltonian.
 For the AFQMC energy, :math:`\hat{O} = \hat{H}`, and trivially :math:`[ \hat{O}, \hat{H} ] = 0`;
 therefore, the mixed estimator is an unbiased choice for the total ground state energy.
@@ -208,7 +208,7 @@ The back-propagated estimator has the form,
 .. math::
   :label: bpEstimators-af
 
-  \langle \hat{O} \rangle_{BP} = \frac{1}{\sum_k W_{s+m,k}} \sum_k W_{s+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{s,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{s,k}\rangle}
+  \langle \hat{O} \rangle_\mathrm{BP} = \frac{1}{\sum_k W_{s+m,k}} \sum_k W_{s+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{s,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{s,k}\rangle}
 
 
 where :math:`| \Phi_{s,k} \rangle` are the usual forward-projected Slater determinant random walkers,
@@ -216,7 +216,7 @@ and :math:`| \tilde{\Phi}_{m,k} \rangle` are the back-propagated walkers given b
 
 .. math::
 
-  | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{s,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{s+m-1,k} ) | \Psi_T \rangle.
+  | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{s,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{s+m-1,k} ) | \Psi_\mathrm{T} \rangle.
 
 The index :math:`s` corresponds to the current forward projection step,
 and :math:`m` is the back-propagated step index.

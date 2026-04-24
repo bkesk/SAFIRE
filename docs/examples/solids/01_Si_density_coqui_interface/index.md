@@ -396,8 +396,8 @@ $$
 and
 
 $$
-N^{step}_1 = 40 * 10 = 400
-$$.
+N^{step}_1 = 40 * 10 = 400.
+$$
 
 Now we can run SAFIRE using this input file.
 We provided a sample Slurm script.
@@ -614,7 +614,7 @@ We will now converge the AFQMC ground state energy, and the charge density in th
 We have already seen how to perform each step individually above;
 We will simply need to run AFQMC for a few choices of $N_{bands}$.
 
-As $E_{AFQMC}$ and $\rho_{AFQMC}(\vec{r})$ begin to converge,
+As $E_\mathrm{AFQMC}$ and $\rho_\mathrm{AFQMC}(\vec{r})$ begin to converge,
 each additional band will individually make only a small contribution.
 It can be useful, then, to choose a logarithmic set of $N_{bands}$ to actually run AFQMC for.
 For example,

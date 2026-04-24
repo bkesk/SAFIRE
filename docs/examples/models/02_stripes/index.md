@@ -115,12 +115,12 @@ vis.plot_lattice(lattice)
 The Hamiltonian will be simple,
 
 $$
-\begin{align}
+\begin{aligned}
 H &= H_t + H_U + H_\text{pin} \\
 H_t &= -t \sum_{\langle i j\rangle \sigma} c^\dagger_{i\sigma} c_{j\sigma} \\
 H_U &= U\sum_i n_{i\uparrow}n_{i\downarrow}\\
 H_\text{pin} &= \sum_{i\in \text{edge}} (-1)^{i_x+i_y} h_i S^z_i
-\end{align}
+\end{aligned}
 $$
 
 and we have a convenience function to add the edge pinning as well. We'll assume $t=1$, $h_i=0.5$ just like in the paper

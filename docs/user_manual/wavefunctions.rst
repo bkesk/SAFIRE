@@ -6,7 +6,7 @@ Wavefunction File formats
 The trial wavefunction in AFQMC is typically a linear combination of Slater determinants,
 
 .. math::
-  |\Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle
+  |\Psi_\mathrm{T} \rangle = \sum^{N_\mathrm{det}}_n C_n | \Phi_n \rangle
 
 where :math:`C_n` is a complex-valued coefficient, and :math:`|\Phi_n\rangle` are Slater determinants which are not necessarily orthogonal to each other. Of course, each Slater determinant consists of some set of single-particle orbitals, :math:`\{ \psi_p \}`, such that,
 
@@ -135,7 +135,7 @@ PHMSD
    :math:`[M,N_\alpha,N_\beta,` walker_type :math:`,N_D]`
 -  ``/Wavefunction/PHMSD/occs`` Integer array of length :math:`(N_\alpha+N_\beta)*N_D`
    describing the determinant occupancies. For example if :math:`(N_\alpha=N_\beta=2)` and
-   :math:`N_D=2`, :math:`M=4`, and if :math:`|\Psi_T\rangle = |0,1\rangle|0,1\rangle + |0,1\rangle|0,2\rangle>` then
+   :math:`N_D=2`, :math:`M=4`, and if :math:`|\Psi_\mathrm{T}\rangle = |0,1\rangle|0,1\rangle + |0,1\rangle|0,2\rangle>` then
    occs = :math:`[0, 1, 4, 5, 0, 1, 4, 6]`. Note that :math:`\beta` occupancies are
    displaced by :math:`M`.
 -  ``/Wavefunction/PHMSD/type`` integer 0/1. 1 implies trial wavefunction is written in
