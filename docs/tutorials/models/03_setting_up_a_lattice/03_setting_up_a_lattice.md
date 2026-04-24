@@ -320,9 +320,9 @@ and the lattice basis, $\{ \delta_p \}$.
 :id: 1f3486b9-62ab-4687-a322-295de51b8ae8
 :outputId: 220c8539-682a-473b-ce17-592734b4f775
 
-#import numpy as np
-#from afqmctools.systems.lattice import get_lattice
-#import afqmctools.utils.visualize as vis
+import numpy as np
+from afqmctools.systems.lattice import get_lattice
+import afqmctools.utils.visualize as vis
 
 basis = [ np.array(delta) for delta in [(0,0),(0.5,0),(0,0.5),(1.0,0),(1.5,0),(1.0,0.5)] ]
 
@@ -463,8 +463,6 @@ lattice = get_lattice(
 
 vis.plot_lattice(lattice,title="Kagome Lattice",show_labels=False)
 ```
-
-+++ {"id": "1b5087cf-9c61-4bb5-9792-15a9524676cd"}
 
 ```{code-cell} ipython3
 :id: ae7e9e7c-896b-4ce4-86c7-98f6951756f7
