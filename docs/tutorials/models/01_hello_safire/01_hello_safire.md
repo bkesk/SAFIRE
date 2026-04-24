@@ -212,7 +212,6 @@ AF App version: 1.0.0
 app git branch: develop
 app git commit: 6a251b811061707f9dceb3804e146148bf58e90f
  AFQMCFactory Project settings:
-    -- mixed_precision: false
     -- ncores (local) : 1
     -- n_groups       : 1
     -- id             : qmc
@@ -364,7 +363,6 @@ AF App version: 1.0.0
 app git branch: develop
 app git commit: 6a251b811061707f9dceb3804e146148bf58e90f
  AFQMCFactory Project settings:
-    -- mixed_precision: false
     -- ncores (local) : 1
     -- n_groups       : 1
     -- id             : qmc

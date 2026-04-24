@@ -219,7 +219,6 @@ def default_inputs(fwfn0, fham0=None):
         "project": {
             "id": "qmc",
             "series": 0,
-            "mixed_precision": False,
         },
         "execute": {
             "walker_set": {

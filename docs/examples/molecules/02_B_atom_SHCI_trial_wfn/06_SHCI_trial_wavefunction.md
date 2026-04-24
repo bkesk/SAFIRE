@@ -139,8 +139,7 @@ for this case.
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {

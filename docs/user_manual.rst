@@ -40,8 +40,7 @@ See the ":ref:`Input file description <input_afqmc>`" for more.
     "afqmc": {
       "project": {
         "id": "my_qmc_run",
-        "series": 0,
-        "mixed_precision": false
+        "series": 0
       },
       "execute": {
         "walker_set": {
