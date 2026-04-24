@@ -45,6 +45,7 @@ References:
 
 # simple setup
 from tutorial_utils import run_afqmc
+from pathlib import Path
 
 scratch_dir = Path("data")
 scratch_dir.mkdir(parents=True, exist_ok=True)
@@ -58,7 +59,6 @@ scratch_dir.mkdir(parents=True, exist_ok=True)
 :id: 254dc31a-b763-4cb3-9867-5129279b9c2b
 :outputId: c065dd3d-6070-4a49-80ef-e02029ba7b13
 
-%autoreload
 from afqmctools.systems.lattice import get_lattice
 from afqmctools.utils.visualize import plot_lattice
 
@@ -84,7 +84,6 @@ plot_lattice(lattice,show_coords=False)
 :id: 364ee811-8242-45ce-88ee-69fcaa6901fd
 :outputId: b64b276a-cae9-4c47-a315-e9c015fc264a
 
-%autoreload
 from afqmctools.hamiltonian.model.director import HamiltonianDirector
 from afqmctools.utils.io import write_model_hamiltonian
 
@@ -277,8 +276,6 @@ analysis_settings = dict(
 E,dE = analyze_scalar_data(analysis_settings)
 
 print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f} Hartree")
-
-ref_stoch_uncertainty = dE
 ```
 
 +++ {"id": "da4dfc0c-047c-43b7-9568-5494c48067b2"}
@@ -303,13 +300,6 @@ delta_rho_up = delta_rho[:,0,:,:].diagonal().reshape((naverages,4,8))
 
 rho_down = rho_avg[:,1,:,:].diagonal().reshape((naverages,4,8))
 delta_rho_down = delta_rho[:,1,:,:].diagonal().reshape((naverages,4,8))
-```
-
-```{code-cell} ipython3
-:id: 0fb2dd68-a3b1-4c6f-affb-b3043b2379c8
-:outputId: 5a147bcd-4b7d-4481-8d89-14f2e12e9203
-
-
 ```
 
 ```{code-cell} ipython3
