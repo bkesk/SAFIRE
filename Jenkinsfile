@@ -7,6 +7,7 @@ pipeline {
   }
   environment {
     IMAGE = "$REGISTRY_PREFIX/${JOB_NAME.toLowerCase()}:$BUILD_NUMBER"
+    PARALLEL = "4"
   }
   stages {
     stage('main') {
@@ -77,9 +78,12 @@ pipeline {
                           image: $IMAGE-cuda
                           command: [sleep]
                           args: [99999]
+                          securityContext:
+                            runAsUser: 1000
+                            runAsGroup: 1000
                           resources:
                             limits:
-                              cpu: 4
+                              cpu: $PARALLEL
                               memory: 16Gi
                               nvidia.com/gpu: 1
                   """
