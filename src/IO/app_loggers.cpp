@@ -11,6 +11,7 @@
  *
  */
 
+#include "app_loggers.h"
 #if defined(ENABLE_SPDLOG)
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"

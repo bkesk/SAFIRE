@@ -1,27 +1,12 @@
-######################################################################
-# Set version and policies 
-######################################################################
 cmake_minimum_required(VERSION 3.18.0)
 
-######################################################################
-# Set project and version 
-######################################################################
-
-set(AF_APP_VERSION_MAJOR 1)
-set(AF_APP_VERSION_MINOR 0)
-set(AF_APP_VERSION_PATCH 0)
-set(AF_APP_VERSION "${AF_APP_VERSION_MAJOR}.${AF_APP_VERSION_MINOR}.${AF_APP_VERSION_PATCH}")
-
-project(safire) 
-enable_language(CXX)
+project(safire VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 set(PROJECT_CMAKE ${CMAKE_SOURCE_DIR}/cmake)
 
 set (LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib CACHE PATH "Library directory.")
 set (EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin CACHE PATH "Binary directory.")
-
-include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src )
 
 ######################################################################
 # CUDA/HIP build options. Read first, to be able to set policies! 
@@ -61,7 +46,7 @@ include(FetchContent)
 ######################################################################
 SET(PROJECT_UNIT_TEST_DIR ${PROJECT_BINARY_DIR}/tests/bin)
 enable_testing()
-include( CTest )
+include(CTest)
 
 ######################################################################
 # Code Coverage
@@ -78,11 +63,6 @@ endif()
 if ( NOT CMAKE_BUILD_TYPE ) 
   set( CMAKE_BUILD_TYPE Release )
 endif()
-string( TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE )
-message( STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
-if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-  set(AFAPP_RELEASE 1)
-endif()
 
 ######################################################################
 # Check C++ standard and stdlib. Currently requires 20. 
@@ -95,7 +75,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # set options
 ######################################################################
 option(ENABLE_ROCM " Build device code with ROCM backend" OFF)
-option(ENABLE_OPENMP " Build device code with OPENMP backend" OFF)
 option(HAVE_MKL "Assume MKL BLAS/LAPACK library." OFF)
 option(BUILD_UNIT_TESTS "Build unit tests" ON)
 option(BUILD_STATIC "Link to static libraries" OFF)
@@ -116,8 +95,7 @@ endif()
 #option(ENABLE_FFTW "Build using FFTW3 library." ON)
 option(COMPILE_NDA_TESTS "Build with nda tests" OFF)
 option(NDA_PYTHON_SUPPORT "Build nda with python support" OFF)
-option(FETCH_CCCL "Fetch CCCL and enable support. Only used with ENABLE_CUDA" OFF)
-option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
+option(FETCH_CCCL "Fetch CCCL and enable support. Only used with ENABLE_CUDA" ON)
 
 if( ENABLE_CUDA OR ENABLE_HIP ) #OR ENABLE_OPENMP)
   set(ENABLE_DEVICE ON)
@@ -144,7 +122,6 @@ if(ENABLE_CUDA)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 #  set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
   string(APPEND CMAKE_CUDA_FLAGS " -std=c++20 --expt-relaxed-constexpr --extended-lambda -Xcudafe \"--diag_suppress=implicit_return_from_non_void_function\" -Wdeprecated-declarations -w") 
-  include_directories(${CUDA_INCLUDE_DIRS})
   message( STATUS " CMAKE_CUDA_FLAGS: " ${CMAKE_CUDA_FLAGS})
 endif()
 
@@ -176,37 +153,11 @@ if(ENABLE_HIP)
                                             INTERFACE_LINK_LIBRARIES "-L${ROCM_ROOT}/lib;-lhipsparse;-lhipblas;-lamdhip64")
 endif(ENABLE_HIP)
 
-######################################################################
-# HDF5
-######################################################################
-find_package(ZLIB)
-set(HDF5_PREFER_PARALLEL TRUE CACHE BOOL "Request parallel/serial HDF5 library")
-find_package(HDF5 REQUIRED COMPONENTS C)
-message(STATUS "HDF5 version: ${HDF5_VERSION}")
-if(HDF5_IS_PARALLEL)
-  message(STATUS "Parallel HDF5 library found")
-  set(ENABLE_PHDF5 TRUE CACHE BOOL "Enable code paths using parallel HDF5")
-else(HDF5_IS_PARALLEL)
-  message(STATUS "Serial HDF5 library found")
-  set(ENABLE_PHDF5 FALSE CACHE BOOL "Enable code paths using parallel HDF5")
-endif(HDF5_IS_PARALLEL)
-add_library(IO::HDF5 INTERFACE IMPORTED)
-set_target_properties(IO::HDF5 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${HDF5_INCLUDE_DIR}"
-                                          INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
-if(ENABLE_PHDF5)
-  set_property(TARGET IO::HDF5 APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS "ENABLE_PHDF5")
-endif(ENABLE_PHDF5)
 
 ######################################################################
 # MPI
 ######################################################################
 find_package(MPI REQUIRED)
-include_directories(SYSTEM ${MPI_CXX_INCLUDE_PATH})
-# Mark MPI includes as SYSTEM to suppress warnings
-set_target_properties(MPI::MPI_CXX PROPERTIES
-    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:MPI::MPI_CXX,INTERFACE_INCLUDE_DIRECTORIES>
-)
-link_libraries(MPI::MPI_CXX) 
 message(STATUS "MPI Executable for running programs:" ${MPIEXEC_EXECUTABLE})
 message(STATUS "MPI number of processors detected on the host system: " ${MPIEXEC_MAX_NUMPROCS})
 include(CMakePrintHelpers)
@@ -237,8 +188,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nda)
 
-set_property(GLOBAL PROPERTY nda_FOUND TRUE)
-
 ######################################################################
 # CCCL from github (useful if CudaToolkit is old 
 ######################################################################
@@ -247,45 +196,16 @@ if(ENABLE_CUDA AND FETCH_CCCL)
   FetchContent_Declare(
         cccl
         GIT_REPOSITORY "https://github.com/NVIDIA/cccl.git"
-        GIT_TAG        main
+        GIT_TAG        v3.3.3
   )
   FetchContent_MakeAvailable(cccl)
-  include_directories(${cccl_SOURCE_DIR}/c++)
 endif()
 
-
-######################################################################
-# BLAS/LAPACK 
-######################################################################
-
-#if(HAVE_MKL)
-#  message(STATUS "HAVE_MKL is set: requiring MKL BLAS")
-#  set(BLA_VENDOR "Intel10_64ilp")
-#endif()
-
-#find_package(BLAS REQUIRED)
-#find_package(LAPACK REQUIRED)
-#cmake_print_properties(TARGETS BLAS::BLAS PROPERTIES INTERFACE_LINK_LIBRARIES) 
-#cmake_print_properties(TARGETS LAPACK::LAPACK PROPERTIES INTERFACE_LINK_LIBRARIES)
-
-#if(NOT HAVE_MKL)
-#  get_target_property(_mkl_libs BLAS::BLAS INTERFACE_LINK_LIBRARIES)
-#  if("${_mkl_libs}" MATCHES "[/\\]mkl")
-#      message(STATUS "Found Intel MKL: setting HAVE_MKL=ON")
-#      set(HAVE_MKL ON)
-#  endif()
-#endif()
 
 ######################################################################
 # Boost: Header-only
 ######################################################################
-set(Boost_NO_BOOST_CMAKE on)
-find_package(Boost 1.61.0 REQUIRED)
-# Add Boost include directories as SYSTEM to suppress warnings
-if(Boost_INCLUDE_DIRS)
-  include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-endif()
-add_definitions(-DBOOST_LOCALE_HIDE_AUTO_PTR)
+find_package(Boost 1.70.0 REQUIRED CONFIG)
 
 ######################################################################
 # spdlog - disable warnings for external library
@@ -296,8 +216,6 @@ if(ENABLE_SPDLOG)
     set(FETCHCONTENT_SOURCE_DIR_SPDLOG ${SPDLOG})
   endif()
 
-  # Configure spdlog as header-only
-  set(SPDLOG_FMT_EXTERNAL OFF)
   set(SPDLOG_BUILD_SHARED OFF)
 
   FetchContent_Declare(
@@ -307,13 +225,6 @@ if(ENABLE_SPDLOG)
           SYSTEM
   )
   FetchContent_MakeAvailable(spdlog)
-  # turn off warnings for spdlog library itself
-  set_property(TARGET spdlog PROPERTY SYSTEM TRUE)
-  # Suppress all warnings when compiling spdlog's own source files
-  target_compile_options(spdlog PRIVATE -w)
-  add_compile_definitions(ENABLE_SPDLOG)
-
-  include_directories(SYSTEM ${spdlog_SOURCE_DIR}/include)
 endif()
 
 ######################################################################
@@ -323,11 +234,23 @@ if(ENABLE_CPPTRACE)
   FetchContent_Declare(
     cpptrace
     GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-    GIT_TAG        v0.8.2 # <HASH or TAG>
+    GIT_TAG        v0.8.2
   )
-  add_compile_definitions(ENABLE_CPPTRACE)
   FetchContent_MakeAvailable(cpptrace)
 endif(ENABLE_CPPTRACE)
+
+######################################################################
+# cpptrace 
+######################################################################
+find_package(cxxopts 3.3.1 QUIET)
+if(NOT cxxopts_FOUND)
+  FetchContent_Declare(
+    cxxopts
+    GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+    GIT_TAG v3.3.1
+  )
+  FetchContent_MakeAvailable(cxxopts)
+endif()
 
 ######################################################################
 # FFTW: not using MKL's FFTW yet, figure out how if requested 
@@ -339,29 +262,32 @@ endif(ENABLE_CPPTRACE)
 
 
 ######################################################################
-# catch
-######################################################################
-######################################################################
 # catch2
 ######################################################################
-if(DEFINED CATCH2)
-  set(FETCHCONTENT_SOURCE_DIR_CATCH2 ${CATCH2})
+find_package(Catch2 2.13.10 QUIET)
+if(NOT Catch2_FOUND)
+  FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG        v2.13.10
+  )
+  FetchContent_MakeAvailable(Catch2)
 endif()
 
-FetchContent_Declare(
-  Catch2
-  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-  GIT_TAG        v2.13.10
-) 
-  #GIT_TAG        v3.4.0
-FetchContent_MakeAvailable(Catch2)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
-include( Catch )
+include(Catch)
 
 ######################################################################
-add_definitions( -Drestrict=__restrict__ -DADD_ )
-add_compile_options(-Wno-narrowing)
+# mpi3
+######################################################################
 
+# We only need the headers, it seems.
+add_library(mpi3 INTERFACE)
+target_link_libraries(mpi3 INTERFACE MPI::MPI_CXX)
+target_include_directories(mpi3 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/extern/mpi_wrapper)
+
+
+######################################################################
 configure_file(${PROJECT_SOURCE_DIR}/src/safire.settings ${PROJECT_BINARY_DIR}/bin/safire.settings)
 install(FILES ${PROJECT_BINARY_DIR}/bin/safire.settings DESTINATION bin)
 
@@ -435,6 +361,15 @@ if(ENABLE_ASAN OR ENABLE_UBSAN)
   endif()
 endif()
 
+#######################################################################
+# Git info
+########################################################################
+find_package(Git)
+
+if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  set(IS_GIT_PROJECT 1)
+endif()
+
 add_subdirectory(src)
 
 ######################################################################
@@ -451,11 +386,3 @@ if(NOT IS_SUBPROJECT AND BUILD_DOCUMENTATION)
   add_subdirectory(${PROJECT_SOURCE_DIR}/docs_cpp)
 endif()
 
-#######################################################################
-# Git info
-########################################################################
-find_package(Git)
-
-if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-  set(IS_GIT_PROJECT 1)
-endif()

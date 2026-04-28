@@ -20,7 +20,6 @@ endif()
 
 
 add_library(fft_lib ${fft_src})
-target_link_libraries(fft_lib PUBLIC utils nda_c) 
 if(ENABLE_FFTW)
   target_link_libraries(fft_lib PUBLIC FFTW::Double) 
 endif()

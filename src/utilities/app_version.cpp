@@ -15,50 +15,51 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
+#include <format>
 #include "config.h"
 
-#include "qmcapp_version.h"
 #include "app_version.h"
+#include "git-rev.h"
 
-#define STR_EXPAND(x) #x
-#define STR(x) STR_EXPAND(x)
+void print_version(int verbosity) {
+  constexpr const char* mkl_feature =
+  #ifdef HAVE_MKL
+      " MKL";
+  #else
+      "";
+  #endif
+
+  constexpr const char* cuda_feature =
+  #ifdef ENABLE_CUDA
+      " CUDA";
+  #else
+      "";
+  #endif
+
+  constexpr const char* cpptrace_feature =
+  #ifdef ENABLE_CPPTRACE
+      " cpptrace";
+  #else
+      "";
+  #endif
+
+  constexpr const char* git_info =
+  #ifdef AF_APP_GIT_BRANCH
+      "Git branch:  " AF_APP_GIT_BRANCH "\n"
+      "Git commit:  " AF_APP_GIT_HASH " (" AF_APP_GIT_COMMIT_LAST_CHANGED ")\n";
+  #else
+      "";
+  #endif
 
 
-void print_version(int verbosity){
-
-  std::cout << "AF App version: " << AF_APP_VERSION << std::endl;
-#ifdef AFAPP_RELEASE
-  std::cout << "This is a release build" << std::endl;
-#endif
-  if (verbosity > 1){
-    // Could include more if we find use
-    std::cout << "This build has the following enabled:" << std::endl;
-#ifdef HAVE_MKL
-    std::cout << " - MKL:  1" << std::endl;
-#else
-    std::cout << " - MKL:  0" << std::endl;
-#endif
-
-#ifdef ENABLE_CUDA
-    std::cout << " - CUDA: 1"<<  std::endl;
-#else
-    std::cout << " - CUDA: 0"<<  std::endl;
-#endif
-
-#ifdef HAVE_HIP
-    std::cout << " - HIP:  1" << std::endl;
-#else
-    std::cout << " - HIP:  0" << std::endl;
-#endif
-  }
-
-#ifdef AF_APP_GIT_BRANCH
-  std::cout << "app git branch: " << AF_APP_GIT_BRANCH << std::endl;
-  std::cout << "app git commit: " << AF_APP_GIT_HASH << std::endl;
-  if (verbosity > 1){
-    std::cout << "app git commit date: " << AF_APP_GIT_COMMIT_LAST_CHANGED << std::endl;
-  }
-#else
-  std::cout << "app was not built with a git repository" << std::endl;
-#endif
+  std::cout << std::format(
+      "Version:     " AF_APP_VERSION "\n"
+      "{}"
+      "Build type:  " AF_APP_BUILD_TYPE "\n"
+      "Features:   {}{}{}\n",
+      git_info,
+      mkl_feature,
+      cuda_feature,
+      cpptrace_feature
+  );
 }

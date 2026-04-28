@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "config.h"
 #if defined(ENABLE_SPDLOG)
 #include "spdlog/spdlog.h"
 #else

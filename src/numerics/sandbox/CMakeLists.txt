@@ -10,20 +10,8 @@ set( TEST_SRCS
 #     mpi_tests.cpp
    )
 
-if(USE_DEVICE_COMPILER)
-if(ENABLE_CUDA)
-  foreach( X ${TEST_SRCS} )
-    set_source_files_properties(${X} PROPERTIES LANGUAGE CUDA)
-  endforeach()
-elseif(ENABLE_HIP)
-  foreach( X ${TEST_SRCS} )
-    set_source_files_properties(${X} PROPERTIES LANGUAGE HIP)
-  endforeach()
-endif()
-endif()
-
 add_executable(${TEST_ID} ${TEST_SRCS} )
-target_link_libraries(${TEST_ID} PRIVATE catch_main utils numerics)
+target_link_libraries(${TEST_ID} PRIVATE catch_main)
 
 #//////////////////////////////////////////////////////////////////////////////////////
 
@@ -33,18 +21,7 @@ target_link_libraries(${TEST_ID} PRIVATE catch_main utils numerics)
 #     h5_tests.cpp
 #   )
 
-#if(USE_DEVICE_COMPILER)
-#if(ENABLE_CUDA)
-#  foreach( X ${TEST_SRCS} )
-#    set_source_files_properties(${X} PROPERTIES LANGUAGE CUDA)
-#  endforeach()
-#elseif(ENABLE_HIP)
-#  foreach( X ${TEST_SRCS} )
-#    set_source_files_properties(${X} PROPERTIES LANGUAGE HIP)
-#  endforeach()
-#endif()
-#endif()
-#
+
 #add_executable(${TEST_ID} ${TEST_SRCS} )
-#target_link_libraries(${TEST_ID} PRIVATE catch_main utils numerics)
+#target_link_libraries(${TEST_ID} PRIVATE catch_main)
 
