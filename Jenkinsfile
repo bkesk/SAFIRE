@@ -70,6 +70,8 @@ pipeline {
                   yaml """
                     spec:
                       runtimeClassName: nvidia
+                      imagePullSecrets:
+                        - name: registry-auth
                       containers:
                         - name: main
                           image: $IMAGE-cuda
