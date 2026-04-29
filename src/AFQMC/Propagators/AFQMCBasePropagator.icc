@@ -81,12 +81,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
 
   // 2. Assemble X(nwalk, nCV)
   AFQMCTimer.start(assemble_X_timer);
-  if(!readFields){
-    assemble_X(sqrtdt, X, MFfactor, hybrid_weight);
-  }
-  else{
-    assemble_X(sqrtdt, X, MFfactor, hybrid_weight, readFields, nt);
-  }
+  assemble_X(sqrtdt, X, MFfactor, hybrid_weight);
   AFQMCTimer.stop(assemble_X_timer);
 
   //std::cout<<" X: " <<nda::sum(nda::to_host(X)) <<std::endl;
@@ -574,7 +569,7 @@ void AFQMCBasePropagator<MEM>::Orthogonalize_excited_impl(WlkSet& wset)
 template<MEMORY_SPACE MEM>
 void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt, 
      nda::MemoryArrayOfRank<2> auto&& X, nda::MemoryArrayOfRank<1> auto&& MF, 
-     nda::MemoryArrayOfRank<1> auto&& HWs, bool readFields, int nt, bool addRAND)
+     nda::MemoryArrayOfRank<1> auto&& HWs, int nt, bool addRAND)
 {
   using nda::range;
   auto all = range::all;
@@ -601,12 +596,7 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
 
 #if defined(ENABLE_DEVICE)
   if constexpr (MEM==DEVICE_MEMORY) {
-    if(!readFields){
-      kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X);
-    }
-    else{
-      kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, readFields, nt, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X, Xread);
-    }
+    kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X);
   } else
 #endif
   { 
@@ -652,23 +642,13 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
           auto wp = std::abs(std::exp(vdiff));
           auto wm = std::abs(std::exp(-vdiff));
           auto P = wm/(wp+wm);
-          if(!readFields){
-            if( RNGbuff(iw,m) < P ) {
-              Xm(iw) = ComplexType(-1.0);
-              HWs(iw) += std::log(0.5/P);
-            } else {
-              Xm(iw) = ComplexType(1.0);
-              HWs(iw) += std::log(0.5/(1.0-P));
-            }
-          }
-          else{
-            Xm(iw) = Xread(nt,m);
-            if( Xm(iw) < 0.0 ) {
-              HWs(iw) += std::log(0.5/P);
-            } else {
-              HWs(iw) += std::log(0.5/(1.0-P));
-            }
-          }
+          if( RNGbuff(iw,m) < P ) {
+            Xm(iw) = ComplexType(-1.0);
+            HWs(iw) += std::log(0.5/P);
+          } else {
+            Xm(iw) = ComplexType(1.0);
+            HWs(iw) += std::log(0.5/(1.0-P));
+          }     
           // W_MSsub = exp(-MF), careful with sign convention
           MF(iw) += im * ComplexType(Xm(iw)) * vmf_0;
         } else {

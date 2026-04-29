@@ -297,20 +297,8 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
       // NOTE : non-batched version of geqp3 return jpvt indexed starting from 0
       nda::lapack::geqp3(UT,jpvt,tau,work);
 
-      //std::cout<<"jpvt = "<<jpvt()<<std::endl;
-
-      //std::cout<<"Matrix from QR decomposition\n";
-      //for(int i = 0; i < M; ++i)
-      //  for(int j = 0; j < M; ++j)
-      //    std::cout<<UT(i,j)<<std::endl;
-
       // get Q, R
       std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
-
-      //std::cout<<"U V from QR decomposition\n";
-      //for(int i = 0; i < M; ++i)
-      //  for(int j = 0; j < M; ++j)
-      //    std::cout<<UT(i,j)<<"  "<<VT(i,j)<<std::endl;
 
       {
         // FIX : is this scope beneficial?

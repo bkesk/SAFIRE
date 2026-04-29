@@ -103,7 +103,6 @@ public:
     symmetric_split     = pt.get<bool>("symmetric_split");
     use_cp_constraint   = pt.get<bool>("use_cp_constraint");
     use_real_vbias      = pt.get<bool>("use_real_vbias");
-    readFields          = pt.get<bool>("readFields");
     auto hamtype(wfn->getHamType());
     utils::check(denseP2 or hamtype == ModelHamiltonian, "denseP2=false only allowed with ModelHamiltonian.");
 
@@ -201,14 +200,6 @@ public:
       mpi->comm.barrier();
     }
 
-    // for testing finite-T
-    if(readFields and ntau > 0){
-      Xread = memory::array<MEM,ComplexType,2,nda::C_layout>(std::array<long,2>{ntau,NMO});
-    }
-    // readFields not implemented for ground-state
-    else if(ntau <= 0){
-      readFields = false;
-    }
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -236,7 +227,6 @@ public:
     auto use_real_vbias         = pt0.get<bool>("use_real_vbias", false);
     std::string external_field  = pt0.get<std::string>("external_field", "");
     std::string excited_file    = pt0.get<std::string>("excited", "");
-    bool readFields             = pt0.get<bool>("readFields", false);
     // validate inputs
     if (free_projection)
     {
@@ -273,7 +263,6 @@ public:
     pt1.put("natural_shift",natural_shift);
     pt1.put("symmetric_split",symmetric_split);
     pt1.put("debug_verbosity", debug_verbosity);
-    pt1.put("readFields", readFields);
     std::unordered_set<std::string> pass_through_keys = {
       "system",
       "name",
@@ -316,34 +305,6 @@ public:
 
   void set_rng_block_size(int sz) { rng_block_size = sz; }
 
-  bool read_Fields() { return readFields; }
-
-  // read aux. fields from file for testing using
-  // known configurations
-  void read_fields_from_hdf(std::string fileName){
-    utils::check(readFields,"read fields = false");
-    h5::file file(fileName,'r');
-    h5::group grp(file);
-
-    h5::group hgrp = grp.open_group("Fields");
-    std::vector<int> dims(2);
-    h5::h5_read(hgrp,"dims",dims);
-
-    memory::host_array<ComplexType,2> Xtmp(Xread.shape());
-
-    utils::check(Xread.shape()==std::array<long,2>{dims[0],dims[1]},"Size mismatch in read_fields_from_hdf");
-
-    //utils::h5_read(hgrp,"data", Xread);
-    utils::h5_read(hgrp,"data", Xtmp);
-  
-#if defined(ENABLE_DEVICE)
-    if(MEM==DEVICE_MEMORY)
-      Xread = nda::to_device(Xtmp);
-    else
-#endif
-      Xread = Xtmp;
-
-  }
 
 protected:
   // mpi_context
@@ -405,10 +366,6 @@ protected:
   bool use_cp_constraint = false;
   bool use_real_vbias = false;
 
-  // for testing
-  bool readFields = false;
-  memory::array<MEM, ComplexType, 2> Xread;
-
   int nspins_in_vHS = 1;
   int npol_in_vHS   = 1;
 
@@ -425,7 +382,6 @@ protected:
                   nda::MemoryArrayOfRank<2> auto&& X,
                   nda::MemoryArrayOfRank<1> auto&& MF,
                   nda::MemoryArrayOfRank<1> auto&& HWs,
-                  bool readFields = false,
                   int nt = 0,
                   bool addRAND = true);
 

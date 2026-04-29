@@ -139,13 +139,13 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
               PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
         } 
         mpi->comm.barrier();
-        //return Wavefunction(NOMSD<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
-        //                              std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
+        return Wavefunction(NOMSD<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+                                      std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
       }
       else
       {
-        //return Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
-        //                              std::move(ci), std::move(PsiT),NCE,targetNW)); 
+        return Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+                                      std::move(ci), std::move(PsiT),NCE,targetNW)); 
       }
     }
     else
@@ -446,9 +446,9 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     for(int i=0; i<PsiT_2d.extent(1); i++)
       PsiT_1d(i) = std::move(PsiT_2d(0,i));
 
-    //return Wavefunction<MEM>(PHMSD<MEM>(AFinfo, pt, walker_type, mpi, std::move(HOps),
-    //                std::move(abij), std::move(det_coupling_matrix),
-    //                std::move(PsiT_1d), NCE, targetNW));
+    return Wavefunction<MEM>(PHMSD<MEM>(AFinfo, pt, walker_type, mpi, std::move(HOps),
+                    std::move(abij), std::move(det_coupling_matrix),
+                    std::move(PsiT_1d), NCE, targetNW));
   }
   else
   {

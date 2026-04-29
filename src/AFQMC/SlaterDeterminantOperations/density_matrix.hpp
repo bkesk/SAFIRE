@@ -945,13 +945,6 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
       // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
       detail::LUsolve(G,M1,ovlp);
 
-      std::cout<<"M from LU solve\n";
-      auto M1_h = nda::to_host(M1);
-      for(int i = 0; i < NMO; ++i)
-        for(int j = 0; j < NMO; ++j)
-          std::cout<<M1_h(0,i,j)<<std::endl;
-
-
       // Gp^T = <c_i c_j^+>^T
       //    = UL^-1*DLmax^-1*[DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
       nda::tensor::contract(ComplexType(-1.0),M0,"ij",M1,"njk",ComplexType(0.0),G,"nki");
