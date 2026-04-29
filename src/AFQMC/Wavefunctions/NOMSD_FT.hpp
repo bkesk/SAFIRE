@@ -241,12 +241,34 @@ public:
     wset.setProperty(EJ_, eloc(all, 2));
   }
 
+  template<class WlkSet, nda::MemoryVector TVec>
+  void Energy(WlkSet& wset, TVec&& navg, int nt = 0)
+  {
+    auto all = nda::range::all;
+    int nw = wset.size();
+    memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
+    memory::buffered_array<MEM,ComplexType,2> eloc(nw,3);
+    eloc() = ComplexType(0.0);
+    Energy(wset, eloc(), ovlp(), navg(), nt);
+    wset.setProperty(OVLP, ovlp);
+    wset.setProperty(E1_, eloc(all, 0));
+    wset.setProperty(EXX_, eloc(all, 1));
+    wset.setProperty(EJ_, eloc(all, 2));
+  }
+
   /*
    * Calculates the local energy and overlaps of all the walkers in the set and 
    * returns them in the appropriate data structures
    */
   template<class WlkSet,  nda::MemoryMatrix TMat, nda::MemoryVector TVec>
   void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt = 0);
+
+  /*
+   * Calculates the local energy and overlaps of all the walkers in the set and 
+   * returns them in the appropriate data structures
+   */
+  template<class WlkSet,  nda::MemoryMatrix TMat, nda::MemoryVector TVec, nda::MemoryVector T2Vec>
+  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, T2Vec&& n_avg, int nt = 0);
 
   /*
    * Calculates the mixed density matrix for all walkers in the walker set. 

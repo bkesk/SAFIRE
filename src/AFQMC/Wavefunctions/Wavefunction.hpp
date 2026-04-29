@@ -19,8 +19,8 @@
 #include <variant>
 #include "AFQMC/config.h"
 
-#include "AFQMC/Wavefunctions/NOMSD.hpp"
-#include "AFQMC/Wavefunctions/PHMSD.hpp"
+//#include "AFQMC/Wavefunctions/NOMSD.hpp"
+//#include "AFQMC/Wavefunctions/PHMSD.hpp"
 #include "AFQMC/Wavefunctions/NOMSD_FT.hpp"
 
 namespace sfqmc
@@ -34,6 +34,7 @@ class Wavefunction
 public:
   Wavefunction() { APP_ABORT(" Error: Reached default constructor of Wavefunction. "); }
 
+  /*
   explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>> const& other) : var(other) {} 
 
@@ -42,7 +43,7 @@ public:
 
   explicit Wavefunction(PHMSD<MEM>&& other) : var(std::move(other)) {}
   explicit Wavefunction(PHMSD<MEM> const& other) : var(other) {} 
-
+  */
   // Add finite-T NOMSD wavefunctions
   explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>> const& other) = delete;
@@ -209,11 +210,11 @@ public:
   private:
 
 
-  std::variant<NOMSD<MEM,PsiT_Matrix<MEM>>,
-               NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>,
+  std::variant<//NOMSD<MEM,PsiT_Matrix<MEM>>,
+               //NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>,
                NOMSD_FT<MEM,PsiT_Matrix<MEM>>,
-               NOMSD_FT<MEM,memory::shared_array<MEM,ComplexType,2>>,
-               PHMSD<MEM>
+               NOMSD_FT<MEM,memory::shared_array<MEM,ComplexType,2>>
+               //,PHMSD<MEM>
               > var;
 
 };

@@ -148,6 +148,12 @@ public:
     else {
       //nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
       //nda::tensor::add(ia,hMF(),"i",ComplexType(1.0),v,"wi");
+      std::cout<<"h0 hMF\n";
+      auto h0_h = nda::to_host(h0);
+      auto hMF_h = nda::to_host(hMF);
+      for(int i = 0; i < h0.extent(0); ++i){
+        std::cout<<h0_h(i)<<"  "<<hMF_h(i)<<std::endl;
+      }
       //FIX: need a better solution here
       for(int iw=0; iw<v.extent(0); ++iw){
         nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v(iw,all),"i");
@@ -390,9 +396,8 @@ private:
     RealType Ud = std::real(U_);
     // look in table
     for( auto& v : params )
-      if( (abs(Ud-get<0>(v)) < 1e-4) and
-	  (abs(nMF-get<1>(v)) < 1e-4) ) 
-	return std::make_tuple(get<2>(v),get<3>(v),ComplexType(nMF));
+      if( (abs(Ud-get<0>(v)) < 1e-4) and (abs(nMF-get<1>(v)) < 1e-4) ) 
+	      return std::make_tuple(get<2>(v),get<3>(v),ComplexType(nMF));
 
     ComplexType alpha(0.0),n(0.0);
 
@@ -410,19 +415,19 @@ private:
         double Ud_ = double(Ud);
         ComplexType a0_c = acos( sqrt( 1.0 / ( 2.0 - exp( -dt*ComplexType(Ud_) ) ) ) );
         ComplexType a1_c = acos( exp( -dt*0.5*ComplexType(Ud_) ) );
-	double n_ = (nMF < RealType(1.0)) ? double(nMF) : 2.0-double(nMF) ; 
+        double n_ = (nMF < RealType(1.0)) ? double(nMF) : 2.0-double(nMF) ; 
         if(Ud < 0.0) {
-	  // alpha is imag 
-	  // just checking
-	  if( (std::abs(std::real(a0_c)) > 1e-8) or (std::abs(std::real(a1_c)) > 1e-8) )   	
-	    utils::check(false," Error in Discrete_GeneralUJ::get_parameters: Unexpected value. Report problem.");
+          // alpha is imag 
+          // just checking
+          if( (std::abs(std::real(a0_c)) > 1e-8) or (std::abs(std::real(a1_c)) > 1e-8) )   	
+            utils::check(false," Error in Discrete_GeneralUJ::get_parameters: Unexpected value. Report problem.");
           double a0 = std::imag(a0_c); 
           double a1 = std::imag(a1_c); 
           auto f = [&](double a)
-            {
-              ComplexType c = cos(ComplexType(0.0,a)*(1.0-n_));
-              return exp(-1.0*dt*Ud_) - std::real(cos(ComplexType(0.0,a)*(2.0-n_)) * cos(ComplexType(0.0,a)*n_) / (c*c));
-            };
+          {
+            ComplexType c = cos(ComplexType(0.0,a)*(1.0-n_));
+            return exp(-1.0*dt*Ud_) - std::real(cos(ComplexType(0.0,a)*(2.0-n_)) * cos(ComplexType(0.0,a)*n_) / (c*c));
+          };
           // [a1,a0] should bracket the root and f(a) should be monotonically increasing
           if( f(a0)*f(a1) > 0.0 )
             utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
@@ -433,56 +438,55 @@ private:
           alpha = ComplexType(0.0,RealType(root.first));	     
         } else {
           // alpha is real
-	  if( (std::abs(std::imag(a0_c)) > 1e-8) or (std::abs(std::imag(a1_c)) > 1e-8) )   	
-	    utils::check(false," Error in Discrete_GeneralUJ::get_parameters: Unexpected value. Report problem.");
+          if( (std::abs(std::imag(a0_c)) > 1e-8) or (std::abs(std::imag(a1_c)) > 1e-8) )   	
+            utils::check(false," Error in Discrete_GeneralUJ::get_parameters: Unexpected value. Report problem.");
           double a0 = std::real(a0_c); 
           double a1 = std::real(a1_c); 
           auto f = [&](double a)
-	    {
-	      double c = cos(a*(1.0-n_));
-              return exp(-1.0*dt*Ud_) - cos(a*(2.0-n_)) * cos(a*n_) / (c*c);
-            }; 
-	  // [a0,a1] should bracket the root and f(a) should be monotonically increasing
-	  if( f(a0)*f(a1) > 0.0 ) 
-	    utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
-	  std::uintmax_t miter(300);
-	  auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
-	  if(miter == 300)
-	    utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
-          alpha = ComplexType(RealType(root.first));
+          {
+            double c = cos(a*(1.0-n_));
+                  return exp(-1.0*dt*Ud_) - cos(a*(2.0-n_)) * cos(a*n_) / (c*c);
+          }; 
+          // [a0,a1] should bracket the root and f(a) should be monotonically increasing
+          if( f(a0)*f(a1) > 0.0 ) 
+            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
+          std::uintmax_t miter(300);
+          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
+          if(miter == 300)
+            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
+                alpha = ComplexType(RealType(root.first));
         }
-
       }	
-      utils::check(abs(cos(alpha*(1.0-nMF))) > 1e-8, 
-                   "Error in Discrete_GeneralUJ::get_parameters: cosh(a*(1-n) == 0.0)");
-      n = 1.0 - log( cos(alpha*nMF) / cos(alpha*(2.0-nMF)) ) / (2.0*ComplexType(RealType(dt))*ComplexType(Ud)); 
+        utils::check(abs(cos(alpha*(1.0-nMF))) > 1e-8, 
+                    "Error in Discrete_GeneralUJ::get_parameters: cosh(a*(1-n) == 0.0)");
+        n = 1.0 - log( cos(alpha*nMF) / cos(alpha*(2.0-nMF)) ) / (2.0*ComplexType(RealType(dt))*ComplexType(Ud)); 
 
     } else {
 
       if( (abs(nMF-1.0) < 1e-8) or (abs(nMF+1.0) < 1e-8) ) {
-	// n=1/-1 
-	alpha = acosh( sqrt( 1.0 / ( 2.0 - exp( ComplexType(RealType(dt))*ComplexType(Ud) ) ) ) );   	
+        // n=1/-1 
+        alpha = acosh( sqrt( 1.0 / ( 2.0 - exp( ComplexType(RealType(dt))*ComplexType(Ud) ) ) ) );   	
       } else if(abs(nMF) < 1e-8) {
-	// n=0 
-	alpha = acosh( exp( ComplexType(RealType(dt))*0.5*ComplexType(Ud) ) );  
+        // n=0 
+        alpha = acosh( exp( ComplexType(RealType(dt))*0.5*ComplexType(Ud) ) );  
       } else {	
-	// generic case
+	      // generic case
         double Ud_ = double(Ud);
         ComplexType a0_c = acosh( sqrt( 1.0 / ( 2.0 - exp( dt*ComplexType(Ud_) ) ) ) );
         ComplexType a1_c = acosh( exp( dt*0.5*ComplexType(Ud_) ) );
-	double n_ = double(abs(nMF)); 
+	      double n_ = double(abs(nMF)); 
         if(Ud < 0.0) {
-	  // alpha is imag 
-	  // just checking
-	  if( (std::abs(std::real(a0_c)) > 1e-8) or (std::abs(std::real(a1_c)) > 1e-8) )   	
-	    utils::check(false," Error in Discrete_GeneralUJ::get_parameters: Unexpected value. Report problem.");
+	        // alpha is imag 
+	        // just checking
+          if( (std::abs(std::real(a0_c)) > 1e-8) or (std::abs(std::real(a1_c)) > 1e-8) )   	
+            utils::check(false," Error in Discrete_GeneralUJ::get_parameters: Unexpected value. Report problem.");
           double a0 = std::imag(a0_c); 
           double a1 = std::imag(a1_c); 
           auto f = [&](double a)
-            {
-              ComplexType c = cosh(ComplexType(0.0,a)*n_);
-              return exp(dt*Ud_) - std::real(cosh(ComplexType(0.0,a)*(1.0-n_)) * cosh(ComplexType(0.0,a)*(1.0+n_)) / (c*c));
-            };
+          {
+            ComplexType c = cosh(ComplexType(0.0,a)*n_);
+            return exp(dt*Ud_) - std::real(cosh(ComplexType(0.0,a)*(1.0-n_)) * cosh(ComplexType(0.0,a)*(1.0+n_)) / (c*c));
+          };
           // [a1,a0] should bracket the root and f(a) should be monotonically increasing
           if( f(a0)*f(a1) > 0.0 )
             utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
@@ -493,23 +497,23 @@ private:
           alpha = ComplexType(0.0,RealType(root.first));	     
         } else {
           // alpha is real
-	  if( (std::abs(std::imag(a0_c)) > 1e-8) or (std::abs(std::imag(a1_c)) > 1e-8) )   	
-	    utils::check(false," Error in Discrete_GeneralUJ::get_parameters: Unexpected value. Report problem.");
+          if( (std::abs(std::imag(a0_c)) > 1e-8) or (std::abs(std::imag(a1_c)) > 1e-8) )   	
+            utils::check(false," Error in Discrete_GeneralUJ::get_parameters: Unexpected value. Report problem.");
           double a0 = std::real(a0_c); 
           double a1 = std::real(a1_c); 
           auto f = [&](double a)
-	    {
-	      double c = cosh(a*n_);
-              return exp(dt*Ud_) - cosh(a*(1.0-n_)) * cosh(a*(1.0+n_)) / (c*c);
-            }; 
-	  // [a0,a1] should bracket the root and f(a) should be monotonically increasing
-	  if( f(a0)*f(a1) > 0.0 ) 
-	    utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
-	  std::uintmax_t miter(300);
-	  auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
-	  if(miter == 300)
-	    utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
-          alpha = ComplexType(RealType(root.first));
+	        {
+            double c = cosh(a*n_);
+                  return exp(dt*Ud_) - cosh(a*(1.0-n_)) * cosh(a*(1.0+n_)) / (c*c);
+          }; 
+          // [a0,a1] should bracket the root and f(a) should be monotonically increasing
+          if( f(a0)*f(a1) > 0.0 ) 
+            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
+          std::uintmax_t miter(300);
+          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
+          if(miter == 300)
+            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
+                alpha = ComplexType(RealType(root.first));
         }
 
       }	

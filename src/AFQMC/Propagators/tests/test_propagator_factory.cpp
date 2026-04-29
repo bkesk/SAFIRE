@@ -91,6 +91,8 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
   ham_pt.put("name","ham0");
   ham_pt.put("system","info0");
   ham_pt.put("filename",hamil_file);
+  ham_pt.put("shift_1body",true);
+  //ham_pt.put("shift_1body",false);
 
   HamiltonianFactory HamFac(InfoMap);
   HamFac.push("ham0", ham_pt);
@@ -137,6 +139,8 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
   prop_pt.put("name","prop0");
   prop_pt.put("system","info0");
   prop_pt.put("denseP2",true);
+  bool readFields = true;
+  prop_pt.put("readFields",readFields);
 
   PropagatorFactory<MEM> PropgFac(InfoMap);
   PropgFac.push("prop0", prop_pt);
@@ -187,19 +191,64 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
     }
   } 
   else {
-    for(int i = 0; i < ntau; i++)
+
+    //int ntau_test = 400; 
+    //memory::array<MEM,ComplexType,2> X(ntau_test,NMO);
+    //nda::array<ComplexType,2> X(ntau_test,NMO);
+
+    //X() = ComplexType(0.0);
+
+    //read_fields_from_hdf<ComplexType>("Aux_Fields.h5", X);
+
+    //for(int i = 0; i < 5; ++i){
+    //  for(int j = 0; j < NMO; ++j){
+    //    std::cout<<X(i,j)<<" ";
+    //  }
+    //  std::cout<<std::endl;
+    //}
+
+    if(readFields) prop.read_fields_from_hdf("Aux_Fields.h5");
+
+    dt = 0.099;
+    int ntau_test = 10;
+    ComplexType mu = 0.5;
+    for(int i = 0; i < 3; i++)
     {
-      prop.Propagate(wset, Eshift, dt, i);
-      wfn.Energy(wset, i);
-      ComplexType eav = 0, ov = 0;
+      prop.Propagate(wset, Eshift, dt, i+1);
+      //std::cout<<"UR DR VR before stabilization\n";
+      //auto URtmp = wset.UMatrices(Alpha);
+      //auto DRtmp = wset.DMatrices(Alpha);
+      //auto VRtmp = wset.VMatrices(Alpha);
+      //for(int j = 0; j < NMO; ++j)
+      //  for(int k = 0; k < NMO; ++k)
+      //    std::cout<<URtmp(0,j,k)<<"  "<<DRtmp(0,k)<<"  "<<VRtmp(0,j,k)<<std::endl;
+      prop.Orthogonalize(wset);
+      //std::cout<<"UR DR VR after stabilization\n";
+      //URtmp = wset.UMatrices(Alpha);
+      //for(int j = 0; j < NMO; ++j)
+      //  for(int k = 0; k < NMO; ++k)
+      //    std::cout<<URtmp(0,j,k)<<"  "<<DRtmp(0,k)<<"  "<<VRtmp(0,j,k)<<std::endl;
+      tot_time += dt;
+      memory::buffered_array<MEM,ComplexType,1> n_avg(nwalk,ComplexType(0.0));
+      ComplexType ntot_avg = 0;
+      wfn.Energy(wset, n_avg, i+1);
+      //for(int n = 0; n < nwalk; ++n) ntot_avg += n_avg(n);
+      //std::cout<<"ntot_avg = "<<ntot_avg<<std::endl;
+      ComplexType ehubb =0, eav = 0, ov = 0;
+      int n = 0;
       for (auto it = wset.begin(); it != wset.end(); ++it)
       {
+        ehubb += it->get_property(WEIGHT) * (it->get_property(EJ_));
         eav += it->get_property(WEIGHT) * (it->energy());
+        ntot_avg += it->get_property(WEIGHT) * n_avg(n);
         ov += it->get_property(WEIGHT);
+        n++;
       }
-      app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
-      prop.Orthogonalize(wset);
-      tot_time += dt;
+      //app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
+      //app_log(1," -- {}  {}  {}",i,tot_time,((eav + mu*ntot_avg) / ov).real());
+      app_log(1," -- {}  {}  {}  {}",i,tot_time,(ehubb / ov).real(), ((eav + mu*ntot_avg) / ov).real());
+      //prop.Orthogonalize(wset);
+      //tot_time += dt;
     }
   }
 std::cout<<" setup: " <<AFQMCTimer.elapsed(setup_timer) <<std::endl;

@@ -81,8 +81,15 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
 
   // 2. Assemble X(nwalk, nCV)
   AFQMCTimer.start(assemble_X_timer);
-  assemble_X(sqrtdt, X, MFfactor, hybrid_weight);
+  if(!readFields){
+    assemble_X(sqrtdt, X, MFfactor, hybrid_weight);
+  }
+  else{
+    assemble_X(sqrtdt, X, MFfactor, hybrid_weight, readFields, nt);
+  }
   AFQMCTimer.stop(assemble_X_timer);
+
+  //std::cout<<" X: " <<nda::sum(nda::to_host(X)) <<std::endl;
 
   // Store sqrtdt*X in wset if back propagating
   int bp_step = wset.getBPPos(), bp_max = wset.NumBackProp();
@@ -128,7 +135,10 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   }
   else
   {
-    wfn->Energy(wset, new_energies, new_overlaps);
+    if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT)
+      wfn->Energy(wset, new_energies, new_overlaps);
+    else
+      wfn->Energy(wset, new_energies, new_overlaps, nt);
   }
   AFQMCTimer.stop(pseudo_energy_timer);
 
@@ -564,7 +574,7 @@ void AFQMCBasePropagator<MEM>::Orthogonalize_excited_impl(WlkSet& wset)
 template<MEMORY_SPACE MEM>
 void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt, 
      nda::MemoryArrayOfRank<2> auto&& X, nda::MemoryArrayOfRank<1> auto&& MF, 
-     nda::MemoryArrayOfRank<1> auto&& HWs, bool addRAND)
+     nda::MemoryArrayOfRank<1> auto&& HWs, bool readFields, int nt, bool addRAND)
 {
   using nda::range;
   auto all = range::all;
@@ -590,9 +600,13 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
   MF() = ComplexType(0);
 
 #if defined(ENABLE_DEVICE)
-  // FIX : include factor of (1/2) in HWs?
   if constexpr (MEM==DEVICE_MEMORY) {
-    kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X);
+    if(!readFields){
+      kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X);
+    }
+    else{
+      kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, readFields, nt, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X, Xread);
+    }
   } else
 #endif
   { 
@@ -633,16 +647,27 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
           utils::check(not free_projection, "Finish FP DiscretePropagator");
           ComplexType vdiff =
               free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
-          // FIX : include factor of (1/2) in HWs?
+          // FIX : I added factor of (1/2) in HWs, necessary for finite-T,
+          // should not affect GS
           auto wp = std::abs(std::exp(vdiff));
           auto wm = std::abs(std::exp(-vdiff));
           auto P = wm/(wp+wm);
-          if( RNGbuff(iw,m) < P ) {
-            Xm(iw) = ComplexType(-1.0);
-            HWs(iw) += std::log(1.0/P);
-          } else {
-            Xm(iw) = ComplexType(1.0);
-            HWs(iw) += std::log(1.0/(1.0-P));
+          if(!readFields){
+            if( RNGbuff(iw,m) < P ) {
+              Xm(iw) = ComplexType(-1.0);
+              HWs(iw) += std::log(0.5/P);
+            } else {
+              Xm(iw) = ComplexType(1.0);
+              HWs(iw) += std::log(0.5/(1.0-P));
+            }
+          }
+          else{
+            Xm(iw) = Xread(nt,m);
+            if( Xm(iw) < 0.0 ) {
+              HWs(iw) += std::log(0.5/P);
+            } else {
+              HWs(iw) += std::log(0.5/(1.0-P));
+            }
           }
           // W_MSsub = exp(-MF), careful with sign convention
           MF(iw) += im * ComplexType(Xm(iw)) * vmf_0;

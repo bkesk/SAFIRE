@@ -33,6 +33,25 @@ void construct_X_impl(bool zero, bool fp, double sqrtdt, double vbias_bound, V1 
   sfqmc::arch::synchronize_if_set();
 }
 
+template<typename V1, typename V2, typename V3, typename V4, typename V5, typename V6>
+void construct_X_impl(bool zero, bool fp, double sqrtdt, double vbias_bound, bool readFields, int nt, V1 const& FieldTypes, 
+   V2 const& vMF, V3& mf_factor, V3& hybrid_weight, V4 const& RN, V5& X, V6& Xread)
+{ 
+  long N = X.size();
+  if(N==0) return;
+  auto FT_d = to_cuda_std_mdspan(FieldTypes);
+  auto vMF_d = to_cuda_std_mdspan(vMF);
+  auto MF_d = to_cuda_std_mdspan(mf_factor);
+  auto HW_d = to_cuda_std_mdspan(hybrid_weight);
+  auto RN_d = to_cuda_std_mdspan(RN);
+  auto X_d = to_cuda_std_mdspan(X);
+  auto Xread_d = to_cuda_std_mdspan(Xread);
+  auto F = sfqmc::afqmc::detail::read_X_impl<decltype(FT_d),decltype(vMF_d),decltype(MF_d),decltype(RN_d),decltype(X_d),decltype(Xread_d)>{zero,fp,sqrtdt,vbias_bound,readFields,nt,FT_d,vMF_d,MF_d,HW_d,RN_d,X_d,Xread_d};
+
+  cub::DeviceFor::Bulk(N,F);
+  sfqmc::arch::synchronize_if_set();
+}
+
 using memory::device_array_view;
 using std::complex;
 
@@ -46,5 +65,14 @@ template void construct_X_impl(bool,bool,double,double,
     device_array_view<std::complex<double>,1,basic_layout_t<1>>&, 
     device_array_view<const double,2,basic_layout_t<2>> const&,
     device_array_view<std::complex<double>,2,basic_layout_t<2>>&); 
+
+template void construct_X_impl(bool,bool,double,double,bool,int,
+    device_array_view<const int,1,basic_layout_t<1>> const&, 
+    device_array_view<const std::complex<double>,1,basic_layout_t<1>> const&,
+    device_array_view<std::complex<double>,1,basic_layout_t<1>>&, 
+    device_array_view<std::complex<double>,1,basic_layout_t<1>>&, 
+    device_array_view<const double,2,basic_layout_t<2>> const&,
+    device_array_view<std::complex<double>,2,basic_layout_t<2>>&,
+    device_array_view<std::complex<double>,2,basic_layout_t<2>>&);
 
 }

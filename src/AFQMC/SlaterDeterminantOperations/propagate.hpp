@@ -19,8 +19,10 @@
 #include "AFQMC/config.h"
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp"
+#include "numerics/sparse/csr_utils.hpp"
 #include "numerics/sparse/sparse.hpp"
 #include "numerics/operations/product.hpp"
+#include <iostream>
 
 namespace sfqmc
 {
@@ -104,6 +106,13 @@ void apply_expM(int npol, V_t const& V, S_t && S, int order = 6)
     for(int i=0, p=0; i<npol; i++, p+=M)  
       math::product<TA>(fact,V,(*pT1)(all,range(p,p+M),all),zero,(*pT2)(all,range(p,p+M),all));
     nda::tensor::add(one,*pT2,one,S);
+    /*
+    std::cout<<"BV*UR step "<<n<<std::endl;
+    auto Stmp = nda::to_host(S);
+    for(int i = 0; i < M; ++i)
+      for(int j = 0; j < M; ++j)
+        std::cout<<Stmp(0,i,j)<<std::endl;
+    */
     std::swap(pT1, pT2);
   }
 }
@@ -265,6 +274,7 @@ void propagate_impl(int npol, S_t && SM, P_t const& P1, V_t const& V, int order 
 
   // Apply P1
   math::product<TA>(P1,TMN,SM);
+
 }
 
 }  // namespace detail

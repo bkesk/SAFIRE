@@ -89,6 +89,43 @@ void NOMSD_FT<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int 
   
 }
 
+template<MEMORY_SPACE MEM, class devPsiT>
+template<class WlkSet,  nda::MemoryMatrix TMat, nda::MemoryVector TVec, nda::MemoryVector T2Vec>
+void NOMSD_FT<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, T2Vec&& n_avg, int nt) 
+{
+  auto all = nda::range::all;
+  memory::check_memory_space<MEM>(E,Ov);
+  const int ndet = ci.size();
+  const int nw   = wset.size();
+  const int nspin = (walker_type==COLLINEAR_FT ? 2 : 1 ); 
+  const int npol = (walker_type==NONCOLLINEAR_FT ? 2 : 1 ); 
+  utils::check(Ov.size() == nw, "Size mismatch");
+  utils::check(E.shape() == std::array<long,2>{nw,3}, "Size mismatch");
+  // Log_Overlap accumulates!!!
+  Ov() = ComplexType(0.0);
+  E() = ComplexType(0.0);
+
+  ComplexType zero(0.0);
+  memory::buffered_array<MEM,ComplexType,2> G(nw,nspin*npol*NMO*npol*NMO); 
+
+  DensityMatrix(wset, OrbMats(0,all,all), G, Ov, nt);
+  
+  std::cout<<"G\n";
+  for(int i = 0; i < nspin*npol*NMO*npol*NMO; ++i) std::cout<<G(0,i)<<std::endl;
+  std::cout<<"*********\n";
+
+  for(int nwalk = 0; nwalk < nw ; ++nwalk){ 
+    for(int i = 0; i < NMO*NMO; i+=NMO+1){
+      n_avg(nwalk) += G(nwalk,i);
+    }
+    for(int i = NMO*NMO; i < nspin*NMO*NMO; i+=NMO+1){
+      n_avg(nwalk) += G(nwalk,i);
+    }
+  }
+  HamOp.energy(E, G(), 0); 
+
+}
+
 /* 
  * Computes the density matrix for a given reference. 
  * G and Ov are expected to be in shared memory.
@@ -307,8 +344,8 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
       det_ops::Log_Overlap(ULup,DLup(nt,nda::range::all),VLup,
                         wset.UMatrices(Alpha),wset.DMatrices(Alpha),wset.VMatrices(Alpha),
                         sclL_up, sclR_up, Ov);
-    //if(walker_type == CLOSED) {
-    //  nda::tensor::scale(ComplexType(2.0),Ov);
+      if(walker_type == CLOSED) utils::check(false, "Closed walkers not implemented for finite-T");
+      //  nda::tensor::scale(ComplexType(2.0),Ov);
       if (walker_type == COLLINEAR_FT)  {
         memory::buffered_array<MEM,ComplexType,1> sclR_dn(nw);
         wset.getProperty(LOGSCL_DN, sclR_dn(nda::range::all));

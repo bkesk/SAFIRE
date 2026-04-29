@@ -297,8 +297,20 @@ void orthogonalize_wQR(U_t && U, D_t && D, V_t && V, B_t && scl)
       // NOTE : non-batched version of geqp3 return jpvt indexed starting from 0
       nda::lapack::geqp3(UT,jpvt,tau,work);
 
+      //std::cout<<"jpvt = "<<jpvt()<<std::endl;
+
+      //std::cout<<"Matrix from QR decomposition\n";
+      //for(int i = 0; i < M; ++i)
+      //  for(int j = 0; j < M; ++j)
+      //    std::cout<<UT(i,j)<<std::endl;
+
       // get Q, R
       std::tie(UT,VT) = nda::linalg::get_qr_matrices(UT, tau, true);
+
+      //std::cout<<"U V from QR decomposition\n";
+      //for(int i = 0; i < M; ++i)
+      //  for(int j = 0; j < M; ++j)
+      //    std::cout<<UT(i,j)<<"  "<<VT(i,j)<<std::endl;
 
       {
         // FIX : is this scope beneficial?
@@ -479,7 +491,7 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
     if(importance_sampling) {
       orthogonalize_wQR(wset.UMatrices(Alpha), wset.DMatrices(Alpha), wset.VMatrices(Alpha), scl_up);
       wset.setProperty(LOGSCL_UP, scl_up);
-      if(walker_type == COLLINEAR){
+      if(walker_type == COLLINEAR_FT){
         memory::buffered_array<MEM,ComplexType,1> scl_dn(nwalk);
         wset.getProperty(LOGSCL_DN, scl_dn);
         orthogonalize_wQR(wset.UMatrices(Beta), wset.DMatrices(Beta), wset.VMatrices(Beta), scl_dn);
@@ -489,7 +501,7 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
       double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
       orthogonalize_wQR(wset.UMatrices(Alpha), wset.DMatrices(Alpha), wset.VMatrices(Alpha), scl_up);
       wset.setProperty(LOGSCL_UP, scl_up);
-      if(walker_type == COLLINEAR){
+      if(walker_type == COLLINEAR_FT){
         memory::buffered_array<MEM,ComplexType,1> scl_dn(nwalk);
         wset.getProperty(LOGSCL_DN, scl_dn);
         orthogonalize_wQR(wset.UMatrices(Beta), wset.DMatrices(Beta), wset.VMatrices(Beta), scl_dn);

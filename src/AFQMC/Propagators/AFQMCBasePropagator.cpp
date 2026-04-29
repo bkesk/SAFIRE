@@ -155,6 +155,7 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
   if(head_shared) {
     auto vMF_h = nda::to_host(vMF());
     auto H1 = wfn->getOneBodyPropagatorMatrix(dt, vMF_h);
+
     utils::check(H1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO}, "Shape mismatch.");
     if(external_H1) nda::tensor::add(ComplexType(1.0),H1ext(),"sij",ComplexType(1.0),H1(),"sij");
 

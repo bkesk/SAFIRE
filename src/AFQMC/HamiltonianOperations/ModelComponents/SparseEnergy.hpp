@@ -118,7 +118,7 @@ public:
       nda::copy_select(true, n2IJ_host, ComplexType(dt), vals, ComplexType(1.0), H2d(0,all));
     }
     // beta component
-    if( walker_type == COLLINEAR ) {
+    if( walker_type == COLLINEAR or walker_type == COLLINEAR_FT) {
       auto vals = nda::to_host(hij[1].values()(range(nIJ)));
       nda::copy_select(true, n2IJ_host, ComplexType(dt), vals, ComplexType(1.0), H2d(1,all));
     }

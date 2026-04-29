@@ -91,12 +91,120 @@ struct construct_X_impl
         auto wp = abs(exp(vdiff));
         auto wm = abs(exp(-vdiff));
         auto P = wm/(wp+wm);
+        // FIX : I added factor of (1/2) in HWs, necessary for finite-T,
+        // should not affect GS
         if( RNs(iw,m) < P ) {
           X(iw,m) = complex<double>(-1.0);
-          HWs(iw) += log(1.0/P);
+          HWs(iw) += log(0.5/P);
         } else {
           X(iw,m) = complex<double>(1.0);
-          HWs(iw) += log(1.0/(1.0-P));
+          HWs(iw) += log(0.5/(1.0-P));
+        }
+        // W_MSsub = exp(-MF), careful with sign convention
+        MF(iw) += im * complex<double>(X(iw,m)) * vmf_0;
+      }
+    } // iw
+  };
+};
+
+
+template<typename V1, typename V2, typename V3, typename V4, typename V5, typename V6>
+struct read_X_impl
+{
+  bool zero;
+  bool free_projection;
+  double sqrtdt;
+  double vbias_bound;
+  bool readFields;
+  int nt;
+  /*
+   * 0: ContinuousChargePropagator,
+   * 1: ContinuousSpinPropagator,
+   * 2: DiscreteChargePropagator,
+   * 3: DiscreteSpinPropagator,
+   */     
+  V1 FieldTypes;
+  V2 vMF;
+  V3 MF;
+  V3 HWs;
+  V4 RNs;
+  V5 X; 
+  V6 Xread; 
+
+#if defined(__CUDACC__)
+  __device__
+#endif
+  void operator()(long nn)
+  {
+#if defined(__CUDACC__)
+    using ::cuda::std::complex;
+#else
+    using std::abs;
+    using std::log;
+    using std::exp;
+    using std::complex;
+    using std::real;
+    using std::imag;
+#endif
+    // nn = nCV*nwalk
+    complex<double> im(0.0,1.0);
+    long m = nn/X.extent(0);
+    long iw = nn%X.extent(0);
+    auto vmf_0 = vMF(m);
+    auto vmf_t = (abs(vmf_0) > vbias_bound * sqrtdt ?
+                  vmf_0 / (abs(vmf_0) / vbias_bound * sqrtdt) : vmf_0 );
+    // X[iw,m] = rand[iw,m] + im * ( vbias[iw,m] - vMF[m]  )
+    // HW[iw] = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
+    //                     ( rand[iw,m] + halfim * ( vbias[iw,m] - vMF[m] ) ) ]
+    //           = sum_m [ im * ( vMF[m] - vbias[iw,m] ) *
+    //                     ( X[iw,m] - halfim * ( vbias[iw,m] - vMF[m] ) ) ]
+    // MF[iw] = sum_m ( im * X[iw,m] * vMF[m] )
+    {
+      auto vb_t = (abs(X(iw,m)) > vbias_bound * sqrtdt ?
+                    X(iw,m) / (abs(X(iw,m)) / vbias_bound * sqrtdt) : X(iw,m) );
+
+      if (zero) {
+        if (FieldTypes(m) == 1) {
+          vb_t = complex<double>(0.0,imag(vb_t));
+        } else if (FieldTypes(m) == 0) {
+          vb_t = complex<double>(real(vb_t),0.0);
+        }
+      }
+
+      if( FieldTypes(m) == 0 or FieldTypes(m) == 1 ) { 
+        complex<double> vdiff =
+            free_projection ? complex<double>(0.0, 0.0) : (im * (vb_t - vmf_t));
+#if defined(__CUDACC__)
+        X(iw,m) = kernels::probit(RNs(iw,m)) + vdiff;
+#else
+        X(iw,m) = probit(RNs(iw,m)) + vdiff;
+#endif
+        HWs(iw) -= vdiff * X(iw,m) - complex<double>(0.5) * vdiff;
+        MF(iw) += im * X(iw,m) * vmf_0;
+      } else if( FieldTypes(m) == 2 or FieldTypes(m) == 3 ) { 
+        complex<double> vdiff =
+            free_projection ? complex<double>(0.0, 0.0) : (im * (vb_t - vmf_t));
+        auto wp = abs(exp(vdiff));
+        auto wm = abs(exp(-vdiff));
+        auto P = wm/(wp+wm);
+        // FIX : I added factor of (1/2) in HWs, necessary for finite-T,
+        // should not affect GS
+        if(!readFields){
+          if( RNs(iw,m) < P ) {
+            X(iw,m) = complex<double>(-1.0);
+            HWs(iw) += log(0.5/P);
+          } else {
+            X(iw,m) = complex<double>(1.0);
+            HWs(iw) += log(0.5/(1.0-P));
+          }
+        }
+        else{
+          X(iw,m) = Xread(nt,m);
+          if( real(X(iw,m)) < 0.0 ) {
+            HWs(iw) += log(0.5/P);
+          } else {
+            HWs(iw) += log(0.5/(1.0-P));
+          }
         }
         // W_MSsub = exp(-MF), careful with sign convention
         MF(iw) += im * complex<double>(X(iw,m)) * vmf_0;

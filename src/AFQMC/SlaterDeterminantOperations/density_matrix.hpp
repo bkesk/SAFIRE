@@ -886,6 +886,11 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
         math::splitDmatrix(DL, DLmin, DLmax_inv, ovlp_loc, sclL);
         kernels::device::add_scalar(ovlp_loc,ovlp,nbatch);
         math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
+
+        auto DRmin_h = nda::to_host(DRmin);
+        auto DLmin_h = nda::to_host(DLmin);
+        auto DRmax_inv_h = nda::to_host(DRmax_inv);
+        auto DLmax_inv_h = nda::to_host(DLmax_inv);
       
         // M0 <-- VL * DLmin
         //nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");
@@ -939,6 +944,13 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
 
       // LU solve for [DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1
       detail::LUsolve(G,M1,ovlp);
+
+      std::cout<<"M from LU solve\n";
+      auto M1_h = nda::to_host(M1);
+      for(int i = 0; i < NMO; ++i)
+        for(int j = 0; j < NMO; ++j)
+          std::cout<<M1_h(0,i,j)<<std::endl;
+
 
       // Gp^T = <c_i c_j^+>^T
       //    = UL^-1*DLmax^-1*[DRmax^-1*UR^-1*UL^-1*DLmax^-1+DRmin*VR*VL*DLmin]^-1*DRmax^-1*UR^-1

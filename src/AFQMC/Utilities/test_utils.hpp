@@ -169,6 +169,22 @@ TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_ty
   return TEST_DATA<T>{nmo, nup, ndn, E0, E1, E2, Xsum, Vsum};
 }
 
+// read aux. fields from file for testing using
+// known configurations
+template<typename T>
+void read_fields_from_hdf(std::string fileName, nda::MemoryArray auto && X){
+  h5::file file(fileName,'r');
+  h5::group grp(file);
+
+  h5::group hgrp = grp.open_group("Fields");
+  std::vector<int> dims(2);
+  h5::h5_read(hgrp,"dims",dims);
+
+  utils::check(X.shape()==std::array<long,2>{dims[0],dims[1]},"Size mismatch in read_fields_from_hdf");
+
+  utils::h5_read(hgrp,"data", X);
+}
+
 /*
 // Create a fake output hdf5 filename for unit tests.
 inline std::string create_test_hdf(std::string& wfn_file, std::string& hamil_file)
