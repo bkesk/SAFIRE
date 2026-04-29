@@ -50,7 +50,7 @@ combination of Slater determinants,
 
 .. math::
 
-   | \Psi_T \rangle = \sum_n C_n |\Phi_m\rangle,
+   | \Psi_\mathrm{T} \rangle = \sum_n C_n |\Phi_m\rangle,
 
 where :math:`|\Phi_m\rangle` are Slater determinants,
 and :math:`C_n` is a coefficient.

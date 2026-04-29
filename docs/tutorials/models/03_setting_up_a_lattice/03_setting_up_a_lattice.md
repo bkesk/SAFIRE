@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.19.1
 kernelspec:
-  display_name: auxiliary_fields_kernel
+  display_name: Python 3 (ipykernel)
   language: ipython3
-  name: auxiliary_fields_kernel
+  name: python3
 ---
 
 +++ {"id": "e9d26b92-e165-4baf-8fc1-dd312330f9d0"}
@@ -31,8 +31,8 @@ In this tutorial, we will explore how the Lattice class works, and the available
 We consider lattices with primitive lattice vectors $\vec{a}_1$, and $\vec{a}_2$ (as determined by the lattice "type") which may have a basis, $\{ \delta_p \}$ where $p$ runs over sub-lattice degrees of freedom, and the full cell has dimension $L_1$ x $L_2$.
 The positions of lattice sites on sublattice $p$ are given by  
 $$
-\vec{r}_p = n_1 \vec{a}_1 + n_2 \vec{a}_2  + \vec{\delta}_p
-$$,
+\vec{r}_p = n_1 \vec{a}_1 + n_2 \vec{a}_2  + \vec{\delta}_p,
+$$
 where $n_1$, and $n_2$ are integers.
 Additionally, boundaries are defined normal to the primitive vectors and are labelled according to the primitive vector which they are normal to.
 For example, "boundary 1" is normal to $\vec{a}_1$.
@@ -320,9 +320,9 @@ and the lattice basis, $\{ \delta_p \}$.
 :id: 1f3486b9-62ab-4687-a322-295de51b8ae8
 :outputId: 220c8539-682a-473b-ce17-592734b4f775
 
-#import numpy as np
-#from afqmctools.systems.lattice import get_lattice
-#import afqmctools.utils.visualize as vis
+import numpy as np
+from afqmctools.systems.lattice import get_lattice
+import afqmctools.utils.visualize as vis
 
 basis = [ np.array(delta) for delta in [(0,0),(0.5,0),(0,0.5),(1.0,0),(1.5,0),(1.0,0.5)] ]
 
@@ -463,8 +463,6 @@ lattice = get_lattice(
 
 vis.plot_lattice(lattice,title="Kagome Lattice",show_labels=False)
 ```
-
-+++ {"id": "1b5087cf-9c61-4bb5-9792-15a9524676cd"}
 
 ```{code-cell} ipython3
 :id: ae7e9e7c-896b-4ce4-86c7-98f6951756f7

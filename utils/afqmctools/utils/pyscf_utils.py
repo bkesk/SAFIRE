@@ -267,7 +267,7 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', soc_type=None):
 def ci2chk(chkfile,ci):
     with h5.File(chkfile,"a") as f:
         if 'mcscf/ci' not in f:
-            f.create_dataset("mcscf/ci",data=ci)                                                                                              
+            f.create_dataset("mcscf/ci",data=ci)
         else:
             f['mcscf/ci'][...] = ci
 

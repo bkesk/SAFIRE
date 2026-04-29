@@ -230,7 +230,7 @@ write_hamiltonian_generic(
 We will explore how to write trial wavefunctions in {doc}`../04_writing_a_trial_wavefunction/04_writing_a_trial_wavefunction`.
 In general, the trial wavefunction is a linear combination of Slater determinants,
 $$
-| \Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle,
+| \Psi_\mathrm{T} \rangle = \sum^{N_\mathrm{det}}_n C_n | \Phi_n \rangle,
 $$
 where $C_n$ is a coefficient,
 and $|\Phi_n\rangle$ are Slater determinants which are not necessarily
@@ -267,7 +267,8 @@ write_wfn(
     nelec=number_of_electrons,
     norb=number_of_orbitals
 )
-write_json(scratch_dir / "afqmc.json", scratch_dir / "wfn.h5", scratch_dir / "hamil.h5")
+
+write_json(scratch_dir / "afqmc.json", scratch_dir / "wfn.h5", scratch_dir / "hamil.h5", exec_opts=dict(timestep=0.005, steps=20000))
 ```
 
 +++ {"id": "CXQ3jT_pyCNf"}
@@ -301,6 +302,7 @@ run_afqmc(
     run_dir=scratch_dir,
     input_file = "afqmc.json",#"your_input_file.json",
     np=16,             # number of MPI tasks
+    output_file=None,
 )
 ```
 
@@ -321,7 +323,9 @@ settings = dict(
     trace = True
 )
 
-_ = analyze_scalar_data(settings)
+E, dE = analyze_scalar_data(settings)
+E_exact = -1.1372759436170439
+(E-E_exact)/dE
 ```
 
 +++ {"id": "U9KLdBoByCNg"}
@@ -368,9 +372,13 @@ If you follow the official installation instructions for `afqmctools`, then
 `fcidump_to_afqmc` should already be installed.
 
 It can be used as
-```bash
-  fcidump_to_afqmc -i H2_FCIDUMP  -t 1.0e-5 -o H2_Hamiltonian.h5
+
+```{code-cell} ipython3
+!fcidump_to_afqmc -i files/H2_FCIDUMP  -t 1.0e-5 -o data/H2_Hamiltonian.h5
 ```
+
++++ {"id": "qYRe4bEt1xSN"}
+
 which reads the "input" (`-i`) Hamiltonian from `H2_FCIDUMP`,
 performs a Cholesky decomposition with a tolerance (`-t`) of `1.e-5`,
 and saves the Hamiltonian to the "output" (`-o`) HDF5 file, ` H2_Hamiltonian.h5`.

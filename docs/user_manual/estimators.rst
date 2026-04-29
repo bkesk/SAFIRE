@@ -23,7 +23,7 @@ In this case, a mixed estimator is an unbiased estimator.
 Formally, mixed estimators evaluate an observable :math:`\hat{O}` as
 
 .. math::
-  \langle \hat{O} \rangle_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
+  \langle \hat{O} \rangle_\mathrm{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_\mathrm{T} | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_\mathrm{T} | \Phi_{n,k} \rangle}
 
 
 Settings
@@ -56,16 +56,7 @@ Settings
      - Inherited from execute block (default: 1)
      - Used to determine the number of projection steps between measurements using the formula below. Measurement is the most expensive operation in AFQMC. A larger "measure_interval_multiplier" will reduce the CPU time necessary to perform AFQMC calculations.
 
-.. important::
-
-  The measure_interval and equilibration lengths are specified indirectly using the measure_interval_multiplier and equil_multiplier parameters, respectively. 
-  They are computed using the population_control_interval according to the formula
-
-  .. math::
-
-    measure\_interval = measure\_interval\_multiplier \times population\_control\_interval
-
-  and similarly for the equilibration time.
+.. include:: ../_include/measure_interval_admonition.rst
 
 Energy Estimator
 ----------------
@@ -78,8 +69,8 @@ Formally, it evaluates
 .. math::
   :name: energyEstimator
 
-  E = \frac{\langle \Psi_T | \hat{H} | \Psi^s \rangle}{\langle \Psi_T | \Psi^s \rangle} \approx 
-  \frac{1}{\sum_n W^s_n} \sum_n W^s_n \frac{\langle \Psi_T | \hat{H} | \Phi^s_n \rangle}{\langle \Psi_T | \Phi^s_n \rangle},
+  E = \frac{\langle \Psi_\mathrm{T} | \hat{H} | \Psi^s \rangle}{\langle \Psi_\mathrm{T} | \Psi^s \rangle} \approx 
+  \frac{1}{\sum_n W^s_n} \sum_n W^s_n \frac{\langle \Psi_\mathrm{T} | \hat{H} | \Phi^s_n \rangle}{\langle \Psi_\mathrm{T} | \Phi^s_n \rangle},
 
 Settings
 ~~~~~~~~
@@ -136,7 +127,7 @@ The back-propagated estimator has the form,
 
 .. math::
 
-  \langle \hat{O} \rangle_{BP} = \frac{1}{\sum_k W_{s+m,k}} \sum_k W_{s+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{s,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{s,k}\rangle}
+  \langle \hat{O} \rangle_\mathrm{BP} = \frac{1}{\sum_k W_{s+m,k}} \sum_k W_{s+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{s,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{s,k}\rangle}
 
 
 where :math:`| \Phi_{s,k} \rangle` are the usual forward-projected Slater determinant random walkers,
@@ -144,7 +135,7 @@ and :math:`| \tilde{\Phi}_{m,k} \rangle` are the back-propagated walkers given b
 
 .. math::
 
-  | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{s,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{s+m-1,k} ) | \Psi_T \rangle.
+  | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{s,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{s+m-1,k} ) | \Psi_\mathrm{T} \rangle.
 
 The index :math:`s` corresponds to the current forward projection step,
 and :math:`m` is the back-propagated step index.
@@ -221,7 +212,7 @@ Similarly to the measure_interval_multiplier, the equilibration time is specifie
 
 .. math::
 
-    \text{equil_time} = \text{equil\_multiplier} \times \text{population\_control\_interval}
+    \text{equil\_time} = \text{equil\_multiplier} \times \text{population\_control\_interval}
 
 
 Settings
@@ -247,17 +238,6 @@ Settings
    * - **equil_multiplier**
      - 0
      - Used to determine the number of projection steps in the equilibration phase before back-propagation measurements begin.
-
-.. important::
-
-  The measure_interval and equilibration lengths are specified indirectly using the measure_interval_multiplier and equil_multiplier parameters, respectively. 
-  They are computed using the population_control_interval according to the formula
-
-  .. math::
-
-    \text{measure\_interval} = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}
-
-  and similarly for the equilibration time.
 
 .. only:: developer
 

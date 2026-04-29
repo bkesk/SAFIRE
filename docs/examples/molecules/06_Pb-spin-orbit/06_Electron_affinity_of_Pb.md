@@ -198,8 +198,8 @@ print(f"SOC-GHF electronic energy: {mf.energy_elec()}")
 ### ▶️ Generate and Write Hamiltonian and Trial wavefunction for Neutral Atom
 
 We generate the Hamiltonian and trial wavefunction in the usual way
-with the exception that `write_hamil_mol()` must be explicitly
-told to write the spin-orbit coupling integrals via the `with_soc=True`
+with the exception that `load_from_pyscf_chk_mol()` must be explicitly
+told to load ECP type spin-orbit coupling integrals via the `soc_type="ecp"`
 keyword argument.
 
 For the initial wavefunction, we use the ground state of the non-interacting Hamiltonian
@@ -237,6 +237,7 @@ fout_soc = local_scratch_dir / 'afqmc_soc.h5'
 # Save the Hamiltonian
 basis_scf_data = load_from_pyscf_chk_mol(
     chkfile = basis_chk,
+    soc_type='ecp',
 )
 
 # for SOC, we need to request that SOC integrals be included.
@@ -244,10 +245,10 @@ write_hamil_mol(
     basis_scf_data,
     fout_soc,
     chol_tol,
-    dense=True,
     real_chol=True,
-    walker_type='ghf',
-    with_soc=True
+    walker_type='noncollinear',
+    with_soc=True,
+    ortho_ao=True,
 )
 
 #####################################
@@ -263,7 +264,7 @@ wfn_scf_data = load_from_pyscf_chk_mol(
 write_wfn_mol(
     wfn_scf_data,
     fout_soc,
-    basis_scf_data=basis_scf_data
+    basis_scf_data=basis_scf_data,
 )
 ```
 
@@ -301,6 +302,7 @@ run_afqmc(
     timeout_mins=100,
     input_file="afqmc.json",
     np=16,             # number of MPI tasks
+    output_file=None,
 )
 
 settings = dict(
@@ -395,7 +397,6 @@ colab:
 id: gAqSvXG3aB8I
 outputId: 8a825787-6626-44d1-97c4-ee738d109252
 ---
-### import h5py as h5
 import numpy as np
 
 from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
@@ -423,6 +424,7 @@ fout_soc = local_scratch_dir / 'afqmc_soc.h5'
 # Save the Hamiltonian
 basis_scf_data = load_from_pyscf_chk_mol(
     chkfile = basis_chk,
+    soc_type = "ecp",
 )
 
 # for SOC, we need to request that SOC integrals be included.
@@ -430,9 +432,8 @@ write_hamil_mol(
     basis_scf_data,
     fout_soc,
     chol_tol,
-    dense=True,
     real_chol=True,
-    walker_type='ghf',
+    walker_type='noncollinear',
     with_soc=True
 )
 
@@ -491,10 +492,9 @@ write_json(
 # run AFQMC
 run_afqmc(
     run_dir=local_scratch_dir,
-    run_mode="local_cpu",
-    timeout_mins=100,
     input_file="afqmc.json",
     np=16,
+    output_file=None
 )
 
 settings = dict(
@@ -522,9 +522,6 @@ import numpy as np
 
 eV = 27.211407953
 
-E = -191.990093
-dE = 0.000986
-
 EA = E - E_charged
 dEA = np.sqrt( np.power(dE,2) + np.power(dE_charged,2))
 
@@ -533,7 +530,3 @@ print(f"The electron affinity is {EA*eV} +/- {dEA*eV} eV")
 
 You should reproduce the result above if you ran with the same parameters and settings as we did.
 Specifically ensure that the seed and number of MPI processes is the same.
-
-```{code-cell} ipython3
-
-```

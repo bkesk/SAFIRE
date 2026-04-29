@@ -2,8 +2,7 @@
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {
@@ -20,25 +19,20 @@
       "steps": 10000,
       "accumlate_interval": 10,
       "measure_interval": 10,
-      "population" : 1,
-      "ortho" : 10 ,
+      "population": 1,
+      "ortho": 10,
       "n_walkers": 10,
       "estimator": {
-        "name": "energy",
-        "overwrite": true,
-        "print_components": true
-      },
-      "estimator": {
-        "name":"back_propagation",
-        "path_restoration":true,
-        "extra_path_restoration":true,
-        "ortho":10,
-        "nsteps":400,
-        "naverages":1,
-        "equil":2000,
-        "onerdm" : {
-          "name":"onerdm"
-	}
+        "name": "back_propagation",
+        "path_restoration": true,
+        "extra_path_restoration": true,
+        "ortho": 10,
+        "nsteps": 400,
+        "naverages": 1,
+        "equil": 2000,
+        "onerdm": {
+          "name": "onerdm"
+        }
       }
     }
   }

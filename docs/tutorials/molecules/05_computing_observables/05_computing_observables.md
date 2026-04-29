@@ -41,12 +41,12 @@ Although we have not seen this explicitly, we have, so far, computed the ground 
 mixed estimator of the form
 
 $$
-\langle \hat{O} \rangle_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
+\langle \hat{O} \rangle_\mathrm{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_\mathrm{T} | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_\mathrm{T} | \Phi_{n,k} \rangle}
 $$
 
 where $n$ is the projection step index,
 $| \Phi_{n,k} \rangle$ are Slater determinant random walkers with weight $W_{n,k}$ (from importance sampling),
-and $| \Psi_T \rangle$ is the trial wavefunction.
+and $| \Psi_\mathrm{T} \rangle$ is the trial wavefunction.
 The mixed estimator provides an unbiased estimate for any observable which commutes with the Hamiltonian.
 For the AFQMC energy, $\hat{O} = \hat{H}$, and trivially $[ \hat{O}, \hat{H} ] = 0$;
 therefore, the mixed estimator is an unbiased choice for the total ground state energy.
@@ -58,14 +58,14 @@ In these cases, a back-propagated estimator is necessary to mitigate the bias th
 by using a mixed-estimator.
 The back-propagated estimator has the form,
 $$
-\langle \hat{O} \rangle_{BP} = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle}
+\langle \hat{O} \rangle_\mathrm{BP} = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle}
 $$
 
 where $| \Phi_{n,k} \rangle$ are the usual forward-projected Slater determinant random walkers,
 and $| \tilde{\Phi}_{m,k} \rangle$ are the back-propagated walkers given by,
 $$
-| \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_T \rangle
-$$.
+| \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_\mathrm{T} \rangle.
+$$
 The index $n$ corresponds to the current forward projection step,
 and $m$ is the back-propagated step index.
 We note that each random walker has a corresponding back-propagated partner
@@ -373,7 +373,7 @@ plt.plot(one_body_energy + direct_coulomb_energy + exchange_energy, ":", label=r
 
 plt.legend()
 plt.xlabel("Sample")
-plt.ylabel(r"$\Delta E \equiv E_{MixedEstimator} - E_{EnergyEstimator}$")
+plt.ylabel(r"$\Delta E \equiv E_\mathrm{MixedEstimator} - E_{EnergyEstimator}$")
 plt.title(r"Total energy vs. sample")
 
 plt.show()
@@ -386,7 +386,7 @@ plt.show()
 SAFIRE also includes a mixed estimator that periodically evaluates,
 
 $$
-\langle \hat{O} ⟩_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle},
+\langle \hat{O} ⟩_\mathrm{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_\mathrm{T} | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_\mathrm{T} | \Phi_{n,k} \rangle},
 $$
 where $\hat{O}$ is an operator.
 The one-body reduced density matrix (1rdm), given by
@@ -596,7 +596,7 @@ delta_E = Energy_1body[:,0] - one_body_energy
 plt.plot(delta_E,label="1-body energy difference")
 plt.legend()
 plt.xlabel("Sample")
-plt.ylabel(r"$\Delta E \equiv E_{MixedEstimator} - E_{EnergyEstimator}$")
+plt.ylabel(r"$\Delta E \equiv E_\mathrm{MixedEstimator} - E_{EnergyEstimator}$")
 plt.title(r"$\Delta E_{1-body}$ vs. sample")
 
 plt.show()
@@ -666,7 +666,7 @@ delta_E = Energy_2body_mixed[:,0] - two_body_energy
 plt.plot(delta_E,label="two-body energy difference")
 plt.legend()
 plt.xlabel("Sample")
-plt.ylabel(r"$\Delta E \equiv E_{MixedEstimator} - E_{EnergyEstimator}$")
+plt.ylabel(r"$\Delta E \equiv E_\mathrm{MixedEstimator} - E_{EnergyEstimator}$")
 plt.title(r"$\Delta E_{2-body}$ vs. sample")
 
 plt.show()

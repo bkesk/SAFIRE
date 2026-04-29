@@ -103,13 +103,13 @@ For technical details on the Hamiltonian HDF5 format, see [the User Guide](https
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
 </div>
 
-This HDF5 file contains the trial wavefunction, $| \Psi_T \rangle$.
+This HDF5 file contains the trial wavefunction, $| \Psi_\mathrm{T} \rangle$.
 
 For this tutorial, we have supplied an HDF5 file containing the RHF
 ground state as the trial wavefunction.
 
 $$
-| \Psi_T \rangle = | \Phi_\mathrm{RHF} \rangle
+| \Psi_\mathrm{T} \rangle = | \Phi_\mathrm{RHF} \rangle
 $$
 
 For technical details on the wavefunction HDF5 format, see [the User Guide](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/afqmc.html#wavefunction-file-formats).
@@ -200,7 +200,6 @@ AF App version: 1.0.0
 app git branch: fix_compiler_warnings
 app git commit: 83a5e18c30fe824a77185cdb5df6e4dba2918f5c
  AFQMCFactory Project settings:
-    -- mixed_precision: false
     -- ncores (local) : 1
     -- n_groups       : 1
     -- id             : qmc
@@ -356,7 +355,6 @@ AF App version: 1.0.0
 app git branch: fix_compiler_warnings
 app git commit: 83a5e18c30fe824a77185cdb5df6e4dba2918f5c
  AFQMCFactory Project settings:
-    -- mixed_precision: false
     -- ncores (local) : 1
     -- n_groups       : 1
     -- id             : qmc
