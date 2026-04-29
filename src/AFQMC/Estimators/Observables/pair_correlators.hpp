@@ -11,19 +11,15 @@
  *
  */
 
-#ifndef SFQMC_AFQMC_PAIRCORR_HPP
-#define SFQMC_AFQMC_PAIRCORR_HPP
+#pragma once
 
 #include "AFQMC/config.h"
+#include <utilities/mpi_context.h>
 #include <vector>
 #include <string>
-#include <iostream>
 
-#include "hdf/hdf_multi.h"
-#include "hdf/hdf_archive.h"
-
-#include "AFQMC/Walkers/WalkerSet.hpp"
-#include "Numerics/ma_operations.hpp"
+#include <nda/nda.hpp>
+#include <nda/h5.hpp>
 
 namespace sfqmc
 {
@@ -34,53 +30,18 @@ namespace afqmc
  */
 class pair_correlator : public AFQMCInfo
 {
-  // allocators
-  using Allocator = device_allocator<ComplexType>;
-
-  // type defs
-  using pointer       = typename std::allocator_traits<Allocator>::pointer;
-  using const_pointer = typename std::allocator_traits<Allocator>::const_pointer;
-
-  using CVector_ref    = boost::multi::array_ref<ComplexType, 1, pointer>;
-  using CMatrix_ref    = boost::multi::array_ref<ComplexType, 2, pointer>;
-  using CVector        = boost::multi::array<ComplexType, 1, Allocator>;
-  using CMatrix        = boost::multi::array<ComplexType, 2, Allocator>;
-  using IMatrix        = boost::multi::array<int, 2, device_allocator<int>>;
-  using stdCVector_ref = boost::multi::array_ref<ComplexType, 1>;
-  using stdCMatrix_ref = boost::multi::array_ref<ComplexType, 2>;
-  using mpi3IMatrix    = boost::multi::array<int, 2, shared_allocator<int>>;
-  using mpi3CVector    = boost::multi::array<ComplexType, 1, shared_allocator<ComplexType>>;
-  using mpi3CMatrix    = boost::multi::array<ComplexType, 2, shared_allocator<ComplexType>>;
-  using mpi3CTensor    = boost::multi::array<ComplexType, 3, shared_allocator<ComplexType>>;
-  using mpi3C4Tensor   = boost::multi::array<ComplexType, 4, shared_allocator<ComplexType>>;
-
-  using mpi3IMatrix_ref = boost::multi::array_ref<int, 2, shared_allocator<int>>;
-
 public:
-   pair_correlator(afqmc::TaskGroup_& tg_, AFQMCInfo& info, ptree pt0, WALKER_TYPES wlk, int nave_ = 1, int bsize = 1)
+   pair_correlator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, AFQMCInfo& info, ptree pt0, WALKER_TYPES wlk, int nave_ = 1)
       : AFQMCInfo(info),
-        block_size(bsize),
-        nave(nave_),
-        num_correlators(0),
-        TG(tg_),
-        walker_type(wlk),
-        writer(false),
-        hdf_walker_output(""),
-        pair_map({}),
-        PairCorrAverage({0, 0, 0}, shared_allocator<ComplexType>{TG.TG_local()})
+        mpi{mpi},
+        num_correlators{0},
+        walker_type{wlk}
   {
-
-    std::string base_error(" Error in pair_correlator::pair_correlator(): \n    ");
 
     ptree pt = interpret_inputs(pt0);
 
     app_log(1,"  --  Pair Correlator (PairCorr) estimator. -- ");
-    hdf_walker_output = pt.get<std::string>("walker_output", "");
-    filename = pt.get<std::string>("filename","");
-
-    for (const auto& item : pt0.get_child("pair_type")) {
-      correlator_names.push_back(item.second.get_value<std::string>());
-    }
+    std::string filename = pt.get<std::string>("filename","");
 
     if (walker_type == CLOSED)
     {
@@ -91,68 +52,26 @@ public:
       APP_ABORT("pair_correlator not yet implemented for FULLYPOLARIZED Walkers.");
     }
 
-    hdf_archive indump;
-    if (TG.TG_local().root())
     {
+      h5::file input(filename, 'r');
       app_log(1, "reading pair correlators from: {}", filename);
-      if (!indump.open(filename, H5F_ACC_RDONLY))
-        APP_ABORT(base_error + "Problems opening pair_correlator file.");
-      if (indump.push("PairCorrelator", false)<0)
-        APP_ABORT(base_error + "Group PairCorrelator not found.");
-      indump.readEntry(num_pair,"orbital_map/num_pair");
-      // iterate over the correlator names
-      for (auto& correlator_name : correlator_names)
-      {
-        IMatrix pair_map_current = IMatrix({num_pair,1});
-        if (!indump.readEntry(pair_map_current,"orbital_map/" + correlator_name))
-          app_error("Problems reading pair_map for correlator: {}", correlator_name);
-        pair_map[num_correlators] = pair_map_current;
-        num_correlators++;
+      h5::group group = h5::group{input}.open_group("PairCorrelator/orbital_map");
+    
+      for (const auto& item : pt0.get_child("pair_type")) {
+        memory::host_array<int,2> current_pair_map;  
+        std::string correlator_name = item.second.get_value<std::string>();
+        h5::read(group, correlator_name, current_pair_map);
+
+        pair_map.push_back(current_pair_map);
       }
-      indump.pop();
-      indump.close();
     }
-    TG.Node().barrier();
+    mpi->node_comm.barrier();
 
-    if (hdf_walker_output != std::string(""))
-    {
-      hdf_walker_output = "G" + std::to_string(TG.TG_heads().rank()) + "_" + hdf_walker_output;
-      hdf_archive dump;
-      if (not dump.create(hdf_walker_output))
-      {
-        app_error("Problems creating walker output hdf5 file: {}", hdf_walker_output);
-        APP_ABORT("Problems creating walker output hdf5 file.");
-      }
-      if (writer)
-      {
-        dump.push("PairCorrelator");
-        dump.push("Metadata");
-        dump.write(NMO, "NMO");
-        dump.write(NAEA, "NUP");
-        dump.write(NAEB, "NDOWN");
-        dump.write(num_correlators, "NCORRELATORS");
-        // TODO: find a better to write correlator names to HDF5
-        for (int i = 0; i < num_correlators; i++)
-        { // this isn't writing anything for some reason?? run through the debugger
-          dump.write(correlator_names[i], "CORRELATOR_NAMES_" + std::to_string(i));
-        }
-        int wlk_t_copy = walker_type; // the actual data type of enum is implementation-defined. convert to int for file
-        dump.write(wlk_t_copy, "WalkerType");
-        dump.pop();
-        dump.pop();
-      }
-      dump.close();
-    }
+    int x = walker_type == NONCOLLINEAR ? 2 : 1;
+    int dm_size = x*NMO*(x*NMO-1)/2;
 
-    using std::fill_n;
-    writer  = (TG.Global().rank() == 0);
-    correlator_names_printed = false;
-
-    dm_size = NMO*NMO;
-    correlators_size = num_correlators*num_correlators;
-
-    PairCorrAverage = mpi3CTensor({nave, correlators_size,dm_size}, shared_allocator<ComplexType>{TG.TG_local()});
-    fill_n(PairCorrAverage.origin(), PairCorrAverage.num_elements(), ComplexType(0.0, 0.0));
+    pair_corr_average.resize(nave_, num_correlators, num_correlators, dm_size);
+    nda::tensor::set(0, pair_corr_average);
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -172,7 +91,6 @@ public:
     if (correlator_names.empty())
       APP_ABORT("pair_correlator: No pair_type specified. Please specify at least one pair_type.");
 
-    hdf_walker_output = pt0.get<std::string>("walker_output", "");
     filename = pt0.get<std::string>("filename","");
     
     // create verbose internal inputs
@@ -189,102 +107,83 @@ public:
     }
     pt1.add_child("pair_type", pair_type_node);
 
-    app_log(1, "pair_correlator pt1 ");
-    io::to_string(pt1);
-    
     io::compare_known_keys("pair_correlators observable",pt1, pt0);
     return pt1;
   }
 
-/*******   Interface for sum over references, e.g. NOMSD ********/
-  template<class MatG, class MatG_host, class HostCVec1>
-  void accumulate(int iav, MatG&& G, MatG_host&& G_host, HostCVec1&& Xw, [[maybe_unused]] bool impsamp)
+  /*******   Interface for sum over references, e.g. NOMSD ********/
+  void accumulate(int iav, nda::MemoryArrayOfRank<4> auto&& G, nda::MemoryArrayOfRank<4> auto&& G_host, nda::MemoryVector auto&& Xw, [[maybe_unused]] bool impsamp)
   {
-    std::string base_error(" Error in pair_correlator::pair_correlator(): \n    ");
-    static_assert(std::decay<MatG>::type::dimensionality == 4, "Wrong dimensionality");
-    static_assert(std::decay<MatG_host>::type::dimensionality == 4, "Wrong dimensionality");
-    using std::copy_n;
-    using std::fill_n;
-
     // assumes G[nwalk][spin][M][M]
-    int nw(G.size(0));
-    RUNTIME_CHECK(G.size(0) == Xw.size(0), "");
+    using nda::range;
+    ncalls++;
 
-    // no parallelization over ncores for now, fix if needed 
-    if(TG.TG_local().root())
+    // not implemented on GPU yet
+    auto Xwhost = nda::to_host(Xw);
+
+    // no parallelization over ncores for now, fix if needed
+    for (int iw = 0; iw < G_host.shape(0); iw++)
     {
-      for (int iw = 0; iw < nw; iw++)
+      for (int alpha = 0; alpha < num_correlators; alpha++)
       {
-        for (int alpha = 0; alpha < num_correlators; alpha++)
+        const auto &pair_map_i = this->pair_map.at(alpha);
+        for (int beta = 0; beta < num_correlators; beta++)
         {
-          IMatrix const pair_map_i = this->pair_map.at(alpha); 
-          for (int beta = 0; beta < num_correlators; beta++)
+          const auto &pair_map_j = this->pair_map.at(beta);
+          int pair_ind = alpha * num_correlators + beta;
+
+          auto avg = pair_corr_average(iav, alpha, beta, range::all);
+          int idx{};
+
+          if (walker_type == COLLINEAR)
           {
-            IMatrix const pair_map_j = this->pair_map.at(beta);
-            int pair_ind = alpha * num_correlators + beta;
-            ComplexType* ptr(PairCorrAverage[iav][pair_ind].origin());
-            
-            if (walker_type == CLOSED)
+            auto Gup = G_host(iw, 0, range::all, range::all);
+            auto Gdn = G_host(iw, 1, range::all, range::all);
+            for (int i = 0; i < NMO; i++)
             {
-              APP_ABORT(base_error + "accumulate not yet implemented for CLOSED walkers.");
-            }
-            else if (walker_type == COLLINEAR)
-            {
-              auto&& Gup_ = G_host[iw][0];
-              auto&& Gdn_ = G_host[iw][1];
-              for (int i = 0; i < NMO; i++)
+              int ibar = pair_map_i(i,0);
+              if (ibar < 0)  // negative index means no valid pair!
+                continue;
+              for (int j = i + 1; j < NMO; j++, idx++)
               {
-                int ibar = pair_map_i[i][0];
-                if (ibar < 0)  // negative index means no valid pair!
+                int jbar = pair_map_j(j,0);
+                if (jbar < 0)  // negative index means no valid pair!
                   continue;
-                for (int j = i + 1; j < NMO; j++, ptr++)
-                {
-                  int jbar = pair_map_j[j][0];
-                  if (jbar < 0)  // negative index means no valid pair!
-                    continue;
-                  //term 1
-                  *ptr += 0.5 * Xw[iw] * Gup_[i][j] * Gdn_[ibar][jbar];
-                  //term 2
-                  *ptr += 0.5 * Xw[iw] * Gup_[i][jbar] * Gdn_[ibar][j];
-                  //term 3  
-                  *ptr += 0.5 * Xw[iw] * Gdn_[i][jbar] * Gup_[ibar][j];
-                  //term 4
-                  *ptr += 0.5 * Xw[iw] * Gdn_[i][j] * Gup_[ibar][jbar];
-                }
+
+                ComplexType c{};
+                c += Gup(i,j) * Gdn(ibar,jbar);
+                c += Gup(i,jbar) * Gdn(ibar,j);
+                c += Gdn(i,jbar) * Gup(ibar,j);
+                c += Gdn(i,j) * Gup(ibar,jbar);
+                avg(idx) += 0.5 * Xwhost(iw) * c;
               }
             }
-            else if (walker_type == FULLYPOLARIZED)
-            { 
-              APP_ABORT(base_error + "accumulate not yet implemented for FULLYPOLARIZED walkers.");
-            }
-            else if (walker_type == NONCOLLINEAR) {
-              auto&& G_ = G_host[iw][0]; // contains all spins
-              for (int i = 0; i < NMO; i++)
+          } else if (walker_type == NONCOLLINEAR) {
+            auto G_ = G_host(iw, 0, range::all, range::all);
+            for (int i = 0; i < NMO; i++)
+            {
+              int ibar = pair_map_i(i,0);
+              if (ibar < 0)  // negative index means no valid pair!
+                continue;
+              for (int j = 0; j < NMO; j++, idx++)
               {
-                int ibar = pair_map_i[i][0];
-                if (ibar < 0)  // negative index means no valid pair!
+                int jbar = pair_map_j(j,0);
+                if (jbar < 0)  // negative index means no valid pair!
                   continue;
-                for (int j = 0; j < NMO; j++, ptr++)
-                {
-                  int jbar = pair_map_j[j][0]; 
-                  if (jbar < 0)  // negative index means no valid pair!
-                    continue;
-                  //term 1
-                  *ptr += 0.5 * Xw[iw] * (G_[i][j] * G_[NMO + ibar][NMO + jbar] - G_[i][NMO + jbar] * G_[NMO + ibar][j]);
-                  //term 2
-                  *ptr += 0.5 * Xw[iw] * (G_[i][jbar] * G_[NMO + ibar][NMO + j] - G_[i][NMO + j] * G_[NMO + ibar][jbar]);
-                  //term 3  
-                  *ptr += 0.5 * Xw[iw] * (G_[NMO+i][NMO+jbar] * G_[ibar][j] - G_[NMO+i][j] * G_[ibar][NMO+jbar]);
-                  //term 4
-                  *ptr += 0.5 * Xw[iw] * (G_[NMO + i][NMO + j] * G_[ibar][jbar] - G_[NMO + i][jbar] * G_[ibar][NMO+j]);
-                }
+
+                ComplexType c{};
+                c += (G_(i,j) * G_(NMO + ibar,NMO + jbar) - G_(i,NMO + jbar) * G_(NMO + ibar,j));
+                c += (G_(i,jbar) * G_(NMO + ibar,NMO + j) - G_(i,NMO + j) * G_(NMO + ibar,jbar));
+                c += (G_(NMO + i,NMO + jbar) * G_(ibar,j) - G_(NMO + i,j) * G_(ibar,NMO + jbar));
+                c += (G_(NMO + i,NMO + j) * G_(ibar,jbar) - G_(NMO + i,jbar) * G_(ibar,NMO + j));
+
+                avg(idx) += 0.5 * Xwhost(iw) * c;
               }
             }
-          } // loop over beta
-        } // loop over alpha
-     } // loop over walkers 
-   }
-    TG.TG_local().barrier();
+          }
+        } // loop over beta
+      } // loop over alpha
+    } // loop over walkers 
   }
 
 /*******   Interface for PHMSD-like wfns: Reference + excited configurations  *******/
@@ -305,80 +204,39 @@ public:
   {
     APP_ABORT(" Finish: accumulate_excited_configuration_second ");
   }
-
-  template<class HostCVec>
-  void print(int iblock, hdf_archive& dump, HostCVec&& Wsum)
+  
+  void print(int iblock, h5::group *group, nda::Vector auto&& Wsum)
   {
-    using std::fill_n;
-    const int n_zero = 9;
-
-    if (TG.TG_local().root())
-    {
-      
-      ma::scal(ComplexType(1.0 / block_size), PairCorrAverage);
-      TG.TG_heads().reduce_in_place_n(raw_pointer_cast(PairCorrAverage.origin()), PairCorrAverage.num_elements(), std::plus<>(), 0);
-      if (writer)
-      {
-        dump.push(std::string("PairCorr"));
-        if (!correlator_names_printed){
-          dump.push("Metadata");
-          dump.write(num_correlators, "NCORRELATORS");
-          for (int i = 0; i < num_correlators; i++)
-            dump.write(correlator_names[i], "CORRELATOR_NAME_" + std::to_string(i));
-          dump.pop();
-          correlator_names_printed = true;
-        }
-        for (int i = 0; i < nave; ++i)
-        {
-          dump.push(std::string("Average_") + std::to_string(i));
-          std::string padded_iblock =
-              std::string(n_zero - std::to_string(iblock).length(), '0') + std::to_string(iblock);
-          // TODO: write PairCorrAverage flattened over alpha and beta
-          for (int alpha = 0; alpha < num_correlators; alpha++)
-          {
-            for (int beta = 0; beta < num_correlators; beta++)
-            {
-              stdCVector_ref PairCorrAverage_(raw_pointer_cast(PairCorrAverage[i][alpha * num_correlators + beta].origin()), {dm_size});
-              std::string out_name = "P_" + std::to_string(alpha) + "_" + std::to_string(beta) + "_ij_" + padded_iblock;
-              dump.write(PairCorrAverage_, out_name);
-              dump.write(Wsum[i], "denominator_" + padded_iblock);
-            }
-          }
-          dump.pop();
-        }
-        dump.pop();
+    nda::tensor::scale(ComplexType(1.0 / double(ncalls)), pair_corr_average);
+    mpi->reduce(pair_corr_average, std::plus<>(), 0);
+    if (mpi->comm.root()) {
+      assert(group);
+      h5::group parent = group->create_group("PairCorrelator");
+      for (int i = 0; i < pair_corr_average.shape(0); ++i) {
+        h5::group obs_group = parent.create_group(std::format("Average_{}", i)); 
+        
+        std::string padded_iblock = std::format("{:09}",iblock);
+        h5::write(obs_group, "P" + padded_iblock, nda::flatten(pair_corr_average(i, nda::ellipsis{})));
+        h5::write(obs_group, "denominator_" + padded_iblock, Wsum(i));
       }
     }
-    TG.TG_local().barrier();
-    fill_n(PairCorrAverage.origin(), PairCorrAverage.num_elements(), ComplexType(0.0, 0.0));
+    nda::tensor::set(0, pair_corr_average);
+    ncalls = 0;
   }
 
 private:
-  int block_size;
+  std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi;
+  int ncalls = 0;
 
-  int nave;
+  int num_correlators{}; // number of correlators which are actually used! (vs number of correlators defined in the HDF5 input)
 
-  int num_pair, num_correlators; // number of correlators which are actually used! (vs number of correlators defined in the HDF5 input)
+  WALKER_TYPES walker_type{};
 
-  std::string filename;
+  std::vector<memory::host_array<int,2>> pair_map;
 
-  TaskGroup_& TG;
-
-  WALKER_TYPES walker_type;
-
-  int dm_size, correlators_size;
-
-  bool writer;
-  bool correlator_names_printed;
-
-  std::string hdf_walker_output;
-
-  std::vector<std::string> correlator_names;
-  std::map<int, IMatrix> pair_map;
-  mpi3CTensor PairCorrAverage;
+  // (iave, α, β, npol*NMO*(npol*NMO-1)/2)
+  memory::host_array<ComplexType,4> pair_corr_average;
 };
 
 } // namespace afqmc
 } // namespace sfqmc
-
-#endif

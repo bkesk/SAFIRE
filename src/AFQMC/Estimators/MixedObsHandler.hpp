@@ -65,20 +65,20 @@ public:
       io::tolower(cname);
       if (cname == "onerdm")
       {
-        properties_1body.emplace_back(Observable(full1rdm(mpi, info, it.second, walker_type, 1)));
+        properties_1body.emplace_back(full1rdm(mpi, info, it.second, walker_type, 1));
       }
       else if (cname == "gfock" || cname == "genfock" || cname == "ekt")
       {
-//        properties.emplace_back(Observable(
-//            generalizedFockMatrix(mpi, info, it.second, walker_type, *wfn, 1, block_size)));
+//        properties.emplace_back(
+//            generalizedFockMatrix(mpi, info, it.second, walker_type, *wfn, 1, block_size));
       }
       else if (cname == "diag2rdm")
       {
-//        properties.emplace_back(Observable(diagonal2rdm(mpi, info, it.second, walker_type, 1, block_size)));
+       properties.emplace_back(diagonal2rdm<MEM>(mpi, info, it.second, walker_type, 1));
       }
       else if (cname == "twordm")
       {
-//        properties.emplace_back(Observable(full2rdm(mpi, info, it.second, walker_type, 1, block_size)));
+       properties.emplace_back(full2rdm<MEM>(mpi, info, it.second, walker_type, 1));
       }
       else if (cname == "n2r" || cname == "ontop2rdm")
       {
@@ -87,34 +87,34 @@ public:
         bool use_host_memory = pt1.get<bool>("use_host_memory", false);
         if (use_host_memory)
         {
-//          properties.emplace_back(Observable(
+//          properties.emplace_back(
 //              n2r<device_allocator<ComplexType>>(mpi, info, it.second, walker_type, false, device_allocator<ComplexType>{},
-//                                                 device_allocator<ComplexType>{}, 1, block_size)));
+//                                                 device_allocator<ComplexType>{}, 1, block_size));
         }
         else
 #endif
         {
-//          properties.emplace_back(Observable(
+//          properties.emplace_back(
 //              n2r<shared_allocator<ComplexType>>(mpi, info, it.second, walker_type, true,
 //                                                 shared_allocator<ComplexType>{TG.TG_local()},
-//                                                 shared_allocator<ComplexType>{TG.Node()}, 1, block_size)));
+//                                                 shared_allocator<ComplexType>{TG.Node()}, 1, block_size));
         }
       }
       else if (cname == "realspace_correlators")
       {
-//        properties.emplace_back(Observable(realspace_correlators(mpi, info, it.second, walker_type, 1, block_size)));
+//        properties.emplace_back(realspace_correlators(mpi, info, it.second, walker_type, 1, block_size));
       }
       else if (cname == "correlators")
       {
-//        properties.emplace_back(Observable(atomcentered_correlators(mpi, info, it.second, walker_type, 1, block_size)));
+//        properties.emplace_back(atomcentered_correlators(mpi, info, it.second, walker_type, 1, block_size));
       }
       else if (cname == "pair_correlators")
       {
-//        properties.emplace_back(Observable(pair_correlator(mpi, info, it.second, walker_type, 1, block_size)));
+        properties.emplace_back(pair_correlator(mpi, info, it.second, walker_type, 1));
       }
       else if (cname == "spinspin")
       {
-//        properties.emplace_back(Observable(spinspinobs(mpi, info, it.second, walker_type, 1, block_size)));
+        properties.emplace_back(spinspinobs(mpi, info, it.second, walker_type, 1));
       }
     }
 
@@ -161,8 +161,8 @@ private:
 
   std::string name;
 
-  std::vector<Observable> properties_1body;
-  std::vector<Observable> properties;
+  std::vector<Observable<MEM>> properties_1body;
+  std::vector<Observable<MEM>> properties;
 
   nda::array<ComplexType,1> denominator;
 

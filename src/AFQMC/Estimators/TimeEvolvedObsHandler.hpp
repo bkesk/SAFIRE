@@ -69,55 +69,59 @@ public:
       io::tolower(cname);
       if (cname == "onerdm")
       {
-        properties_1body.emplace_back(Observable(full1rdm(mpi, info, it.second, walker_type, number_of_averages)));
+        properties_1body.emplace_back(full1rdm(mpi, info, it.second, walker_type, number_of_averages));
       }
-/*
-      else if (cname == "gfock" || cname == "genfock" || cname == "ekt")
-      {
-        properties.emplace_back(Observable(
-            generalizedFockMatrix(TG, info, it.second, walker_type, wfn0, number_of_averages, block_size)));
-      }
+
+//       else if (cname == "gfock" || cname == "genfock" || cname == "ekt")
+//       {
+//         properties.emplace_back(
+//             generalizedFockMatrix(TG, info, it.second, walker_type, wfn0, number_of_averages, block_size));
+//       }
       else if (cname == "diag2rdm")
       {
-        properties.emplace_back(Observable(diagonal2rdm(TG, info, it.second, walker_type, number_of_averages, block_size)));
+        properties.emplace_back(diagonal2rdm<MEM>(mpi, info, it.second, walker_type, number_of_averages));
       }
       else if (cname == "twordm")
       {
-        properties.emplace_back(Observable(full2rdm(TG, info, it.second, walker_type, number_of_averages, block_size)));
+        properties.emplace_back(full2rdm<MEM>(mpi, info, it.second, walker_type, number_of_averages));
       }
-      else if (cname == "n2r" || cname == "ontop2rdm")
+//       else if (cname == "n2r" || cname == "ontop2rdm")
+//       {
+// #if defined(ENABLE_DEVICE)
+//         ptree pt1 = it.second;
+//         bool use_host_memory = pt1.get<bool>("use_host_memory", false);
+//         if (use_host_memory)
+//         {
+//           properties.emplace_back(
+//               n2r<device_allocator<ComplexType>>(TG, info, it.second, walker_type, false, device_allocator<ComplexType>{},
+//                                                  device_allocator<ComplexType>{}, number_of_averages, block_size));
+//         }
+//         else
+// #endif
+//         {
+//           properties.emplace_back(
+//               n2r<shared_allocator<ComplexType>>(TG, info, it.second, walker_type, true,
+//                                                  shared_allocator<ComplexType>{TG.TG_local()},
+//                                                  shared_allocator<ComplexType>{TG.Node()}, number_of_averages, block_size));
+//         }
+//       }
+//       else if (cname == "realspace_correlators")
+//       {
+//         properties.emplace_back(realspace_correlators(TG, info, it.second, walker_type, number_of_averages, block_size));
+//       }
+//       else if (cname == "correlators")
+//       {
+//         properties.emplace_back(atomcentered_correlators(TG, info, it.second, walker_type, number_of_averages, block_size));
+//       }
+      else if (cname == "pair_correlators")
       {
-#if defined(ENABLE_DEVICE)
-        ptree pt1 = it.second;
-        bool use_host_memory = pt1.get<bool>("use_host_memory", false);
-        if (use_host_memory)
-        {
-          properties.emplace_back(Observable(
-              n2r<device_allocator<ComplexType>>(TG, info, it.second, walker_type, false, device_allocator<ComplexType>{},
-                                                 device_allocator<ComplexType>{}, number_of_averages, block_size)));
-        }
-        else
-#endif
-        {
-          properties.emplace_back(Observable(
-              n2r<shared_allocator<ComplexType>>(TG, info, it.second, walker_type, true,
-                                                 shared_allocator<ComplexType>{TG.TG_local()},
-                                                 shared_allocator<ComplexType>{TG.Node()}, number_of_averages, block_size)));
-        }
-      }
-      else if (cname == "realspace_correlators")
-      {
-        properties.emplace_back(Observable(realspace_correlators(TG, info, it.second, walker_type, number_of_averages, block_size)));
-      }
-      else if (cname == "correlators")
-      {
-        properties.emplace_back(Observable(atomcentered_correlators(TG, info, it.second, walker_type, number_of_averages, block_size)));
+        properties.emplace_back(pair_correlator(mpi, info, it.second, walker_type, number_of_averages));
       }
       else if (cname == "spinspin")
       {
-        properties.emplace_back(Observable(spinspinobs(TG, info, it.second, walker_type, number_of_averages, block_size)));
+        properties.emplace_back(spinspinobs(mpi, info, it.second, walker_type, number_of_averages));
       }
-*/
+
     }
 
     utils::check(properties.size()+properties_1body.size() > 0, "empty observables list is not allowed.");
@@ -172,8 +176,8 @@ private:
 
   std::string name;
 
-  std::vector<Observable> properties_1body;
-  std::vector<Observable> properties;
+  std::vector<Observable<MEM>> properties_1body;
+  std::vector<Observable<MEM>> properties;
 
   nda::array<ComplexType,1> denominator;
 
