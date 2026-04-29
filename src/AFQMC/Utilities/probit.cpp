@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <math.h>
 #include <stdexcept>
+#include "probit.h"
 
 namespace sfqmc::afqmc
 {

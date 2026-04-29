@@ -65,9 +65,9 @@ int main_impl(int argc, char** argv)
   options.add_options()
     ("h,help", "print help message")
     ("v,version", "print version message")
-    ("verbosity", "0, 1, 2, ...: higher means more", cxxopts::value<int>()->default_value("2"))
-    ("debug", "0, 1, 2, ...: higher means more", cxxopts::value<int>()->default_value("0"))
-    ("compute", "where to execute: cpu,gpu,default", cxxopts::value<std::string>()->default_value("default"))
+    ("verbosity", "0, 1, 2, 3: higher means more", cxxopts::value<int>()->default_value("2"))
+    ("debug", "0, 1, 2, 3: higher means more", cxxopts::value<int>()->default_value("0"))
+    ("compute", "where to execute: cpu, gpu, default", cxxopts::value<std::string>()->default_value("default"))
     ("filenames", "input filenames", cxxopts::value<std::vector<std::string>>())
   ;
   options.parse_positional({"filenames"});

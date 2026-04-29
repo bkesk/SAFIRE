@@ -24,7 +24,8 @@
 
 #include <cstdlib>
 
-#include "IO/app_loggers.h"
+#include "cuda_init.h"
+
 #include "cuda_runtime.h" 
 
 #include "mpi3/environment.hpp"
