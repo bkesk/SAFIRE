@@ -40,96 +40,89 @@
 int main_impl(int argc, char** argv)
 {
   using namespace sfqmc;
-  mpi3::environment env(argc, argv);
   auto world = mpi3::environment::get_world_instance();
   bool root(world.root());
   std::string compute="default";
 
+  constexpr const char *welcome{
+    "███████╗ █████╗ ███████╗██╗██████╗ ███████╗\n"
+    "██╔════╝██╔══██╗██╔════╝██║██╔══██╗██╔════╝\n"
+    "███████╗███████║█████╗  ██║██████╔╝█████╗  \n"
+    "╚════██║██╔══██║██╔══╝  ██║██╔══██╗██╔══╝  \n"
+    "███████║██║  ██║██║     ██║██║  ██║███████╗\n"
+    "╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝\n"
+    "\n"};
+
   // parse command line inputs
   std::vector<std::string> inputs;
   int output_level, debug_level; 
-  //if (world.root()) // everyone parse input file (e.g. hdf can be read in parallel)
-  { // parse command line inputs
-    cxxopts::Options options(argv[0],"SAFIRE");
-    options
-      .positional_help("[optional args]")
-      .show_positional_help();
-    options.add_options()
-      ("h,help", "print help message")
-      ("v,version", "print version message")
-      ("verbosity", "0, 1, 2, ...: higher means more", cxxopts::value<int>()->default_value("2"))
-      ("debug", "0, 1, 2, ...: higher means more", cxxopts::value<int>()->default_value("0"))
-      ("compute", "where to execute: cpu,gpu,default", cxxopts::value<std::string>()->default_value("default"))
-      ("filenames", "input filenames", cxxopts::value<std::vector<std::string>>())
-    ;
-    options.parse_positional({"filenames"});
-    auto args = options.parse(argc, argv);
-    // record program options
-    if (args.count("help"))
-    {
-      if(root)
-        std::cout << options.help({"", "Group"}) << std::endl;
-      mpi3::environment::finalize();
-      exit(0);
-    }
-    output_level = args["verbosity"].as<int>();
-    // check program options
-    if (output_level < 0) 
-    {
-      std::cerr << "verbosity < 0: " << output_level << std::endl;
-      mpi3::environment::finalize();
-      exit(1);
-    }
-    debug_level = args["debug"].as<int>();
-    if (debug_level < 0) 
-    {
-      std::cerr << "debug < 0: " << debug_level << std::endl;
-      mpi3::environment::finalize();
-      exit(1);
-    }
-    if (args.count("version"))
-    {
-      if(root){
-        // we can't access help string, annoying so hard code this
-        std::cerr << options.program() << " | SAFIRE" << std::endl;
-        print_version(3);  // print everything
-      }
-      mpi3::environment::finalize();
-      exit(0);
-    }
-    compute = args["compute"].as<std::string>();
-    if (compute != "cpu" and compute != "gpu" and compute != "default")
-    {
-      std::cerr << "Invalid compute:: " << compute << std::endl;
-      mpi3::environment::finalize();
-      exit(1);
-    }
 
-    // input files are positional arguments
-    int nfile = args.count("filenames");
-    if (nfile < 1)
-    {
-      if(root)
-        std::cout << "no input file given; exiting ..." << std::endl;
-      mpi3::environment::finalize();
-      exit(1);
-    } else {
-      inputs = args["filenames"].as<std::vector<std::string>>();
+  // parse command line inputs
+  cxxopts::Options options(argv[0],"SAFIRE");
+  options
+    .positional_help("[optional args]")
+    .show_positional_help();
+  options.add_options()
+    ("h,help", "print help message")
+    ("v,version", "print version message")
+    ("verbosity", "0, 1, 2, ...: higher means more", cxxopts::value<int>()->default_value("2"))
+    ("debug", "0, 1, 2, ...: higher means more", cxxopts::value<int>()->default_value("0"))
+    ("compute", "where to execute: cpu,gpu,default", cxxopts::value<std::string>()->default_value("default"))
+    ("filenames", "input filenames", cxxopts::value<std::vector<std::string>>())
+  ;
+  options.parse_positional({"filenames"});
+
+  cxxopts::ParseResult args{};
+  try {
+    args = options.parse(argc, argv);
+  } catch(const cxxopts::exceptions::exception &e) {
+    throw AppAbortException{e.what()};
+  }
+
+  // record program options
+  if (args.count("help"))
+  {
+    if(root)
+      std::cout << options.help({"", "Group"}) << std::endl;
+    return 0;
+  }
+  output_level = args["verbosity"].as<int>();
+  // check program options
+  if (output_level < 0) 
+  {
+    throw AppAbortException{std::format("verbosity ({}) has to be >= 0!", output_level)};
+  }
+  debug_level = args["debug"].as<int>();
+  if (debug_level < 0) 
+  {
+    throw AppAbortException{std::format("debug ({}) has to be >= 0!", output_level)};
+  }
+  if (args.count("version"))
+  {
+    if(root) {
+      std::cout << welcome;
+      print_version(3);  // print everything
     }
+    return 0;
+  }
+  compute = args["compute"].as<std::string>();
+  if (compute != "cpu" and compute != "gpu" and compute != "default")
+  {
+    throw AppAbortException{std::format("Invalid compute: {} (allowed values: \"cpu\", \"gpu\", \"default\")", compute)};
+  }
+
+  // input files are positional arguments
+  int nfile = args.count("filenames");
+  if (nfile < 1)
+  {
+    throw AppAbortException{"no input file given; exiting ..."};
+  } else {
+    inputs = args["filenames"].as<std::vector<std::string>>();
   }
 
   // setup output loggers
   sfqmc::arch::init(root,output_level,debug_level);
 
-  std::string welcome(
-    std::string("") + 
-              "███████╗ █████╗ ███████╗██╗██████╗ ███████╗\n" + 
-              "██╔════╝██╔══██╗██╔════╝██║██╔══██╗██╔════╝\n" + 
-              "███████╗███████║█████╗  ██║██████╔╝█████╗  \n" + 
-              "╚════██║██╔══██║██╔══╝  ██║██╔══██╗██╔══╝  \n" + 
-              "███████║██║  ██║██║     ██║██║  ██║███████╗\n" + 
-              "╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝\n" +
-              "\n");
   app_log(1, welcome);      
 
   if(root)
@@ -141,9 +134,7 @@ int main_impl(int argc, char** argv)
   try {
     parser.read(myinput);
   } catch (std::exception const& e) {
-    app_error("Error parsing input file. Check format.");
-    mpi3::environment::finalize();
-    exit(1);	
+    throw AppAbortException("Error parsing input file. Check format.");
   }
 
   auto mpi = std::make_shared<utils::mpi_context_t<boost::mpi3::communicator>>(utils::make_mpi_context(world));
@@ -173,19 +164,22 @@ int main_impl(int argc, char** argv)
         auto afqmc_fac = afqmc::AFQMCFactory<HOST_MEMORY>("csafqmc",mpi,sim,n_groups);
     } else {
       app_error("unknown calculation type: {} \n",cname.c_str());
-      mpi3::environment::finalize();
-      exit(1);	
+      throw sfqmc::AppAbortException("APP_ABORT triggered");
     }
   } // simulations end
   return 0;
 }
 
 int main(int argc, char** argv) {
+  mpi3::environment env(argc, argv);
   try {
     return main_impl(argc, argv);
   } catch (const sfqmc::AppAbortException& e) {
-    MPI_Abort(MPI_COMM_WORLD, 1);
-    mpi3::environment::finalize();
+    if(env.world().root()) {
+      std::cerr << fmt::format("Error: {}\n", e.what());
+    }
+    env.world().abort(1);
     return 1;
   } 
+  // destructor of env calls MPI finalize
 }
