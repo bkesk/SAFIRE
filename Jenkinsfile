@@ -104,6 +104,7 @@ pipeline {
             stage('cuda') {
               agent {
                 kubernetes {
+                  inheritFrom 'jnlp'
                   yaml """
                     spec:
                       runtimeClassName: nvidia
