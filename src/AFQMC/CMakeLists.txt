@@ -2,7 +2,6 @@ target_sources(safire_lib
   PRIVATE
     Utilities/AFQMCTimer.cpp 
     Utilities/readWfn.cpp
-    Utilities/probit.cpp
     AFQMCFactory.cpp
     Drivers/DriverFactory.cpp
     Drivers/AFQMCDriver.cpp

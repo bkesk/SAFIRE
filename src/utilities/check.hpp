@@ -15,7 +15,6 @@
 
 #include <iostream>
 #include<string>
-#include <boost/version.hpp>
 #include "IO/AppAbort.hpp"
 
 namespace sfqmc {

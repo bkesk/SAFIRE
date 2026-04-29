@@ -1,5 +1,4 @@
-#ifndef SFQMC_CONFIGURATION_H
-#define SFQMC_CONFIGURATION_H
+#pragma once
 
 /* define location of source directory */
 #define PROJECT_SOURCE_DIR_STR "@PROJECT_SOURCE_DIR@"
@@ -39,7 +38,4 @@
 
 /* Enable cpptrace */
 #cmakedefine ENABLE_CPPTRACE
-
-
-#endif // CONFIGURATION_H
 

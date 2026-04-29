@@ -4,13 +4,12 @@
 #if defined(__CUDACC__)
 #include <cuda/std/mdspan>
 #include <cuda/std/complex>
-#include "detail/probit.hpp"
 #else
 #include <complex>
 #include "utilities/check.hpp"
 #include "nda/nda.hpp"
-#include "AFQMC/Utilities/probit.h"
 #endif
+#include "AFQMC/Utilities/probit.h"
 
 namespace sfqmc::afqmc::detail
 {
@@ -35,9 +34,9 @@ struct construct_X_impl
   V4 RNs;
   V5 X;  
 
-#if defined(__CUDACC__)
-  __device__
-#endif
+  #if defined(__CUDACC__)
+    __device__
+  #endif
   void operator()(long nn)
   {
 #if defined(__CUDACC__)
@@ -78,11 +77,7 @@ struct construct_X_impl
       if( FieldTypes(m) == 0 or FieldTypes(m) == 1 ) { 
         complex<double> vdiff =
             free_projection ? complex<double>(0.0, 0.0) : (im * (vb_t - vmf_t));
-#if defined(__CUDACC__)
-        X(iw,m) = kernels::probit(RNs(iw,m)) + vdiff;
-#else
         X(iw,m) = probit(RNs(iw,m)) + vdiff;
-#endif
         HWs(iw) -= vdiff * X(iw,m) - complex<double>(0.5) * vdiff;
         MF(iw) += im * X(iw,m) * vmf_0;
       } else if( FieldTypes(m) == 2 or FieldTypes(m) == 3 ) { 
