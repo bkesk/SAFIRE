@@ -91,14 +91,12 @@ struct construct_X_impl
         auto wp = abs(exp(vdiff));
         auto wm = abs(exp(-vdiff));
         auto P = wm/(wp+wm);
-        // FIX : I added factor of (1/2) in HWs, necessary for finite-T,
-        // should not affect GS
         if( RNs(iw,m) < P ) {
           X(iw,m) = complex<double>(-1.0);
-          HWs(iw) += log(0.5/P);
+          HWs(iw) += log(1.0/P);
         } else {
           X(iw,m) = complex<double>(1.0);
-          HWs(iw) += log(0.5/(1.0-P));
+          HWs(iw) += log(1.0/(1.0-P));
         }
         // W_MSsub = exp(-MF), careful with sign convention
         MF(iw) += im * complex<double>(X(iw,m)) * vmf_0;

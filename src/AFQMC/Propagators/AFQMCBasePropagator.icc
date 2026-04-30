@@ -145,7 +145,6 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   }
   else if (hybrid)
   {
-    // FIX : does anything need to be updated here for finite-T?
     hybrid_walker_update(wset, dt, apply_constrain, importance_sampling, Eshift, new_overlaps, MFfactor,
                          hybrid_weight, lower_cutoff_scale, upper_cutoff_scale, true, debug_verbosity);
   }
@@ -637,17 +636,15 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
           utils::check(not free_projection, "Finish FP DiscretePropagator");
           ComplexType vdiff =
               free_projection ? ComplexType(0.0, 0.0) : (im * (vb_t - vmf_t));
-          // FIX : I added factor of (1/2) in HWs, necessary for finite-T,
-          // should not affect GS
           auto wp = std::abs(std::exp(vdiff));
           auto wm = std::abs(std::exp(-vdiff));
           auto P = wm/(wp+wm);
           if( RNGbuff(iw,m) < P ) {
             Xm(iw) = ComplexType(-1.0);
-            HWs(iw) += std::log(0.5/P);
+            HWs(iw) += std::log(1.0/P);
           } else {
             Xm(iw) = ComplexType(1.0);
-            HWs(iw) += std::log(0.5/(1.0-P));
+            HWs(iw) += std::log(1.0/(1.0-P));
           }     
           // W_MSsub = exp(-MF), careful with sign convention
           MF(iw) += im * ComplexType(Xm(iw)) * vmf_0;
