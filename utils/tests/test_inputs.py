@@ -35,7 +35,6 @@ class TestEnergy:
             tmp_path / 'afqmc.h5',
             1e-8, 
             wfn_file= tmp_path / 'afqmc.h5',
-            dense=True,
             real_chol=True
             )
         
@@ -69,7 +68,6 @@ class TestEnergy:
             tmp_path/'afqmc.h5', 
             1e-8, 
             wfn_file=tmp_path/'afqmc.h5',
-            dense=True, 
             real_chol=True, 
             ortho_ao=True
             )

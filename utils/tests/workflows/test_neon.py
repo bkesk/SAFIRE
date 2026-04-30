@@ -65,6 +65,7 @@ class TestNeon:
             hamil_file=run_file,
             threshold=1e-4,
             ortho_ao=True,
+            real_chol=True,
             verbose=True
             )
         assert True

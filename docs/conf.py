@@ -99,6 +99,12 @@ autodoc_default_options = {
     'exclude-members': 'warn,jit',
 }
 
+mathjax3_config = {
+      "chtml": {
+          "mtextInheritFont": True,
+      },
+  }
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for

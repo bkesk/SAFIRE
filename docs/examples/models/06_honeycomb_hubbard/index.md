@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.19.1
 kernelspec:
-  name: python3
+  display_name: Python 3 (ipykernel)
   language: ipython3
-  display_name: Python 3
+  name: python3
 ---
 
 +++ {"id": "jFoBNSA0D-an"}

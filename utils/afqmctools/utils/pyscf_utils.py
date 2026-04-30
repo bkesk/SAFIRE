@@ -12,6 +12,8 @@
 
 import json
 
+from warnings import warn
+
 import h5py as h5
 import numpy
 from pyscf import lib,scf
@@ -21,6 +23,7 @@ from pyscf.pbc.lib.chkfile import load_cell
 from afqmctools.utils.linalg import get_ortho_ao_mol
 from afqmctools.utils.slater_types import (
     _get_slater_type,
+    _SlaterType,
     )
 
 def chk_is_pbc(chkfile):
@@ -121,13 +124,11 @@ def load_from_pyscf_chk(chkfile,hcore=None,orthoAO=False):
     hcore = numpy.reshape(hcore,(-1,nao,nao))
     assert(hcore.shape[0]==nkpts)
 
-    if(cell.spin!=0 and isUHF==False):
-        print(" cell.spin!=0 only allowed with UHF calculation \n")
-        comm.abort()
+    if(cell.spin!=0 and not isUHF):
+        raise ValueError("cell.spin!=0 only allowed with UHF calculation")
 
-    if(orthoAO==False and isUHF==True):
-        print(" orthoAO=True required with UHF calculation \n")
-        quit()
+    if(not orthoAO and isUHF):
+        raise ValueError("orthoAO=True required with UHF calculation\n")
 
     if orthoAO:
         X_ = numpy.asarray(lib.chkfile.load(chkfile, 'scf/orthoAORot')).reshape(nkpts,nao,-1)
@@ -175,7 +176,6 @@ def load_from_pyscf_chk(chkfile,hcore=None,orthoAO=False):
         'cell': cell,
         'kpts': kpts,
         'Xocc': Xocc, 
-        'isUHF': isUHF,
         'hcore': hcore, 
         'X': X, 
         'nmo_pk': nmo_pk,
@@ -192,48 +192,51 @@ def load_from_pyscf_chk(chkfile,hcore=None,orthoAO=False):
     return scf_data
 
 
-def load_from_pyscf_chk_mol(chkfile, base='scf', with_sfx2c=False, with_x2c=False):
+def load_from_pyscf_chk_mol(chkfile, base='scf', soc_type=None):
     """
     Loads data from a PysCF checkfile and returns a Python dict containing that data.
 
-    Inputs:
-    - chkfile:str - name of PySCF checkpoint file to read data from
-    - base:str - name of HDF5 base group to read data from (default='scf')
-    - with_sfx2x:bool - use the "spin-free" exact 2-component (x2c) Hamiltonian. This is a scalar relativistic Hamiltonian
-    - with_x2c:bool - the full  exact 2-component (x2c) Hamiltonian which includes spin-orbit coupling (SOC)
+    Parameters
+    ----------
+    chkfile : str
+        name of PySCF checkpoint file to read data from
+    base : str
+        name of HDF5 base group to read data from (default='scf')
+    soc_type : {None, 'sfx2c', 'x2c', 'ecp'}, optional
+        Include spin orbit coupling in either the spin-free exact 2-component (`'sfx2c'`), the full exact 2-component (`'x2c'`) flavor, or through the ECP (`'ecp'`).
     """
     mol = load_mol(chkfile)
     nmo = mol.nao_nr()
     mo_occ = numpy.array(lib.chkfile.load(chkfile, base+'/mo_occ'))
     mo_coeff = numpy.array(lib.chkfile.load(chkfile, base+'/mo_coeff'))
-    uhf = len(mo_coeff.shape) == 3
+
+    walker_type = _get_slater_type(
+        mo_coeff,
+        mol.nelec,
+        nmo
+    )
+
     with h5.File(chkfile, 'r') as fh5:
         if '/scf/hcore' in fh5:
+            if soc_type is not None:
+                warn("Reading hcore from file, but it is unclear if the requested spin orbit coupling is included!")
             hcore = fh5['/scf/hcore'][:]
+            if hcore.shape[-1] == 2*nmo:
+                walker_type = _SlaterType.NONCOLLINEAR,
         else:
-            if with_sfx2c:
-                if uhf:
-                    mf = scf.UHF(mol).sfx2c1e() 
-                    hcore = mf.get_hcore()
-                else:
-                    mf = scf.RHF(mol).sfx2c1e() 
-                    hcore = mf.get_hcore()
-            elif with_x2c:
-                mf = scf.GHF(mol).x2c1e()
-                hcore = mf.get_hcore()
+            if soc_type == "sfx2c":
+                hcore = mol.RHF().sfx2c1e().get_hcore()
+            elif soc_type == "x2c":
+                hcore = mol.GHF().x2c1e().get_hcore()
+                walker_type = _SlaterType.NONCOLLINEAR
+            elif soc_type == "ecp":
+                hcore = scf.GHF(mol).get_hcore() + get_ecp_soc(mol)
+                walker_type = _SlaterType.NONCOLLINEAR
+            elif soc_type is None:
+                hcore = scf.hf.get_hcore(mol)
             else:
-                hcore = mol.intor_symmetric('int1e_kin')
-                if mol._pseudo:
-                    # Although mol._pseudo for GTH PP is only available in Cell, GTH PP
-                    # may exist if mol is converted from cell object.
-                    from pyscf.gto import pp_int
-                    hcore += pp_int.get_gth_pp(mol)
-                else:
-                    hcore += mol.intor_symmetric('int1e_nuc')
-                
-                if len(mol._ecpbas) > 0:
-                    hcore += mol.intor_symmetric('ECPscalar')
-        
+                raise ValueError(f"Unknown soc_type '{soc_type}'")
+
         if '/scf/orthoAORot' in fh5:
             X = fh5['/scf/orthoAORot'][:]
             # necessary if orbitals have been removed (i.e. due to linear dependence)
@@ -246,11 +249,7 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', with_sfx2c=False, with_x2c=Fals
             df_ints = fh5['j3c'][:]
         else:
             df_ints = None
-    
-    if mol.nelec[0] != mol.nelec[1] and not uhf:
-        rohf = True
-    else:
-        rohf = False
+
     scf_data = {
         'mol': mol,
         'nelec' : mol.nelec,
@@ -259,22 +258,16 @@ def load_from_pyscf_chk_mol(chkfile, base='scf', with_sfx2c=False, with_x2c=Fals
         'norb' : nmo,
         'X': X,
         'mo_coeff': mo_coeff,
-        'isUHF': uhf,
         'df_ints': df_ints,
-        'rohf': rohf,
-        'walker_type' : _get_slater_type(
-            phi=numpy.array(mo_coeff),
-            nelec=mol.nelec,
-            M=nmo
-        ),
-        'with_x2c' : with_x2c # identifies that hcore has SOC
-        }
+        'walker_type' : walker_type, # suggested walker type
+        'soc_type' : soc_type # identifies that hcore has SOC
+    }
     return scf_data
 
 def ci2chk(chkfile,ci):
     with h5.File(chkfile,"a") as f:
         if 'mcscf/ci' not in f:
-            f.create_dataset("mcscf/ci",data=ci)                                                                                              
+            f.create_dataset("mcscf/ci",data=ci)
         else:
             f['mcscf/ci'][...] = ci
 
@@ -362,3 +355,10 @@ def read_cas_meta(chkfile, group='mcscf', root=None):
         for key in keys:
             meta[key] = f[group][key][()]
     return meta
+
+def get_ecp_soc(mol):
+    """Compute the ECP-SOC term for `mol`. See pyscf example gto/20-soc_ecp.py."""
+
+    s = .5 * lib.PauliMatrices
+    ecpso = -1j * lib.einsum('sxy,spq->xpyq', s, mol.intor('ECPso'))
+    return ecpso.reshape(ecpso.shape[0] * ecpso.shape[1], ecpso.shape[2] * ecpso.shape[3])

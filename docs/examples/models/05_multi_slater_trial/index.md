@@ -6,14 +6,12 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.19.1
 kernelspec:
-  name: python3
+  display_name: Python 3 (ipykernel)
   language: ipython3
-  display_name: Python 3
+  name: python3
 ---
 
 ```{code-cell} ipython3
-
-# setup scratch dir
 from pathlib import Path
 from tutorial_utils import run_afqmc
 
@@ -31,7 +29,7 @@ We will use a trial wavefunction consisting of two Slater determinants.
 Specifically, we will use
 
 $$
-| \Psi_T \rangle = \frac{1}{\sqrt{2}} \left( |\Phi_{0}\rangle + |\Phi_{1}\rangle \right)
+| \Psi_\mathrm{T} \rangle = \frac{1}{\sqrt{2}} \left( |\Phi_{0}\rangle + |\Phi_{1}\rangle \right)
 $$
 
 where
@@ -44,8 +42,8 @@ is the UHF ground state
 and $|\Phi_{1}\rangle$ is the spin-reversed UHF ground state,
 
 $$
-|\Phi_{1}\rangle = |\Phi^{\downarrow}\rangle \otimes |\Phi^{\uparrow}\rangle
-$$.
+|\Phi_{1}\rangle = |\Phi^{\downarrow}\rangle \otimes |\Phi^{\uparrow}\rangle.
+$$
 
 Since the Hamiltonian is spin-independent, this trial wavefunction should have the same energy as the UHF ground state.
 
@@ -148,7 +146,7 @@ A trial wavefunction can be written to AuxiliaryField's HDF5 format using the `w
 In general, the trial wavefunction in AFQMC is a linear combination of Slater determinants,
 
 $$
-|\Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle,
+|\Psi_\mathrm{T} \rangle = \sum^{N_\mathrm{det}}_n C_n | \Phi_n \rangle,
 $$
 
 where

@@ -26,6 +26,7 @@ if USE_PYSCF:
     from afqmctools.utils.pyscf_utils import ci2chk
 
 from afqmctools.utils.linalg import modified_cholesky_direct, get_ortho_ao
+from afqmctools.utils.slater_types import _SlaterType
 import afqmctools.systems.lattice as lat
 from afqmctools.hamiltonian.model.director import HamiltonianDirector
 
@@ -199,6 +200,37 @@ def neon_atom_tz():
 
 
 @pytest.fixture(scope='session')
+def carbon_ecp():
+    if not USE_PYSCF:
+        pytest.skip("pyscf is not installed")
+    return gto.M(atom='C 0 0 0', basis={'C': 'crenbl'}, ecp={'C': 'crenbl'})
+
+
+@pytest.fixture(scope='session')
+def carbon_ghf(tmp_path_factory, carbon_ecp):
+    mf = scf.GHF(carbon_ecp)
+    mf.chkfile = tmp_path_factory.mktemp('scf') / 'scf.chk'
+    energy = mf.kernel()
+
+    return mf, energy
+
+
+@pytest.fixture(scope='session', params = [
+    scf.RHF,
+    scf.ROHF,
+    scf.UHF,
+    scf.GHF,
+])
+def neon_hf(tmp_path_factory, request, neon_atom):
+    HF = request.param
+    mf = HF(neon_atom)
+    mf.chkfile = tmp_path_factory.mktemp('scf') / 'scf.chk'
+    energy = mf.kernel()
+
+    return mf, energy
+
+
+@pytest.fixture(scope='session')
 def neon_rhf(tmp_path_factory,neon_atom):
     if not USE_PYSCF:
         pytest.skip("pyscf is not installed")
@@ -229,7 +261,6 @@ def neon_casscf(neon_rhf):
     ci2chk(mc.chkfile, ci=mc.ci)
     
     return mc
-
 
 @pytest.fixture(scope='session')
 def neon_eri(neon_atom):

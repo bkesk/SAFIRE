@@ -95,7 +95,7 @@ Next, we will reproduce the PEC of the Nitrogen dimer using AFQMC / CASSCF(12o,6
 As we saw in {doc}`../02_B_atom_SHCI_trial_wfn/06_SHCI_trial_wavefunction`, AFQMC trial wavefunctions are typically multi-Slater determinant expansions of the form form
 
 $$
-| \Psi_T \rangle = \sum_n^{N_{det}} C_{n} | \Phi_n \rangle,
+| \Psi_\mathrm{T} \rangle = \sum_n^{N_\mathrm{det}} C_{n} | \Phi_n \rangle,
 $$
 
 where $ C_{n} $ are CI coefficients,
@@ -104,9 +104,9 @@ Typically, CI trial wavefunctions are truncated CASSCF or selected CI (SCI) wave
 
 For quantum chemistry, AFQMC uses the phaseless approximation in order to control the fermionic sign / phase problem at the cost of introducing a removable bias.
 This bias can be systematically removed by using a better trial wavefunction.
-If we start with a decent CASSCF or SCI wavefunction, then we can characterize the "quality" of a trial wavefunction by the number of Slater determinants that are included in the trial wavefunction, $N_{det}$.
+If we start with a decent CASSCF or SCI wavefunction, then we can characterize the "quality" of a trial wavefunction by the number of Slater determinants that are included in the trial wavefunction, $N_\mathrm{det}$.
 
-<b>A critical step in achieving high-accuracy results, therefore, is to converge the AFQMC energy in $N_{det}$</b>
+<b>A critical step in achieving high-accuracy results, therefore, is to converge the AFQMC energy in $N_\mathrm{det}$</b>
 
 SAFIRE provides a keyword in the "wavefunction" json input block to limit the number of Slater determinants, "ndets_to_read", that are actually read from the HDF5 wavefunction file. Here is a sample json input block.
 
@@ -115,8 +115,7 @@ SAFIRE provides a keyword in the "wavefunction" json input block to limit the nu
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {
@@ -239,8 +238,8 @@ In addition to the trial wavefunction HDF5 file from before, you should also now
 
 ### Run SAFIRE
 
-Before we move on to computing the PEC, we need to converge the AFQMC energy in $N_{det}$.
-To avoid doing this for every point on the PEC, we will simply choose a point on the PEC where we expect the most static correlation, converge the AFQMC energy in $N_{det}$ at that point, and use that converged $N_{det}$ value uniformly across the entire PEC.
+Before we move on to computing the PEC, we need to converge the AFQMC energy in $N_\mathrm{det}$.
+To avoid doing this for every point on the PEC, we will simply choose a point on the PEC where we expect the most static correlation, converge the AFQMC energy in $N_\mathrm{det}$ at that point, and use that converged $N_\mathrm{det}$ value uniformly across the entire PEC.
 This avoids running many calculations at each point on the PEC to check convergence at the cost of perhaps too many Slater determinants at some points
 on the PEC.
 
@@ -268,8 +267,7 @@ will generate a "wavefunction" block that points to the wavefunction file, with 
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {
@@ -287,7 +285,7 @@ will generate a "wavefunction" block that points to the wavefunction file, with 
 }
 ```
 
-<b>Run the code block below in order to compute $E_{AFQMC}$ vs $N_{det}$</b>
+<b>Run the code block below in order to compute $E_\mathrm{AFQMC}$ vs $N_\mathrm{det}$</b>
 Note: This might take some time. You might want to run this on a computing cluster instead.
 
 ```{code-cell} ipython3
@@ -347,7 +345,7 @@ for ndet in ndets:
 
 +++ {"id": "1Fvs5Vbm1Ko0"}
 
-### Plot $E_{AFQMC}$ vs $N_{det}$
+### Plot $E_\mathrm{AFQMC}$ vs $N_\mathrm{det}$
 
 ```{code-cell} ipython3
 # plot the results
@@ -364,17 +362,17 @@ plt.show()
 
 ### Result
 
-From the plot of energy vs $N_{det}$, we have converged the AFQMC energy to within our target stochastic uncertainty of less than 1.6 m$E_\text{Ha}$ at about $N_{det} = 500$.
+From the plot of energy vs $N_\mathrm{det}$, we have converged the AFQMC energy to within our target stochastic uncertainty of less than 1.6 m$E_\text{Ha}$ at about $N_\mathrm{det} = 500$.
 Since we performed this test at a point on the PEC where there are strong static correlation effects, we expect this
 value to provide converged results across the PEC.
-Now, we can automate the calculation of the PEC using this value for $N_{det}$.
+Now, we can automate the calculation of the PEC using this value for $N_\mathrm{det}$.
 
 +++ {"id": "c4MDXZD3E6lw"}
 
 ## Automating the computation of the PEC using Python / afqmctools
 
-Now that we have converged $E_{AFQMC}$ in $N_{det}$, we are ready to compute the PEC.
-In the code block below, we have included a function that performs all of the steps that we have already performed (excluding converging $E_{AFQMC}$ in $N_{det}$) given a value of the $N_2$ bond length, $\delta_{N-N}$.
+Now that we have converged $E_\mathrm{AFQMC}$ in $N_\mathrm{det}$, we are ready to compute the PEC.
+In the code block below, we have included a function that performs all of the steps that we have already performed (excluding converging $E_\mathrm{AFQMC}$ in $N_\mathrm{det}$) given a value of the $N_2$ bond length, $\delta_{N-N}$.
 
 Specifically, given $\delta_{N-N}$ and `ndets_to_read`, the function automates:
 

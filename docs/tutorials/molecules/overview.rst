@@ -84,7 +84,7 @@ combination of Slater determinants,
 
 .. math::
 
-   | \Psi_T \rangle = \sum_n C_n |\Phi_m\rangle,
+   | \Psi_\mathrm{T} \rangle = \sum_n C_n |\Phi_m\rangle,
 
 where :math:`|\Phi_m\rangle` are Slater determinants,
 and :math:`C_n` is a coefficient.
@@ -95,7 +95,7 @@ In the former case, it is convenient to specify Slater determinants in terms of 
 
 .. math::
 
-   | \Psi_T \rangle = \sum_n C_n | O_\alpha \rangle \otimes | O_\beta \rangle,
+   | \Psi_\mathrm{T} \rangle = \sum_n C_n | O_\alpha \rangle \otimes | O_\beta \rangle,
 
 where :math:`O_\sigma = [o_0, o_1, ..., o_{N_\sigma}]` is the set of orbitals which are occupied for :math:`\sigma=\alpha, \beta`.
 

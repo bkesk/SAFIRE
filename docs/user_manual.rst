@@ -40,8 +40,7 @@ See the ":ref:`Input file description <input_afqmc>`" for more.
     "afqmc": {
       "project": {
         "id": "my_qmc_run",
-        "series": 0,
-        "mixed_precision": false
+        "series": 0
       },
       "execute": {
         "walker_set": {
@@ -99,7 +98,7 @@ The trial wavefunction in AFQMC is typically a linear combination of Slater dete
 .. math::
   :label: eq-trial-wf
 
-  |\Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle
+  |\Psi_\mathrm{T} \rangle = \sum^{N_\mathrm{det}}_n C_n | \Phi_n \rangle
 
 where :math:`C_n` is a complex-valued coefficient, and :math:`|\Phi_n\rangle` are Slater determinants which are not necessarily orthogonal to each other. Of course, each Slater determinant consists of some set of single-particle orbitals, :math:`\{ \psi_p \}`, such that,
 
@@ -141,27 +140,27 @@ Both mixed estimators of the form,
 .. math::
   :name: mixedEstimators
 
-  \langle \hat{O} \rangle_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
+  \langle \hat{O} \rangle_\mathrm{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_\mathrm{T} | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_\mathrm{T} | \Phi_{n,k} \rangle}
 
 where :math:`n` is the projection step index,
 :math:`| \Phi_{n,k} \rangle` are Slater determinant walkers with weight :math:`W_{n,k}`,
-and :math:`| \Psi_T \rangle` is the trial wavefunction,
+and :math:`| \Psi_\mathrm{T} \rangle` is the trial wavefunction,
 and pure estimators using the Back-Propagation (BP) algorithm of the form,
 
 .. math::
   :label: bpEstimators
 
-  \langle \hat{O} \rangle_{BP} = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle},
+  \langle \hat{O} \rangle_\mathrm{BP} = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle},
 
 
 where :math:`| \tilde{\Phi}_{m,k} \rangle` are the back-propagated walkers, given by
 
 .. math::
 
-   | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_T \rangle,
+   | \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_\mathrm{T} \rangle,
 
 are implemented.
 
-Several observables, :math:`hat{O}`, are implemented in SAFIRE which can each be used with either type of estimator.
+Several observables, :math:`\hat{O}`, are implemented in SAFIRE which can each be used with either type of estimator.
 
 See the :ref:`Observables <observables>` reference for more details.

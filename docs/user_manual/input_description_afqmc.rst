@@ -56,8 +56,7 @@ We will explore the details of this input file in the following sections.
     "afqmc": {
       "project": {
         "id": "qmc",
-        "series": 0,
-        "mixed_precision": false
+        "series": 0
       },
       "execute": {
         "walker_set": {
@@ -121,8 +120,7 @@ It contains the following options.
     "afqmc": {
       "project": {
         "id": "afqmc",
-        "series": 0,
-        "mixed_precision": false
+        "series": 0
       },
 
     ...
@@ -143,9 +141,6 @@ It contains the following options.
    * - **series**
      - 0
      - An up to 3-digit integer which may be used to identify the specific calculation that is being performed. AFQMC output files are prefixed by "id" and "series" (below) ``[id].[series].*``
-   * - **mixed_precision**
-     - false
-     - A boolean value used to turn mixed precision arithmetic on (true) or off (false)
 
 .. _execute_block:
 
@@ -289,18 +284,7 @@ Settings
      - 
      - The seed for the random number generator. This value only needs to be set when strict reproducibility is necessary.
 
-.. important::
-
-  The measure_interval is specified indirectly using the measure_interval_multiplier parameter. 
-  It is computed using the population_control_interval according to the formula
-
-  .. math::
-
-    measure\_interval = measure\_interval\_multiplier \times population\_control\_interval
-
-.. caution::
-
-  Take care to update `measure_interval_multiplier` if you change `population_control_interval`
+.. include:: ../_include/measure_interval_admonition.rst
 
 .. _wavefunction_block:
 

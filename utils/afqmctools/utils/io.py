@@ -469,6 +469,9 @@ def write_pair_correlators(fname:str=None, pairs_dict=None):
     pairs_dict : dict
         Dictionary of pair correlators to write.
     """
+
+    warnings.warn("Pair correlators are an experimental feature")
+    
     max_num_pairs = max( [ len(pair_list) for pair_list in pairs_dict.values() ] ) # this is for c++ memory allocation
     num_correlators = len(pairs_dict.keys())
 

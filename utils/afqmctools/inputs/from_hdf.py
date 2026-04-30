@@ -78,7 +78,7 @@ def get_estimator_settings(exec_opts,args=None):
     return iest
 
 
-def write_json(fout, fwfn0, fham0=None, relpath=True, exec_opts=None, args_namespace=None, **kwargs):
+def write_json(fout, fwfn0, fham0=None, relpath=True, exec_opts=dict(), args_namespace=None, **kwargs):
     r"""
     Write JSON input file for AuxiliaryFiles.
 
@@ -219,7 +219,6 @@ def default_inputs(fwfn0, fham0=None):
         "project": {
             "id": "qmc",
             "series": 0,
-            "mixed_precision": False,
         },
         "execute": {
             "walker_set": {
