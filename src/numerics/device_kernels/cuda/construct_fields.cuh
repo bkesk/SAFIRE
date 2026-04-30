@@ -13,7 +13,6 @@ namespace detail
   template<typename V1, typename V2, typename V3, typename V4, typename V5>
   void construct_X_impl(bool zero, bool fp, double sqrtdt, double vbias_bound, V1 const& FieldTypes, 
      V2 const& vMF, V3& mf_factor, V3& hybrid_weight, V4 const& RN, V5& X);
-
 }
 
   void construct_X(bool zero, bool fp, double sqrtdt, double vbias_bound, nda::MemoryVector auto const& FT, 

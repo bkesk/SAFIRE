@@ -95,17 +95,6 @@ public:
     std::visit([&](auto&& a) { a.set_rng_block_size(std::forward<Args>(args)...); }, var);
   }
 
-  template<class... Args>
-  void read_fields_from_hdf(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.read_fields_from_hdf(std::forward<Args>(args)...); }, var);
-  }
-
-  bool read_Fields()
-  {
-    return std::visit([&](auto&& a) { return a.read_Fields(); }, var);
-  }
-
   private:
 
   std::variant<AFQMCBasePropagator<MEM>> var;
