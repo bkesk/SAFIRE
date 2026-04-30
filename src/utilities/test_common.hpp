@@ -76,12 +76,12 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
                                           pre + "BH/afqmc_inputs/afqmc_ghf_nomsd.h5",
                                           afqmc::NONCOLLINEAR) );
       files.emplace_back( std::make_tuple(pre + "Pb/afqmc_inputs/afqmc_H_rhf_basis_noncollinear_sf.h5",
-                                          pre + "Pb/afqmc_inputs/afqmc_ghf_sf_nomsd.h5",
-                                          afqmc::NONCOLLINEAR) );
-      // 🚧 Complex-value H1 in Q. Chem Hamiltonian got dropped! Add it back in after consulting with Miguel
-      //files.emplace_back( std::make_tuple(pre + "Pb/afqmc_inputs/afqmc_H_rhf_basis_noncollinear_soc.h5",
-      //                                    pre + "Pb/afqmc_inputs/afqmc_ghf_soc_nomsd.h5",
-      //                                    afqmc::UNDEFINED_WALKER_TYPE) );
+                                          pre + "Pb/afqmc_inputs/afqmc_ghf_sf_nomsd.h5") );
+                                          afqmc::NONCOLLINEAR) ); // uncomment when unit test system fixes are merged
+      files.emplace_back( std::make_tuple(pre + "Pb/afqmc_inputs/afqmc_H_rhf_basis_noncollinear_soc.h5",
+                                          pre + "Pb/afqmc_inputs/afqmc_ghf_soc_nomsd.h5") );
+                                          afqmc::NONCOLLINEAR) ); // uncomment when unit test system fixes are merged
+
     }
   }
   if (phmsd) {
