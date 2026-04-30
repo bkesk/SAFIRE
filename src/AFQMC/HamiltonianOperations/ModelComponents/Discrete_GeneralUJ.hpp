@@ -148,12 +148,6 @@ public:
     else {
       //nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v,"wi");
       //nda::tensor::add(ia,hMF(),"i",ComplexType(1.0),v,"wi");
-      std::cout<<"h0 hMF\n";
-      auto h0_h = nda::to_host(h0);
-      auto hMF_h = nda::to_host(hMF);
-      for(int i = 0; i < h0.extent(0); ++i){
-        std::cout<<h0_h(i)<<"  "<<hMF_h(i)<<std::endl;
-      }
       //FIX: need a better solution here
       for(int iw=0; iw<v.extent(0); ++iw){
         nda::tensor::add(ia,h0(),"i",ComplexType(1.0),v(iw,all),"i");

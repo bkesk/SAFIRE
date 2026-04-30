@@ -81,7 +81,6 @@ void SDetOps()
     for(int i=0; i<A.extent(0); i++) A(i,nda::ellipsis{}) = b();
   };
 
-  /*
   // some arbitrary matrices 
   nda::array<Type,2> m_a = { 
                 {0.90000 + 0.10000i, 0.40000 + 0.40000i, 1.40000 + 0.20000i, 0.40000 + 0.50000i},
@@ -109,7 +108,7 @@ void SDetOps()
   auto A_ = A(range(0,2),range(0,3));
   auto B_ = B(all,range(0,3),range(0,2));
 
-  // Overlaps //
+  /**** Overlaps ****/
   //SECTION("Overlaps")
   {
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
@@ -148,7 +147,7 @@ void SDetOps()
     ARRAY_EQUAL(ovlp,ov);
   } 
 
-  // Density Matrices //
+  /**** Density Matrices *****/
   nda::array<Type,2> v_ref    = {{1.17573619385025996 - 0.01580426445014660i,  -0.25295981756593167 + 0.28594469607401085i,
                   -0.07724502823533341 - 0.09687959052155870i, 0.30512858581808422 - 0.04506898328729603i},
                   {0.17912592806889663 + 0.08374315906672802i,  0.59381451118048767 + 0.13438888951771200i,
@@ -309,7 +308,6 @@ void SDetOps()
     det_ops::Log_Overlap(Q, Q, ovlp);
     ARRAY_EQUAL(oref,ovlp);
   }
-  */
 
   // Finite temperature functions
   {

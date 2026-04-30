@@ -886,11 +886,6 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
         math::splitDmatrix(DL, DLmin, DLmax_inv, ovlp_loc, sclL);
         kernels::device::add_scalar(ovlp_loc,ovlp,nbatch);
         math::splitDmatrix(DR, DRmin, DRmax_inv, ovlp, sclR);
-
-        auto DRmin_h = nda::to_host(DRmin);
-        auto DLmin_h = nda::to_host(DLmin);
-        auto DRmax_inv_h = nda::to_host(DRmax_inv);
-        auto DLmax_inv_h = nda::to_host(DLmax_inv);
       
         // M0 <-- VL * DLmin
         //nda::tensor::contract(VL,"ij",DLmin,"j",M0,"ij");

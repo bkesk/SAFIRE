@@ -455,7 +455,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     utils::check(false," Error: Unknown wave-function wfn_type: {}", int(wfn_type));
     return Wavefunction<MEM>{};
   }
-  //return Wavefunction<MEM>{};
+  return Wavefunction<MEM>{};
 }
 
 /*
