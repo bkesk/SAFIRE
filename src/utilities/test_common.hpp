@@ -148,8 +148,52 @@ inline constexpr auto lattice_unit_test_files(bool rhf, bool uhf, bool ghf, bool
 }
 
 
-inline constexpr auto get_unit_tests_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd, bool finiteT = false, 
-  bool molecules=false, bool lattices=true, bool solids=true)
+inline constexpr auto solid_unit_test_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd) 
+{
+  std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> > files;
+  auto pre = unit_test_base() + "solids/";
+  if(nomsd) {
+    if(rhf) {
+      // Closed spin symmetry is not implemented - no tests expected to pass
+    } 
+    if(uhf) {
+      // Cholesky cases
+      files.emplace_back( std::make_tuple(pre + "C_diamond_coqui/afqmc_inputs/ham_chol_1e-5.h5",
+                                          pre + "C_diamond_coqui/afqmc_inputs/wfn_mf_pbe_closed.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      files.emplace_back( std::make_tuple(pre + "C_diamond_coqui/afqmc_inputs/ham_chol_1e-5.h5",
+                                          pre + "C_diamond_coqui/afqmc_inputs/wfn_mf_pbe.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );                          
+      files.emplace_back( std::make_tuple(pre + "C_diamond_coqui/afqmc_inputs/ham_2x2x2_chol_1e-5.h5",
+                                          pre + "C_diamond_coqui/afqmc_inputs/wfn_mf_2x2x2_pbe.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      // THC cases
+      files.emplace_back( std::make_tuple(pre + "C_diamond_coqui/afqmc_inputs/ham_thc_1e-6.h5",
+                                          pre + "C_diamond_coqui/afqmc_inputs/wfn_mf_pbe_closed.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+      files.emplace_back( std::make_tuple(pre + "C_diamond_coqui/afqmc_inputs/ham_thc_1e-6.h5",
+                                          pre + "C_diamond_coqui/afqmc_inputs/wfn_mf_pbe.h5",
+                                          afqmc::UNDEFINED_WALKER_TYPE) );
+
+    }    
+    if(ghf) {
+      files.emplace_back( std::make_tuple(pre + "C_diamond_coqui/afqmc_inputs/ham_chol_1e-5.h5",
+                                          pre + "C_diamond_coqui/afqmc_inputs/wfn_mf_pbe_noncollinear.h5",
+                                          afqmc::NONCOLLINEAR) );
+      files.emplace_back( std::make_tuple(pre + "C_diamond_coqui/afqmc_inputs/ham_thc_1e-6.h5",
+                                          pre + "C_diamond_coqui/afqmc_inputs/wfn_mf_pbe_noncollinear.h5",
+                                          afqmc::NONCOLLINEAR) );
+    }
+  }
+  if (phmsd) {
+    // no phmsd tests for lattice models yet
+  }
+  return files;
+}
+
+
+inline constexpr auto get_unit_tests_files(bool rhf, bool uhf, bool ghf, bool nomsd, bool phmsd, bool finiteT = false,
+  bool molecules=true, bool lattices=true, bool solids=true)
 {
   auto unit_test_files = std::vector< std::tuple<std::string, std::string, afqmc::WALKER_TYPES> >{};
 
@@ -163,6 +207,11 @@ inline constexpr auto get_unit_tests_files(bool rhf, bool uhf, bool ghf, bool no
   }
   if (solids) {
     // add solid state unit test files here
+    auto solid_files = solid_unit_test_files(rhf, uhf, ghf, nomsd, phmsd);
+    unit_test_files.insert(unit_test_files.end(), solid_files.begin(), solid_files.end());
+  }
+  if (finiteT) {
+    // add finite T unit test files here
   }
   return unit_test_files;
 }
