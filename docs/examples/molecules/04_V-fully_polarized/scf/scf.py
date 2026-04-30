@@ -34,12 +34,19 @@ def main():
     mf.chkfile = 'rohf.chk'
     mf.kernel()
 
-    mf.analyze()
+    # Report ROHF energy decomposition and total energy.
+    e_elec, e_coul = mf.energy_elec()
+    e_nuc = mf.energy_nuc()
+    e_one = e_elec - e_coul
+    e_tot = mf.e_tot
 
-    # this will be a trial wavefunction
-    uhf = scf.UHF(single_mol).newton()
-    uhf.chkfile = 'uhf.chk'
-    uhf.kernel()
+    print("ROHF one-electron energy: ", e_one)
+    print("ROHF Coulomb/exchange energy: ", e_coul)
+    print("ROHF electronic energy: ", e_elec)
+    print("ROHF nuclear repulsion energy: ", e_nuc)
+    print("ROHF total energy: ", e_tot)
+
+    
     
     # Getting a reference energy:
     mycas = mcscf.CASCI(mf,32,3)

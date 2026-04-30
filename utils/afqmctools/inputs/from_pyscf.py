@@ -8,6 +8,8 @@
 #
 #      http://www.apache.org/licenses/LICENSE-2.0
 
+from warnings import warn
+
 from afqmctools.hamiltonian.supercell import write_hamil_supercell
 from afqmctools.hamiltonian.kpoint import write_hamil_kpoints
 from afqmctools.hamiltonian.mol import write_hamil_mol
@@ -20,14 +22,17 @@ from afqmctools.utils.pyscf_utils import (
 from afqmctools.wavefunction.mol import write_wfn_mol
 from afqmctools.wavefunction.pbc import write_wfn_pbc
 
-from afqmctools.utils.slater_types import _slater_enum_map
+from afqmctools.utils.slater_types import (
+    _slater_enum_map,
+    _get_slater_type,
+)
 
-# TODO: rename this accross entire code base
+# TODO: rename this across entire code base
 def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                   ortho_ao=False, df=False, kpoint=False, verbose=False,
                   cas=None, wfn_file=None,
                   write_hamil=True, ndet_max=None, real_chol=False,
-                  phdf=False, low=0.1, high=0.95, dense=False, 
+                  phdf=False, low=0.1, high=0.95,
                   walker_type=None, with_sfx2c=False,
                   with_x2c=False):
     """Dispatching routine dependent on options.
@@ -68,18 +73,20 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                 "in serial."
             )
 
+        soc_type = None
+        if with_sfx2c:
+            soc_type = 'sfx2c'
+        elif with_x2c:
+            soc_type = 'x2c'
+        
         scf_data = load_from_pyscf_chk_mol(
             chkfile,
-            with_sfx2c=with_sfx2c,
-            with_x2c=with_x2c
+            soc_type=soc_type,
         )
         scf_data['orthAO'] = ortho_ao
 
         if walker_type is None:
-            walker_type = scf_data['walker_type']
-        else: # override the scf_data based on user input!
-            walker_type = _slater_enum_map(walker_type)
-            scf_data['walker'] = walker_type
+            warn("walker_type argument is no longer used")
         
         if write_hamil:
             write_hamil_mol(
@@ -90,13 +97,13 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                 cas=cas,
                 ortho_ao=ortho_ao,
                 real_chol=real_chol,
-                dense=dense,
                 df=df,
-                walker_type=walker_type
             )
         write_wfn_mol(
             scf_data,
-            wfn_file
+            wfn_file,
+            ortho_ao=ortho_ao,
+            cas=cas,
         )
         if verbose > 1:
             print(" # Recomputing single-determinant Hartree--Fock energy.")

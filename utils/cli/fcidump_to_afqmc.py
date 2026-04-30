@@ -16,7 +16,7 @@ import numpy
 from afqmctools.hamiltonian.mol import (
         write_sparse,write_dense
         )
-from afqmctools.wavefunction.mol import (
+from afqmctools.wavefunction.common import (
         write_wfn
         )
 from afqmctools.hamiltonian.converter import read_fcidump
@@ -110,7 +110,6 @@ def main():
                           real_chol=(not cplx_chol),verbose=options.verbose)
 
     if options.add_wfn:
-
       nalpha, nbeta = nelec
       if nalpha != nbeta:
         rohf=True
@@ -136,9 +135,9 @@ def main():
       wfn[0,:,:nalpha] = I[:,occs[:nalpha]]
       if rohf:
         wfn[0,:,nalpha:] = I[:,occs[nalpha:]]
-      write_wfn(options.output_file, (numpy.array([1.0+0j]),wfn), 
+      write_wfn(options.output_file, (numpy.array([1.0+0j]),wfn),
                 ('rhf' if not rohf else 'rohf'),
-                nelec, norb, verbose=options.verbose, init=(wfn[0],wfn[0]))
+                nelec, norb, verbose=options.verbose)
 
 if __name__ == '__main__':
     main()

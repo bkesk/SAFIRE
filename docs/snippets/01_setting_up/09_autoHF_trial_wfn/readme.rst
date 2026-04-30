@@ -15,7 +15,7 @@ on a 2x3 square lattice with periodic boundary conditions.
 
 .. literalinclude:: input.toml
 
-if no "type" is speciefied in the "lattice" section, then a square lattice is used.
+if no "type" is specified in the "lattice" section, then a square lattice is used.
 
 autohf and afqmctools can be invoked within a Python script as
 
@@ -57,7 +57,7 @@ autohf and afqmctools can be invoked within a Python script as
 
 
 
-If the sample Pyhton script is run above with the sample input file, the following
+If the sample Python script is run above with the sample input file, the following
 should be present at the end of the output.
 
 .. code-block:: text

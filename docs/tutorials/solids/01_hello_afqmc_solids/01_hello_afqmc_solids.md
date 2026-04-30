@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -38,7 +38,7 @@ The purpose of this tutorial is to run a first AFQMC calculation without going i
 
 <!--
 AFQMC is formulated in terms of a generic second quantized Hamiltonian and trial wavefunction.
-In order to take advantage of this flexibility, AuxiliaryFields accepts a generic
+In order to take advantage of this flexibility, SAFIRE accepts a generic
 second quantized Hamiltonian and wavefunction, saved in HDF5 files, as input along with
 AFQMC algorithmic parameters in a json-based input file.
 -->
@@ -83,7 +83,7 @@ To perform a calculation, SAFIRE requires a Hamiltonian and a trial wave functio
 This HDF5 file contains the second-quantized Hamiltonian $\hat{H}$.
 
 For this tutorial, we have supplied an HDF5 file containing the Born-Oppenheimer
-Hamiltonian for Si in its primtive cell at equilibrium
+Hamiltonian for Si in its primitive cell at equilibrium
 in "hamil.h5".
 
 <div>
@@ -107,13 +107,13 @@ For technical details on the Hamiltonian HDF5 format, see [the User Guide](https
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
 </div>
 
-This HDF5 file contains the trial wavefunction, $| \Psi_T \rangle$.
+This HDF5 file contains the trial wavefunction, $| \Psi_\mathrm{T} \rangle$.
 
 For this tutorial, we have supplied an HDF5 file containing the RHF
 ground state as the trial wavefunction.
 
 $$
-| \Psi_T \rangle = | \Phi_\mathrm{RHF} \rangle
+| \Psi_\mathrm{T} \rangle = | \Phi_\mathrm{RHF} \rangle
 $$
 
 For technical details on the wavefunction HDF5 format, see [the User Guide](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/afqmc.html#wavefunction-file-formats).
@@ -134,12 +134,12 @@ For technical details on the wavefunction HDF5 format, see [the User Guide](http
 </div>
 
 The JSON input file sets AFQMC run parameters and references the locations of the Hamiltonian and trial wavefunction files. It is organized into a hierarchy of input blocks which each control specific
-details of the calculation. Understanding the details of the input file is the goal of the [next tutorial](../02_input_file/input_file.ipynb).
+details of the calculation. Understanding the details of the input file is the goal of the next tutorial, {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.
 
 **For now, we focus on the `wavefunction` and `hamiltonian` blocks.**
 
-The `wavefunction` input block is used to tell AuxiliaryFields where to find the HDF5 file containing the trial wavefunction.
-Similarly, the `hamiltonian` input block is used to tell AuxiliaryFields where to find the HDF5 file containing the Hamiltonian.  
+The `wavefunction` input block is used to tell SAFIRE where to find the HDF5 file containing the trial wavefunction.
+Similarly, the `hamiltonian` input block is used to tell SAFIRE where to find the HDF5 file containing the Hamiltonian.  
 
 The sample json file that we have provided is reproduced here.
 
@@ -178,19 +178,19 @@ state and second-quantized Hamiltonian, respectively.
 </b>
 
 ---
-Now that we have seen the inputs of AuxiliaryFields, we will move on to the outputs.
+Now that we have seen the inputs of SAFIRE, we will move on to the outputs.
 
 <b> stdout
 </b>
 
 ---
 
-AuxiliaryFields prints information about the setup of the AFQMC calculation to stdout along with timing information at the end.
+SAFIRE prints information about the setup of the AFQMC calculation to stdout along with timing information at the end.
 
-We will see the output from AuxiliaryFields throughout the tutorials. Here is a sample header which is printed at the beginning of
+We will see the output from SAFIRE throughout the tutorials. Here is a sample header which is printed at the beginning of
 the output.
 
-```log
+```
 
 ███████╗ █████╗ ███████╗██╗██████╗ ███████╗
 ██╔════╝██╔══██╗██╔════╝██║██╔══██╗██╔════╝
@@ -204,7 +204,6 @@ AF App version: 1.0.0
 app git branch: fix_compiler_warnings
 app git commit: 83a5e18c30fe824a77185cdb5df6e4dba2918f5c
  AFQMCFactory Project settings:
-    -- mixed_precision: false
     -- ncores (local) : 1
     -- n_groups       : 1
     -- id             : qmc
@@ -216,7 +215,7 @@ app git commit: 83a5e18c30fe824a77185cdb5df6e4dba2918f5c
 
 ```
 
-You can see git information from when AuxiliaryFields was compiled.
+You can see git information from when SAFIRE was compiled.
 You can also see MPI / parallelization information.
 We will explore the output further in later tutorials.
 
@@ -258,12 +257,12 @@ The name of this file is derived from the `id` (string) and `series` (integer) p
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_hdf5.png" width="800">
 </div>
 
-An HDF5 file where stochastic samples of non-scalar data, such as the one-body reduced density matrix, are printed by AuxiliaryFields
+An HDF5 file where stochastic samples of non-scalar data, such as the one-body reduced density matrix, are printed by SAFIRE
 when requested.
 
 Similar to the `[id].s[series].scalar.dat` file, this file is not meant to be read directly by a user.
 Instead, afqmctools provides tools to extract data from this file for you.
-You will learn more about this in the [Estimators and post-processing tutorial](../04_using_estimators/04_using_estimators.ipynb).
+You will learn more about this in {doc}`../04_computing_observables/04_computing_observables`.
 
 +++ {"id": "Yhdjs78S-NIx"}
 
@@ -274,7 +273,7 @@ we are ready to learn how to run the SAFIRE executable given the inputs.
 
 ### Running SAFIRE in serial
 
-AuxiliaryFields can be invoked from the command line as
+SAFIRE can be invoked from the command line as
 
 ```bash
     $ /path/to/SAFIRE/build/bin/safire input.json
@@ -285,7 +284,7 @@ The input file can have an arbitrary name, but must end with `.json`.
 When you run the above, an AFQMC calculation will be performed based on the contents of input.json,
 using the Hamiltonian and trial wavefunction specified there.
 
-**For brevity, we will abreviate `/path/to/SAFIRE/build/bin/safire` as `safire` in this tutorial**.
+**For brevity, we will abbreviate `/path/to/SAFIRE/build/bin/safire` as `safire` in this tutorial**.
 There are many standard ways to make `safire` accessible from the command line in this way.
 
 You can see the possible command line options for SAFIRE by using the `-h`/`--help` switch.
@@ -315,11 +314,11 @@ In either case, you can find the json input file here
     /path/to/SAFIRE/tutorials/molecules/files/input.json
 ```
 
-where `/path/to/AuxiliaryFields` should be replaced with the path where
-you have installed AuxiliaryFields.
+where `/path/to/SAFIRE` should be replaced with the path where
+you have installed SAFIRE.
 
-**The provided json input file assumes that you are running AuxiliaryFields from
-`/path/to/AuxiliaryFields/tutorials/01_hello_auxiliary_fields/`**
+**The provided json input file assumes that you are running SAFIRE from
+`/path/to/SAFIRE/tutorials/01_hello_auxiliary_fields/`**
 
 After running with the default parameters, try changing the verbosity level to
 see what changes.
@@ -331,24 +330,17 @@ see what changes.
 </div>
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-id: o-XSiSD_-NIx
-outputId: 97e5782f-d892-4426-e6d5-e7bbb118cab2
----
-%%time
-!safire files/input.json
+!$AFQMC_EXEC files/input.json
 ```
 
 +++ {"id": "eShMF9Ab-NIy"}
 
-### Post-excercise
+### Post-exercise
 
 You should see the following a the top of the
-output after running AuxiliaryFields.
+output after running SAFIRE.
 
-```log
+```
 ███████╗ █████╗ ███████╗██╗██████╗ ███████╗
 ██╔════╝██╔══██╗██╔════╝██║██╔══██╗██╔════╝
 ███████╗███████║█████╗  ██║██████╔╝█████╗  
@@ -366,7 +358,6 @@ app git branch: develop
 app git commit: ee49a5e69208e2afc03aab970572b9e79759e543
 app git commit date: Fri Nov 7 13:27:02 2025 -0500
  AFQMCFactory Project settings:
-    -- mixed_precision: false
     -- ncores (local) : 1
     -- n_groups       : 1
     -- id             : qmc
@@ -377,7 +368,7 @@ app git commit date: Fri Nov 7 13:27:02 2025 -0500
 
 ```
 
-Congratulations, you have now run an AFQMC calculation using AuxiliaryFields!
+Congratulations, you have now run an AFQMC calculation using SAFIRE!
 In the directory that you ran this notebook from, you should see a file called
 `qmc.s000.scalar.dat`.
 We will return to how to use the tools in `afqmctools` to extract the AFQMC energy later in this tutorial.
@@ -488,7 +479,7 @@ will generate the plot,
 <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/solids/Equil_Si_prim_01_hello_safire.png" width="800">
 </div>
 
-One should check the equlibration curve to ensure that the the equilibration
+One should check the equilibration curve to ensure that the equilibration
 time, `-s time -e 2.0`, is large enough to discard the samples where AFQMC is not sampling from the target many-body wavefunction yet.
 On the other hand, the equilibration length should not be so large that it discards equilibrated samples.
 
@@ -507,7 +498,7 @@ in the last exercise.
 You should get an AFQMC energy of `-1.135742 +/-   0.000286`
 if you did not change any settings.
 
-Now, try to changing the equilbration length such that only un-equilibrated samples
+Now, try to changing the equilibration length such that only un-equilibrated samples
 are discarded.
 
 ```{code-cell} ipython3
@@ -517,7 +508,6 @@ colab:
 id: -Ej94zXY-NIz
 outputId: 74fb0dab-3f45-4fac-ea34-2931de197dcb
 ---
-%%time
 !scalar_stats qmc.s000.scalar.dat -s time -e 2.0 -t
 ```
 
@@ -525,7 +515,7 @@ outputId: 74fb0dab-3f45-4fac-ea34-2931de197dcb
 
 ## Post Exercise
 
-If you play around with the equilbration length, you will see that, for very small equilibration length,
+If you play around with the equilibration length, you will see that, for very small equilibration length,
 the predicted energy will be incorrect.
 This is due to the inclusion of un-equilibrated samples in the average.
 On the other hand, the average energy should be stable if you use too large of a value for the equilibration length.
@@ -534,47 +524,11 @@ On the other hand, the average energy should be stable if you use too large of a
 
 ## Some Tutorial Helper Python Functions
 
-Now that we have learned how to extract the AFQMC energy from the outputs of AuxiliaryFields using afqmctools,
-we will introduce several tutorial helper functions to invoke AuxiliaryFields and extract the AFQMC energy
+Now that we have learned how to extract the AFQMC energy from the outputs of SAFIRE using afqmctools,
+we are ready to how to use the tutorial helper functions to invoke SAFIRE and extract the AFQMC energy
 from within an interactive Python notebook.
 
-For convenience, we provide two helper functions in the `tutorials_utils` Python package.
-
-1. The `run_afqmc()` function runs the AuxiliaryFields executable in one of the several ways that
-we described previously, depending on the `run_mode` parameter.
-2. the `get_scratch_dir()` function, will generate a scratch directory and return a Path pointing to the scratch directory.
-
-Together, these functions make it possible to complete the tutorials without leaving the interactive Python notebooks.
-We explain each function below.
-
-### get_scratch_dir()
-
-`get_scratch_dir()` will return a reference to the Path of a scratch directory that you get to set.
-By default, it will create the directory if it does not already exits.
-You can either specify the full path to the scratch directory as,
-
-```python
-    from tutorial_utils import get_scratch_dir
-    scratch_dir = get_scratch_dir('/path/to/my/scratch/hello_safire')
-```
-
-or, you can pass a scratch root directory and scratch directory name as
-
-```python
-    from tutorial_utils import get_scratch_dir
-    scratch_dir = get_scratch_dir('hello_safire', root_dir='/path/to/my/scratch/')
-```
-
-You can tell `get_scratch_dir()` to not attempt to create the directory with
-
-```python
-    from tutorial_utils import get_scratch_dir
-    scratch_dir = get_scratch_dir('/path/to/my/scratch/hello_safire',create=False)
-```
-
-+++ {"id": "N9bQJxCM-NIz"}
-
-### The run AFQMC convenience function
+For convenience, we provide the `run_afqmc()` helper function in the `tutorial_utils` Python package.
 
 `run_afqmc(input_file=input_file, np=np)` runs the SAFIRE executable as
 
@@ -584,16 +538,16 @@ You can tell `get_scratch_dir()` to not attempt to create the directory with
 
 <div class="alert alert-block alert-warning">
 <b>CAUTION:</b>
-    The `AFQMC_EXEC` environment variable must be set to the path to the SAFIRE executable
+    The AFQMC_EXEC environment variable must be set to the path to the SAFIRE executable
     in order to use `run_afqmc()`.
 </div>
 
 Here is a typical example of using `run_afqmc()`.
 
 ```python
-    from tutorial_utils import run_afqmc, get_scratch_dir
+    from tutorial_utils import run_afqmc
 
-    scratch_dir = get_scratch_dir('/path/to/my/scratch/hello_safire')
+    scratch_dir = Path("data")
     
     run_afqmc(
         run_dir=scratch_dir,                # directory to run SAFIRE in - output files will be there
@@ -612,31 +566,12 @@ Where the `np` parameter is forwarded directly to `-np [np]` and
     directly in the command line other than convenience.
 </div>
 
-### (afqmctools) the analyze scalar data function
-
-The same functionality as `$ scalar_stats`, from `afqmctools`, can
-be accessed directly in a Python script via the `analyze_scalar_data()` function.
-This is a standard component of `afqmctools`, and not just a part of these tutorials.
-
-For convenience, we will favor the use of `analyze_scalar_data()` within interactive Python
-notebooks; however, this invokes exactly the same code as using `$ scalar_stats` from
-the CLI.
-`scalar_stats` can generate plots of the data, both from the CLI and from within Python.
-We will make use of this feature during the tutorials to visualize results.
-
 ### Exercise: Run the full sample calculation using the convenience wrappers.
 
 Use the code block below to run the entire calculation again.
 
 Just as before, at the end, you should get an AFQMC energy of `-1.135742 +/-   0.000286`
 if you did not change any settings.
-
-<div class="alert alert-block alert-info">
-<b>Note:</b>
-    The python `Path` class from `pathlib`, which is a part of the standard cPython distribution,
-    greatly simplifies the process of specifying, and creating directories. We recommend using it
-    in these tutorials. See the code block below.
-</div>
 
 ```{code-cell} ipython3
 ---
@@ -646,7 +581,6 @@ colab:
 id: lFXM3f_c-NIz
 outputId: 23c92fb6-6385-46fa-a007-1b019b3bffa5
 ---
-%%time
 from pathlib import Path
 import shutil
 
@@ -655,19 +589,18 @@ import numpy as np
 from afqmctools.hamiltonian.mol import write_hamiltonian_generic
 from afqmctools.wavefunction.mol import write_wfn
 from afqmctools.inputs.from_hdf import write_json
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 from stats.scalar_dat import analyze_scalar_data
 
-# For you TODO: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("hello_safire",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 # copy the provided files
 files_dir = scratch_dir / "files"
 files_dir.mkdir(exist_ok=True)
-shutil.copy("files/input.json", scratch_dir / "files" )
-shutil.copy("files/wfn.h5", scratch_dir / "files" )
-shutil.copy("files/hamil.h5", scratch_dir / "files")
+shutil.copy("files/input.json", files_dir)
+shutil.copy("files/wfn.h5", files_dir)
+shutil.copy("files/hamil.h5", files_dir)
 
 run_afqmc(
     run_dir=scratch_dir,
@@ -680,7 +613,7 @@ run_afqmc(
 _ = analyze_scalar_data(dict(
     fname = scratch_dir/"qmc.s000.scalar.dat",
     series_column = "time",
-    nequil = 5,
+    nequil = 10,
     trace = True
 ))
 ```
@@ -698,7 +631,7 @@ In this tutorial we have learned,
 
 ---
 
-Next, we will take a more detailed look at the input file in [Understanding the input file](../02_understanding_the_input_file/02_understanding_the_input_file.html).
+Next, we will take a more detailed look at the input file in {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.
 
 ```{code-cell} ipython3
 :id: hOyKTzP5tm1N

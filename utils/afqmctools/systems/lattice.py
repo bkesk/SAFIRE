@@ -37,20 +37,14 @@ def euclid_nd(coord1,coord2):
 class LatticeSite:
     """
     Simple dataclass to hold basic metadata for each lattice site.
-
-    Attributes
-    ----------
-    index : int
-        Ordered basis index
-    coord : np.ndarray[int]
-        Lattice coordinates
-    position : np.ndarray[float]
-        Spatial position. For square lattices, this is the same as coord.
     """
 
     index:int
+    """Ordered basis index."""
     coord:np.ndarray
+    """Lattice coordinates."""
     position:np.ndarray
+    """Spatial position. For square lattices, this is the same as coord."""
 
     def __str__(self) -> str:
         return f"{self.index} {self.coord}"
@@ -96,7 +90,7 @@ class NeighborPair:
 
 class Boundary:
     """
-    Base class for respresenting a boundary.
+    Base class for representing a boundary.
       Encapsulates the boundary condition.
     """
 
@@ -113,7 +107,7 @@ class Boundary:
         r"""
         returns `True` if the site at a given coordinate is an image.
 
-        Note: coordindate is expressed in units of the lattice vectors \hat{a}_1, \hat{a}_2
+        Note: coordinate is expressed in units of the lattice vectors \hat{a}_1, \hat{a}_2
         """
         if coordinate[ self.direction ] % self.L != coordinate[ self.direction ]:
             return True
@@ -154,8 +148,8 @@ class PBCBoundary(Boundary):
         phase angle for the boundary (i.e. the twist angle)
         if phase is not given, it is assumed to be (0,0);
         if phase is a 1-d iterable of length 2, it is interpreted as (phase1,phase2)
-          where phase1 is applied when corssing the boundary along the a1 direction
-          and phase2 is applied when crossing the boundary along the a2 direction.
+        where phase1 is applied when crossing the boundary along the a1 direction
+        and phase2 is applied when crossing the boundary along the a2 direction.
     """
 
     def __init__(self,*args,**kwargs) -> None:
@@ -448,7 +442,7 @@ class Lattice:
       '''
       get b1,b2 the Bravais lattice vectors
 
-      checkOVerlap=True to check sign and values of a_i @ b_i
+      checkOverlap=True to check sign and values of a_i @ b_i
       '''
       self._fail_if_not_built()
       a1,a2 = np.array([*self.a1,0]),np.array([*self.a2,0])
@@ -560,7 +554,7 @@ class Lattice:
     def remove_distances(self):
       """
       Removes cached distance matrix.
-      Useful if low on memory and the latice is large
+      Useful if low on memory and the lattice is large
       """
       del self._distances
       del self._image_distances
@@ -1062,7 +1056,7 @@ def get_lattice(params:dict, build=None):
         elif boundary_type.lower() in {'pbc','periodic'}:
             return PBCBoundary
         else:
-            raise ValueError("Uknown boundary type")
+            raise ValueError("Unknown boundary type")
 
     def _get_lattice(lattice_type):
         """
@@ -1211,7 +1205,7 @@ def get_directed_pairs(lattice:Lattice,directions=None):
                 coord[0] -= 1
                 coord[1] -= 1
             else:
-                raise ValueError("Uknown 'direction' in 'directions'")
+                raise ValueError("Unknown 'direction' in 'directions'")
 
             # For now, we assume that both boundaries are periodic
             if not lattice.is_image(coord):

@@ -28,6 +28,7 @@
 
 #include "nda/nda.hpp"
 #include "nda/h5.hpp"
+#include "nda/tensor.hpp"
 
 #include "numerics/sparse/csr_matrix.hpp"
 #include "utilities/h5_utils.hpp"
@@ -230,29 +231,65 @@ auto to_array(csr_matrix<ValType,MEM,IndxType,IntType> const& csr)
   return to_array<op>(csr,nda::range(csr.extent(0)),nda::range(csr.extent(1)));
 }
 
-// Useful routine, does nothing
+// On host returns a view, on device returns an array
 template<char op, typename... Args>
 requires( (op == 'N' or op == 'T' or op == 'H' or op == 'C') )
 auto to_array(nda::MemoryMatrix auto const& view, nda::range row_range, nda::range col_range)
 {
-  if constexpr (op=='T')
-    return nda::transpose(view(row_range,col_range));
-  else if constexpr (op=='H' or op=='C')
-    return nda::dagger(view(row_range,col_range));
-  else 
-    return view(row_range,col_range);
+  using v_t = typename std::decay_t<decltype(view)>;
+  if constexpr (::nda::mem::on_host<v_t>) {
+    if constexpr (op=='T')
+      return nda::transpose(view(row_range,col_range));
+    else if constexpr (op=='H' or op=='C')
+      return nda::dagger(view(row_range,col_range));
+    else 
+      return view(row_range,col_range);
+  } else {
+    if constexpr (op=='T') {
+//      typename v_t::regular_t A(col_range.size(),row_range.size()); 
+      constexpr MEMORY_SPACE M = memory::get_memory_space<v_t>();
+      memory::buffered_array<M,nda::get_value_t<v_t>,2> A(col_range.size(),row_range.size());;
+      nda::tensor::add(view,"ji",A,"ij");
+      return A; 
+    } else if constexpr (op=='H' or op=='C') {
+//      typename v_t::regular_t A(col_range.size(),row_range.size()); 
+      constexpr MEMORY_SPACE M = memory::get_memory_space<v_t>();
+      memory::buffered_array<M,nda::get_value_t<v_t>,2> A(col_range.size(),row_range.size());;
+      nda::tensor::add(nda::conj(view),"ji",A,"ij");
+      return A; 
+    } else
+      return view(row_range,col_range);    
+  }
 }
 
 template<char op, typename... Args> 
 requires( (op == 'N' or op == 'T' or op == 'H' or op=='C') )
 auto to_array(nda::MemoryMatrix auto const& view)
 {
-  if constexpr (op=='T')
-    return nda::transpose(view());
-  else if constexpr (op=='H' or op=='C')
-    return nda::dagger(view());
-  else
-    return view();
+  using v_t = typename std::decay_t<decltype(view)>;
+  if constexpr (::nda::mem::on_host<v_t>) {
+    if constexpr (op=='T')
+      return nda::transpose(view());
+    else if constexpr (op=='H' or op=='C')
+      return nda::dagger(view());
+    else
+      return view();
+  } else {
+    if constexpr (op=='T') {
+//      typename v_t::regular_t A(view.extent(1),view.extent(0));
+      constexpr MEMORY_SPACE M = memory::get_memory_space<v_t>();
+      memory::buffered_array<M,nda::get_value_t<v_t>,2> A(view.extent(1),view.extent(0));
+      nda::tensor::add(view,"ji",A,"ij");
+      return A; 
+    } else if constexpr (op=='H' or op=='C') {
+//      typename v_t::regular_t A(view.extent(1),view.extent(0));
+      constexpr MEMORY_SPACE M = memory::get_memory_space<v_t>();
+      memory::buffered_array<M,nda::get_value_t<v_t>,2> A(view.extent(1),view.extent(0));
+      nda::tensor::add(nda::conj(view),"ji",A,"ij");
+      return A; 
+    } else
+      return view();
+  }
 }
 
 template<typename ValType, MEMORY_SPACE MEM = HOST_MEMORY, typename IndxType = int, typename IntType = long>

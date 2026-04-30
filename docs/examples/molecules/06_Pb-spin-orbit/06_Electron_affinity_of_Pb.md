@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -25,8 +25,9 @@ The $Pb^-$ ion has a spin-quartet $6s^26p^3$ electron configuration with zero or
 much SOC effects than the neutral atom.
 Accounting for SOC is, of course, critical to achieve quantitative accuracy.
 
-AFQMC is able to exactly include SOC it is formulated in second quantization for a general orbital
-basis - i.e. versus real space methods in which non-local terms in the Hamiltonian such as SOC
+In contrast to real space methods in which non-local terms in the Hamiltonian, such as SOC, must be sampled,
+AFQMC is able to exactly include SOC because it is formulated in second quantization for a general orbital
+basis. This makes it an ideal tool for the study of systems and observables, where SOC effects are important.
 must be sampled - making it an ideal tool for the study of systems and observables
 where SOC effects are important.
 
@@ -36,7 +37,7 @@ where SOC effects are important.
 [2] K. A. Peterson, D. Figgen, E. Goll, H. Stoll, and M. Dolg, J. Chem. Phys. 119, 11113 (2003). https://doi.org/10.1063/1.1622924   
 [3] K. A. Peterson, B. C. Shepler, D. Figgen, and H. Stoll, J. Phys. Chem. A 110, 13877 (2006). https://doi.org/10.1021/jp065887l    
 [4] B. Metz, H. Stoll, and M. Dolg, J. Chem. Phys. 113, 2563 (2000). https://doi.org/10.1063/1.1305880    
-[5] K. A. Peterson, J. Chem. Phys. 119, 11099 (2003). https://doi.org/10.1063/1.1622923    
+[5] K. A. Peterson, J. Chem. Phys. 119, 11099 (2003). https://doi.org/10.1063/1.1622923
 
 +++ {"id": "PjMcWau9i2Xa"}
 
@@ -52,14 +53,12 @@ well as the corresponding augmented cGTO basis sets [2-5].
 :id: XSXP8e2IYxFb
 :outputId: 6c4e562d-b891-4890-fe3c-45c7898cfbfd
 
-%load_ext autoreload
 # setup the tutorials by runnig this block
 from pathlib import Path
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-# For you TODO: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("03_ex_ea_of_Pb", home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 ecp_soc = {
     'Pb' : '''
@@ -199,19 +198,18 @@ print(f"SOC-GHF electronic energy: {mf.energy_elec()}")
 ### ▶️ Generate and Write Hamiltonian and Trial wavefunction for Neutral Atom
 
 We generate the Hamiltonian and trial wavefunction in the usual way
-with the exception that `write_hamil_mol()` must be explicitly
-told to write the spin-orbit coupling integrals via the `with_soc=True`
+with the exception that `load_from_pyscf_chk_mol()` must be explicitly
+told to load ECP type spin-orbit coupling integrals via the `soc_type="ecp"`
 keyword argument.
 
 For the initial wavefunction, we use the ground state of the non-interacting Hamiltonian
-as this was founds in [1] to lead to siginificantly faster equilibration than using
+as this was found in [1] to lead to significantly faster equilibration than using
 the SOC-GHF or ROHF solution for the initial wavefunction.
 
 ```{code-cell} ipython3
 :id: 8I_FH4jPi2Xc
 :outputId: 308f3c0b-a95a-4fac-bb4f-10a6a5c45241
 
-%autoreload
 import h5py as h5
 import numpy as np
 
@@ -239,6 +237,7 @@ fout_soc = local_scratch_dir / 'afqmc_soc.h5'
 # Save the Hamiltonian
 basis_scf_data = load_from_pyscf_chk_mol(
     chkfile = basis_chk,
+    soc_type='ecp',
 )
 
 # for SOC, we need to request that SOC integrals be included.
@@ -246,11 +245,10 @@ write_hamil_mol(
     basis_scf_data,
     fout_soc,
     chol_tol,
-    dense=True,
     real_chol=True,
-    verbose=True,
-    walker_type='ghf',
-    with_soc=True
+    walker_type='noncollinear',
+    with_soc=True,
+    ortho_ao=True,
 )
 
 #####################################
@@ -266,7 +264,7 @@ wfn_scf_data = load_from_pyscf_chk_mol(
 write_wfn_mol(
     wfn_scf_data,
     fout_soc,
-    basis_scf_data=basis_scf_data
+    basis_scf_data=basis_scf_data,
 )
 ```
 
@@ -284,11 +282,11 @@ from stats.scalar_dat import analyze_scalar_data
 # Write json input file
 execute_options = {
     "timestep": 0.005,
-    "steps": 20000,
+    "steps": 7000,
     "measure_interval_multiplier": 1,
     "population_control_interval" : 5,
     "walker_ortho_interval" : 10 ,
-    "n_walkers_per_mpi_task": 100,
+    "n_walkers_per_mpi_task": 80,
     "seed" : 42
 }
 write_json(
@@ -304,13 +302,13 @@ run_afqmc(
     timeout_mins=100,
     input_file="afqmc.json",
     np=16,             # number of MPI tasks
-    output_file=None, #"afqmc.out"   # optionally direct output to file instead of here
+    output_file=None,
 )
 
 settings = dict(
     fname = local_scratch_dir/"qmc.s000.scalar.dat",
     xaxis = "time",
-    nequil = 20,
+    nequil = 8,
     trace = True
 )
 
@@ -399,8 +397,6 @@ colab:
 id: gAqSvXG3aB8I
 outputId: 8a825787-6626-44d1-97c4-ee738d109252
 ---
-%autoreload
-### import h5py as h5
 import numpy as np
 
 from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
@@ -428,6 +424,7 @@ fout_soc = local_scratch_dir / 'afqmc_soc.h5'
 # Save the Hamiltonian
 basis_scf_data = load_from_pyscf_chk_mol(
     chkfile = basis_chk,
+    soc_type = "ecp",
 )
 
 # for SOC, we need to request that SOC integrals be included.
@@ -435,10 +432,8 @@ write_hamil_mol(
     basis_scf_data,
     fout_soc,
     chol_tol,
-    dense=True,
     real_chol=True,
-    verbose=True,
-    walker_type='ghf',
+    walker_type='noncollinear',
     with_soc=True
 )
 
@@ -481,11 +476,11 @@ from stats.scalar_dat import analyze_scalar_data
 # Write json input file
 execute_options = {
     "timestep": 0.005,
-    "steps": 20000,
+    "steps": 7000,
     "measure_interval_multiplier": 1,
     "population_control_interval" : 5,
     "walker_ortho_interval" : 10 ,
-    "n_walkers_per_mpi_task": 100,
+    "n_walkers_per_mpi_task": 70,
     "seed" : 42
 }
 write_json(
@@ -497,17 +492,15 @@ write_json(
 # run AFQMC
 run_afqmc(
     run_dir=local_scratch_dir,
-    run_mode="local_cpu",
-    timeout_mins=100,
     input_file="afqmc.json",
-    np=16,             # number of MPI tasks
-    output_file=None, #"afqmc.out"   # optionally direct output to file instead of here
+    np=16,
+    output_file=None
 )
 
 settings = dict(
     fname = local_scratch_dir/"qmc.s000.scalar.dat",
     xaxis = "time",
-    nequil = 20,
+    nequil = 8,
     trace = True
 )
 
@@ -529,9 +522,6 @@ import numpy as np
 
 eV = 27.211407953
 
-E = -191.990093
-dE = 0.000986
-
 EA = E - E_charged
 dEA = np.sqrt( np.power(dE,2) + np.power(dE_charged,2))
 
@@ -540,7 +530,3 @@ print(f"The electron affinity is {EA*eV} +/- {dEA*eV} eV")
 
 You should reproduce the result above if you ran with the same parameters and settings as we did.
 Specifically ensure that the seed and number of MPI processes is the same.
-
-```{code-cell} ipython3
-
-```

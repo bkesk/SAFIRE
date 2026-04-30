@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -22,12 +22,6 @@ At the end of this tutorial, you will know how to measure pair correlation funct
 
 1. How to set up the HDF5 and json input files to request pair correlation functions
 2. how to post process the correlation functions
-
-## Prerequisites
-
-In this tutorial, we assume that you have already completed all of the basic SAFIRE tutorials, but especially the following tutorials:
-
-1. ...
 
 +++ {"id": "7FBZ0COY-NIw"}
 
@@ -77,6 +71,48 @@ Additionally, specific pairings may be selected in the json input file.
 This allows the user to skip some of the offsets saved in the HDF5 file if desired.
 We will explore this in more detail below.
 
++++
+
+## Defining the Hamiltonian
+
+```{code-cell} ipython3
+from afqmctools.systems.lattice import get_lattice
+from afqmctools.utils.visualize import plot_lattice
+from afqmctools.hamiltonian.model.director import HamiltonianDirector
+from pathlib import Path
+
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
+
+lattice = get_lattice(
+    params=dict(
+        L1 = 4,
+        L2 = 4,
+        boundary1 = "PBC",
+        boundary2 = "PBC"
+    )
+)
+
+# plot the lattice for reality checks!
+plot_lattice(lattice)
+
+params = dict(
+    hamiltonian=dict(
+        t=1.0,
+        U=4.0
+    )
+)
+
+hamiltonian = HamiltonianDirector(source=params, lattice=lattice).build()
+
+from afqmctools.utils.io import write_model_hamiltonian
+
+write_model_hamiltonian(
+    hamiltonian=hamiltonian,
+    fname=scratch_dir/"afqmc.h5"
+)
+```
+
 +++ {"id": "Np-zIkGusNIP"}
 
 ## Saving index offsets in the HDF5 input
@@ -92,20 +128,6 @@ colab:
 id: VjaOtDOltPAj
 outputId: 30ac79d1-e76e-4b8e-8c2c-6341210f4b4f
 ---
-from afqmctools.systems.lattice import get_lattice
-from afqmctools.utils.visualize import plot_lattice
-
-lattice = get_lattice(
-    params=dict(
-        L1 = 4,
-        L2 = 4,
-        boundary1 = "PBC",
-        boundary2 = "PBC"
-    )
-)
-
-# plot the lattice for reality checks!
-plot_lattice(lattice)
 
 pairs_dict=lattice.get_directed_pairs(
   directions=["s","+x","-x","+y","-y"]
@@ -115,38 +137,28 @@ for key,value in pairs_dict.items():
   print(key, value)
 ```
 
-+++ {"id": "lkkZMHMWvFAU"}
-
 afqmctools also provides a function for saving these pairs to HDF5 in the appropriate format.
 
-```python
+```{code-cell} ipython3
+%load_ext autoreload
+%autoreload
 from afqmctools.utils.io import write_pair_correlators
 
-write_pair_correlators("afqmc.h5",pair_dict)
+write_pair_correlators(scratch_dir / "afqmc.h5",pairs_dict)
 ```
+
++++ {"id": "lkkZMHMWvFAU"}
 
 ### Adding Custom Pairings
 
 We note that custom pairings can be added by simply inserting a list of offsets with a new key.
 For example, we can manually add "+x+y" pairing to the `pairs_dict` dictionary as
 
-```python
-pairs_dict["xy"] = [ 5, 6 , 7, 4, 9, 10, 11, 8, 13, 14, 15, 12, 1, 2, 3, 0]
-```
-
-As we are about to see, this will allow us to request "xy" pairing by name in the json input file. First, let's add this type of pairing to the dictionary by running the following code block.
-
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-id: pQ6VQxOfwflK
-outputId: 87a8a569-ffd2-4e9b-9269-bf159742ea5a
----
 pairs_dict["xy"] = [ 5, 6 , 7, 4, 9, 10, 11, 8, 13, 14, 15, 12, 1, 2, 3, 0]
 
-for key,value in pairs_dict.items():
-  print(key, value)
+# update hdf5
+write_pair_correlators(scratch_dir / "afqmc.h5",pairs_dict)
 ```
 
 +++ {"id": "iwp3CeLownyV"}
@@ -157,7 +169,7 @@ The pair correlation function observable may be requested as any other observabl
 However, the pair correlation function observable has a few unique parameters that must be set.
 They are:
 
-- "filename" which is the name of the HDF5 file where the pairing offsets were saved. These can saved in the same file as the Wavefunciton, and/or Hamiltonian or in their own independent input file. Whichever you prefer.
+- "filename" which is the name of the HDF5 file where the pairing offsets were saved. These can saved in the same file as the Wavefunction, and/or Hamiltonian or in their own independent input file. Whichever you prefer.
 - "pair_type" is a list of the names of the types of pairing you want to measure. For example, to measure all of the types of pairing that we defined above, we would use `"pair_type" : ["s","+x","-x","+y","-y","xy"]`.
 
 <div class="alert alert-block alert-info">
@@ -166,7 +178,7 @@ They are:
   i.e. it will compute $P^{\alpha \beta}_{ij}$ where both $\alpha$ and $\beta$ run over the full set of pairing definitions.
 </div>
 
-Since the pair correlation functions do not generally comute with the Hamiltonian, we should used a back-propagated estimator.
+Since the pair correlation functions do not generally commute with the Hamiltonian, we should use a back-propagated estimator.
 A back-propagated estimator block with pair correlation functions would look like the following,
 
 ```json
@@ -185,7 +197,7 @@ A back-propagated estimator block with pair correlation functions would look lik
   }
 ```
 
-If we decided we only wanted s-wave pair correlatios, we could use
+If we decided we only wanted s-wave pair correlations, we could use
 
 ```json
 "pair_correlators" : {
@@ -204,8 +216,7 @@ instead of the above.
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {
@@ -240,16 +251,84 @@ instead of the above.
 }
 ```
 
-+++ {"id": "SrM8syoYzUeS"}
+```{code-cell} ipython3
+from afqmctools.inputs.from_hdf import write_json
+from afqmctools.inputs.from_autohf import autohf_to_afqmc
+import autohf
 
-## You Turn
-Run SAFIRE on a 4x4 Hubbard model with U=4, and $N_{\uparrow}=N_{⇓} = 7$ using the full sample input file above.
+nelec = (8, 8)
+
+hf_settings = {
+    "verbose": False,
+    "plot": False,
+    "steps": 2000,
+    "seed": 1479,
+    "noncollinear": True,
+    "gpu": False,
+    "ansatz": "SD_ROT",
+    "seed": 42,
+    "batch_size": 8,
+    "nelec": nelec,
+}
+    
+wfn = autohf.solver.lattice_hf(
+    hamiltonian=autohf.AutoHFHamiltonian(hamiltonian),
+    lattice=lattice,
+    settings=hf_settings,
+)
+
+autohf_to_afqmc(
+    wfn,
+    output_fname = scratch_dir / "afqmc.h5"
+)
+
+
+afqmc_params = {
+    "timestep": 0.005,
+    "steps": 10000,
+    "population_control_interval": 2,
+    "walker_ortho_interval": 2,
+    "n_walkers_per_mpi_task": 40,
+    "measure_interval_multiplier": 1,    
+    "estimator": {
+        "name": "back_propagation",
+        "path_restoration": True,
+        "bp_walker_ortho_interval": 10,
+        "nsteps": 200,
+        "naverages": 4,
+        "equil": 200,
+        "pair_correlators" : {
+            "name" : "my_pair_correlators",
+            "filename" : "afqmc.h5",
+            "pair_type" : ["s","+x","-x","+y","-y","xy"]
+        }
+    }
+}
+
+write_json(
+    scratch_dir / "afqmc.json",
+    fwfn0=scratch_dir / "afqmc.h5",
+    fham0=scratch_dir / "afqmc.h5",
+    exec_opts=afqmc_params,
+    series=0
+)
+```
+
+```{code-cell} ipython3
+:id: SrM8syoYzUeS
+
+from tutorial_utils import run_afqmc
+run_afqmc(
+        run_dir = scratch_dir,
+        input_file = "afqmc.json",
+        np = 16,
+        output_file = None
+    )   
+```
 
 +++ {"id": "WIxdjnH-zopo"}
 
 ## Post-processing pair correlations functions
-
-...
 
 ```{code-cell} ipython3
 :id: eh8JuNVdag-o
@@ -263,15 +342,6 @@ from afqmctools.analysis.average import average_pair_correlation
 
 
 P,dP,correlator_names = average_pair_correlation("qmc.s000.stat.h5")
-
-lattice = get_lattice(
-    params={
-        'L1' : 4,
-        'L2' : 4,
-        'boundary1' : "pbc",
-        'boundary2' : "pbc"
-    }
-)
 
 for i in range(len(correlator_names)):
     print(f"correlator name: {correlator_names[i]}")
@@ -305,4 +375,3 @@ plot_lattice(
 
 1. How to set up the HDF5 and json input files to request pair correlation functions
 2. how to post process the correlation functions
-

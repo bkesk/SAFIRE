@@ -469,14 +469,16 @@ def write_gaussian_cube(fcub, data, overwrite=False, **kwargs):
     ----------
     fcub : str
         The filename for the Gaussian cube file to be written.
-    data :  dict
+    data : dict
         Dictionary containing the following keys:
+
         - 'axes': (3, 3) matrix representing the grid axes.
         - 'data': Volumetric data as a numpy array.
         - 'elem': (optional) List of atomic numbers, default is (1,).
         - 'pos': (optional) List of atomic positions, default is ((0, 0, 0),).
         - 'origin': (optional) Coordinates of the origin, default is (0, 0, 0).
-        - 'two_line_comment': (optional) Comments at the file head, default is "cube\nfile\n".
+        - 'two_line_comment': (optional) Comments at the file head, default is "cube\\nfile\\n".
+
     overwrite : bool, optional
         If True, overwrite the existing file if it exists. Default is False.
     kwargs : dict, optional

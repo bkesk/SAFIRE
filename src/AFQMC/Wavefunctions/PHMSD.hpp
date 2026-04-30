@@ -78,8 +78,6 @@ public:
         OrbMats(std::move(orbs_)),
         RefOrbMats(memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{0,0,0})),
         NuclearCoulombEnergy(nce) 
-//        maxnactive(std::max(OrbMats[0].size(0), OrbMats[1].size(0))),
-//        max_exct_n(std::max(abij.maximum_excitation_number()[0], abij.maximum_excitation_number()[1]))
   {
     /* To me, PHMSD is not compatible with walker_type=CLOSED unless
      * the MSD expansion is symmetric with respect to spin. For this, 
@@ -97,7 +95,7 @@ public:
       APP_ABORT("PHMSD has not yet been implemented for FULLYPOLARIZED walkers.");
 
     const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
-    utils::check(OrbMats.extent(0)==1 or OrbMats.extent(0)==nspin, "PHMSD: Invalid sise of OrbMats");
+    utils::check(OrbMats.extent(0)==1 or OrbMats.extent(0)==nspin, "PHMSD: Invalid size of OrbMats");
 
     // setup device structures
 
@@ -255,7 +253,7 @@ public:
   }
 
   /*
-   * Returns the Hubbard-Stratonovoch potential. 
+   * Returns the Hubbard-Stratonovich potential. 
    *  Input:
    *    - X: [# chol vecs][nW]
    *  Output:
@@ -348,12 +346,26 @@ public:
     wset.setProperty(OVLP, ovlp);
   }
 
-/*
-  template<class WlkSet, class TVec, class Mat1, class Mat2, class Mat3, class Observable>
-  void accumulate_estimators(int iav, WlkSet& wset, TVec& wgt,
-        std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
-        Mat1 const& X, Mat2 const& Y, Mat3 const& M, bool time_evolved, bool importanceSampling);
-*/
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
+        nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
+        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true)
+  {
+    utils::check(false,"finish");
+  }
+
+  /*
+   * Calculates Green functions and calls Observables.
+   */
+  template<class WlkSet, class Observable>
+  void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
+        std::vector<Observable>& properties_1body,
+        std::vector<Observable>& properties, bool importanceSampling = true)
+  {
+    memory::buffered_array<MEM,ComplexType,4> *X = nullptr;
+    accumulate_estimators(iav,wset,wgt,properties_1body,properties,X,X,X,false,importanceSampling);
+  }
 
   ComplexType getReferenceWeight(int i) const { return std::get<2>(*abij.configuration(i)); }
 
@@ -366,6 +378,7 @@ public:
   {
     using nda::range;
     auto all = range::all;
+    memory::check_memory_space<MEM>(Refs);
     int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nspin = (walker_type == COLLINEAR ? 2 : 1);
@@ -383,7 +396,7 @@ public:
       if (mpi->node_comm.root())
       {
         {
-          auto psi = math::sparse::to_array<'N'>(OrbMats(0));
+          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(0)));
           nda::vector<int> Ac(nup);
           for (int i_det = 0; i_det < number_of_references; ++i_det)
           {
@@ -395,7 +408,7 @@ public:
         }
         if(walker_type == COLLINEAR) 
         {
-          auto psi = math::sparse::to_array<'N'>(OrbMats(1));
+          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(1)));
           nda::vector<int> Ac(ndown); 
           for (int i_det = 0; i_det < number_of_references; ++i_det)
           { 
@@ -413,6 +426,16 @@ public:
                  "Problems with RefOrbMats");
     // this is slow and uses too much memory. Improve!!!
     Refs() = RefOrbMats()(range(number_of_references),all,all);
+  }
+
+  void updateLogScale(auto scl_new, SpinTypes s)
+  {
+    utils::check(false, "updateLogScale is not compatible with ground state calculations");
+  }
+
+  auto getLogScale(SpinTypes s)
+  {
+    utils::check(false, "getLogScale is not compatible with ground state calculations"); 
   }
 
 protected:
@@ -442,10 +465,6 @@ protected:
 
   ComplexType NuclearCoulombEnergy;
 
-  // shared memory arrays for temporary calculations
-  size_t maxnactive;        // maximum number of states in active space
-  size_t max_exct_n;        // maximum excitation number (number of electrons excited simultaneously)
-
   /* Implementation of various energy evaluation algorithms. */
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
   void energy_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov);
@@ -455,7 +474,7 @@ protected:
 
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>
   void energy_alg2(const WlkSet& wset, Mat&& E, TVec&& Ov)
-  { utils::check(false, "fiinish"); }
+  { utils::check(false, "not implemented"); }
 
 };
 

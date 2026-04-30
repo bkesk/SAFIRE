@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -24,9 +24,9 @@ $$
 \hat{H} = -t \sum_{\langle i,j\rangle} \hat{c}^\dagger_i \hat{c}_j + U \sum_{i} \hat{n}^{\uparrow}_i \hat{n}^{\downarrow}_i,
 $$
 where $i,j$ are lattice site indices, angle brackets indicate nearest-neighbors,
-$\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/anihilation operators,
+$\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/annihilation operators,
 and $\hat{n}^{\sigma}_i$ are spin-resolved number operators corresponding to site $i$.
-The 4x4 lattice is small enough to make exact diagonaliztion possible.
+The 4x4 lattice is small enough to make exact diagonalization possible.
 We will use exact results for this system as reference data throughout
 this tutorial.
 
@@ -40,21 +40,16 @@ and spin density for the same filling and value of U.
 Next, we will demonstrated how to obtain exact results using AFQMC
 for the special case of half filling for which, if care is taken,
 there is no sign problem.
-We will end with an excercise where you will be asked to compute the ground state energy,
-charge density, and spin density of the the Hubbard model on the 4x4 lattice at a different value
-of U than in the walk through.
 
 ```{code-cell} ipython3
 :id: d3YMrpqs5xcm
 
-%load_ext autoreload
-%autoreload
 from pathlib import Path
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-home = Path.home()
-scratch_dir = get_scratch_dir("4x4_sqaure_hubbard1",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "dfgyQ5OC5xcn"}
@@ -62,7 +57,7 @@ scratch_dir = get_scratch_dir("4x4_sqaure_hubbard1",home / ".scratch")
 ## Building a lattice model Hamiltonian
 
 `afqmctools` provides a convenience lattice model Hamiltonian builder and writer which
-will allow us to construct the "standard" Hubbard model with nearest-neighbor hopping and onsite U, among
+will allow us to construct the "standard" Hubbard model with nearest-neighbor hopping and on-site U, among
 other Hamiltonians.
 The basic steps for using the lattice model Hamiltonian builder are:
 1. define lattice parameters
@@ -148,7 +143,7 @@ io.write_model_hamiltonian(
 +++ {"id": "MqK7sb3Z5xcn"}
 
 We now have a "standard" Hubbard model with nearest-neighbor hopping and onsite U saved in an HDF5 file, "afqmc.h5"
-which can be directly read by AuxiliaryFields.
+which can be directly read by SAFIRE.
 Next, we'll walk through an AFQMC calculation where we'll compute the ground state energy.
 
 +++ {"id": "9KnqEEIS5xcn"}
@@ -187,12 +182,12 @@ Internally, `free_electron()` applies a small twist in order to break k-space de
 It also accepts a user-supplied twist angle to used instead.
 `free_electron()` will print the actual twist used in units of radians as, for example,
 
-```log
+```
 Generating free-electron trial wavefunction with twist = [4.10803005e-06 4.58334805e-04]
 ```
-.
 
-We note that, becuase of the twist angle, the Hamiltonian will typically need to be rebuilt.
+
+We note that, because of the twist angle, the Hamiltonian will typically need to be rebuilt.
 All of this is done internally if `free_electron()` is given the original lattice, and hamiltonian parameters
 as shown below.
 
@@ -313,7 +308,7 @@ which is expected for an even number of up and down electrons.
 ### Running AFQMC
 
 Next, we will run an AFQMC calculation.
-AuxiliaryFields uses an input file in json format to define AFQMC run parameters.
+SAFIRE uses an input file in json format to define AFQMC run parameters.
 `afqmctools` comes with a convenience function to generate a json input file as demonstrated below.
 We have included reasonable AFQMC run parameters for this calculation below.
 
@@ -370,10 +365,7 @@ outputId: 6de71736-72b7-4efa-bc41-8e0985c0759d
 # analyze
 from stats.scalar_dat import analyze_scalar_data
 
-### Exercise 1.1.1:####################################
-# change this value to a reasonable equilbration length
-nequil = 5.0 # Ha^{-1}
-#######################################################
+nequil = 5.0
 
 analysis_settings = dict(
     fname = fe_scratch_dir /"qmc.s000.scalar.dat",
@@ -390,12 +382,16 @@ ref_stoch_uncertainty = dE
 
 +++ {"id": "LRmDOsA-S8og"}
 
-Theb Hubbard model at half-filling is sign-free, so we would expect numerically exact results; For U/t =4, the exact energy is -13.62185, so why do we disagree?
+The Hubbard model at half-filling is sign-free, so we would expect numerically exact results; For U/t =4, the exact energy is -13.62185, so why do we disagree?
 
-1. the free-electron trial wavefunction may not always be sufficient, espeically for sign-free cases. The trial wavefunction must exactly obey particle-hole symmetry, which requires special care for a free-electron trial wavefunction.
-2. We have used spin collinear Slater determinant random walkers. In general, we want to use spin noncollinear Slater determinant random walkers.
+Even if the underlying Hamiltonian is sign-free (i.e. $\langle \Psi_\mathrm{T}|\Phi\rangle \ge 0$ for all walkers $|\Phi\rangle$), in the importance sampled AFQMC random walk, an improperly chosen trial wavefunction can still induce a bias if its nodes $\langle \Psi_\mathrm{T}|\Phi\rangle = 0$ do not coincide with those of the ground state. Especially free-electron trial wavefunctions in open-shell geometries are susceptible to this problem.
 
-Next, we will use a Hartree-Fock trial wavefunction.
+There are different approaches to dealing with this problem. One can either
+
+1. move the nodes to the right position by choosing a trial wavefunction with the correct symmetry properties such as particle-hole symmetry or
+2. allow the walkers to move around the nodes ergodically by using a noncollinear wavefunction that is not aligned with the spin axis of the Hubbard-Stratonovich decoupling.
+
+Next, we will use a noncollinear Hartree-Fock trial wavefunction.
 
 +++ {"id": "tsMzr8175xcp"}
 
@@ -550,10 +546,7 @@ outputId: 78be3a24-0f0c-4577-cb48-6ad867cb1f1b
 # analyze
 from stats.scalar_dat import analyze_scalar_data
 
-### Exercise 1.1.1:####################################
-# change this value to a reasonable equilbration length
-nequil = 20.0 # Ha^{-1}
-#######################################################
+nequil = 20.0
 
 analysis_settings = dict(
     fname = fe_scratch_dir /"qmc.s000.scalar.dat",
@@ -564,18 +557,15 @@ analysis_settings = dict(
 
 E,dE = analyze_scalar_data(analysis_settings)
 
-print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f} Hartree")
-
-# we will use this value in Exercise 1.1.2 as well
-ref_stoch_uncertainty = dE
+print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f}")
 ```
 
 +++ {"id": "0vF3gnwWSgir"}
 
 If you used all of our settings, you should get see
 
-```log
-The AFQMC energy is -13.614404 +/- 0.004229 Hartree
+```
+The AFQMC energy is -13.614404 +/- 0.004229
 ```
 
 Again, we expect to achieve very close to the exact energy for the Hubbard model at half filling which is -13.62185 for U/t=4.
@@ -590,7 +580,7 @@ Let's rerun with a smaller $\tau = 0.005$
 
 +++ {"id": "Q-t-66BmVVn5"}
 
-## Rerun AFQMC with a smaller Tau
+## Rerun AFQMC with a smaller τ
 
 When we decrease the step size, we will
 also need to increase the number of steps, and
@@ -650,11 +640,6 @@ outputId: 1d4d7374-5c21-43a7-eae5-46bafc88d52d
 # analyze
 from stats.scalar_dat import analyze_scalar_data
 
-### Exercise 1.1.1:####################################
-# change this value to a reasonable equilbration length
-nequil = 20.0 # Ha^{-1}
-#######################################################
-
 analysis_settings = dict(
     fname = fe_scratch_dir /"qmc.s000.scalar.dat",
     xaxis = "time",     # use units of imaginary time for equilibration
@@ -664,17 +649,14 @@ analysis_settings = dict(
 
 E,dE = analyze_scalar_data(analysis_settings)
 
-print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f} Hartree")
-
-# we will use this value in Exercise 1.1.2 as well
-ref_stoch_uncertainty = dE
+print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f}")
 ```
 
 +++ {"id": "SVS5nLE7YvBi"}
 
 Now, you should see
 
-```log
+```
 -13.618391
 ```
 
@@ -694,25 +676,25 @@ Here is a sample input file where an ellipsis has been used to hide the rest of 
 {
   "afqmc": {
     
-      ...
+    /* ... */
       
     "execute": {
 
-      ...
+      /* ... */
 
       "population_control_interval" : 10,
 
-      ...
+      /* ... */
 
-	  "estimator": {
-          "name": "back_propagation",
-          "path_restoration": true,
-          "extra_path_restoration": true,
-          "bp_walker_ortho_interval": 5,
-          "measure_interval_multipliers": [10,15,20],
-          "equil_multiplier": 50,
-          "onerdm": {
-              "name": "one_rdm"
+      "estimator": {
+        "name": "back_propagation",
+        "path_restoration": true,
+        "extra_path_restoration": true,
+        "bp_walker_ortho_interval": 5,
+        "measure_interval_multipliers": [10,15,20],
+        "equil_multiplier": 50,
+        "onerdm": {
+            "name": "one_rdm"
         }
       }
     }
@@ -799,8 +781,8 @@ run_afqmc(
 ### Analyze the AFQMC output
 
 The AFQMC code saves "scalar" data, such at the energy, in a file called `qmc.s000.scalar.dat` (a text file)
-and non-scalar data, such as the one-rdm and other obseervables, in a file called `qmc.s000.stat.h5` (HDF5 file).
-The AFQMC code inlcudes tools to analyze both.
+and non-scalar data, such as the one-rdm and other observables, in a file called `qmc.s000.stat.h5` (HDF5 file).
+The AFQMC code includes tools to analyze both.
 We have already analyzed the energy in the `qmc.s000.scalar.dat` file using `analyze_scalar_data()`.
 We will now focus on analyzing observables saved in the HDF5 output file, `qmc.s000.stat.h5`.
 
@@ -810,7 +792,7 @@ We will now focus on analyzing observables saved in the HDF5 output file, `qmc.s
 
 afqmctools provides tools to directly average observables from the HDF5 output
 in the `afqmctools.analysis.average` module.
-At the core of the module is the `average_observable()` function which extacts samples of a user specified observable from the HDF5 output file, and avarges the samples while accounting for autocorrelation automatically.
+At the core of the module is the `average_observable()` function which extracts samples of a user specified observable from the HDF5 output file, and averages the samples while accounting for autocorrelation automatically.
 Additionally, it users may provide one or more "transform" functions which are applied to the data samples immediately after reading from HDF5.
 afqmctools provides a few transform function "factories"for generating common transforms.
 We will use the `hermitize_factory()` to hermitize the one-rdm samples since SAFIRE measures only the upper-triangular part of the one-rdm.
@@ -825,7 +807,6 @@ colab:
 id: fqLt304CwKks
 outputId: 4593e5a7-2e66-446b-e2b1-483f5193b453
 ---
-%autoreload
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -836,11 +817,11 @@ from afqmctools.hamiltonian.converter import read_hamiltonian
 from afqmctools.analysis.transform import hermitize_factory
 from afqmctools.analysis.average import WALKER_TYPE,get_metadata,average_observable
 
-SAIFRE_hdf5_output = fe_scratch_dir / "qmc.s003.stat.h5"
+SAFIRE_hdf5_output = fe_scratch_dir / "qmc.s003.stat.h5"
 nspins = 1 # this is a noncollinear calculation, so one (combined) spin sector!
 M = lattice.N_sites # get the number of sites to help with plotting
 
-walker_type = WALKER_TYPE[get_metadata(SAIFRE_hdf5_output)["WalkerType"]]
+walker_type = WALKER_TYPE[get_metadata(SAFIRE_hdf5_output)["WalkerType"]]
 
 # set up a transform the hermitize the one-rdm
 hermitize = hermitize_factory(
@@ -848,7 +829,7 @@ hermitize = hermitize_factory(
 )
 
 # get the metadata for plotting
-metadata = get_metadata(SAIFRE_hdf5_output,"/Observables/BackPropagated/")
+metadata = get_metadata(SAFIRE_hdf5_output,"/Observables/BackPropagated/")
 print(metadata)
 
 bp_steps = metadata["BackPropSteps"]
@@ -866,7 +847,7 @@ rho_downs = np.zeros((naverages,*lattice.L),dtype=np.complex128)
 for avg in range(naverages):
     # Extract and Transform data
     one_rdms[avg],one_rdms_err[avg] = average_observable(
-        SAIFRE_hdf5_output,
+        SAFIRE_hdf5_output,
         eqlb=5,
         estimator='back_propagated',
         name="one_rdm",
@@ -888,7 +869,7 @@ for avg in range(naverages):
 
     sites = np.arange(M)
 
-    # add in constant energy for consistency with AuxilaryFields convention
+    # add in constant energy for consistency with SAFIRE convention
     plt.errorbar(x=sites,y=rho_up.real,yerr=rho_up_err.real,fmt='-o',color=f"C{avg}",label=r"diagonal of $\rho_\uparrow$" + f"{avg}")
     plt.errorbar(x=sites,y=rho_down.real,yerr=rho_down_err.real,fmt='--',color=f"C{avg}",label=r"diagonal of $\rho_\downarrow$" + f"{avg}")
 
@@ -903,7 +884,7 @@ plt.show()
 
 +++ {"id": "QOZdjPwg2JPg"}
 
-## Visualing Observables on the Lattice
+## Visualizing Observables on the Lattice
 
 We used the `afqmctools.utils.visualize` module's `plot_lattice()` function earlier in order to visualize the lattice itself.
 The same function allows us to colorize each lattice site based on some observables.
@@ -936,13 +917,6 @@ vis.plot_lattice(
 ```
 
 ```{code-cell} ipython3
----
-colab:
-  base_uri: https://localhost:8080/
-  height: 690
-id: monDoPiFSqFB
-outputId: cb55b227-850c-44cc-fe35-55651c9d71e7
----
 import afqmctools.utils.visualize as vis
 
 avg_to_plot = 1
@@ -960,5 +934,3 @@ vis.plot_lattice(
     vmax=0.5
 )
 ```
-
-+++ {"id": "Ie07h4Hu2p5B"}

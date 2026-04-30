@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -29,9 +29,7 @@ Become acquainted with how to compute general observables with SAFIRE.
 
 SAFIRE uses "estimators" to compute observables.
 Each estimator corresponds to a formal method for computing an observable - i.e. mixed estimators, back-propagated estimators, etc. - We will explain each of the these in the next section.
-As we mentioned in the
-
-[understanding the Input file tutorial](../02_understanding_the_input_file/02_understanding_the_input_file.html),
+As we mentioned in {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`,
 
 you can add estimators to an AFQMC calculation using an "estimator" input block.
 By default, an "energy" estimator is included which is a specialized mixed estimator.
@@ -43,12 +41,12 @@ Although we have not seen this explicitly, we have, so far, computed the ground 
 mixed estimator of the form
 
 $$
-\langle \hat{O} \rangle_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle}
+\langle \hat{O} \rangle_\mathrm{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_\mathrm{T} | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_\mathrm{T} | \Phi_{n,k} \rangle}
 $$
 
 where $n$ is the projection step index,
 $| \Phi_{n,k} \rangle$ are Slater determinant random walkers with weight $W_{n,k}$ (from importance sampling),
-and $| \Psi_T \rangle$ is the trial wavefunction.
+and $| \Psi_\mathrm{T} \rangle$ is the trial wavefunction.
 The mixed estimator provides an unbiased estimate for any observable which commutes with the Hamiltonian.
 For the AFQMC energy, $\hat{O} = \hat{H}$, and trivially $[ \hat{O}, \hat{H} ] = 0$;
 therefore, the mixed estimator is an unbiased choice for the total ground state energy.
@@ -60,14 +58,14 @@ In these cases, a back-propagated estimator is necessary to mitigate the bias th
 by using a mixed-estimator.
 The back-propagated estimator has the form,
 $$
-\langle \hat{O} \rangle_{BP} = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle}
+\langle \hat{O} \rangle_\mathrm{BP} = \frac{1}{\sum_k W_{n+m,k}} \sum_k W_{n+m,k} \frac{\langle \tilde{\Phi}_{m,k} | \hat{O} | \Phi_{n,k} \rangle }{\langle \tilde{\Phi}_{m,k} |\Phi_{n,k}\rangle}
 $$
 
 where $| \Phi_{n,k} \rangle$ are the usual forward-projected Slater determinant random walkers,
-and $| \tilde{\Phi}_{m,k} \rangle$ are the back-propgated walkers given by,
+and $| \tilde{\Phi}_{m,k} \rangle$ are the back-propagated walkers given by,
 $$
-| \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_T \rangle
-$$.
+| \tilde{\Phi}_{m,k} \rangle = \hat{B}^\dagger( (x - \bar{x})_{n,k} ) ... \hat{B}^\dagger( (x - \bar{x})_{n+m-1,k} ) | \Psi_\mathrm{T} \rangle
+$$
 The index $n$ corresponds to the current forward projection step,
 and $m$ is the back-propagated step index.
 We note that each random walker has a corresponding back-propagated partner
@@ -81,16 +79,14 @@ i.e. the propagator is applied to different Slater determinants when moving in t
 ```{code-cell} ipython3
 :id: 616ca764-f070-434a-8146-e1511f273342
 
-%load_ext autoreload
 # Run me (shift+enter or click the play button) to setup the tutorial!
 from pathlib import Path
 
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-#TODO: update this to a good directory for scratch files
-home = Path.home() / ".scratch"
-scratch_dir = get_scratch_dir("04_observables_solids", home)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 # copy files to scratch
 import shutil
@@ -109,7 +105,7 @@ _ = shutil.copy("files/wfn.h5", scratch_dir)
 
 ## Setup the Test System
 
-We will again use Si in its primtive cell at equilibrium represent in a basis of Kohn-Sham bands as a toy case to run
+We will again use Si in its primitive cell at equilibrium represent in a basis of Kohn-Sham bands as a toy case to run
 concrete calculations on.
 
 <div>
@@ -133,9 +129,9 @@ For example, in the input block,
 
 ```json
 "estimator" : {
-  "name" : "energy",
-  "print_components" : True,        
-  "overwrite" : True
+  "name": "energy",
+  "print_components": true,
+  "overwrite": true
 }
 ```
 
@@ -170,9 +166,9 @@ td, th {
   
 |<b>setting</b>|<b>default</b>|<b>description</b>|
 |--:|:-:|:--|
-| <b>        print_sign</b> | False |  If True, print verious quantities related to the sign/phase of random walkers in the `*.scalar.dat` file  |
+| <b>        print_sign</b> | False |  If True, print various quantities related to the sign/phase of random walkers in the `*.scalar.dat` file  |
 | <b>        remove</b> |  False |   If True, remove the default energy estimator. **Note that the explicitly defined energy estimator will not be used in the calculation!** |
-| <b>        truncate</b> |  False |   If True, truncate the energy such that data that fall outisde of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer |
+| <b>        truncate</b> |  False |   If True, truncate the energy such that data that fall outside of the range $[-3 var, 3 var]$, with $var$ being the variance, are set to either $-3 var$ or $3 var$, whichever is closer |
 
 ```{code-cell} ipython3
 :id: wOOIRUtfCIfh
@@ -185,7 +181,7 @@ execute_options = {
         "walker_type" : "COLLINEAR"
     },
     "timestep": 0.01,
-    "steps": 10000,
+    "steps": 7000,
     "population_control_interval" : 10,
     "measure_interval_multiplier": 1,
     "walker_ortho_interval" : 10 ,
@@ -213,7 +209,7 @@ write_json(
 
 Now you can run AFQMC, and you should see the following column headers in the `*scalar.dat` file.
 
-```log
+```
  block  time  nWalkers weight PseudoEloc LogOvlpFactor EnergyEstim__nume_real  EnergyEstim__nume_imag EnergyEstim__deno_real  EnergyEstim__deno_imag EnergyEstim__timer OneBodyEnergyEstim__nume_real EXXEnergyEstim__nume_real ECoulEnergyEstim__nume_real MixedEstim_timer Eshift freeMemory
 ```
 
@@ -250,7 +246,7 @@ outputId: 7512ec28-72d3-47be-d34a-4bc9fe34bb8a
 
 ## Extracting and Analyzing the AFQMC energy.
 
-We learned about basic energy analysis using the CLI and the `analyze_scalar_data()` Python function in the [Hello SAFIRE](../01_hello_afqmc_solids/01_hello_afqmc_solids.html) tutorial.
+We learned about basic energy analysis using the CLI and the `analyze_scalar_data()` Python function in {doc}`../01_hello_afqmc_solids/01_hello_afqmc_solids`.
 We can use the same tools here to get the average AFQMC energy and the stochastic uncertainty.
 
 For pedagogical reasons, we will instead read the entire scalar data file so that we can plot several of the data columns as a function of total projection time.
@@ -298,7 +294,7 @@ plt.plot(one_body_energy + direct_coulomb_energy + exchange_energy, ":", label=r
 
 plt.legend()
 plt.xlabel("Sample")
-plt.ylabel(r"$\Delta E \equiv E_{MixedEstimator} - E_{EnergyEstimator}$")
+plt.ylabel(r"$\Delta E \equiv E_\mathrm{MixedEstimator} - E_{EnergyEstimator}$")
 plt.title(r"Total energy vs. sample")
 
 plt.show()
@@ -311,7 +307,7 @@ plt.show()
 SAFIRE also includes a mixed estimator that periodically evaluates,
 
 $$
-\langle \hat{O} ⟩_{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_T | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_T | \Phi_{n,k} \rangle},
+\langle \hat{O} ⟩_\mathrm{Mixed} = \frac{1}{\sum_k W_{n,k}} \sum_k W_{n,k} \frac{\langle \Psi_\mathrm{T} | \hat{O} | \Phi_{n,k} \rangle }{\langle \Psi_\mathrm{T} | \Phi_{n,k} \rangle},
 $$
 where $\hat{O}$ is an operator.
 The one-body reduced density matrix (1rdm), given by
@@ -380,11 +376,11 @@ execute_options = {
         "walker_type" : "COLLINEAR"
     },
     "timestep": 0.01,
-    "steps": 10000,
+    "steps": 7000,
     "population_control_interval" : 10,
     "measure_interval_multiplier": 1,
     "walker_ortho_interval" : 10 ,
-    "n_walkers_per_mpi_task": 200,
+    "n_walkers_per_mpi_task": 50,
     "seed" : 42,
     "estimator" : {
         "name" : "mixed",
@@ -412,7 +408,7 @@ write_json(
 +++ {"id": "TrVqnMi4AxuT"}
 
 Now, we can run AFQMC with a Mixed Estimator in order to compute the 1-rdm.
-**This will probably take a while!** To finish the tutorial more quickly, remove the "twordm" block from the input and just compate the one-body energy.
+**This will probably take a while!** To finish the tutorial more quickly, remove the "twordm" block from the input and just compute the one-body energy.
 
 ```{code-cell} ipython3
 ---
@@ -433,10 +429,10 @@ run_afqmc(
 
 ### Data Extraction and Analysis
 
-afqmctools provides several tools for extracting data - i.e. retrieving data from the SAFIRE output files - and analyzing data - ariving at a final average with stochastic uncertainty.
+afqmctools provides several tools for extracting data - i.e. retrieving data from the SAFIRE output files - and analyzing data - arriving at a final average with stochastic uncertainty.
 
 Since some observables require a large amount of memory to store, `afqmctools` also provides "transforms" which are applied to the raw observables as they are read from disk.
-For example, in the cell below, a enery evaluation transform is used to compute the one-body energy, a scalar, on the fly as one-rdm samples are read from the *.h5 data file.
+For example, in the cell below, a energy evaluation transform is used to compute the one-body energy, a scalar, on the fly as one-rdm samples are read from the *.h5 data file.
 This dramatically reduces the memory needed to analyze the AFQMC results from SAFIRE.
 
 ```{code-cell} ipython3
@@ -447,7 +443,6 @@ colab:
 id: c9LgOOxOA_xI
 outputId: b3c1c8c5-e7ac-4ffb-c212-1e7aec371f79
 ---
-%autoreload
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -490,7 +485,7 @@ Energy_1body = extract_observable(
     ix=0,                              # index of the "average" - we'll return to this below!
     transform=[hermitize,eval_one_body_energy],  # list of transforms to apply *FROM LEFT TO RIGHT*
 )
-# add in constant energy for consistency with AuxilaryFields convention
+# add in constant energy for consistency with SAFIRE convention
 Energy_1body += Econst
 
 
@@ -521,7 +516,7 @@ print(one_body_energy.shape)
 plt.plot(delta_E,label="1-body energy difference")
 plt.legend()
 plt.xlabel("Sample")
-plt.ylabel(r"$\Delta E \equiv E_{MixedEstimator} - E_{EnergyEstimator}$")
+plt.ylabel(r"$\Delta E \equiv E_\mathrm{MixedEstimator} - E_{EnergyEstimator}$")
 plt.title(r"$\Delta E_{1-body}$ vs. sample")
 
 plt.show()
@@ -529,12 +524,12 @@ plt.show()
 
 +++ {"id": "wDMvF0aT04_x"}
 
-As we can see, the energy computed using the one-body reduced density matrix with a mixed estimator yeilds the exact same one-body energies as the energy estimator to very high precision.
+As we can see, the energy computed using the one-body reduced density matrix with a mixed estimator yields the exact same one-body energies as the energy estimator to very high precision.
 This is no surprise since the energy estimator is simply a specialized mixed estimator.
 
 ### Your Turn : Extract the 2rdm and compute the 2-body energy
 
-Repeat the same excercise for the two-body energy.
+Repeat the same exercise for the two-body energy.
 As we saw in the energy estimator section, the exchange and direct coulomb energies are printed to file separately by the energy estimator.
 
 To compute the two-body energy, you will need to measure the "diag_twordm" observable during AFQMC, and extract and transform it.
@@ -551,22 +546,20 @@ colab:
 id: afFNaJpQdymb
 outputId: b681facb-f520-49ed-a2c2-cfceff7c2d40
 ---
-%autoreload
 import numpy as np
 import matplotlib.pyplot as plt
 
 from afqmctools.analysis.transform import hermitize_factory,eval_one_body_obs_factory,eval_two_body_obs_factory
 
 ncv_k = H["nchol_pk"]
-k_idk = 0 # gamma only for this tutorial
-ncv = ncv_k[k]
+k_idx = 0 # gamma only for this tutorial
+ncv = ncv_k[k_idx]
 print(ncv)
 
 # taking the k=0 Cholesky vectors!
-#cholesky_vectors = np.transpose(H["chol"][k].reshape((M,M,ncv)),(2,0,1))
 
-cholesky_vectors = np.transpose(H["chol"][k].reshape((M,M,ncv)),(2,0,1))
-cholesky_vectors_dagger = np.transpose(H["chol"][k].reshape((M,M,ncv)),(2,1,0)).conj()
+cholesky_vectors = np.transpose(H["chol"][k_idx].reshape((M,M,ncv)),(2,0,1))
+cholesky_vectors_dagger = np.transpose(H["chol"][k_idx].reshape((M,M,ncv)),(2,1,0)).conj()
 eri = np.einsum("gil,gjk->iljk",cholesky_vectors,cholesky_vectors_dagger).flatten()
 
 eval_two_body_energy = eval_two_body_obs_factory(
@@ -599,7 +592,7 @@ delta_E = Energy_2body_mixed[:,0] - two_body_energy
 plt.plot(delta_E,label="two-body energy difference")
 plt.legend()
 plt.xlabel("Sample")
-plt.ylabel(r"$\Delta E \equiv E_{MixedEstimator} - E_{EnergyEstimator}$")
+plt.ylabel(r"$\Delta E \equiv E_\mathrm{MixedEstimator} - E_{EnergyEstimator}$")
 plt.title(r"$\Delta E_{2-body}$ vs. sample")
 
 plt.show()
@@ -622,8 +615,8 @@ This is known as "autocorrelation".
 Care must be take to remove autocorrelation effects or the stochastic uncertainty will be underestimated.
 
 The former can be achieved by visualizing the observable over imaginary time, and finding the equilibration time by inspection.
-We saw this in the [Hello SAFIRE](../01_hello_afqmc_solids/01_hello_afqmc_solids.html) tutorial.
-afqmctools provides tools for automatically computing the auto-correlation time - i.e. the time interval at which measurments are no longer autocorrelated - and adjusting the number of effective samples accordingly.
+We saw this in {doc}`../01_hello_afqmc_solids/01_hello_afqmc_solids`.
+afqmctools provides tools for automatically computing the auto-correlation time - i.e. the time interval at which measurements are no longer autocorrelated - and adjusting the number of effective samples accordingly.
 
 In the code cell below, we demonstrate how to use the provided tools to automatically compute averages.
 
@@ -669,7 +662,7 @@ from stats.scalar_dat import analyze_scalar_data
 _ = analyze_scalar_data(dict(
     fname = scratch_dir/"qmc.s000.scalar.dat",
     series_column = "time",
-    nequil = 5,
+    nequil = 15,
     trace = True
 ))
 ```
@@ -707,7 +700,7 @@ Since BP involves an additional projection, the measurement interval controls th
 Just as in the execute block or a mixed estimator block, the input file includes a measurement interval "multiplier", and the actual measurement interval, $m$, is determined as:
 
 $$
-m = (\textrm{measure_interval_multiplier}) \times (\textrm{population_control_interval})
+m = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}
 $$
 
 ### Multiple BP Lengths
@@ -738,7 +731,7 @@ The BP estimator implements an equilibration phase at the beginning of the AFQMC
 This is recommended since computing observables is expensive and since AFQMC needs to equilibrate before samples can meaningfully contribute to the average.
 Similarly to the measure_interval_multiplier, the equilibration time is specified as an equilibration multiplier (`"equil_multiplier"`) and the actual equilibration time is given by:
 
-$$\text{equil_time} = (\text{equil_multiplier}) \times (\text{population_control_interval})$$
+$$\text{equil\_time} = \text{equil\_multiplier} \times \text{population\_control\_interval}$$
 
 ### All Settings
 
@@ -750,13 +743,13 @@ td, th {
   
 |<b>setting</b>|<b>default</b>|<b>description</b>|
 |--:|:-:|:--|
-| <b>        measure_interval_multiplier</b> |   1  |  controls the number of back propagation steps which are determined as $$(\text{number of BP steps}) = (\text{measure_interval_multiplier}) \times (\text{population_control_interval})$$. Can be either a single value or multiple values. If multiple values are provided, BP will be performed with each corresponding number of BP steps and observables are accumulated and saved for each distinct BP length.  |
-| <b> equil_multiplier </b> | 0 |  The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $(equilibration\_length) = (equil\_multiplier) * (population\_control\_inveral)$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. |
+| <b>        measure_interval_multiplier</b> |   1  |  controls the number of back propagation steps which are determined as $$\text{number\_of\_BP\_steps} = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}.$$ Can be either a single value or multiple values. If multiple values are provided, BP will be performed with each corresponding number of BP steps and observables are accumulated and saved for each distinct BP length.  |
+| <b> equil_multiplier </b> | 0 |  The multiplier that determines the length of the equilibration phase. The equilibration phase length is computed as $\text{equilibration\_length} = \text{equil\_multiplier} \times \text{population\_control\_inveral}$ where the population control interval is defined in the execute block. During the equilibration phase, observables are not computed. |
 | <b>        bp_walker_ortho_interval</b> |   1  |   interval for performing walker orthonormalization during back-propagation (i.e. for the left-hand side Walkers)  |
 | <b>        path_restoration</b> |   false  |  If true, perform path restoration.  |
 | <b>        extra_path_restoration</b> |   false  |   If true, perform an extra path restoration.  |
 
-### Demonstraiton of BP
+### Demonstration of BP
 
 For the sake of execution time, we will compute only the one-rdm using the back-propagation estimator.
 We will find that the one-body energy computed using the BP one-rdm will *not* agree with the one computed using a mixed estimator.
@@ -782,7 +775,7 @@ execute_options_bp = {
     "measure_interval_multiplier": 1,
     "population_control_interval": 10,
     "walker_ortho_interval": 10,
-    "n_walkers_per_mpi_task": 200,
+    "n_walkers_per_mpi_task": 100,
     "seed": 42,
     "estimator": {
         "name": "back_propagation",
@@ -951,4 +944,3 @@ In this tutorial, you were acquainted with how to compute general observables wi
 1. What a mixed estimator is and when to use one to compute an observable
 2. What a back-propagated estimator is and when to use one to compute an observable
 3. How to compute observables in post-processing with afqmctools
-

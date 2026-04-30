@@ -45,7 +45,7 @@ void app_log(int level, const std::string_view string_format, Args&&... args)
     if(l) 
       l->info(string_format,std::forward<Args>(args)...);
     else
-      APP_ABORT(" Error: app_log used uninitilaled."); 
+      APP_ABORT(" Error: app_log used uninitialized."); 
 #else
     if constexpr (sizeof...(Args) > 0)
       std::cout<<std::vformat(string_format,std::make_format_args(args...)) <<"\n";
@@ -64,7 +64,7 @@ void app_warning(const std::string_view string_format, Args&&... args)
     if(l)
       l->warn(string_format,std::forward<Args>(args)...);
     else
-      APP_ABORT(" Error: app_warning used uninitilaled.");
+      APP_ABORT(" Error: app_warning used uninitialized.");
 #else
     if constexpr (sizeof...(Args) > 0)
       std::cerr<<std::vformat(string_format,std::make_format_args(args...)) <<"\n";
@@ -83,7 +83,7 @@ void app_error(const std::string_view string_format, Args&&... args)
     l->error(string_format,std::forward<Args>(args)...);
     l->flush();
   } else
-    APP_ABORT(" Error: app_error used uninitilaled.");
+    APP_ABORT(" Error: app_error used uninitialized.");
 #else
   if constexpr (sizeof...(Args) > 0)
     std::cerr<<std::vformat(string_format,std::make_format_args(args...)) <<"\n";
@@ -101,7 +101,7 @@ void app_debug(int level, const std::string_view string_format, Args&&... args)
     if(l)
       l->debug(string_format,std::forward<Args>(args)...);
     else
-      APP_ABORT(" Error: app_debug used uninitilaled.");
+      APP_ABORT(" Error: app_debug used uninitialized.");
 #else
     if constexpr (sizeof...(Args) > 0)
       std::cerr<<std::vformat(string_format,std::make_format_args(args...)) <<"\n";
@@ -119,7 +119,7 @@ inline void app_log_flush()
     if(l)
       l->flush();
     else
-      APP_ABORT(" Error: app_warning used uninitilaled.");
+      APP_ABORT(" Error: app_warning used uninitialized.");
 #else
     std::cout.flush();
 #endif
@@ -133,7 +133,7 @@ inline void app_error_flush()
   if(l)
     l->flush();
   else
-    APP_ABORT(" Error: app_debug used uninitilaled.");
+    APP_ABORT(" Error: app_debug used uninitialized.");
 #else
     std::cerr.flush();
 #endif

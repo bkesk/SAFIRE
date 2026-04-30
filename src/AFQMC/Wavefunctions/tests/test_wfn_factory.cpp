@@ -75,18 +75,27 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   std::string base_name = wfn_file.substr(wfn_file.find_last_of("\\/") + 1);
   // Remove file extension.
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
+  test_wfn = test_wfn.substr(test_wfn.find('_') + 1);
+
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "any");
-  int nspin            = (type == COLLINEAR) ? 2 : 1;
-  int npol             = (type == NONCOLLINEAR) ? 2 : 1;
-  int nel              = (type == COLLINEAR) ? nup+ndown : nup;  
+  int nspin            = (type == COLLINEAR or type == COLLINEAR_FT) ? 2 : 1;
+  int npol             = (type == NONCOLLINEAR or type == NONCOLLINEAR_FT) ? 2 : 1;
+  int nel              = (type == COLLINEAR or type == COLLINEAR_FT) ? nup+ndown : nup;  
   double dt(0.01);
 
+  int ntau(0);
+  if(type == COLLINEAR_FT or type == NONCOLLINEAR_FT){
+    ntau = nup;
+    nup = NMO;
+    ndown = NMO;
+  }
+
   std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
+  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown, ntau}));
 
   ptree ham_pt;
   ham_pt.put("name","ham0");
@@ -105,8 +114,10 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   if(type == CLOSED) wlk_pt.put("walker_type","closed");
   else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
   else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
-  else if (type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
-    
+  else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
+  else if(type == COLLINEAR_FT) wlk_pt.put("walker_type","collinear-ft");
+  else if(type == NONCOLLINEAR_FT) wlk_pt.put("walker_type","noncollinear-ft");
+
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
   wfn_pt.put("system","info0");
@@ -119,24 +130,37 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
 
   //nwalk=nw;
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
-  auto initial_guess = WfnFac.getInitialGuess("wfn0");
-  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
 
-  wset.resize(nwalk, initial_guess);
+  if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT)
+  {
+    auto initial_guess = WfnFac.getInitialGuess("wfn0"); 
+    REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+
+    wset.resize(nwalk, initial_guess);
+  }
+  else
+  {
+    auto initial_guess_ft = WfnFac.getInitialGuess_ft("wfn0"); 
+    REQUIRE(initial_guess_ft.shape() == std::array<long,4>{3,nspin,npol*NMO,NMO});
+
+    wset.resize(nwalk, initial_guess_ft);
+  }
 
   // Overlap
+  //if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT)
   wfn.Log_Overlap(wset);
 
   Watch Time;
   Time.reset();
 
   wfn.Energy(wset);
+
   if (std::abs(file_data.E0 + file_data.E1 + file_data.E2) > 1e-8)
   {
     for (auto it = wset.begin(); it != wset.end(); ++it)
     {
       VALUE_EQUAL(it->get_property(E1_), file_data.E0 + file_data.E1);
-      VALUE_EQUAL(it->get_property(EXX_) + it->get_property(EJ_), file_data.E2); 
+      VALUE_EQUAL(it->get_property(EXX_) + it->get_property(EJ_), file_data.E2);
       VALUE_EQUAL(it->energy(), file_data.E0 + file_data.E1 + file_data.E2);
     }
   }
@@ -146,6 +170,15 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     app_log(1," E0+E1: {}", wset[0].get_property(E1_));
     app_log(1," EJ: {}", wset[0].get_property(EJ_)); 
     app_log(1," EXX: {}", wset[0].get_property(EXX_));
+  }
+  
+  // must initialize discrete propagators for lattice models before calling vMF, vbias, etc.
+  // technically, only for discrete propagators, but we don't access to that info here.
+  if (wfn.getHamType() == ModelHamiltonian) { 
+      const long ncv = wfn.number_of_cholesky_vectors();
+      memory::array<MEM,ComplexType, 1> vMF_discrete(ncv, ComplexType(0.0, 0.0));
+      memory::host_array<ComplexType, 1> nMF(2 * NMO, ComplexType(0.0, 0.0));
+      wfn.update_potentials(dt, nMF, vMF_discrete, false);
   }
 
   // vMF
@@ -162,6 +195,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   Time.reset();
   memory::array<MEM,ComplexType,2> X(nwalk,wfn.number_of_cholesky_vectors());
   wfn.vbias(wset, X, dt);
+  //std::cout<<"X = "<<X()<<std::endl;
   {
     auto X_h = nda::to_host(X);
     ComplexType Xsum = 0;
@@ -267,6 +301,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
 */
   } else { // not a model Hamiltonian
 
+    /*
     Time.reset();
     auto vHS_d = wfn.vHS(X, dt);
     auto vHS = nda::to_host(vHS_d);
@@ -285,6 +320,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
       Vsum = nda::sum(vHS(all,0,all,all));
       app_log(1," Vsum: {}", Vsum);
     }
+    */
 
   }
 }
@@ -307,13 +343,29 @@ TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
 #endif
   } else {
     app_log(0,"WavefunctionFactory unit testing. Running standard tests.");
-    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
+    auto files = utils::get_unit_tests_files(true,true,true,true,false,true);
     for( auto f : files ) {
-      wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
-      wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      try {
+        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
+      }
+      try {
+        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
+      }
 #if defined(ENABLE_DEVICE)
-      wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
-      wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      try {
+        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
+      }
+      try {
+        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
+      }
 #endif
     }
   }

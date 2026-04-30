@@ -1,3 +1,8 @@
+.. _examples_molecules:
+
+Quantum Chemistry / Molecules
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 We provide the following worked examples in which we
 go through the entire workflow. 
 The quantum chemistry workflow requires some external 
@@ -17,6 +22,4 @@ ubiquitous in modern quantum chemistry codes.
 
    /examples/molecules/0*/*
 
-.. 3. :doc:`Charge density of the water molecule </examples/molecules/tbd_H2O_charge_density/index>` 
-
-
+.. 3. :doc:`Charge density of the water molecule </examples/molecules/tbd_H2O_charge_density/index>`

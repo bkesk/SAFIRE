@@ -42,7 +42,7 @@ namespace nda
 
 /*
  * Returns a tuple with the position (e.g. std::array with n-dimensional indexes) and value
- * of the maximum element in the array. For complex values, it considers only the real part 
+ * of the minimum element in the array. For complex values, it considers only the real part 
  * of the number and return the real part of the number. 
  */
 template<Array Arr>
@@ -91,7 +91,7 @@ auto argmin(Arr const& A)
 
 /*
  * Returns a tuple with the position (e.g. std::array with n-dimensional indexes) and value
- * of the minimum element in the array. For complex values, it considers only the real part 
+ * of the maximum element in the array. For complex values, it considers only the real part 
  * of the number and return the real part of the number. 
  */
 template<Array Arr>
@@ -287,6 +287,20 @@ void copy_select(bool expand, int indx, V1 const& m, V2 const& s, T alpha, V3 co
   }
 }
 
+template<typename V, nda::MemoryArray A>
+requires(std::decay_t<A>::is_stride_order_C())
+void apply(V alpha, A&& a, nda::tensor::op::TENSOR_OP oper) {
+  if constexpr(nda::mem::have_device_compatible_addr_space<A>) {
+#if defined(ENABLE_DEVICE)
+    kernels::device::apply(alpha,a,oper);
+#else
+    sfqmc::utils::check(false,"Error: Missing device function apply.");
+#endif
+  } else {
+    nda::tensor::scale(alpha,a,oper);
+  }
+}
+
 namespace blas
 {
 
@@ -360,7 +374,10 @@ void gemm(A const &a, B const &b, C &&c)
 
 }
 
-namespace tensor::cutensor
+namespace tensor
+{
+
+namespace cutensor
 {
 
 #if defined(ENABLE_DEVICE)
@@ -373,7 +390,42 @@ auto to_cutensor(Arr&& A) {
 }
 #endif
 
+} // namespace cutensor
+
+/**
+ * Computes B(...) = op(A(...)), where op = {std::plus<>{},std::max<>{},std::min<>{},...}. 
+ * Reduction is assumed, the rank of B should be smaller than the rank of A.
+ * All indexes in B should appear in A. No repeated indexes anywhere.
+ * MAM: Not allowing expressions for now, easy to generalize.
+ */
+template <MemoryArray A, MemoryArray B>
+  requires(have_same_value_type_v<get_value_t<A>,get_value_t<B>> and is_blas_lapack_v<get_value_t<A>>)
+void reduce([[maybe_unused]] get_value_t<A> alpha, A const& a, std::string_view const indxA, [[maybe_unused]] get_value_t<B> beta, B& b, std::string_view const indxB, op::TENSOR_OP oper = op::SUM) 
+{
+  static_assert(mem::have_compatible_addr_space<A, B>, "Matrices must have compatible memory address space");
+
+  if (get_rank<A> != indxA.size()) NDA_RUNTIME_ERROR << "tensor::reduce: Rank mismatch \n";
+  if (get_rank<B> != indxB.size()) NDA_RUNTIME_ERROR << "tensor::reduce: Rank mismatch \n";
+  if (get_rank<B> >= get_rank<A>) NDA_RUNTIME_ERROR << "tensor::reduce: Rank mismatch \n";
+
+  if constexpr (mem::have_device_compatible_addr_space<A, B>) {
+#if defined(ENABLE_DEVICE)
+#if defined(NDA_HAVE_CUTENSOR)
+      using value_t = get_value_t<A>;
+      constexpr int rank = get_rank<A>;
+      cutensor::cutensor_desc<get_value_t<A>, get_rank<A>> a_t(a);
+      cutensor::cutensor_desc<get_value_t<B>, get_rank<B>> b_t(b);
+      cutensor::reduce(alpha, a_t, op::ID, a.data(), indxA, beta, b_t, op::ID, b.data(), indxB, b.data(), oper);
+      cudaDeviceSynchronize(); // for sync in case it is turned off
+#else
+      compile_error_no_gpu();
+#endif
+#endif
+  } else {
+    NDA_RUNTIME_ERROR << "tensor::reduce: reduce(A,B) not allowed on host.";
+  }
 }
 
-}
+} // namespace tensor
 
+} // namespace nda

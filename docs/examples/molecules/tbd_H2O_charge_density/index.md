@@ -6,8 +6,8 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.19.1
 kernelspec:
-  display_name: afqmc_dev_py3.12
-  language: python
+  display_name: Python 3 (ipykernel)
+  language: ipython3
   name: python3
 ---
 
@@ -39,15 +39,13 @@ from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 from afqmctools.hamiltonian.mol import write_hamil_mol
 from afqmctools.wavefunction.mol import write_cas_wfn
 from afqmctools.inputs.from_hdf import write_json
-from afqmctools.hamiltonian.io import write_to_hdf5
 
 from stats.scalar_dat import analyze_scalar_data
 
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
-# For you TODO: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("example_h2o_density",home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "6ZBVQf-6E6lv"}
@@ -62,7 +60,7 @@ id: ACWiQaTbLK6S
 outputId: c0680e89-bb37-4f76-fa41-1d7e4d5d6e38
 ---
 """
-minimial example for understanding how PySCF computes the charge density and dipole moment.
+minimal example for understanding how PySCF computes the charge density and dipole moment.
 
 The sum of rho does not equal
 the total number of electrons...

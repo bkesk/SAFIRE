@@ -300,7 +300,7 @@ public:
               nda::MemoryArrayOfRank<3> auto && K,
               bool addH1 = true)
   {
-    memory::check_memory_space<MEM>(E,wgt,R,K);
+    memory::check_memory_space<MEM>(E,wgt,R,K,iexcit,refc);
     utils::check_strides(E,wgt,R,K);
     using nda::range;
     auto all = range::all; 
@@ -425,7 +425,7 @@ public:
               for(int ia=0; ia<(is==0?nup:ndown); ++ia) {
                 auto Ln = Lnak(is)()(0,ip,all,ia,all);
                 auto G_ = G3d(all,is*nup+ia,range(ip*NMO,(ip+1)*NMO));
-                nda::blas::gemm(ComplexType(a), G_(), nda::transpose(Ln), ComplexType(1.0), v);
+                nda::blas::gemm(ComplexType(a), G_(), nda::transpose(Ln()), ComplexType(1.0), v);
               }
             }
           }
@@ -908,8 +908,12 @@ private:
 
           memory::buffered_array<MEM,ComplexType,4> Twbna(nwalk,nel[ispin],nvecs,nel[ispin]); 
           auto Lna = Lnak(ispin)()(idet,all,range(nv,nv+nvecs),range(nel[ispin]),all);
-          utils::check(G.is_contiguous(), "Requires cnotiguous G. Talk to developers for generalization.");
-          auto G4d = nda::reshape(G, std::array<long,4>{nwalk,nel[ispin],npol,NMO});
+          // G[nwalk,nel[ispin],npol*NMO]
+          std::array<long,4> shape = {nwalk,nel[ispin],npol,NMO};
+          auto str = G.strides();
+          std::array<long,4> strides = {str[0],str[1],NMO,1};
+          nda::idx_map<4, 0, nda::C_stride_order<4>, nda::layout_prop_e::none> idxm(shape,strides);
+          auto G4d = memory::array_view<MEM,const ComplexType,4>(idxm, G.data());
           nda::tensor::contract(ComplexType(1.0),G4d,"wbpk",Lna,"pnak",ComplexType(0.0),Twbna,"wbna");
 
           // E[w] = -0.5*scl* sum_abn Twanb * Twbna
@@ -959,6 +963,8 @@ private:
     utils::check(E.extent(0)==nwalk and E.extent(1)==3, "Size mismatch");
     utils::check(Kl.extent(0) == nwalk and Kl.extent(1) == nCV, "Size mismatch");
 
+    // MAM: write routine to partition dimension, which is always possible, this removes
+    //      the requirement to be contiguous. See energy_impl for example 
     utils::check(G2d.is_contiguous(), "Layout mismatch");
     memory::array_view<MEM,const ComplexType,3> G(std::array<long,3>{nwalk,nel,npol*NMO},G2d.data());
 
@@ -982,7 +988,7 @@ private:
           for(int i=0; i<nel; i++)
             E(iw,0) += Swia(iw,i,i);
       } else {
-// need kernel!!!
+// build 2d array with diagonal on second dimension, then call reduce
         for(int i=0; i<nel; i++)
           nda::tensor::add(ComplexType(1.0),Swia(all,i,i),"w",ComplexType(1.0),E(all,0),"w");
       }
@@ -1021,7 +1027,7 @@ private:
 
       auto Lna = Lnak(is)()(0,nda::ellipsis{});
       auto G4d = nda::reshape(G2d, std::array<long,4>{nwalk,nel,npol,NMO});
-      nda::tensor::contract(ComplexType(1.0),G,"wipk",Lna,"pnak",ComplexType(0.0),Twina,"wina");
+      nda::tensor::contract(ComplexType(1.0),G4d,"wipk",Lna,"pnak",ComplexType(0.0),Twina,"wina");
 
       // E[w] = -0.5*scl* sum_abn Twanb * Twina
       nda::tensor::contract(ComplexType(-0.5*scl),Twina(all,all,all,range(nel)),"winj",

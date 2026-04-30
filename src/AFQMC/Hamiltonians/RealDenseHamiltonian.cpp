@@ -285,7 +285,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   }
   mpi->comm.barrier();
 
-  // exchange potential, parallelize over i:{0,NMO} to avoid temporary mamory
+  // exchange potential, parallelize over i:{0,NMO} to avoid temporary memory
   auto v0 = memory::make_shared_array<HOST_MEMORY,RealType,3>(mpi,std::array<long,3>{nspin_in_H2*npol_in_H2, NMO, NMO});
   auto [n0, n1] = itertools::chunk_range(0, NMO, mpi->comm.size(), mpi->comm.rank());
   // calculate v0(i,l) = -0.5 sum_j sum_n L[i][j][n] L[j][l][n] = -0.5 sum_j sum_n L[i][j][n] L[l][j][n]
@@ -294,14 +294,14 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     if constexpr (MEM==HOST_MEMORY) {
       for(int is=0, isp=0; is<nspin_in_H2; ++is)
         for(int ip=0; ip<npol_in_H2; ++ip, ++isp)
-          nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
+          nda::tensor::contract(RealType(-0.5),Likn()(isp,range(n0,n1),all,all),"ijn",
                                               Likn()(isp,all,all,all),"ljn",
                                 RealType(0.0),v0()(isp,range(n0,n1),all),"il");
     } else {
       memory::array<MEM,RealType,2> vt(n1-n0, NMO);
       for(int is=0, isp=0; is<nspin_in_H2; ++is)
         for(int ip=0; ip<npol_in_H2; ++ip, ++isp) {
-          nda::tensor::contract(RealType(1.0),Likn()(isp,range(n0,n1),all,all),"ijn",
+          nda::tensor::contract(RealType(-0.5),Likn()(isp,range(n0,n1),all,all),"ijn",
                                               Likn()(isp,all,all,all),"ljn",
                                 RealType(0.0),vt,"il");
           v0()(isp,range(n0,n1),all) = vt();

@@ -355,7 +355,6 @@ void WalkerSetBase<_M_>::resize(int n)
  * - Performing a safety check to ensure the total number of walkers matches the target number per task group.
  * - Gathering walker data on the root node of the task group.
  * - Broadcasting the gathered data to all nodes in the task group.
- * - Adjusting the `LogOverlapFactor` to maintain stability in overlap values.
  *
  * @param curData A reference to a vector of `ComplexType` that will store walker-related data.
  *                The vector is resized to 7 elements and initialized to zero.
@@ -391,11 +390,6 @@ void WalkerSetBase<_M_>::processWalkerData(std::vector<ComplexType>& curData)
   // Broadcast data to all nodes in the task group
   if (mpi->comm.size() > 1)
     mpi->comm.broadcast_n(curData.data(), curData.size());
-  // by default, LogOverlapFactor is set to the walker mean in popControl
-  // this comes at no extra cost and keeps the values of overlaps stable
-  // PR: LogOverlapFactor not used for finite-T
-  if(walkerType != COLLINEAR_FT and walkerType != NONCOLLINEAR_FT)
-    adjustLogOverlapFactor(std::log(std::abs(curData[4])));
 }
 
 //  curData:
@@ -579,14 +573,14 @@ void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<4> auto const& UDV
     { 
       walker_buffer(pos,all) = ComplexType(0.0);
       reference w0(walker_buffer(pos,all), data_displ, wlk_desc);
-      w0.template UMatrix<_M_>(Alpha) = UDV(0,0,nda::ellipsis{});
-      w0.template DMatrix<_M_>(Alpha) = nda::diagonal(UDV(1,0,nda::ellipsis{}));
-      w0.template VMatrix<_M_>(Alpha) = UDV(2,0,nda::ellipsis{});
+      w0.UMatrix(Alpha) = UDV(0,0,nda::ellipsis{});
+      w0.DMatrix(Alpha) = nda::diagonal(UDV(1,0,nda::ellipsis{}));
+      w0.VMatrix(Alpha) = UDV(2,0,nda::ellipsis{});
       if (walkerType == COLLINEAR_FT)
       {
-        w0.template UMatrix<_M_>(Beta) = UDV(0,1,all,nda::range(wlk_desc[2]));
-        w0.template DMatrix<_M_>(Beta) = nda::diagonal(UDV(1,1,all,nda::range(wlk_desc[2])));
-        w0.template VMatrix<_M_>(Beta) = UDV(2,1,all,nda::range(wlk_desc[2]));
+        w0.UMatrix(Beta) = UDV(0,1,all,nda::range(wlk_desc[2]));
+        w0.DMatrix(Beta) = nda::diagonal(UDV(1,1,all,nda::range(wlk_desc[2])));
+        w0.VMatrix(Beta) = UDV(2,1,all,nda::range(wlk_desc[2]));
       }
       pos++;
     }

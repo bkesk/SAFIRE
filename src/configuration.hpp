@@ -63,9 +63,7 @@ inline auto memory_space_to_string(MEMORY_SPACE m)
     return std::string("device");
   else if(m == UNIFIED_MEMORY)
     return std::string("unified");
-  else
-    return std::string("unknown"); 
-  return std::string("host");
+  return std::string("unknown"); 
 }
 
 namespace memory 

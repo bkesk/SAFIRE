@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.19.1
 kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: ipython3
   name: python3
-  language: python
-  display_name: Python 3
 ---
 
 +++ {"id": "P8_OXxiRE_dA"}
@@ -21,7 +21,7 @@ Become acquainted with how to write a Trial wavefunction to the SAFIRE HDF5 form
 ## What you will learn
 
 1. How to write a single Slater determinant trial wavefunction given the Slater Matrix
-2. How to write a single Slater determinant given orbtial occupancies
+2. How to write a single Slater determinant given orbital occupancies
 3. How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices
 4. How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings
 
@@ -50,16 +50,21 @@ Generate a wavefunction of the form $\Psi = \Psi^\uparrow \otimes \Psi^\downarro
 ```{code-cell} ipython3
 :id: TdBbEZh8TeCS
 
+import numpy as np
+from pathlib import Path
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
+
 nx = 2
 ny = 2
 nelec = (2,2)
 assert (nelec[0]==nelec[1])
 norb = nx * ny
-wfn_input_filename = "wfn_rhf_test.h5"
+wfn_input_filename = scratch_dir / "wfn_rhf_test.h5"
 sd_rhf = np.arange(0,norb * sum(nelec)//2, 1).reshape([1, norb, sum(nelec)//2])
 ci = np.ones([1],dtype = np.float64)
 write_wfn(filename=wfn_input_filename, wfn=[ci,sd_rhf],
-          walker_type='rhf',
+          walker_type='closed',
           nelec=nelec,
           norb=norb)
 ```
@@ -71,7 +76,7 @@ If you use `!h5dump wfn_rhf_test.h5` to inspect the output file, you'll see the 
 In summary, to generate an RHF wavefunction, you need to provide an array `A[0, i, j]` = $\Psi_{ij}^↑$ with shape `(1, norb, nelec // 2)` as input. Setting walker_type='rhf' ensures the wavefunction is constructed in a spin-identical manner, meaning the same orbitals are used for both spin components.
 
 ```{code-cell} ipython3
-!h5dump wfn_rhf_test.h5 | head
+!h5dump wfn_rhf_test.h5 | head -n 20
 ```
 
 +++ {"id": "o6ZmCwG4XFM_"}
@@ -87,11 +92,12 @@ nx = 2
 ny = 2
 nelec = (2, 3)
 norb = nx * ny
-wfn_input_filename = "wfn_uhf_test.h5"
-sd_uhf = np.arange(0, norb * sum(nelec), 1).reshape([1, norb, sum(nelec)])
+wfn_input_filename = scratch_dir / "wfn_uhf_test.h5"
+sd_uhf = (np.arange(0, norb * sum(nelec), 1)**1.2).reshape([1, norb, sum(nelec)])
+
 ci = np.ones([1], dtype = np.float64)
 write_wfn(filename=wfn_input_filename, wfn=[ci, sd_uhf],
-          walker_type='uhf',
+          walker_type='collinear',
           nelec=nelec,
           norb=norb)
 ```
@@ -124,11 +130,12 @@ nelec = (4, 0)
 # as long as the total number of electrons is the same
 # This is because the GHF wavefunction does not distinguish between spin-up and spin-down components.
 norb = nx * ny
-wfn_input_filename = "wfn_ghf_test.h5"
-sd_uhf = np.arange(0, 2 * norb * sum(nelec), 1).reshape([1, 2 * norb, sum(nelec)])
+wfn_input_filename = scratch_dir / "wfn_ghf_test.h5"
+sd_ghf = (np.arange(0, 2 * norb * sum(nelec), 1)**1.2).reshape([1, 2 * norb, sum(nelec)])
+
 ci = np.ones([1], dtype = np.float64)
 write_wfn(filename=wfn_input_filename, wfn=[ci, sd_uhf],
-          walker_type='ghf',
+          walker_type='noncollinear',
           nelec=nelec,
           norb=norb)
 ```
@@ -150,18 +157,18 @@ In summary, to generate a GHF wavefunction, you need to provide an array `A[0, i
 
 Multi-Slater trial wavefunctions are also supported in lattice models. To enable this, the input variable `ci` is provided, which is a 1D array representing the coefficients of the Slater determinants. Correspondingly, the Slater determinant inputs include an extra dimension to stack multiple Slater matrices. To generate a multi-Slater trial wavefunction, simply supply the `ci` array as the list of coefficients and stack the individual Slater matrices along the first dimension—everything else will be handled automatically.
 
-```{code-cell}
+```{code-cell} ipython3
 :id: gchHR_d5jhPN
 
 nx = 2
 ny = 2
 nelec = (4, 0) # (3, 1) or (2, 2) or (1, 3) or (0,4) are equivalent as long as sum(nelec) is the same
 norb = nx * ny
-wfn_input_filename = "wfn_multi_ghf_test.h5"
-sd_uhf = np.arange(0, 3 * 2 * norb * sum(nelec), 1).reshape([3, 2 * norb, sum(nelec)])
+wfn_input_filename = scratch_dir / "wfn_multi_ghf_test.h5"
+sd_uhf = (np.arange(0, 3 * 2 * norb * sum(nelec), 1)**1.4).reshape([3, 2 * norb, sum(nelec)])
 ci = np.array([1, -1, 4], dtype = np.float64)
 write_wfn(filename=wfn_input_filename, wfn=[ci, sd_uhf],
-          walker_type='ghf',
+          walker_type='noncollinear',
           nelec=nelec,
           norb=norb)
 ```
@@ -192,7 +199,7 @@ We can generate a free-electron trial wavefunction using the `free_electron` fun
 :id: XDDPCMhvHKRc
 
 from afqmctools.systems.lattice import get_lattice
-from afqmctools.hamiltonian.model.builder import HamiltonianBuilder
+from afqmctools.hamiltonian.model.director import HamiltonianDirector
 from afqmctools.hamiltonian.model.ham_class import HamiltonianComponent, SpinSymm
 from afqmctools.utils.io import write_model_hamiltonian
 from afqmctools.wavefunction.free_electron import free_electron
@@ -217,23 +224,19 @@ Uhubb = 4.0
 #    hopping[n-1] is 't^{n}'
 hopping = [1.0,0.0]
 
-builder = HamiltonianBuilder(
-    lattice=lattice,
-    spin_symm=SpinSymm.COLLINEAR
-)
-# add standard Hubbard terms
-builder.nth_neighbor_hopping(t=hopping)
-builder.onsite_hubbard(U=Uhubb)
+hamiltonian = HamiltonianDirector(source=dict(
+    hamiltonian=dict(
+        t=hopping,
+        U=Uhubb,
+    )),
+    lattice=lattice
+).build()
 
 nbasis = lattice.N_sites
 
-builder.finalize()
-
-hamiltonian = builder.hamiltonian
-
 write_model_hamiltonian(
     hamiltonian=hamiltonian,
-    fname="hamil.h5",
+    fname=scratch_dir / "hamil.h5",
     nelec=nelec
 )
 
@@ -246,7 +249,7 @@ wfn,spin_symm = free_electron(
 
 # and write the wavefunction for use in SAFIRE
 write_wfn(
-    filename="wfn.h5",
+    filename=scratch_dir / "wfn.h5",
     wfn=wfn,
     walker_type=spin_symm,
     nelec=nelec,
@@ -263,6 +266,6 @@ In this tutorial, you became acquainted with how to write a Trial wavefunction t
 ### What you learned
 
 1. How to write a single Slater determinant trial wavefunction given the Slater Matrix
-2. How to write a single Slater determinant given orbtial occupancies
+2. How to write a single Slater determinant given orbital occupancies
 3. How to write a non-orthogonal multi-Slater determinant trial wavefunction given the expansion coefficients and Slater matrices
 4. How to write a configuration-interaction (CI) type trial wavefunction given CI coefficients and a corresponding occupancy strings

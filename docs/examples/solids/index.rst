@@ -1,5 +1,9 @@
-We provide the following worked examples in which we
-go through the entire workflow. We use Quantum Espresso to perform
+.. _examples_solids:
+
+Ab initio solids
+~~~~~~~~~~~~~~~~
+
+For ab initio solids, we provide the following worked examples. In conjunction with SAFIRE, we use Quantum Espresso to perform
 DFT calculations, and Coquí to generate a Hamiltonian and write trial wavefunctions.
 
 
@@ -9,3 +13,4 @@ DFT calculations, and Coquí to generate a Hamiltonian and write trial wavefunct
    :maxdepth: 1
 
    /examples/solids/0*/*
+

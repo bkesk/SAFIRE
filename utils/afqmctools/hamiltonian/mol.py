@@ -36,14 +36,9 @@ def write_hamil_mol(
     ortho_ao=False,
     nelec=None,
     real_chol=True,
-    dense=True,
     df=False,
-    walker_type=_SlaterType.CLOSED,
-    with_soc=False
     ):
-    """
-    Write hamiltonian from pyscf scf calculation on mol object.
-    """
+    """Write hamiltonian from pyscf scf calculation on mol object."""
     hcore, chol_vecs, nelec, enuc, X = generate_hamiltonian(
         scf_data,
         verbose=verbose,
@@ -52,54 +47,47 @@ def write_hamil_mol(
         ortho_ao=ortho_ao,
         nelec=nelec,
         df=df,
-        walker_type=walker_type,
-        with_soc=with_soc
     )
 
     # Want L_{(ik),n}
     chol_vecs = chol_vecs.T
+    norb = X.shape[-1]
 
-    if walker_type is None:
-        walker_type = _get_slater_type(
-            phi=scf_data['mo_coeff'],
-            nelec=scf_data['nelec'],
-            M=scf_data['norb']
-        )
-    else:
-        walker_type = _slater_enum_map(walker_type)
+    write_dense(
+        hcore,
+        chol_vecs,
+        nelec,
+        nmo=norb,
+        enuc=enuc,
+        real_chol=real_chol,
+        filename=hamil_file,
+        ortho=X
+    )
 
-    if walker_type in (
-        _SlaterType.CLOSED,
-        _SlaterType.COLLINEAR,
-        _SlaterType.FULLYPOLARIZED
-    ):
-        nbasis = hcore.shape[-1]
-    elif walker_type == _SlaterType.NONCOLLINEAR:
-        nbasis = hcore.shape[-1] // 2   
-    
-    if dense:
-        write_dense(
-            hcore,
-            chol_vecs,
-            nelec,
-            nbasis,
-            enuc,
-            real_chol=real_chol,
-            filename=hamil_file,
-            ortho=X
-            )
+def _transform_from_scf_data(scf_data, ortho_ao, cas = None):
+    C = scf_data['mo_coeff']
+
+    if ortho_ao:
+        if cas is not None:
+            raise ValueError("cas and ortho_ao cannot be used at the same time")
+        return scf_data['X'], (0, 0)
     else:
-        write_sparse(
-            hcore,
-            chol_vecs,
-            nelec,
-            nbasis,
-            enuc,
-            filename=hamil_file,
-            real_chol=real_chol,
-            verbose=verbose,
-            ortho=X
-        )
+        if C.ndim == 3 or C.shape[0] == 2*scf_data["norb"]:
+            raise ValueError("UHF or GHF molecular orbital bases are not supported. Use ortho_ao.")
+        if cas is not None:
+            nfzc = (sum(scf_data["nelec"])-cas[0])//2
+            ncas = cas[1]
+            nmo = C.shape[-1]
+
+            if ncas == -1:
+                ncas = nmo - nfzc
+
+            nfzv = nmo - ncas - nfzc
+        else:
+            nfzc = nfzv = 0
+
+        return C, (nfzc, nfzv)
+
 
 def generate_hamiltonian(
         scf_data, 
@@ -110,57 +98,40 @@ def generate_hamiltonian(
         nelec=None, 
         df=False, 
         walker_type=None,
-        with_soc=False
     ):
 
-    walker_type = _slater_enum_map(walker_type)
+    if walker_type is None:
+        walker_type = scf_data["walker_type"]
+    else:
+        walker_type = _slater_enum_map(walker_type)
 
     # Unpack SCF data.
     # 1. core (1-body) Hamiltonian.
     hcore = scf_data['hcore']
 
-    if with_soc:
-
-        if walker_type == _SlaterType.NONCOLLINEAR:
-            print("Building Hamiltonian with SOC")
-        else:
-            raise ValueError(
-                "Attempted to use spin-orbit coupling "
-                "without ghf walker type"
-            )
-
     # 2. Rotation matrix to orthogonalised basis.
-    if ortho_ao:
-        X = scf_data['X']
-    else:
-        if scf_data['isUHF']:
-            raise ValueError(" # UHF integrals are not allowed. Use ortho AO option (-a/--ao).")
-        X = scf_data['mo_coeff']
-    
     df_ints = scf_data.get('df_ints', None)
-    C = scf_data['mo_coeff']
-    
+
+    X, (nfzc, nfzv) = _transform_from_scf_data(scf_data, ortho_ao, cas)
+
     # 3. Pyscf mol object.
     mol = scf_data['mol']
-    # Step 1. Rotate core Hamiltonian to orthogonal basis.
-    if verbose:
-        if ortho_ao:
-            print(" # Transforming hcore and eri to ortho AO basis.")
-        else:
-            print(" # Transforming hcore and eri to MO basis.")
-    # TODO: need to work out interaction of 'with_soc' and 'with_x2c'
-    if 'with_x2c' in scf_data.keys() and scf_data['with_x2c']: # not x2c with SOC
-        X_spin_orbs = np.block(
-            [[X,np.zeros_like(X)],
-             [np.zeros_like(X),X]]
-             )
-        h1e = np.dot(X_spin_orbs.T, np.dot(hcore, X_spin_orbs))
-    else:
-        h1e = np.dot(X.T, np.dot(hcore, X))
+
     nbasis = X.shape[-1]
+
+    # noncollinear Hamiltonian
+    if hcore.shape == (2 * X.shape[0], 2 * X.shape[0]):
+        if walker_type != _SlaterType.NONCOLLINEAR:
+            raise ValueError(f"Hamiltonian is noncollinear but walker_type {walker_type} is not")
+ 
+        Xspin = np.kron(np.eye(2), X)
+        h1e = Xspin.conj().T @ hcore @ Xspin
+    else:
+        h1e = X.conj().T @ hcore @ X
+
     if verbose:
         print(" # Number of basis functions: {}.".format(nbasis))
-    # Step 2. Genrate Cholesky decomposed ERIs in non-orthogonal AO basis.
+    # Step 2. Generate Cholesky decomposed ERIs in non-orthogonal AO basis.
     if df_ints is not None and df:
         chol_vecs = df_ints
         if verbose:
@@ -173,50 +144,27 @@ def generate_hamiltonian(
     if verbose:
         print (" # Orthogonalising Cholesky vectors.")
     start = time.time()
-    # Step 2.a Orthogonalise Cholesky vectors.
-    chol_trans = ao2mo_chol(chol_vecs, X)
+    # Step 2.a Transform Cholesky vectors to orthogonal basis
+    chol_trans = transform_cholesky(chol_vecs, X)
     if verbose:
         print(f" # Time to orthogonalise: {(time.time() - start)}")
     enuc = mol.energy_nuc()
     # Step 3. (Optionally) freeze core / virtuals.
     nelec = mol.nelec
-    if cas is not None:
-        nfzc = (sum(mol.nelec)-cas[0])//2
-        ncas = cas[1]
-        if ncas == -1:
-            ncas = nbasis - nfzc
-        nfzv = nbasis - ncas - nfzc
-        h1e, chol_trans, enuc = freeze_core(h1e, chol_trans, enuc, nfzc, ncas,
-                                           verbose)
+
+    if (nfzc, nfzv) != (0, 0):
+        h1e, chol_trans, enuc = freeze_core(
+            h1e, chol_trans, enuc, nfzc, nbasis - nfzv - nfzc, verbose
+        )
         h1e = h1e[0]
-        nelec = (mol.nelec[0]-nfzc, mol.nelec[1]-nfzc)
-        orbs = np.identity(h1e.shape[-1])
-        orbs = orbs[nfzc:nbasis-nfzv,nfzc:nbasis-nfzv]
-        X = C[:,nfzc:nbasis-nfzv]
-    
-    if walker_type == _SlaterType.NONCOLLINEAR and not scf_data['with_x2c']:
-        h1e = np.block(
-            [[h1e, np.zeros_like(h1e)],
-             [np.zeros_like(h1e),h1e]]
-            )
 
-        nelec = (sum(nelec),0)
+    return h1e, chol_trans, nelec, enuc, X[:, nfzc:nbasis - nfzv]
 
-        if with_soc:
-            #TODO: handle using 'cas' from above!
-            h1e_soc = soc(
-                mol=mol,
-                mo_basis=X #TODO: double check that orthao works here!
-                )
-            
-            h1e = h1e_soc + h1e
-
-    return h1e, chol_trans, nelec, enuc, X
 
 def process_generic_hamiltonian(
         H_one_body:np.array,
         cholesky_vectors:np.array=None,
-        coulomb_repuslion_tensor:np.array=None,
+        coulomb_repulsion_tensor:np.array=None,
         E0:float=0.0,
         cholesky_delta:float=1e-6,
         spin_orbital_integrals:np.array=None,
@@ -231,8 +179,8 @@ def process_generic_hamiltonian(
         One-body Hamiltonian.
     cholesky_vectors : :class:`np.ndarray`, optional
         Cholesky vectors with shape (number of Cholesky vectors,number_of_orbitals\*\*2).
-        Must provide either this or coulomb_repuslion_tensor.
-    coulomb_repuslion_tensor : :class:`np.ndarray`
+        Must provide either this or coulomb_repulsion_tensor.
+    coulomb_repulsion_tensor : :class:`np.ndarray`
         Coulomb repulsion tensor using Chemist's conventions, (ij|kl). Must provide exactly one of this or cholesky_vectors.
     E0 : float
         Nuclear repulsion energy.
@@ -259,25 +207,25 @@ def process_generic_hamiltonian(
 
     # NOTE: we might need `nelec` for silly practical reasons. Try just (0,0) for now.
 
-    if cholesky_vectors is None and coulomb_repuslion_tensor is None:
-        raise ValueError("Must provide either cholesky_vectors or coulomb_repuslion_tensor.")
+    if cholesky_vectors is None and coulomb_repulsion_tensor is None:
+        raise ValueError("Must provide either cholesky_vectors or coulomb_repulsion_tensor.")
     
-    if cholesky_vectors is not None and coulomb_repuslion_tensor is not None:
-        raise ValueError("Must provide exactly one of cholesky_vectors or coulomb_repuslion_tensor.")
+    if cholesky_vectors is not None and coulomb_repulsion_tensor is not None:
+        raise ValueError("Must provide exactly one of cholesky_vectors or coulomb_repulsion_tensor.")
 
     if spin_orbital_integrals:
         raise NotImplementedError("Spin orbital integrals not yet implemented. Please contact the developers.")
 
     nmo = H_one_body.shape[-1]
 
-    if coulomb_repuslion_tensor is not None:
-        if coulomb_repuslion_tensor.shape != (nmo,nmo,nmo,nmo):
+    if coulomb_repulsion_tensor is not None:
+        if coulomb_repulsion_tensor.shape != (nmo,nmo,nmo,nmo):
             raise ValueError("Coulomb repulsion tensor must have shape (nmo,nmo,nmo,nmo).")
 
         if verbose:
             print(" # Generating Cholesky vectors from Coulomb repulsion tensor.")
         cholesky_vectors = modified_cholesky_direct(
-        coulomb_repuslion_tensor.reshape(nmo**2,nmo**2), 
+        coulomb_repulsion_tensor.reshape(nmo**2,nmo**2), 
         tol=cholesky_delta, 
         verbose=verbose, 
         cmax=4
@@ -305,8 +253,8 @@ def write_hamiltonian_generic(*arg,filename:str="afqmc.h",**kwargs):
         One-body Hamiltonian.
     cholesky_vectors : :class:`np.ndarray`, optional
         Cholesky vectors with shape (number of Cholesky vectors,number_of_orbitals\*\*2).
-        Must provide either this or coulomb_repuslion_tensor.
-    coulomb_repuslion_tensor : :class:`np.ndarray`
+        Must provide either this or coulomb_repulsion_tensor.
+    coulomb_repulsion_tensor : :class:`np.ndarray`
         Coulomb repulsion tensor using Chemist's conventions, (ij|kl). Must provide exactly one of this or cholesky_vectors.
     E0 : float
         Nuclear repulsion energy.
@@ -372,23 +320,24 @@ def freeze_core(h1e, chol, ecore, nc, ncas, verbose=True):
         print(f'   # Frozen 2-body contribution: {efzc[2]}')
     return h1e, chol, efzc[0]
 
-def ao2mo_chol(eri, C):
+def transform_cholesky(chol, C):
+    """Apply the basis rotation `C` to the cholesky vectors `chol`""" 
     nao = C.shape[0]
     nmo = C.shape[1]
     nik = nmo*nmo
-    nchol = eri.shape[0]
-    eri_ = eri.ravel()
+    nchol = chol.shape[0]
+    chol_ = chol.ravel()
     for i in range(nchol):
-        cv = eri[i].reshape(nao,nao)
+        cv = chol[i].reshape(nao,nao)
         half = np.dot(cv, C)
         # if nao < nmo we overwrite the data
-        eri_[i*nik:(i+1)*nik] = np.dot(C.T, half).ravel()
-    return eri_[:nchol*nik].reshape((nchol,nik))
+        chol_[i*nik:(i+1)*nik] = np.dot(C.T, half).ravel()
+    return chol_[:nchol*nik].reshape((nchol,nik))
 
 def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     """Modified cholesky decomposition from pyscf eris.
 
-    See, e.g. [Motta17]_
+    See, e.g. :cite:`motta_initio_2018`
 
     Only works for molecular systems.
 
@@ -396,9 +345,7 @@ def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
     ----------
     mol : :class:`pyscf.mol`
         pyscf mol object.
-    orthoAO: :class:`np.ndarray`
-        Orthogonalising matrix for AOs. (e.g., mo_coeff).
-    delta : float
+    max_error : float
         Accuracy desired.
     verbose : bool
         If true print out convergence progress.
@@ -598,144 +545,3 @@ def gab(A, B):
     inv_O = scipy.linalg.inv((A.conj().T).dot(B))
     GAB = B.dot(inv_O.dot(A.conj().T))
     return GAB
-
-
-def soc(
-        mol,
-        mo_basis,
-        ncore=0,
-        nactive=None
-    ):
-    '''
-    Produces the 1-Body SOC Hamiltonian term based on an SO-ECP for a PySCF mol object
-
-    TODO:
-    - add in SO-ECP for cell objects as well
-
-    Inputs:
-    - mol: PySCF molecule object defining the system
-    - mo: molecular orbital coefficient matrix (assumed to be of ROHF type here)
-    - ncore (int): number of core electrons
-    - nactive (optioninal : int) : number of active orbitals, defaults to total number of orbitals - ncore
-
-    Returns:
-    
-    - h_soc: the SOC Hamiltonian term in GHF form
-    '''
-
-    soc_PP = 0.5*mol.intor('ECPso')
-
-    soc_PP_mo = np.zeros((3,mo_basis.shape[1],mo_basis.shape[1]),dtype='complex128')
-
-    for i in range(3):
-        soc_PP_mo[i,:,:] = mo_basis.conj().T @ soc_PP[i,:,:] @ mo_basis
-
-    K_SOC_full = make_soc_one_body(soc_PP_mo)
-
-    if ncore == 0 and nactive is None:
-        return K_SOC_full
-    else:
-        Mfull = mo_basis.shape[1]
-
-        offset = Mfull + ncore
-
-        if nactive is None:
-            nactive = Mfull - ncore # number of active orbitals
-
-        K_SOC = np.zeros((2*nactive,2*nactive), dtype='complex128')
-        
-        K_SOC[:nactive,:nactive] = K_SOC_full[ncore:ncore+nactive, ncore:ncore+nactive] # up-up
-        K_SOC[nactive:,:nactive] = K_SOC_full[offset:, ncore:ncore+nactive] # up-down
-        K_SOC[:nactive,nactive:] = K_SOC_full[ncore:ncore+nactive,offset:] # down-up
-        K_SOC[nactive:,nactive:] = K_SOC_full[offset:,offset:] # down-down
-
-        return K_SOC
-
-
-def make_soc_one_body(
-        V_SO,
-        h1_spin_free=None,
-        scale=None
-    ):
-    r'''
-    Make the SOC Hamiltonian in full spin-orbital basis from the spin-orbit
-    matrix elements. The SOC Hamiltonian is given by the following equation
-
-    .. math::
-
-        K_{soc} = - i \frac{\alpha^2} {2} [V_{SO}]^l_{pq} * [\sigma]^l_{pq}
-
-
-    Parameters
-    ----------
-    V_SO : np.array
-        spin-orbit matrix elements, with l being a spatial index. The final
-            Hamiltonian term is generated by contracting along 'l' with the pauli
-            operators.
-    h1_spin_free : np.array (optional) 
-        spin-free 1-body Hamiltonian
-    scale : float (optional)
-         a scalar which the soc hamiltonian will be scaled by.
-
-    Returns
-    -------
-    h1_soc : np.ndarry
-       spin-orbit coupling Hamiltonian in full spin-orbital basis
-
-       
-    Notes
-    -----
-
-    The final one-body Hamiltonian will have form:
-
-    .. math::
-
-        h^1_{soc} = \begin{pmatrix}
-        h^1_{aa} & h^1_{ab} \\
-        h^1_{ba} & h^1_{bb} 
-        \end{pmatrix}
-
-    following: J. Chem. Theory Comput. 2018, 14, 154−165, the current form of the SOC
-    Hamiltonian, in the GHF formulation is 
-        
-    .. math::
-
-        K_{soc} = -i \frac{\alpha^2}{2} \begin{pmatrix}
-        [V_{SO}]^z_{pq} & [V_{SO}]^x_{pq} - i[V_{SO}]^y_{pq} \\
-        [V_{SO}]^x_{pq} + i[V_{SO}]^y_{pq} & [V_{SO}]^z_{pq}
-        \end{pmatrix}
-    
-    
-    where p, q refer to spatial orbitals - :math:`S^l_pq` are all real-valued;
-    we have absorbed the factor math:`-i \frac{\alpha^2}{2}` into 
-    :math:`[V_{SO}]^l_pq`.
-
-    '''
-
-    # alias
-    if scale is None:
-        SOC = V_SO
-    else:
-        SOC = V_SO*scale
-
-    if h1_spin_free is None:
-        M = V_SO.shape[1]
-        h1_spin_free = np.zeros((M,M),dtype=np.complex128)
-    else:
-        M = h1_spin_free.shape[0]
-
-    h1_soc = np.zeros((2*M,2*M),dtype=np.complex128)
-
-    ## a-a sector
-    h1_soc[:M,:M] = h1_spin_free - (1j)*SOC[2,:,:]
-    
-    ## b-b sector
-    h1_soc[M:,M:] = h1_spin_free + (1j)*SOC[2,:,:]
-
-    ## a-b sector
-    h1_soc[:M,M:] = -(1j)*SOC[0,:,:] - SOC[1,:,:]
-    
-    ## b-a sector
-    h1_soc[M:,:M] = -(1j)*SOC[0,:,:] + SOC[1,:,:]
-
-    return h1_soc

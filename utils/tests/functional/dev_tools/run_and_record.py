@@ -37,8 +37,7 @@ def make_afqmc_input(fname,hamil_file,wfn_file,walker_type):
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {''' f'''
@@ -263,8 +262,7 @@ class AFQMCHelper:
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {''' f'''

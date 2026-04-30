@@ -1,6 +1,7 @@
 div.math {
     position: relative;
-    padding-right: 2.5em;
+    padding: 0.7em;
+    margin-bottom: 1.15em;
 }
 .eqno {
     height: 100%;
@@ -36,12 +37,15 @@ div.math {
     display: inline-block;
     margin-left: -.9em;
 }
-/* Make responsive */
-.MathJax_Display {
-    max-width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
+
+mjx-container {
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
+
 /* customize color theme */
 .wy-side-nav-search, .wy-nav-top {
     background: #845B8E;

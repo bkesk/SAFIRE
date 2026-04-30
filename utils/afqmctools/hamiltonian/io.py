@@ -12,7 +12,7 @@ import h5py as h5
 import numpy
 from afqmctools.utils.io import to_complex
 
-# TODO: some parameter names are highly mislreading. ex: "real_chol" usually refers to 
+# TODO: some parameter names are highly misleading. ex: "real_chol" usually refers to
 #         whether the one-body terms are real valued (vs. the Cholesky vectors as the name implies)
 
 def write_sparse(hcore, chol, nelec, nmo, e0=0.0, filename='hamiltonian.h5',
@@ -119,7 +119,7 @@ def write_dense(
         filename='hamiltonian.h5',
         real_chol=None,
         ortho=None,
-        verbose=None # unused - kept for backwards compatability
+        verbose=None # unused - kept for backwards compatibility
         ):
     
 

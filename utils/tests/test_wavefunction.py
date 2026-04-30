@@ -16,11 +16,14 @@ import h5py
 import scipy.sparse as sps
 
 from afqmctools.wavefunction import mol,pbc
+from afqmctools.utils.io import from_complex
 from afqmctools.wavefunction.free_electron import (
     _group_eigenvalues_by_shell,
     _fill_shells,
     _collinear_free_elec
 )
+from afqmctools.utils.slater_types import _SlaterType
+from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 
 #skip this file if pyscf can't import
 pyscf = pytest.importorskip("pyscf")
@@ -30,10 +33,8 @@ class TestMolWavefunction:
 
 
     def test_write_wfn_mol(self,neon_atom,neon_rhf,tmp_path):
-        
         atom = neon_atom
         mf,_ = neon_rhf
-        
         scf_data = {
             'mol': atom,
             'mo_coeff': mf.mo_coeff,

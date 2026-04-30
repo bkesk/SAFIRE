@@ -6,22 +6,16 @@ Wavefunction File formats
 The trial wavefunction in AFQMC is typically a linear combination of Slater determinants,
 
 .. math::
-  :label: eq-trial-wf
-
-  |\Psi_T \rangle = \sum^{N_{det}}_n C_n | \Phi_n \rangle
+  |\Psi_\mathrm{T} \rangle = \sum^{N_\mathrm{det}}_n C_n | \Phi_n \rangle
 
 where :math:`C_n` is a complex-valued coefficient, and :math:`|\Phi_n\rangle` are Slater determinants which are not necessarily orthogonal to each other. Of course, each Slater determinant consists of some set of single-particle orbitals, :math:`\{ \psi_p \}`, such that,
 
 .. math::
-  :label: eq-orbitals
-
   \psi_{p} = \sum_i \bar{C}_{ip} \phi_i
 
 where :math:`\{\phi_i\}` are the chosen orthonormal basis set orbitals. Slater determinants can either be represented explicitly as a Slater matrix,
 
 .. math::
-  :label: eq-slater-matrix
-
   \Phi = \begin{bmatrix}
     \bar{C}_{00} &\bar{C}_{01} & \bar{C}_{02} & \dots  & \bar{C}_{0N} \\
     \bar{C}_{10} & \bar{C}_{11} & \bar{C}_{12} & \dots  & \bar{C}_{1N} \\
@@ -141,9 +135,9 @@ PHMSD
    :math:`[M,N_\alpha,N_\beta,` walker_type :math:`,N_D]`
 -  ``/Wavefunction/PHMSD/occs`` Integer array of length :math:`(N_\alpha+N_\beta)*N_D`
    describing the determinant occupancies. For example if :math:`(N_\alpha=N_\beta=2)` and
-   :math:`N_D=2`, :math:`M=4`, and if :math:`|\Psi_T\rangle = |0,1\rangle|0,1\rangle + |0,1\rangle|0,2\rangle>` then
+   :math:`N_D=2`, :math:`M=4`, and if :math:`|\Psi_\mathrm{T}\rangle = |0,1\rangle|0,1\rangle + |0,1\rangle|0,2\rangle>` then
    occs = :math:`[0, 1, 4, 5, 0, 1, 4, 6]`. Note that :math:`\beta` occupancies are
-   displacd by :math:`M`.
+   displaced by :math:`M`.
 -  ``/Wavefunction/PHMSD/type`` integer 0/1. 1 implies trial wavefunction is written in
    different basis than the underlying basis used for the integrals. If so a matrix of
    orbital coefficients is required to be written in the NOMSD format. If 0 then assume

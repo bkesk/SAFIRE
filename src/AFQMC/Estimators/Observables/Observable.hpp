@@ -17,20 +17,21 @@
 #pragma once
 
 #include "AFQMC/config.h"
+#include <configuration.hpp>
 #include <variant>
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/check.hpp"
 
 #include "AFQMC/Estimators/Observables/full1rdm.hpp"
-//#include "AFQMC/Estimators/Observables/full2rdm.hpp"
-//#include "AFQMC/Estimators/Observables/diagonal2rdm.hpp"
+#include "AFQMC/Estimators/Observables/full2rdm.hpp"
+#include "AFQMC/Estimators/Observables/diagonal2rdm.hpp"
 //#include "AFQMC/Estimators/Observables/n2r.hpp"
 //#include "AFQMC/Estimators/Observables/realspace_correlators.hpp"
 //#include "AFQMC/Estimators/Observables/atomcentered_correlators.hpp"
 //#include "AFQMC/Estimators/Observables/generalizedFockMatrix.hpp"
 //#include "AFQMC/Estimators/Observables/sk.hpp"
-//#include "AFQMC/Estimators/Observables/pair_correlators.hpp"
-//#include "AFQMC/Estimators/Observables/spinspin.hpp"
+#include "AFQMC/Estimators/Observables/pair_correlators.hpp"
+#include "AFQMC/Estimators/Observables/spinspin.hpp"
 
 namespace sfqmc
 {
@@ -41,56 +42,12 @@ namespace afqmc
  * Variant class for observables. 
  * Defines a common interface for all observable classes.
  */
+template<MEMORY_SPACE MEM>
 class Observable  
 {
 public:
-  Observable() { utils::check(false," Error: Reached default constructor of Observable()."); }
-
-  explicit Observable(full1rdm&& other) : var(std::move(other)) {}
-  explicit Observable(full1rdm const& other) = delete;
-
-/*
-  explicit Observable(generalizedFockMatrix&& other) : var(std::move(other)) {}
-  explicit Observable(generalizedFockMatrix const& other) = delete;
-
-  explicit Observable(diagonal2rdm&& other) : var(std::move(other)) {}
-  explicit Observable(diagonal2rdm const& other) = delete;
-
-  explicit Observable(pair_correlator&& other) : var(std::move(other)) {}
-  explicit Observable(pair_correlator const& other) = delete;
-
-  explicit Observable(full2rdm&& other) : var(std::move(other)) {}
-  explicit Observable(full2rdm const& other) = delete;
-
-  explicit Observable(realspace_correlators&& other) : var(std::move(other)) {}
-  explicit Observable(realspace_correlators const& other) = delete;
-
-  explicit Observable(atomcentered_correlators&& other) : var(std::move(other)) {}
-  explicit Observable(atomcentered_correlators const& other) = delete;
-
-  explicit Observable(n2r<shared_allocator<ComplexType>>&& other) : var(std::move(other)) {}
-  explicit Observable(n2r<shared_allocator<ComplexType>> const& other) = delete;
-
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-  explicit Observable(n2r<device_allocator<ComplexType>>&& other) : var(std::move(other)) {}
-  explicit Observable(n2r<device_allocator<ComplexType>> const& other) = delete;
-#endif
-
-  explicit Observable(sk<true>&& other) : var(std::move(other)) {}
-  explicit Observable(sk<true> const& other) = delete;
-
-  explicit Observable(sk<false>&& other) : var(std::move(other)) {}
-  explicit Observable(sk<false> const& other) = delete;
-
-  explicit Observable(spinspinobs&& other) : var(std::move(other)) {}
-  explicit Observable(spinspinobs const& other) = delete;
-*/
-
-  Observable(Observable const& other) = delete;
-  Observable(Observable&& other)      = default;
-
-  Observable& operator=(Observable const& other) = delete;
-  Observable& operator=(Observable&& other) = default;
+  template<class Obs>
+  explicit Observable(Obs&& other) : var(std::forward<Obs>(other)) {}
 
 /*******   Interface for sum over independent references, e.g. NOMSD  *******/
   template<class... Args>
@@ -127,11 +84,9 @@ public:
 
 private:
 
-  std::variant<full1rdm> var;
+  std::variant<full1rdm, diagonal2rdm<MEM>, full2rdm<MEM>, pair_correlator, spinspinobs
+    > var;
 /*
-                                         diagonal2rdm,
-                                         pair_correlator,
-                                         full2rdm,
                                          realspace_correlators,
                                          atomcentered_correlators,
                                          generalizedFockMatrix,
@@ -142,7 +97,6 @@ private:
 #endif
                                          ,sk<true>
                                          ,sk<false>,
-                                         spinspinobs
                                          >
 */
 

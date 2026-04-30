@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -15,17 +15,15 @@ kernelspec:
 
 # The Hamiltonian Builder
 
-[All tutorials](../the_joy_of_AFQMC.ipynb)
-
 The Hamiltonian builder requires a Lattice instance to build the Hamiltonian on
-(see the [lattice class tutorial](../lattice/basic.ipynb) for details on the lattice parameters).
+(see {doc}`../03_setting_up_a_lattice/03_setting_up_a_lattice` for details on the lattice parameters).
 We assume familiarity with the Lattice class in this tutorial.
 
 The Hamiltonian builder (`HamiltonianBuilder` class in afqmctools) is
 responsible for performing "build steps".
 A "build step" consists of constructing a Hamiltonian component (i.e. term),
 and adding it to the `Hamiltonian` that it has.
-As we saw in the Hamiltonian director tutorial (__HAMILTONIAN_DIRECTOR_TUT__),
+As we saw in the Hamiltonian director tutorial ({doc}`../04_building_and_writing_a_hamiltonian/04_building_and_writing_a_hamiltonian`),
 the Hamiltonian director can be used to build a lattice model Hamiltonian by
 "directing" the Hamiltonian builder to perform build steps.
 This is the recommended way of building lattice model Hamiltonians;
@@ -49,7 +47,7 @@ Let's begin with a quick overview of how the build steps work:
     builder.nth_neighbor_hopping(1.0, nth_neighbor=1)
     ```
     
-2. calling the same build step multiple times will add one term per call without overwritting any terms. So, the following code snippet will add both t, and t' to the Hamiltonian.
+2. calling the same build step multiple times will add one term per call without overwriting any terms. So, the following code snippet will add both t, and t' to the Hamiltonian.
 
     ```python
     builder = HamiltonianBuilder(lattice=lattice)
@@ -118,7 +116,11 @@ are included.
 
 from afqmctools.systems.lattice import get_lattice
 from afqmctools.hamiltonian.model.builder import HamiltonianBuilder
-from afqmctools.utils.io import write_model_hamiltion
+from afqmctools.utils.io import write_model_hamiltonian
+from pathlib import Path
+
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 lattice = get_lattice(
     params={
@@ -139,30 +141,30 @@ builder.onsite_hubbard(4.0)
 builder.finalize()
 
 # save for latter use
-write_model_hamiltion(
+write_model_hamiltonian(
     hamiltonian=builder.hamiltonian,
-    fname='hamiltonian.h5'
+    fname=scratch_dir / 'hamiltonian.h5'
 )
 ```
 
 +++ {"id": "d95754b7-05ef-40a0-9632-c660f535d095"}
 
 we note that calling the `.finalize()` function after calling all build steps is recommended.
-It performs various clean up tasks, such as combinning all Hamiltonian terms that can be safely combined
+It performs various clean up tasks, such as combining all Hamiltonian terms that can be safely combined
 into a single term.
 
 +++ {"id": "ac73ed88-8485-4885-ae6b-ca20955c0b51"}
 
-## Part III: Hamltonian build steps
+## Part III: Hamiltonian build steps
 
-Now that we understand the role of the Hamiltonia builder, and how it will typically be used in a Python script,
+Now that we understand the role of the Hamiltonian builder, and how it will typically be used in a Python script,
 we will cover the specific terms that can be built.
 We will also cover any term specific details that have not been covered so far.
 
 **We note that the same input conventions for parameters are used by the HamiltonianDirector since it simply forwards parameters to the HamiltonianBuilder.**
 
 Each term is explored in it's own respective subsection.
-A minimial list of sections that should be covered are,
+A minimal list of sections that should be covered are,
 
 - hopping matrix
 - applying a twist
@@ -172,7 +174,7 @@ A minimial list of sections that should be covered are,
 
 Some more advanced sections are as follows. Each is written to be independent such that an interested learner can go through the sections that are specific interest to them.
 
-- Hubbard-Kanamor U1, U2, and J
+- Hubbard-Kanamori U1, U2, and J
 - rashba SOC
 - custom one body terms
 
@@ -184,7 +186,7 @@ To cover:
 - nth-order hopping
 - band-dependent hopping (with 1st-nth order hopping)
 - sublattice-dependent hopping (with 1st-nth order hopping)
-- hopping with non-trivial sublattice and band degees of freedom.
+- hopping with non-trivial sublattice and band degrees of freedom.
 - using no hopping
 
 `afqmctools` can generate nth-order neighbor hopping.
@@ -223,7 +225,6 @@ to cover
     - uniform
     - band/sublattice degrees of freedom (individual and combined)
 - hst over-rides (expert-mode)
-  
 
 ```{code-cell} ipython3
 :id: 91b862e0-881c-4e53-a5ee-cd23ede58378
@@ -284,7 +285,7 @@ nsites = hamiltonian_builder.hamiltonian.nsites
 nbands = hamiltonian_builder.hamiltonian.nbands
 nbasis = nsites*nbands
 
-# adding disorder to a random site, uniform accross bands
+# adding disorder to a random site, uniform across bands
 random_site = random.randint(0, nsites-1)
 
 print("adding disorder to site", random_site)

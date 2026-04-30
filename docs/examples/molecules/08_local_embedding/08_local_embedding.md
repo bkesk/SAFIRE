@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -15,7 +15,7 @@ kernelspec:
 
 # Local Embedding
 
-Following the methodlogy presented in:
+Following the methodology presented in:
 
 https://pubs.acs.org/doi/10.1021/acs.jctc.8b01244
 
@@ -31,30 +31,29 @@ which, among other things, provides tools to analyze the locality of a set of or
 
 # Some setup
 from pathlib import Path
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
 # from embeddingAFQMC
 from embedding.orbital.assign import euclid_nd, gen_orbital_stats, print_stats
 
-# For you TODO: set a scratch directory for the files that will be generated
-home = Path.home()
-scratch_dir = get_scratch_dir("08_local_embedding", home / ".scratch")
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 
 Hartree = 27.211407953 # eV
 Bohr = 0.529177        # Angstrom
 
-MPI_TASKS = 64
+MPI_TASKS = 16
 ```
 
 +++ {"id": "vDrFukfq5u0t"}
 
 ### Automate the AFQMC
 
-We can automate the local embedding workflow, for a given O atom hieght, $h$, and localization radii $R_o$, and $R_v$, using a Python function. The workflow consists of the following steps.
+We can automate the local embedding workflow, for a given O atom height, $h$, and localization radii $R_o$, and $R_v$, using a Python function. The workflow consists of the following steps.
 
 1. define the atomic positions
 2. run ROHF to obtain both a trial wavefunction, and a basis
-3. unitarily localize the set of ROHF orbitals using so-called "split localation". This can be done by partitioning the ROHF orbitals into the following sets, and localizing each set separately via Foster-Boys localization for example).
+3. unitarily localize the set of ROHF orbitals using so-called "split localization". This can be done by partitioning the ROHF orbitals into the following sets, and localizing each set separately via Foster-Boys localization for example).
     - energetic core orbitals (no need to localize, we will freeze these no mater what)
     - occupied orbitals (including singly-occupied orbitals here; however, it is also possible to partition the singly-occupied orbitals from the doubly-occupied orbitals)
     - virtual orbitals
@@ -81,7 +80,7 @@ from afqmctools.wavefunction.mol import write_wfn
 from afqmctools.inputs.from_hdf import write_json
 from stats.scalar_dat import analyze_scalar_data
 
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
 
 
 # custom metric to take the projection of the orbital position onto the xy plane
@@ -96,7 +95,7 @@ def get_afqmc_energy(h, Ro=np.inf, Rv=np.inf, N_energetic_core=0, rhf_guess_rdm=
     # run initial HF calculation to generate basis
 
     local_scratch = scratch_dir / f"h={h:5.5f}"
-    local_scratch.mkdir(exist_ok=True)
+    local_scratch.mkdir(parents=True, exist_ok=True)
     atom_chkfile = local_scratch / f"rhf_h={h:5.5f}.chk"
 
     def get_atomic_positions(h):
@@ -241,9 +240,9 @@ def get_afqmc_energy(h, Ro=np.inf, Rv=np.inf, N_energetic_core=0, rhf_guess_rdm=
     # 6. write json input file
     execute_options = {
         "timestep": 0.01,
-        "steps": 10000,
+        "steps": 6000,
         "population_control_interval" : 10,
-        "measure_interval_multiplier": 1, # will measure at interval of `measure_interval_multiplier*population_control_interval`
+        "measure_interval_multiplier": 1,
         "walker_ortho_interval" : 10,
         "n_walkers_per_mpi_task": 20,
         "seed" : 42,

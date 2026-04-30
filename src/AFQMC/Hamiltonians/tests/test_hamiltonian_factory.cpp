@@ -58,7 +58,7 @@ void ham_factory(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
 
   int NMO = read_nmo_from_hdf(hamil_file);
-  REQUIRE(NMO > 0);
+  CHECK(NMO > 0);
   int nup=1, ndown=1;
 
   std::map<std::string, AFQMCInfo> InfoMap;
@@ -79,20 +79,32 @@ TEST_CASE("ham_factory", "[hamiltonian_factory]")
   auto& mpi = utils::make_unit_test_mpi_context();
 
   if(UTEST_HAMIL!="") {
-    app_log(0,"Hamiltonian factory unit testing. Running user provided test:");
-    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
-    ham_factory<HOST_MEMORY>(mpi,UTEST_HAMIL);
+    DYNAMIC_SECTION("User provided hamiltonian: " + UTEST_HAMIL) {
+      app_log(0,"Hamiltonian factory unit testing. Running user provided test:");
+      app_log(0," Hamiltonian: {}", UTEST_HAMIL);
+      ham_factory<HOST_MEMORY>(mpi,UTEST_HAMIL);
 #if defined(ENABLE_DEVICE)
-    ham_factory<DEVICE_MEMORY>(mpi,UTEST_HAMIL);
+      ham_factory<DEVICE_MEMORY>(mpi,UTEST_HAMIL);
 #endif
+    }
   } else {
     app_log(0,"Hamiltonian factory unit testing. Running standard tests.");
-    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
-    for( auto f : files ) { 
-      ham_factory<HOST_MEMORY>(mpi,std::get<0>(f));
+    auto files = utils::get_unit_tests_files(true,true,true,true,false);
+    for( auto f : files ) {
+      DYNAMIC_SECTION("Hamiltonian file: " + std::get<0>(f)) {
+        try {
+          ham_factory<HOST_MEMORY>(mpi,std::get<0>(f));
+        } catch (const sfqmc::AppAbortException& e) {
+          FAIL_CHECK("APP_ABORT in ham_factory<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+        }
 #if defined(ENABLE_DEVICE)
-      ham_factory<DEVICE_MEMORY>(mpi,std::get<0>(f));
+        try {
+          ham_factory<DEVICE_MEMORY>(mpi,std::get<0>(f));
+        } catch (const sfqmc::AppAbortException& e) {
+          FAIL_CHECK("APP_ABORT in ham_factory<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
+        }
 #endif
+      }
     }
   }
 }

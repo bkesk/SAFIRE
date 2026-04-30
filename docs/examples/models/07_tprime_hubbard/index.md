@@ -7,7 +7,7 @@ jupytext:
     jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
-  language: python
+  language: ipython3
   name: python3
 ---
 
@@ -25,9 +25,9 @@ $$
 $$
 where $i,j$ are lattice site indices, angle brackets with superscript $(n)$ indicate
 that sums are constrained to $n^{th}$-order neighbors,
-$\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/anihilation operators,
+$\hat{c}^\dagger_i$/$\hat{c}_i$ are electronic creation/annihilation operators,
 and $\hat{n}^{\sigma}_i$ are spin-resolved number operators corresponding to site $i$.
-The 4x4 lattice is small enough to make exact diagonaliztion possible.
+The 4x4 lattice is small enough to make exact diagonalization possible.
 We will use exact results for this system as reference data throughout
 this tutorial.
 
@@ -43,14 +43,12 @@ References:
 ```{code-cell} ipython3
 :id: 418bd9e4-4da9-4612-889f-6f365fc667a6
 
-%load_ext autoreload
-%autoreload
 # simple setup
-from tutorial_utils import run_afqmc, get_scratch_dir
+from tutorial_utils import run_afqmc
+from pathlib import Path
 
-#TODO: update this to a good directory for scratch files
-scratch_rootdir="/mnt/home/beskridge/ceph/scratch/11"
-scratch_dir = get_scratch_dir("04_hubbard_tprime",scratch_rootdir)
+scratch_dir = Path("data")
+scratch_dir.mkdir(parents=True, exist_ok=True)
 ```
 
 +++ {"id": "b8153eeb-0f28-4151-ad09-af65db81f358"}
@@ -61,7 +59,6 @@ scratch_dir = get_scratch_dir("04_hubbard_tprime",scratch_rootdir)
 :id: 254dc31a-b763-4cb3-9867-5129279b9c2b
 :outputId: c065dd3d-6070-4a49-80ef-e02029ba7b13
 
-%autoreload
 from afqmctools.systems.lattice import get_lattice
 from afqmctools.utils.visualize import plot_lattice
 
@@ -87,7 +84,6 @@ plot_lattice(lattice,show_coords=False)
 :id: 364ee811-8242-45ce-88ee-69fcaa6901fd
 :outputId: b64b276a-cae9-4c47-a315-e9c015fc264a
 
-%autoreload
 from afqmctools.hamiltonian.model.director import HamiltonianDirector
 from afqmctools.utils.io import write_model_hamiltonian
 
@@ -118,13 +114,11 @@ write_model_hamiltonian(hamiltonian,fname=scratch_dir/"Hubbard_tprime0.4_U4.0.h5
 ## Setup - Trial Wavefunction.
 
 ```{code-cell} ipython3
-:id: 51e57c3e-82b1-4064-80f2-2afd63d7e609
-:outputId: c453b587-038c-4867-dac8-a4cfdeacece8
-
 # First, let's compute the Free-Electron trial wavefunction
 from afqmctools.wavefunction.free_electron import free_electron
+from afqmctools.wavefunction.common import write_wfn
 
-nelec =(16,16)
+nelec = (16,16)
 
 input_params = dict(
     lattice = lattice_params,                           # from step 1. above
@@ -133,13 +127,17 @@ input_params = dict(
 
 # twist from ref 1:
 twist = (0.0,0.0) #(0.01,0.01) # this twist was used for 4x16 with t' = 0.3t
-_,_,results = free_electron(
+wfn,_,results = free_electron(
     source=input_params,
     nelec=nelec,
-    twist=twist,                          # (optional) using the defaul small twist
-    output=scratch_dir/"free_elec_wfn.h5",           # set output file to save the wavefunction in.
+    twist=twist,                          # (optional) using the default small twist
     return_autohf = True
 )
+
+# get lattice dimensions from the Lattice instance
+L = lattice.L
+
+write_wfn(scratch_dir/"free_elec_wfn.h5", wfn, walker_type='collinear', norb=L[0]*L[1], nelec=nelec)
 ```
 
 ```{code-cell} ipython3
@@ -149,13 +147,10 @@ _,_,results = free_electron(
 import afqmctools.utils.visualize as vis
 
 # convert the 'results' from autohf to a charge density
-makeRDMs = results['makeRDMs']
-state = results['state']
+makeRDMs = results[1]['makeRDMs']
+state = results[0]['state']
 
 rdm = makeRDMs(state)
-
-# get lattice dimensions from the Lattice instance
-L = lattice.L
 
 # collinear
 rho_up = rdm[0].diagonal().reshape(*L)
@@ -189,11 +184,9 @@ vis.plot_lattice(
 
 +++ {"id": "a42d9aa5-0a4d-45f4-a2cf-96e3949afb8d"}
 
-## Setup - Write an AuxiliaryFields input file
+## Setup - Write an SAFIRE input file
 
 ```{code-cell} ipython3
-:id: 9d13f4b9-22c5-468e-8faf-e8f0536c8110
-
 # make a json input file
 from afqmctools.inputs.from_hdf import write_json
 
@@ -203,23 +196,22 @@ afqmc_params = {
     "n_walkers_per_mpi_task": 30,
     "population_control_interval": 5,
     "walker_ortho_interval": 5,
-    "measure_interval": 10,
+    "measure_interval_multiplier": 2,
     "seed" : 42,                          # for reproducibility
     "propagator": {
-      "use_cp_constraint": True,
-      "use_real_vbias" : True
+        "use_cp_constraint": True,
+        "use_real_vbias": True
     },
-      "estimator": {
+    "estimator": {
         "name":"back_propagation",
-        "path_restoration":True,
-        "ortho":5,
-        "nsteps":200,
-        "naverages":4,
-        "equil":2000,
-        "onerdm" : {
-          "name":"onerdm"
+        "path_restoration": True,
+        "bp_walker_ortho_interval": 5,
+        "measure_interval_multiplier": [40, 80, 120, 160],
+        "equil_multiplier":480,
+        "onerdm":{
+            "name":"onerdm"
         }
-      }
+    }
 }
 
 write_json(
@@ -235,7 +227,7 @@ write_json(
 ### Running AFQMC
 
 Below, we provide a cell that will run AFQMC here; however, for this calculation, you might prefer to submit the job to Slurm.
-You can copy the runscript from `/mnt/home/beskridge/ceph/software/AuxiliaryFields/local_scripts/run_afqmc_cpu.sh` to your scratch
+You can copy the runscript from `/mnt/home/beskridge/ceph/software/SAFIRE/local_scripts/run_afqmc_cpu.sh` to your scratch
 directory for this tutorial and use
 
 ```bash
@@ -284,8 +276,6 @@ analysis_settings = dict(
 E,dE = analyze_scalar_data(analysis_settings)
 
 print(f"The AFQMC energy is {E:.6f} +/- {dE:.6f} Hartree")
-
-ref_stoch_uncertainty = dE
 ```
 
 +++ {"id": "da4dfc0c-047c-43b7-9568-5494c48067b2"}
@@ -310,13 +300,6 @@ delta_rho_up = delta_rho[:,0,:,:].diagonal().reshape((naverages,4,8))
 
 rho_down = rho_avg[:,1,:,:].diagonal().reshape((naverages,4,8))
 delta_rho_down = delta_rho[:,1,:,:].diagonal().reshape((naverages,4,8))
-```
-
-```{code-cell} ipython3
-:id: 0fb2dd68-a3b1-4c6f-affb-b3043b2379c8
-:outputId: 5a147bcd-4b7d-4481-8d89-14f2e12e9203
-
-
 ```
 
 ```{code-cell} ipython3

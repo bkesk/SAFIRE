@@ -2,18 +2,14 @@
   "afqmc": {
     "project": {
       "id": "qmc",
-      "series": 0,
-      "mixed_precision": false
+      "series": 0
     },
     "execute": {
       "walker_set": {
         "walker_type": "FULLYPOLARIZED"
       },
       "wavefunction": {
-        "filename": "shci_wfn.h5"
-      },
-      "hamiltonian":{
-	"filename" : "afqmc.h5"
+        "filename": "afqmc.h5"
       },
       "timestep": 0.005,
       "steps": 7000,

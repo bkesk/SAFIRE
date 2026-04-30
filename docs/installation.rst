@@ -17,7 +17,7 @@ Minimum
 ~~~~~~~
 
 - CMake 3.18+
-- a modern C++ compiler with C++17 support. LLVM or GCC are recommended.
+- a modern C++ compiler with C++20 support. LLVM or GCC are recommended.
 - MPI (OpenMPI or other MPI implementation)
 - HDF5 (parallel HDF5 recommended)
 - Boost 1.61.0+
@@ -34,7 +34,6 @@ For NVIDIA GPU Builds
 ~~~~~~~~~~~~~~~~~~~~~
 
 - CUDA 12+
-- NCCL (optional, for multi-GPU communication)
 
 
 Compiling SAFIRE
@@ -116,7 +115,6 @@ If you are on rusty or using a rusty connected desktop a suitable build script i
 
     # GPU
     module load cuda/11
-    module load nccl
 
     # build
     module load python-mpi/3.11
@@ -130,7 +128,7 @@ If you are on rusty or using a rusty connected desktop a suitable build script i
 
 
 Installing the afqmctools Python package
-----------------------------------------
+________________________________________
 
 See :ref:`the afqmctools documentation <afqmctools>` for details on installing afqmctools.
 
@@ -142,7 +140,7 @@ beginning from the root directory of this repo.
 
 .. code-block:: bash
 
-    $ export VENV_DIR=~/venvs  # replace this with a good directory to install a virtual enviroment
+    $ export VENV_DIR=~/venvs  # replace this with a good directory to install a virtual environment
     $ export AFQMC_ROOT_DIR=$(pwd)
     $ module load openmpi hdf5 python-mpi/3.11
     $ cd $VENV_DIR

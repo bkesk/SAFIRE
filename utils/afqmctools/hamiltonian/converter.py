@@ -41,7 +41,7 @@ def fcidump_header(nel:int, norb:int, spin:int) -> str:
     spin : int
         Spin of the system.
 
-    returns
+    Returns
     -------
     header : string
         Header for FCIDUMP file.
@@ -239,8 +239,6 @@ def read_hamil_type(filename:str) -> str:
             return 'sparse'
         elif 'Hamiltonian/KPFactorized/L0' in fh5:
             return 'kpoint'
-        elif '/Interaction/Vq0' in fh5:
-            return 'coqui_kpoint'
         elif 'Interaction/Vq0' in fh5:
             return 'kpoint_coqui'
         elif 'Hamiltonian/THC/Luv' in fh5:
@@ -323,7 +321,7 @@ def read_hamiltonian(filename, get_chol=True, walker_type=1):
         hamil = read_model(filename)
     else:
         hamil = None
-        raise TypeError("Unknown Hamiltonian type.")
+        raise TypeError(f"Unknown Hamiltonian type '{ham_type}'.")
     return hamil
 
 
@@ -582,7 +580,7 @@ def fmt_integral(intg, i, k, j, l, cplx, paren=False):
     cplx : bool
         If True, then integrals are printed as complex-valued
     paren : bool
-        If True, complex-valued integrals are printed in paranthesis
+        If True, complex-valued integrals are printed in parenthesis
     """
     if cplx:
         if paren:
@@ -626,7 +624,7 @@ def write_fcidump(filename, hcore, chol, enuc, nmo, nelec, tol=1e-8, ctol=1e-12,
     chol_is_eri: bool
         Write chemist's ERI directly instead of using its Cholesky factorization
     use_spinor: bool
-        Convret to a spinor basis before writting FCIDUMP
+        Convert to a spinor basis before writing FCIDUMP
     """
 
     if use_spinor and cplx == False:
@@ -866,8 +864,8 @@ def read_cholesky_kpoint(filename, get_chol=True):
     Reads datasets from the `Hamiltonian` group in the internal format and
     returns the one-body matrices and (optionally) per-Q Cholesky vectors.
 
-    Reads
-    -----
+    The following format is expected:
+
     - `Hamiltonian/dims` (array, len=8): overall dimensions. Used entries:
       - `dims[2] = nkp`: number of k-points.
       - `dims[3] = nmo_tot`: total orbitals across all k-points.
@@ -998,132 +996,6 @@ def get_kpoint_chol(filename, nchol_pk, minus_k, i, qk_k2, nmo_pk):
               Lk1[k1] = cmat.transpose(1, 0, 2).conj().ravel()
             Lk = Lk1
     return Lk
-
-
-def read_cholesky_kpoint_coqui(filename, get_chol=True):
-    r"""Read in integrals from internal hdf5 format. kpoint dependent case.
-
-    Parameters
-    ----------
-    filename : str
-        Path to the internal-format HDF5 file.
-    get_chol : bool, optional
-        If True, read and return per-Q Cholesky vectors (default True).
-
-    Returns
-    -------
-    hcore : list[np.ndarray]
-        List of one-body Hamiltonians per k-point; each `(nmo_k, nmo_k)` complex.
-    chol_vecs : list[np.ndarray] or None
-        If `get_chol` is True, list over Q of arrays with shape
-        `(nkp, nmo_k*nmo_k*nchol_Q)` containing flattened `L[K][i,k,n]` per K.
-        Otherwise `None`.
-    enuc : float
-        Core (nuclear) energy contribution read from `Hamiltonian/Energies`.
-    nmo_tot : int
-        Total number of orbitals across all k-points.
-    nelec : tuple[int, int]
-        `(nalpha, nbeta)` electron counts.
-    nmo_pk : np.ndarray
-        Orbitals per k-point; shape `(nkp,)`.
-    qk_k2 : np.ndarray
-        Momentum mapping `(Q, K) -> K'`; shape `(nkp, nkp)`.
-    nchol_pk : np.ndarray
-        Number of Cholesky vectors per Q; shape `(nkp,)`, after time-reversal tie-in.
-    minus_k : np.ndarray
-        Time-reversal partner map `Q -> -Q`; shape `(nkp,)`.
-    """
-    enuc, dims, hcore, real_ints = read_common_input(filename, get_hcore=False)
-    with h5.File(filename, 'r') as fh5:
-        nmo_pk = fh5['Hamiltonian/NMOPerKP'][:]
-        nchol_pk = fh5['Hamiltonian/NCholPerKP'][:]
-        qk_k2 = fh5['Hamiltonian/QKTok2'][:]
-        minus_k = fh5['Hamiltonian/MinusK'][:]
-        hcore = []
-        nkp = dims[2]
-        nmo_tot = dims[3]
-        nalpha = dims[4]
-        nbeta = dims[5]
-        if nmo_pk is None:
-            raise KeyError("Could not read NMOPerKP dataset.")
-        for i in range(0, nkp):
-            hk = fh5['Hamiltonian/H1_kp{}'.format(i)][:]
-            if hk is None:
-                raise KeyError("Could not read one-body hamiltonian.")
-            nmo = nmo_pk[i]
-            hcore.append(hk.view(np.complex128).reshape(nmo,nmo))
-        chol_vecs = []
-        if nmo_pk is None:
-            raise KeyError("Error nmo_pk dataset does not exist.")
-        nmo_max = max(nmo_pk)
-    if minus_k is None:
-        raise KeyError("Error MinusK dataset does not exist.")
-    if nchol_pk is None:
-        raise KeyError("Error NCholPerKP dataset does not exist.")
-    # unpack chol
-    for i, nc in enumerate(nchol_pk):
-      j = minus_k[i]
-      if j<i:  # apply (Q, -Q) trick
-        nchol_pk[i] = nchol_pk[j]
-    if get_chol:
-        for i in range(0, nkp):
-            chol_vecs.append(get_kpoint_chol(filename, nchol_pk, minus_k, i, qk_k2, nmo_pk))
-    else:
-        chol_vecs = None
-
-    return (hcore, chol_vecs, enuc, int(nmo_tot), (int(nalpha), int(nbeta)),
-            nmo_pk, qk_k2, nchol_pk, minus_k)
-
-
-def get_kpoint_chol_coqui(filename, nchol_pk, minus_k, i, qk_k2, nmo_pk):
-    r"""
-    Read standard-format Cholesky vectors for Q = i with time-reversal handling.
-
-    Loads `Hamiltonian/KPFactorized/L{min(i, -i)}` and returns per-k-point
-    Cholesky factors in a flattened `(nkp, nmo_i*nmo_i*nchol)` layout. If `-i < i`
-    (time-reversal pairing), applies the `(Q, -Q)` trick: remap `K' = qk_k2[i, K]`
-    and conjugate-transpose from the stored partner to obtain the `Q` data.
-
-    Parameters
-    ----------
-    filename : str
-        Path to the internal-format HDF5 file.
-    nchol_pk : np.ndarray
-        Number of Cholesky vectors per Q; shape `(nkp,)`.
-    minus_k : np.ndarray
-        Time-reversal partner map; shape `(nkp,)`.
-    i : int
-        Q-vector index to read.
-    qk_k2 : np.ndarray
-        Momentum mapping `(Q, K) -> K'`; shape `(nkp, nkp)`.
-    nmo_pk : np.ndarray
-        Orbitals per k-point; shape `(nkp,)`.
-
-    Returns
-    -------
-    Lk : np.ndarray
-        Cholesky vectors for Q `i`, shape `(nkp, nmo_i*nmo_i*nchol)`, complex128.
-    """
-    with h5.File(filename, 'r') as fh5:
-        j = minus_k[i]
-        Lk = fh5['Hamiltonian/KPFactorized/L{}'.format(min(i, j))][:]
-        if Lk is None:
-            msg = "Could not read Cholesky kpoint %d, with -Q %d." % (i, j)
-            raise TypeError(msg)
-        Lk = Lk.view(np.complex128)[:,:,0]
-        if j<i:  # apply (Q, -Q) trick
-            nchol = nchol_pk[j]
-            # remap k-Q, then conjugate-transpose
-            nmo = nmo_pk[i]
-            assert nmo_pk[j] == nmo
-            Lk1 = Lk.copy()
-            for k1, k2 in enumerate(qk_k2[i]):
-              cmat = Lk[k2].reshape(nmo, nmo, nchol)
-              Lk1[k1] = cmat.transpose(1, 0, 2).conj().ravel()
-            Lk = Lk1
-    return Lk
-
-
 
 def read_dense(filename,walker_type=None):
     r"""Read in integrals from internal hdf5 format.
@@ -1285,7 +1157,7 @@ def write_fcidump_kpoint(filename, hcore, chol, enuc, nmo_tot, nelec,
     paren : bool
         Write complex numbers in parenthesis.
     use_spinor: bool
-        Convret to a spinor basis before writting FCIDUMP
+        Convert to a spinor basis before writing FCIDUMP
     """
     if use_spinor:
         raise NotImplementedError(
@@ -1418,7 +1290,7 @@ def kpoint_to_sparse(kp_file, sp_file, real_chol=False,
     real_chol : bool
         If True, write real Cholesky vectors. Optional. Default: False.
     thresh : float
-        Threshold for sparse integral values. Intagrals with absolute value less then 
+        Threshold for sparse integral values. Integrals with absolute value less then
         thresh are considered 0.0 Optional. Default: 1e-8.
     """
     warn("Sparse format is deprecated. Use k-point factorized Hamiltonian format instead.", DeprecationWarning)

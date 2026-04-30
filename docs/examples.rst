@@ -17,28 +17,13 @@ These show how multiple features fit together in real-world scenarios,
 making them useful for understanding context and best practices.
 The walkthroughs are organized based on their application domain.
 
+.. toctree::
+   :maxdepth: 1
 
-.. _examples_molecules:
+   /examples/molecules/index
+   /examples/solids/index
+   /examples/models/index
 
-Quantum Chemistry / Molecules
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. include:: examples/molecules/index.rst
-
-
-.. _examples_solids:
-
-Ab initio solids
-~~~~~~~~~~~~~~~~
-
-.. include:: examples/solids/index.rst
-
-.. _examples_models:
-
-Lattice models
-~~~~~~~~~~~~~~
-
-.. include:: examples/models/index.rst
 
 .. _snippet_examples:
 
