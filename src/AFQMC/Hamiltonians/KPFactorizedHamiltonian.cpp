@@ -63,17 +63,18 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   long ndet = PsiT.extent(0);
   long nel_up = PsiT(0,0).extent(0);
   long NMO = PsiT(0,0).extent(1)/npol;
-  utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.size(1)%npol != 0");
+  utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.extent(1)%npol != 0");
   utils::check(nspin_in_PsiT==1 or nspin_in_PsiT==nspin, "Size mismatch");
   utils::check(ndet==1, "Error: ndet > 1 not yet implemented in KPFactorizedHamiltonian::getHamiltonianOperations.");
   long nel_dn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
               (type == CLOSED ? nel_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
-  for(int i=0; i<ndet; ++i)
+  for(int i=0; i<ndet; ++i) {
     for(int ip=0; ip<npol; ++ip) {
-      utils::check(PsiT(i,0).shape() == std::array<long,2>{nel_up,NMO},"PsiT shape mismatch.");
+      utils::check(PsiT(i,0).shape() == std::array<long,2>{nel_up,npol*NMO}, "PsiT shape mismatch.");
       if(type == COLLINEAR)
         utils::check(PsiT(i,nspin_in_PsiT-1).shape() == std::array<long,2>{nel_dn,NMO},"PsiT shape mismatch.");
     }
+  }
   utils::check(nel_up >= nel_dn, base_error + "nel_up:{} < nel_dn:{} not allowed.",nel_up,nel_dn);
 
   // Hamiltonian variables
@@ -130,6 +131,9 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         // read npol_in_file
 //        h5::h5_read_attribute(bz,"number_of_polarizations",n);
 //        npol_in_file=long(n);
+        // TODO: does this format even support polarizations?
+        npol_in_file = 1;
+
         utils::check((nspin_in_file==1) or (nspin_in_file==nspin),
                      base_error + " Incompatible nspin:{} in h5 file.",nspin_in_file);
 //        utils::check((npol_in_file==1) or (npol_in_file==npol), 
@@ -159,23 +163,14 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       {
         // interaction
         h5::group igrp = grp.open_group("Interaction");
+
+        auto expected_shape = std::to_array<size_t>({nspin_in_file * npol_in_file, nkpts, nbnd, nbnd});
         nchol.resize(nqpts_ibz); 
-        {
-          auto l = h5::array_interface::get_dataset_info(igrp,"Vq0");
-          utils::check(l.rank() == 6, "Rank mismatch");
-          utils::check(l.lengths[1] == nspin_in_file*npol_in_file and
-                       l.lengths[2] == nkpts and
-                       l.lengths[3] == nbnd and
-                       l.lengths[4] == nbnd, "Size mismatch");
-          nchol(0) = l.lengths[0];
-        }
         for(int Q=0; Q<nqpts_ibz; ++Q) {
           auto l = h5::array_interface::get_dataset_info(igrp,"Vq"+std::to_string(Q));
           utils::check(l.rank() == 6, "Rank mismatch");
-          utils::check(l.lengths[1] == nspin_in_file*npol_in_file and
-                       l.lengths[2] == nkpts and
-                       l.lengths[3] == nbnd and
-                       l.lengths[4] == nbnd, "Size mismatch");
+          utils::check(std::ranges::equal(std::span(l.lengths).subspan(1,4), expected_shape),
+                       "Interaction/Vq{} size mismatch: {} != {} ", Q, std::span(l.lengths).subspan(1,4), expected_shape);
           if(Q <= minusq(Q))
             nchol(Q) = l.lengths[0];
           else
@@ -232,7 +227,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       }  
       utils::check(Q0_index>=0, "Error: Problems finding Q=0");
     } else {
-      utils::check(false,"Unknown file format:",format);
+      utils::check(false,"Unknown file format: {}",format);
     }
   } // root
 
@@ -317,7 +312,6 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       // normalization (1/sqrt(nkpts)) assummed to be included
 
     } else if(format == "coqui") {
-
       h5::group sgrp = grp.open_group("System");
       auto h_ = H1();
       utils::h5_read(sgrp,"H0",h_);
@@ -328,7 +322,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
           // too much memory???
           nda::array<ComplexType,5> L(nchol(Q),nspin_in_file*npol_in_file,nkpts,nbnd,nbnd);
           utils::h5_read(igrp,"Vq"+std::to_string(Q),L);
-          utils::check( L.shape() == std::array<long,5>{nchol(Q),nspin_in_file*npol_in_file,nkpts,nbnd,nbnd}, "Size mismatch from h5 dataset.");
+          utils::check(L.shape() == std::array<long,5>{nchol(Q),nspin_in_file*npol_in_file,nkpts,nbnd,nbnd}, "Size mismatch from h5 dataset.");
           auto L2d = nda::reshape(L,std::array<long,2>{nchol(Q),nspin_in_file*npol_in_file*nkpts*nbnd*nbnd});
           if constexpr (MEM==HOST_MEMORY) {
             auto LQ2d = nda::reshape(LQ(Q)(),std::array<long,2>{nspin_in_file*npol_in_file*nkpts*nbnd*nbnd,nchol(Q)});

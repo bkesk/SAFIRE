@@ -181,7 +181,7 @@ public:
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
       v = std::move(nda::to_host(vHS(vMF_2d, dt)));
-      utils::check(v.shape() == std::array<long,4>{nstot,1,npol*NMO,NMO}, "Size mismatch");
+      utils::check(v.shape() == std::array<long,4>{nstot,1,nptot*NMO,NMO}, "Size mismatch");
     }
 
     //
@@ -608,7 +608,7 @@ public:
               // only scale if Q!=Qm, otherwise full tensor is scaled below 
               if(Q!=Qm)
                 for(auto i: kdiag)
-                  math::scale(ComplexType(0.5),Tl3d(i,all,all));
+                  nda::tensor::scale(ComplexType(0.5),Tl3d(i,all,all));
               arch::set_device_synchronization(true);
               if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
               nda::tensor::contract(-scl,Tl5d(range(batch_cnt),nda::ellipsis{}),"lwabn",
@@ -746,7 +746,7 @@ public:
       for(int is=0; is<nstot; ++is) {
         for (int Q = 0; Q < nkpts; ++Q) {
           int nchol = Lank(Q).extent(4);
-          for (int ip = 0; ip < npol; ++ip) {
+          for (int ip = 0; ip < nptot; ++ip) {
             for (int ik = 0; ik < nkpts; ++ik) 
             { 
               // v[nw][i(in K)][k(in Q(K))] += sum_n LQK[i][k][n] X[Q][0][n][nw]
@@ -789,8 +789,8 @@ public:
         } // Q
       } // is
     } else {
-      memory::buffered_array<MEM,ComplexType,5> vKK(nwalk,npol,nkpts,nbnd,nbnd);
-      auto v2d = nda::reshape(vKK,std::array<long,2>{nwalk,npol*nkpts*nbnd*nbnd});
+      memory::buffered_array<MEM,ComplexType,5> vKK(nwalk,nptot,nkpts,nbnd,nbnd);
+      auto v2d = nda::reshape(vKK,std::array<long,2>{nwalk,nptot*nkpts*nbnd*nbnd});
       for(int is=0; is<nstot; ++is) {
         for (int Q = 0; Q < nkpts; ++Q)
         { 
@@ -800,7 +800,7 @@ public:
           {
             // ci^dagger cj term
             // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
-            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{npol*nkpts*nbnd*nbnd,nchol});
+            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{nptot*nkpts*nbnd*nbnd,nchol});
             nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
                   nda::transpose(Lq_),zero,v2d);
 
@@ -808,14 +808,14 @@ public:
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-              for(int ip=0; ip<npol; ++ip)
+              for(int ip=0; ip<nptot; ++ip)
                 math::accumulate(one,vKK(all,ip,ik,all,all),v7d(is,all,ip,ik,all,k2,all));
             }
             arch::set_device_synchronization(true);
           } else {
             // cj^dagger ci term
             // the kpoint index of LQ(Qm) refers to k2 
-            auto Lq_ = nda::reshape(LQ(minusq(Q))()(is,nda::ellipsis{}),std::array<long,2>{npol*nkpts*nbnd*nbnd,nchol});
+            auto Lq_ = nda::reshape(LQ(minusq(Q))()(is,nda::ellipsis{}),std::array<long,2>{nptot*nkpts*nbnd*nbnd,nchol});
             nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
                   nda::dagger(Lq_),zero,v2d);
 
@@ -823,7 +823,7 @@ public:
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-              for(int ip=0; ip<npol; ++ip) {
+              for(int ip=0; ip<nptot; ++ip) {
                 auto v_wji = nda::permuted_indices_view<nda::encode(std::array<int, 3>{0, 2, 1})>(v7d(is,all,ip,ik,all,k2,all));
                 math::accumulate(one,vKK(all,ip,k2,all,all),v_wji);
               }
@@ -834,7 +834,7 @@ public:
           if(Q == minusq(Q)) {
             // cj^dagger ci term for Q==minusq(Q)
             // the kpoint index refers to k2 
-            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{npol*nkpts*nbnd*nbnd,nchol});
+            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{nptot*nkpts*nbnd*nbnd,nchol});
             nda::blas::gemm(one,X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),
                   nda::dagger(Lq_),zero,v2d);
 
@@ -842,7 +842,7 @@ public:
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-              for(int ip=0; ip<npol; ++ip) {
+              for(int ip=0; ip<nptot; ++ip) {
                 auto v_wji = nda::permuted_indices_view<nda::encode(std::array<int, 3>{0, 2, 1})>(v7d(is,all,ip,k2,all,ik,all));
                 math::accumulate(one,vKK(all,ip,ik,all,all),v_wji);
               }
