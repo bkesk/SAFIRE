@@ -90,7 +90,7 @@ inline constexpr auto molecule_unit_tests_files(bool rhf, bool uhf, bool ghf, bo
       files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
                                           pre + "BH/afqmc_inputs/afqmc_casci_uhf_1phmsd.h5",
                                           afqmc::UNDEFINED_WALKER_TYPE) );
-      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_uhf_collinear.h5",
+      files.emplace_back( std::make_tuple(pre + "BH/afqmc_inputs/afqmc_H_rhf_collinear.h5",
                                           pre + "BH/afqmc_inputs/afqmc_casci_uhf_phmsd.h5",
                                           afqmc::UNDEFINED_WALKER_TYPE) );
       // may be redundant with above test: good for diversity of inputs
