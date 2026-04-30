@@ -391,9 +391,9 @@ public:
                 // only scale if Q!=Qm, otherwise full tensor is scaled below 
                 if(Q!=Qm) 
                   for(auto i: kdiag) 
-                    math::scale(ComplexType(0.5),Tl3d(i,all,all));
+                    nda::tensor::scale(0.5,Tl3d(i,all,all));
                 arch::set_device_synchronization(true);
-                if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
+                if(Q==Qm) nda::tensor::scale(0.5,Tl3d);
 
                 nda::tensor::contract(-scl,Tl5d(range(batch_cnt),nda::ellipsis{}),"lwabn",
                            Tr5d(range(batch_cnt),nda::ellipsis{}),"lwban",one,E(all,1),"w");
@@ -428,7 +428,7 @@ public:
             // only scale if Q!=Qm, otherwise full tensor is scaled below 
             if(Q!=Qm) 
               for(auto i: kdiag) 
-                math::scale(ComplexType(0.5),Tl3d(i,all,all));
+                nda::tensor::scale(0.5,Tl3d(i,all,all));
             arch::set_device_synchronization(true);
             if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
 
@@ -644,7 +644,7 @@ public:
           // only scale if Q!=Qm, otherwise full tensor is scaled below 
           if(Q!=Qm)
             for(auto i: kdiag)
-              math::scale(ComplexType(0.5),Tl3d(i,all,all));
+              nda::tensor::scale(ComplexType(0.5),Tl3d(i,all,all));
           arch::set_device_synchronization(true);
           if(Q==Qm) nda::tensor::scale(ComplexType(0.5),Tl3d);
 
