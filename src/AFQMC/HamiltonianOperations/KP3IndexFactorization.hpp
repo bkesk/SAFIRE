@@ -90,23 +90,23 @@ public:
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int NMO = nkpts*nbnd;  
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(2)/nbnd;
+    int nspin_in_H = hij.extent(0);
+    int npol_in_H = hij.extent(2)/nbnd;
     int ndet = haj.extent(0);
     
     // check sizes
-    utils::check( hij.shape()==std::array<long,4>{nstot,nkpts,nptot*nbnd,nptot*nbnd},
+    utils::check( hij.shape()==std::array<long,4>{nspin_in_H,nkpts,npol_in_H*nbnd,npol_in_H*nbnd},
       "KP3IndexFactorization: Size mismatch.");
     utils::check( haj.shape()==std::array<long,3>{ndet,nup+ndown,npol*NMO},
       "KP3IndexFactorization: Size mismatch.");
-    utils::check( vexx.shape()==std::array<long,4>{nstot*nptot,nkpts,nbnd,nbnd},
+    utils::check( vexx.shape()==std::array<long,4>{nspin_in_H*npol_in_H,nkpts,nbnd,nbnd},
       "KP3IndexFactorization: Size mismatch.");
     utils::check( LQ.extent(0)==nkpts, "KP3IndexFactorization: Size mismatch.");
     utils::check( Lank.extent(0)==nkpts, "KP3IndexFactorization: Size mismatch.");
     for(int iq=0; iq<nkpts; ++iq) {
       if(iq<=minusq(iq)) {
         int nc = LQ(iq).extent(5); 
-        utils::check( LQ(iq).shape()==std::array<long,6>{nstot,nptot,nkpts,nbnd,nbnd,nc},
+        utils::check( LQ(iq).shape()==std::array<long,6>{nspin_in_H,npol_in_H,nkpts,nbnd,nbnd,nc},
           "KP3IndexFactorization: Size mismatch.");
       } 
       {
@@ -169,26 +169,26 @@ public:
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int NMO = nkpts*nbnd;
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(2)/nbnd;
+    int nspin_in_H = hij.extent(0);
+    int npol_in_H = hij.extent(2)/nbnd;
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
     H1() = ComplexType(0.0);
 
-    // v[nstot][nwalk=1][nptot*NMO][NMO]
+    // v[nspin_in_H][nwalk=1][npol_in_H*NMO][NMO]
     nda::array<ComplexType, 4> v;
     {
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
       v = std::move(nda::to_host(vHS(vMF_2d, dt)));
-      utils::check(v.shape() == std::array<long,4>{nstot,1,nptot*NMO,NMO}, "Size mismatch");
+      utils::check(v.shape() == std::array<long,4>{nspin_in_H,1,npol_in_H*NMO,NMO}, "Size mismatch");
     }
 
     //
     for (int is = 0; is < nspin; is++) {
-      int is_ = is%nstot;
+      int is_ = is%nspin_in_H;
       for (int p1 = 0; p1 < npol; p1++) {
-        int p1_ = p1%nptot;
+        int p1_ = p1%npol_in_H;
         // vHS finite 'q' contributions (full NMO*NMO) 
         for (int I = 0; I < NMO; I++)
           for (int J = 0 ; J < NMO; J++)
@@ -196,13 +196,13 @@ public:
 
         // hij and vexx only have q=0 contributions  
         for (int p2 = 0; p2 < npol; p2++) {
-          int p2_ = p2%nptot;
+          int p2_ = p2%npol_in_H;
           for(int ik=0, i0=0; ik<nkpts; ik++, i0+=nbnd) {
             for (int i = 0; i < nbnd; i++) {
               for (int j = 0 ; j < nbnd; j++) {
                 if(p1==p2) {
                   H1(is,p1*NMO+i0+i,p2*NMO+i0+j) +=
-                     dt * (hij()(is_,ik,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,ik,i,j));
+                     dt * (hij()(is_,ik,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*npol_in_H+p1_,ik,i,j));
                 } else {
                   // only spin-orbit terms here coming from hij
                   H1(is,p1*NMO+i0+i,p2*NMO+i0+j) += dt * hij()(is_,ik,p1_*NMO+i,p2_*NMO+j);
@@ -709,13 +709,13 @@ public:
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nwalk = X.extent(0);
     int NMO   = nkpts*nbnd;
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(2)/nbnd;
+    int nspin_in_H = hij.extent(0);
+    int npol_in_H = hij.extent(2)/nbnd;
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM_X,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
-    auto v7d = nda::reshape(v,std::array<long,7>{nstot,nwalk,nptot,nkpts,nbnd,nkpts,nbnd});
+    memory::buffered_array<MEM_X,ComplexType,4> v(nspin_in_H,nwalk,npol_in_H*NMO,NMO);
+    auto v7d = nda::reshape(v,std::array<long,7>{nspin_in_H,nwalk,npol_in_H,nkpts,nbnd,nkpts,nbnd});
     v() = ComplexType(0.0);
 
     auto X3d = nda::reshape(X,std::array<long,3>{nwalk,2,ncvecs});
@@ -743,10 +743,10 @@ public:
     if constexpr (MEM==HOST_MEMORY) {
       memory::buffered_array<MEM,ComplexType,3> vKK(nwalk,nbnd,nbnd);
       auto v2d = nda::reshape(vKK,std::array<long,2>{nwalk,nbnd*nbnd});
-      for(int is=0; is<nstot; ++is) {
+      for(int is=0; is<nspin_in_H; ++is) {
         for (int Q = 0; Q < nkpts; ++Q) {
           int nchol = Lank(Q).extent(4);
-          for (int ip = 0; ip < nptot; ++ip) {
+          for (int ip = 0; ip < npol_in_H; ++ip) {
             for (int ik = 0; ik < nkpts; ++ik) 
             { 
               // v[nw][i(in K)][k(in Q(K))] += sum_n LQK[i][k][n] X[Q][0][n][nw]
@@ -758,7 +758,7 @@ public:
                 nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
                       nda::transpose(Lq_(ik,all,all)),zero,v2d);
 
-                // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+                // accumulate on v7d(nwalk,nspin_in_H,npol_in_H,nkpts,nbnd,nkpts,nbnd)
                 int k2 = qk_to_k2(Q,ik);
                 nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,ik,all,k2,all),"wij");
               } else {
@@ -769,7 +769,7 @@ public:
                 nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
                       nda::dagger(Lqm_(k2,all,all)),zero,v2d);
 
-                // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+                // accumulate on v7d(nwalk,nspin_in_H,npol_in_H,nkpts,nbnd,nkpts,nbnd)
                 nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,ik,all,k2,all),"wij");
               }
               // v[nw][k(in Q(K))][i(in K)] += sum_n conj(LQK[i][k][n]) X[Q][n-][nw]
@@ -780,7 +780,7 @@ public:
                 nda::blas::gemm(one,X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),
                       nda::dagger(Lq_(ik,all,all)),zero,v2d);
 
-                // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+                // accumulate on v7d(nwalk,nspin_in_H,npol_in_H,nkpts,nbnd,nkpts,nbnd)
                 int k2 = qk_to_k2(Q,ik);
                 nda::tensor::add(one,vKK,"wij",one,v7d(is,all,ip,k2,all,ik,all),"wji");
               }
@@ -789,9 +789,9 @@ public:
         } // Q
       } // is
     } else {
-      memory::buffered_array<MEM,ComplexType,5> vKK(nwalk,nptot,nkpts,nbnd,nbnd);
-      auto v2d = nda::reshape(vKK,std::array<long,2>{nwalk,nptot*nkpts*nbnd*nbnd});
-      for(int is=0; is<nstot; ++is) {
+      memory::buffered_array<MEM,ComplexType,5> vKK(nwalk,npol_in_H,nkpts,nbnd,nbnd);
+      auto v2d = nda::reshape(vKK,std::array<long,2>{nwalk,npol_in_H*nkpts*nbnd*nbnd});
+      for(int is=0; is<nspin_in_H; ++is) {
         for (int Q = 0; Q < nkpts; ++Q)
         { 
           int nchol = Lank(Q).extent(4);
@@ -800,30 +800,30 @@ public:
           {
             // ci^dagger cj term
             // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
-            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{nptot*nkpts*nbnd*nbnd,nchol});
+            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{npol_in_H*nkpts*nbnd*nbnd,nchol});
             nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
                   nda::transpose(Lq_),zero,v2d);
 
-            // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+            // accumulate on v7d(nwalk,nspin_in_H,npol_in_H,nkpts,nbnd,nkpts,nbnd)
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-              for(int ip=0; ip<nptot; ++ip)
+              for(int ip=0; ip<npol_in_H; ++ip)
                 math::accumulate(one,vKK(all,ip,ik,all,all),v7d(is,all,ip,ik,all,k2,all));
             }
             arch::set_device_synchronization(true);
           } else {
             // cj^dagger ci term
             // the kpoint index of LQ(Qm) refers to k2 
-            auto Lq_ = nda::reshape(LQ(minusq(Q))()(is,nda::ellipsis{}),std::array<long,2>{nptot*nkpts*nbnd*nbnd,nchol});
+            auto Lq_ = nda::reshape(LQ(minusq(Q))()(is,nda::ellipsis{}),std::array<long,2>{npol_in_H*nkpts*nbnd*nbnd,nchol});
             nda::blas::gemm(one,X3d(all,0,range(ncv0(Q),ncv0(Q)+nchol)),
                   nda::dagger(Lq_),zero,v2d);
 
-            // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+            // accumulate on v7d(nwalk,nspin_in_H,npol_in_H,nkpts,nbnd,nkpts,nbnd)
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-              for(int ip=0; ip<nptot; ++ip) {
+              for(int ip=0; ip<npol_in_H; ++ip) {
                 auto v_wji = nda::permuted_indices_view<nda::encode(std::array<int, 3>{0, 2, 1})>(v7d(is,all,ip,ik,all,k2,all));
                 math::accumulate(one,vKK(all,ip,k2,all,all),v_wji);
               }
@@ -834,15 +834,15 @@ public:
           if(Q == minusq(Q)) {
             // cj^dagger ci term for Q==minusq(Q)
             // the kpoint index refers to k2 
-            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{nptot*nkpts*nbnd*nbnd,nchol});
+            auto Lq_ = nda::reshape(LQ(Q)()(is,nda::ellipsis{}),std::array<long,2>{npol_in_H*nkpts*nbnd*nbnd,nchol});
             nda::blas::gemm(one,X3d(all,1,range(ncv0(Q),ncv0(Q)+nchol)),
                   nda::dagger(Lq_),zero,v2d);
 
-            // accumulate on v7d(nwalk,nstot,nptot,nkpts,nbnd,nkpts,nbnd)
+            // accumulate on v7d(nwalk,nspin_in_H,npol_in_H,nkpts,nbnd,nkpts,nbnd)
             arch::set_device_synchronization(false);
             for(int ik=0; ik<nkpts; ++ik) {
               int k2 = qk_to_k2(Q,ik);
-              for(int ip=0; ip<nptot; ++ip) {
+              for(int ip=0; ip<npol_in_H; ++ip) {
                 auto v_wji = nda::permuted_indices_view<nda::encode(std::array<int, 3>{0, 2, 1})>(v7d(is,all,ip,k2,all,ik,all));
                 math::accumulate(one,vKK(all,ip,ik,all,all),v_wji);
               }
