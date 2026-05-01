@@ -322,10 +322,12 @@ public:
   */
   ComplexType getReferenceWeight(int i) const { 
     utils::check(false, "back propagation not implemented for finite-T");
+    return 0;
   }
 
   int total_number_of_references() const { 
     utils::check(false, "back propagation not implemented for finite-T");
+    return 0;
   }
 
   void getReferences(int number_of_references, nda::MemoryArrayOfRank<3> auto&& Refs) const

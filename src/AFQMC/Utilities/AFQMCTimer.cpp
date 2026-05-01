@@ -11,8 +11,7 @@
  *
  */
 
-//
-//
+#include "AFQMCTimer.h"
 
 #include "utilities/Timer.hpp"
 

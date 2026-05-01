@@ -70,7 +70,6 @@ void APP_ABORT(Args&&... args)
   // Abort
 
   throw AppAbortException("APP_ABORT triggered (see error log for details)");
-  MPI_Abort(MPI_COMM_WORLD, 1);
 }
 
 template<class... Args>
