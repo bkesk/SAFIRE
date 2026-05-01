@@ -166,19 +166,8 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     {
       // hcore
       auto l = h5::array_interface::get_dataset_info(g,"hcore");
-      if(l.rank() == 2) {
-        auto h_ = nda::reshape(H1(),std::array<long,2>{nspin_in_H1*npol_in_H1*NMO,npol_in_H1*NMO});
-        nda::h5_read(g,"hcore",h_);
-      } else if(l.rank() == 3) {
-        if (l.lengths[2] == 2) // complex hcore
-        {
-          auto h_ = nda::reshape(H1(),std::array<long,2>{nspin_in_H1*npol_in_H1*NMO,npol_in_H1*NMO});
-          nda::h5_read(g,"hcore",h_);
-        } else {
-          auto h_ = H1();
-          nda::h5_read(g,"hcore",h_);
-        }
-      }
+      auto h_ = nda::reshape(H1(),nspin_in_H1*npol_in_H1*NMO,npol_in_H1*NMO);
+      sfqmc::utils::h5_read(g,"hcore",h_);
     }
     {
       // cholesky tensor

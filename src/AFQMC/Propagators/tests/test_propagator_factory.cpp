@@ -187,7 +187,7 @@ TEST_CASE("propg_fac", "[propagator_factory]")
 #endif
   } else {
     app_log(0,"Propagator factory unit testing. Running standard tests.");
-    auto files = utils::get_unit_tests_files(true,true,true,true,false);
+    auto files = utils::get_unit_tests_files(true,true,true,true,true);
     for( auto f : files ) {
       try {
         propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
