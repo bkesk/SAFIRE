@@ -30,8 +30,6 @@
 
 #include "nda/h5.hpp"
 #include "nda/tensor.hpp"
-#include <hdf5.h>
-#include <hdf5_hl.h>
 
 #include "KPFactorizedHamiltonian.h"
 #include "AFQMC/Utilities/wfn_utils.hpp"
@@ -82,6 +80,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   int npol_in_file = npol;
   // BZ variables
   int nkpts = 1;
+  int nqpts = 1;
   int nkpts_ibz = 1;
   int nqpts_ibz = 1;
   int nbnd = 1;
@@ -108,26 +107,22 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       // open subgroup
       h5::group hgrp = grp.open_group("System");
       {
-        int n;
         h5::group bz = hgrp.open_group("BZ");
         // read nkpts
-        h5::h5_read_attribute(bz,"number_of_kpoints",n);
-        nkpts = long(n);
-        h5::h5_read_attribute(bz,"number_of_kpoints_ibz",n);
-        nkpts_ibz = long(n);
-        h5::h5_read_attribute(bz,"number_of_qpoints",n);
-        utils::check(n==nkpts, base_error + "nqpts != nkpts, nqpts:{}, nkpts:{}",n,nkpts);
-        h5::h5_read_attribute(bz,"number_of_qpoints_ibz",n);
-        nqpts_ibz = long(n);
+        h5::h5_read_attribute(bz,"number_of_kpoints",nkpts);
+        h5::h5_read_attribute(bz,"number_of_kpoints_ibz",nkpts_ibz);
+        h5::h5_read_attribute(bz,"number_of_qpoints",nqpts);
+        utils::check(nqpts == nkpts, base_error + "nqpts != nkpts, nqpts:{}, nkpts:{}",nqpts,nkpts);
+        h5::h5_read_attribute(bz,"number_of_qpoints_ibz",nqpts_ibz);
         // nbnd
-        h5::h5_read_attribute(hgrp,"number_of_bands",n);  // per kpoint
+        int nbnd_in_file{};
+        h5::h5_read_attribute(hgrp,"number_of_bands",nbnd_in_file);  // per kpoint
         // check nbnd 
-        utils::check(NMO%nkpts==0, base_error + "NMO%nkpts != 0, NMO:{}, nkpts:{}",NMO,nkpts);
-        utils::check((NMO/nkpts)==n, base_error + "nbnd:{} differs from file n:{}",nbnd,n);
         nbnd = long(NMO/nkpts);
+        utils::check(NMO%nkpts==0, base_error + "NMO%nkpts != 0, NMO: {}, nkpts: {}",NMO,nkpts);
+        utils::check((NMO/nkpts)==nbnd_in_file, base_error + "nbnd: {} differs from file: {}",nbnd,nbnd_in_file);
         // read nspin_in_file
-        h5::h5_read_attribute(hgrp,"number_of_spins",n);
-        nspin_in_file = long(n);
+        h5::h5_read_attribute(hgrp,"number_of_spins",nspin_in_file);
         // read npol_in_file
 //        h5::h5_read_attribute(bz,"number_of_polarizations",n);
 //        npol_in_file=long(n);
@@ -165,8 +160,8 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         h5::group igrp = grp.open_group("Interaction");
 
         auto expected_shape = std::to_array<size_t>({nspin_in_file * npol_in_file, nkpts, nbnd, nbnd});
-        nchol.resize(nqpts_ibz); 
-        for(int Q=0; Q<nqpts_ibz; ++Q) {
+        nchol.resize(nkpts); 
+        for(int Q=0; Q<nkpts; ++Q) {
           auto l = h5::array_interface::get_dataset_info(igrp,"Vq"+std::to_string(Q));
           utils::check(l.rank() == 6, "Rank mismatch");
           utils::check(std::ranges::equal(std::span(l.lengths).subspan(1,4), expected_shape),
@@ -203,7 +198,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       nda::h5_read(hgrp,"MinusK",minusq);
       qk_to_k2.resize(nkpts,nkpts);
       nda::h5_read(hgrp,"QKTok2",qk_to_k2);
-      nchol.resize(nqpts_ibz);
+      nchol.resize(nkpts);
       nda::h5_read(hgrp,"NCholPerKP",nchol);
       utils::check(NMO == nbnd*nkpts, " Error: NMO:{}, nkpts:{}, nbnd:{}",NMO,nkpts,nbnd); 
       Q0_index=-1;
@@ -241,17 +236,15 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   if(not mpi->comm.root()) {
     minusq.resize(nkpts);
     qk_to_k2.resize(nkpts,nkpts);
-    nchol.resize(nqpts_ibz);
+    nchol.resize(nkpts);
   }
   mpi->broadcast(nchol);
   mpi->broadcast(minusq);
   mpi->broadcast(qk_to_k2);
 
-  utils::check(nqpts_ibz==nkpts, "Error: Symmetry not yet implemented.");
-
   int nchol_av = nda::sum(nchol)/double(nchol.extent(0));
-  app_log(1," # k-points: {}", nkpts);
-  app_log(1," # Q-points (IBZ): {}", nqpts_ibz);
+  app_log(1," # k-points (IBZ): {} ({})", nkpts, nkpts_ibz);
+  app_log(1," # Q-points (IBZ): {} ({})", nqpts, nqpts_ibz);
   app_log(1," Average # of cholesky vectors {}", nchol_av);
 
   // If q==minusq(q), qmap(q) has the position of q in Lbnk.
@@ -297,7 +290,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       for (int K = 0; K < nkpts; K++)
       {
         auto h_ = H1()(0,K,all,all);
-        utils::h5_read(hgrp,std::string("H1_kp") + std::to_string(K), h_);
+        utils::h5_read(hgrp, "H1_kp" + std::to_string(K), h_);
       }
 
       // now read KPFactorized/L
@@ -306,15 +299,34 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         if(Q <= minusq(Q)) {
           auto L2d = nda::reshape(LQ(Q)()(0,0,nda::ellipsis{}),
                                   std::array<long,2>{nkpts,nbnd*nbnd*nchol(Q)});
-          utils::h5_read(lgrp,std::string("L") + std::to_string(Q),L2d);
+          utils::h5_read(lgrp, "L" + std::to_string(Q), L2d);
         }
       }
       // normalization (1/sqrt(nkpts)) assummed to be included
 
     } else if(format == "coqui") {
       h5::group sgrp = grp.open_group("System");
-      auto h_ = H1();
-      utils::h5_read(sgrp,"H0",h_);
+
+      if(nkpts_ibz == nkpts) {
+        utils::h5_read(sgrp,"H0",H1());
+      } else {
+        nda::array<ComplexType,4> H1_ibz(nspin_in_file, nkpts_ibz, npol_in_file*nbnd, npol_in_file*nbnd);
+        utils::h5_read(sgrp,"H0",H1_ibz());
+
+        nda::vector<int> kp_to_ibz(nkpts);
+        utils::h5_read(sgrp, "BZ/kp_to_ibz", kp_to_ibz());
+        nda::vector<bool> kp_trev(nkpts);
+        utils::h5_read(sgrp, "BZ/kp_trev", kp_trev());
+
+        for(int k = 0; k < nkpts; k++) {
+          bool inversion_symmetry = kp_trev(k);
+          if(inversion_symmetry) {
+            H1()(all, k, all, all) = nda::conj(H1_ibz(all, kp_to_ibz[k], all, all));
+          } else {
+            H1()(all, k, all, all) = H1_ibz(all, kp_to_ibz[k], all, all);
+          }
+        }
+      }
 
       h5::group igrp = grp.open_group("Interaction");
       for(int Q=0; Q<nkpts; ++Q) {
