@@ -20,6 +20,7 @@
 #if defined(ENABLE_SPDLOG)
 
 #include <spdlog/fmt/bundled/format.h>
+#include <spdlog/fmt/bundled/ranges.h>
 
 template <> struct fmt::formatter<std::complex<double>> {
   constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
@@ -59,68 +60,6 @@ template <> struct fmt::formatter<std::complex<float>> {
   }
 };
 
-template<typename T> struct fmt::formatter<std::vector<T>>
-{
-
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
-    auto it = ctx.begin(), end = ctx.end();
-    if (it == end || *it == '}') return it;
-    if (*it == 'f') ++it;
-    if (it != end && *it != '}')
-      throw format_error("invalid format");
-    return it;
-  }
-
-  template <typename FormatContext>
-  auto format(std::vector<T> const& p, FormatContext& ctx) const -> decltype(ctx.out()) {
-    *ctx.out()++ = '[';
-    bool first = true;
-    for(auto const& v : p) {
-      if (!first) {
-        *ctx.out()++ = ',';
-      }
-      format_to(ctx.out(), "{}", v);
-      first = false;
-    }
-    *ctx.out()++ = ']';
-    return ctx.out();
-  }
-
-};
-
-/*
-template <nda::Array Arr>
-struct fmt::formatter<Arr>
-{
-
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
-    auto it = ctx.begin(), end = ctx.end();
-    if (it == end || *it == '}') return it;
-    if (*it == 'f') ++it;
-    if (it != end && *it != '}')
-      throw format_error("invalid format");
-    return it;
-  }
-
-  template <typename FormatContext>
-  auto format(Arr const& p, FormatContext& ctx) const -> decltype(ctx.out()) {
-    *ctx.out()++ = '[';
-    bool first = true;
-    for(auto const& v : p) {
-      if (!first) {
-        *ctx.out()++ = ',';
-      }
-      format_to(ctx.out(), "{}", v);
-      first = false;
-    }
-    *ctx.out()++ = ']';
-    return ctx.out();
-  }
-
-};
-*/
 
 #else
 
