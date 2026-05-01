@@ -100,22 +100,18 @@ auto h5_read_with_cast(h5::group& g, std::string name, nda::MemoryArray auto && 
   }
 }
 
-/// @brief Read an HDF5 dataset into an nda MemoryArray, handling all common
-///        storage conventions for complex data.
+/// @brief Read an HDF5 dataset into an nda MemoryArray.
 ///
-/// Three storage conventions are supported when @p A holds complex values:
-///   1. **TRIQS complex attribute** (`has_complex_attribute == true`): the
-///      dataset is a plain numeric array and a companion HDF5 attribute marks
-///      it as complex storage.  Delegated directly to `nda::h5_read`.
-///   2. **Interleaved real/imag dimension** (`rank(dataset) == rank(A) + 1`):
-///      the dataset has an extra trailing dimension of size 2 that stores
-///      `[real, imag]` pairs.  A real-valued view of @p A is constructed with
-///      `memory::to_real_view` and passed to `nda::h5_read`.
-///   3. **Plain real dataset** (`rank(dataset) == rank(A)`): the dataset
-///      contains only real values which are promoted to complex by setting the
-///      imaginary parts to zero.
+/// Most storage conventions (TRIQS complex attribute, plain real promotion to
+/// complex, type matching) are handled natively by `nda::h5_read` and
+/// delegated to it directly.
 ///
-/// For non-complex @p A the call is forwarded unchanged to `nda::h5_read`.
+/// The one special case handled here is backwards compatibility with an older
+/// **interleaved real/imag dimension** format: if @p A holds complex values and
+/// `rank(dataset) == rank(A) + 1` (a trailing dimension of size 2 stores
+/// `[real, imag]` pairs), a real-valued view of @p A is constructed with
+/// `memory::to_real_view` and passed to `nda::h5_read`.
+///
 /// Device arrays are staged through a host copy.
 ///
 /// @param g    HDF5 group containing the dataset.
@@ -129,17 +125,13 @@ auto h5_read(h5::group& g, std::string name, nda::MemoryArray auto && A)
     if constexpr (nda::is_complex_v<T>) {
       using T_real = nda::remove_complex_t<T>; 
       auto l = h5::array_interface::get_dataset_info(g,name);
-      if (l.has_complex_attribute) {
-        nda::h5_read(g,name,A);
-      } else if (nda::get_rank<A_t>+1 == l.rank()) {
+      // backwards-compatibility with older format
+      if (!l.has_complex_attribute && nda::get_rank<A_t>+1 == l.rank())
+      {
         auto Ar = memory::to_real_view(A);
         nda::h5_read(g,name,Ar);
       } else {
-        // Real-valued dataset read into complex array (imaginary parts = 0).
-        utils::check(nda::get_rank<A_t> == (size_t)l.rank(), "Rank mismatch");
-        nda::array<T_real, nda::get_rank<A_t>> Ar(A.shape());
-        nda::h5_read(g,name,Ar);
-        A() = Ar();
+        nda::h5_read(g,name,A);
       }
     } else { 
       nda::h5_read(g,name,A);
