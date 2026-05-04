@@ -329,6 +329,9 @@ void test_basic_walker_features(std::string wtype)
     }
 
     // No BP for finite temperature
+    wset.clean();
+    wset.reset(nwalkers);
+
   }
   wset.clean();
   REQUIRE(wset.size() == 0);
@@ -441,6 +444,8 @@ TEST_CASE("swset_test_basic", "[shared_wset]")
   test_basic_walker_features<DEVICE_MEMORY>("collinear");
   test_basic_walker_features<DEVICE_MEMORY>("noncollinear");
   test_basic_walker_features<DEVICE_MEMORY>("fullypolarized");
+  test_basic_walker_features<HOST_MEMORY>("collinear-ft");
+  test_basic_walker_features<HOST_MEMORY>("noncollinear-ft");
 #endif
 }
 TEST_CASE("walker_io", "[shared_wset]")

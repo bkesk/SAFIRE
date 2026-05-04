@@ -258,6 +258,10 @@ public:
   void resize(int n, nda::MemoryArrayOfRank<4> auto const& UDV);
 
   /*
+   * Finite temperature reset walkers at the beginning of each sweep
+  */
+  void reset(int n);
+  /*
    * Resizes back propagation buffers.
    * Must be called before any call to bp-related routines.
    */     
