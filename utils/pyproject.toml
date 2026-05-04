@@ -27,7 +27,6 @@ dependencies = [
     "pytest",
     "toml",
     "tables",
-    "dataclasses"
 ]
 
 # domain-specific dependencies are considered optional!
