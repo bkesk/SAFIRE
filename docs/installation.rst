@@ -13,8 +13,8 @@ Dependencies
 You must first ensure that you have all of the dependencies
 and install any that are missing.
 
-Minimum
-~~~~~~~
+CPU Build
+~~~~~~~~~
 
 - CMake 3.18+
 - a modern C++ compiler with C++20 support. LLVM or GCC are recommended.
@@ -23,26 +23,30 @@ Minimum
 - Boost 1.61.0+
 - BLAS library
 - LAPACK library
-- ZLIB (optional, for HDF5 compression support)
+- Intel oneAPI MKL (for sparse matrices on CPU)
 
-Recommended
-~~~~~~~~~~~
+The build system will fetch the following dependencies automatically if they are not installed
 
-- Intel oneAPI MKL (for optimized BLAS/LAPACK)
+- [nda](https://github.com/TRIQS/nda) (tensor branch)
+- cxxopts
+- spdlog
+- cpptrace
+- Catch2 (for tests)
 
-For NVIDIA GPU Builds
-~~~~~~~~~~~~~~~~~~~~~
+NVIDIA GPU-build
+~~~~~~~~~~~~~~~~
+
+All of the above and
 
 - CUDA 12+
-- NCCL (optional, for multi-GPU communication)
-
+- CuTENSOR
+- CCCL (fetched automatically)
+- A GPU with compute compatability >=8
 
 Compiling SAFIRE
 ----------------
 
-Assuming that all dependencies are installed and available, i.e. 
-using `module load` for example, 
-use the following steps to compile SAFIRE.
+Assuming that all dependencies are installed and available, use the following steps to compile SAFIRE.
 
 .. code-block:: bash
 
@@ -86,7 +90,8 @@ If you are rusty or sitting at an SCC-managed workstation, a suitable build scri
     module load boost
     module load intel-oneapi-mkl
 
-
+    mkdir build
+    cd build
     cmake .. \
             -DCMAKE_BUILD_TYPE=Release
 
@@ -102,29 +107,21 @@ If you are on rusty or using a rusty connected desktop a suitable build script i
 .. code-block:: bash
 
     module purge
-    # CUDA 11 is gone from modules/2.3+
-    module swap modules modules/2.2-20230808
-
-    # CPU
     module load slurm
     module load cmake
-    module load gcc/11
+    module load gcc
     module load openmpi
     module load hdf5
     module load boost
     module load intel-oneapi-mkl
+    module load cuda
 
-    # GPU
-    module load cuda/11
-    module load nccl
-
-    # build
-    module load python-mpi/3.11
-    module load cmake
+    mkdir build
+    cd build
 
     cmake .. \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DENABLE_CUDA=ON 
+        -DCMAKE_BUILD_TYPE=Release \
+        -DENABLE_CUDA=ON
 
     make -j 10
 
