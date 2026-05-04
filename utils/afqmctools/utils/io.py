@@ -200,33 +200,23 @@ def read_nmo(fname):
 
 def _format_dtype(array):
     if array.dtype == 'complex128':
-        shape = array.shape
-        afqmc_array = array.view(np.float64).reshape(shape+(2,))
-        if hasattr(afqmc_array, "asarray"):  
-            afqmc_array = afqmc_array.asarray()
-        return afqmc_array
+        return to_complex(array)
     else:
       return array
 
-
-def write_csr(f,csr_array:sps.csr_array,prefix,use_complex=False):
+def write_csr(f,csr_array:sps.csr_array,prefix):
     """
     Write CSR matrix to HDF5.
 
     Parameters
     ----------
-    f : h5py.File
-        File object to write to.
+    f : h5py.File or h5py.Group
+        HDF5 object to write to.
     csr_array : sps.csr_array
         CSR matrix to write.
     prefix : str
         Prefix to write to.
-    use_complex : bool
-        Use complex-values in HDF5
     """
-    # forces a complex-valued array
-    if use_complex:
-        csr_array = csr_array.astype(np.complex128)
 
     dims = [
         csr_array.shape[0],
@@ -333,7 +323,7 @@ def write_model_hamiltonian(
     with h5.File(fname,'w') as f:
 
         f.create_dataset(
-            'Hamiltonian/dims', 
+            'Hamiltonian/dims',
             data = np.array([0, 0, 0, hamiltonian.nsites*hamiltonian.nbands , nup, ndn, 0, 0])
         )
         # write Energies!
@@ -374,12 +364,15 @@ def write_model_hamiltonian(
                             name=component_prefix+metakey,
                             data=value
                         )
+                if real_valued:
+                    csr_array = component.csr_array
+                else:
+                    csr_array = component.csr_array.astype(np.complex128)
 
                 write_csr(
                     f=f,
-                    csr_array=component.csr_array,
+                    csr_array=csr_array,
                     prefix=component_prefix + key,
-                    use_complex=not real_valued
                     )
                 component_num+=1
 
@@ -393,8 +386,9 @@ def write_pair_correlators(fname:str=None, pairs_dict=None):
     """
     Write pair correlators to an HDF5 file.
 
-    .. warning:: This is an experimental feature and is not officially supported. Use at your own risk.
-    
+    .. warning:: This is an experimental feature and is not officially supported.
+                 Use at your own risk.
+
     Parameters
     ----------
     fname : str
@@ -402,9 +396,8 @@ def write_pair_correlators(fname:str=None, pairs_dict=None):
     pairs_dict : dict
         Dictionary of pair correlators to write.
     """
-
     warnings.warn("Pair correlators are an experimental feature")
-    
+
     max_num_pairs = max( [ len(pair_list) for pair_list in pairs_dict.values() ] ) # this is for c++ memory allocation
     num_correlators = len(pairs_dict.keys())
 
