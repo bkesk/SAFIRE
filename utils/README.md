@@ -38,9 +38,6 @@ See the examples in SAFIRE/examples/afqmc for more details on using these script
 ### Deprecated CLI Tools
 
 - `aimbes_to_afqmc` : (deprecated) : use `aimbes_to_2nd_quant` instead : Convert AIMBES Hamiltonians saved in an HDF5 checkpoint file to an SAFIRE file.
-- `kp_to_sparse` : (deprecated) : sparse format is not officially supported : Converts SAFIRE K-point factorize Hamiltonain to SAFIRE 
-      generic-sparse Hamiltonian format.
-- `sparse_to_dense` : (deprecated) sparse format is not officially supported
 
 
 ## Installation
