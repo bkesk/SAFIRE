@@ -232,7 +232,7 @@ public:
    * Calculates the bias potential.
    */
   template<class WlkSet>
-  void vbias(WlkSet& wset, nda::MemoryMatrix auto && v, double dt)
+  void vbias(WlkSet& wset, nda::MemoryMatrix auto && v, double dt, int nt = 0)
   { 
     memory::check_memory_space<MEM>(v);
     AFQMCTimer.start(G_for_vbias_timer);
@@ -271,7 +271,7 @@ public:
    * them in the wset data
    */
   template<class WlkSet>
-  void Energy(WlkSet& wset)
+  void Energy(WlkSet& wset, int nt = 0)
   {
     auto all = nda::range::all;
     int nw = wset.size();
@@ -290,7 +290,7 @@ public:
    * returns them in the appropriate data structures
    */
   template<class WlkSet,  nda::MemoryMatrix TMat, nda::MemoryVector TVec>
-  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov)
+  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt = 0)
   {
     if(energy_algorithm==0)
       energy_alg0(wset,E,Ov);
@@ -332,7 +332,7 @@ public:
    * Calculates the overlaps of all walkers in the set. Returns values in arrays. 
    */
   template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-  void Log_Overlap(const WlkSet& wset, TVec && Ov);
+  void Log_Overlap(const WlkSet& wset, TVec && Ov, int nt = 0);
 
   /*
    * Calculates the overlaps of all walkers in the set. Updates values in wset. 

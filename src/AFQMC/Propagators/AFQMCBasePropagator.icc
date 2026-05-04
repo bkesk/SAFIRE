@@ -44,13 +44,13 @@ namespace afqmc
  */
 template<MEMORY_SPACE MEM>
 template<class WlkSet>
-void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType dt)
+void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType dt, int nt)
 {
   AFQMCTimer.start(setup_timer);
   auto walker_type = wset.getWalkerType();
   int nwalk        = wset.size();
-  int npol  = ( walker_type == NONCOLLINEAR ? 2 : 1 );
-  int nspin = ( walker_type == COLLINEAR    ? 2 : 1 );
+  int npol  = ( walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT ? 2 : 1 );
+  int nspin = ( walker_type == COLLINEAR or walker_type == COLLINEAR_FT ? 2 : 1 );
   SPRealType sqrtdt  = std::sqrt(SPRealType(dt));
   int nCV     = wfn->number_of_cholesky_vectors();
 
@@ -73,13 +73,18 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   }
   else
   {
-    wfn->vbias(wset, X, dt);
+    if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT)
+      wfn->vbias(wset, X, dt);
+    else
+      wfn->vbias(wset, X, nt-1);
   }
 
   // 2. Assemble X(nwalk, nCV)
   AFQMCTimer.start(assemble_X_timer);
   assemble_X(sqrtdt, X, MFfactor, hybrid_weight);
   AFQMCTimer.stop(assemble_X_timer);
+
+  //std::cout<<" X: " <<nda::sum(nda::to_host(X)) <<std::endl;
 
   // Store sqrtdt*X in wset if back propagating
   int bp_step = wset.getBPPos(), bp_max = wset.NumBackProp();
@@ -118,11 +123,17 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   AFQMCTimer.start(pseudo_energy_timer);
   if (hybrid)
   {
-    wfn->Log_Overlap(wset, new_overlaps);
+    if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT)
+      wfn->Log_Overlap(wset, new_overlaps);
+    else
+      wfn->Log_Overlap(wset, new_overlaps, nt);
   }
   else
   {
-    wfn->Energy(wset, new_energies, new_overlaps);
+    if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT)
+      wfn->Energy(wset, new_energies, new_overlaps);
+    else
+      wfn->Energy(wset, new_energies, new_overlaps, nt);
   }
   AFQMCTimer.stop(pseudo_energy_timer);
 
@@ -557,7 +568,7 @@ void AFQMCBasePropagator<MEM>::Orthogonalize_excited_impl(WlkSet& wset)
 template<MEMORY_SPACE MEM>
 void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt, 
      nda::MemoryArrayOfRank<2> auto&& X, nda::MemoryArrayOfRank<1> auto&& MF, 
-     nda::MemoryArrayOfRank<1> auto&& HWs, bool addRAND)
+     nda::MemoryArrayOfRank<1> auto&& HWs, int nt, bool addRAND)
 {
   using nda::range;
   auto all = range::all;
@@ -634,7 +645,7 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
           } else {
             Xm(iw) = ComplexType(1.0);
             HWs(iw) += std::log(1.0/(1.0-P));
-          }
+          }     
           // W_MSsub = exp(-MF), careful with sign convention
           MF(iw) += im * ComplexType(Xm(iw)) * vmf_0;
         } else {

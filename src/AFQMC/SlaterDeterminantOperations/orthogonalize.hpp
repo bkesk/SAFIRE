@@ -479,7 +479,7 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
     if(importance_sampling) {
       orthogonalize_wQR(wset.UMatrices(Alpha), wset.DMatrices(Alpha), wset.VMatrices(Alpha), scl_up);
       wset.setProperty(LOGSCL_UP, scl_up);
-      if(walker_type == COLLINEAR){
+      if(walker_type == COLLINEAR_FT){
         memory::buffered_array<MEM,ComplexType,1> scl_dn(nwalk);
         wset.getProperty(LOGSCL_DN, scl_dn);
         orthogonalize_wQR(wset.UMatrices(Beta), wset.DMatrices(Beta), wset.VMatrices(Beta), scl_dn);
@@ -489,7 +489,7 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
       double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
       orthogonalize_wQR(wset.UMatrices(Alpha), wset.DMatrices(Alpha), wset.VMatrices(Alpha), scl_up);
       wset.setProperty(LOGSCL_UP, scl_up);
-      if(walker_type == COLLINEAR){
+      if(walker_type == COLLINEAR_FT){
         memory::buffered_array<MEM,ComplexType,1> scl_dn(nwalk);
         wset.getProperty(LOGSCL_DN, scl_dn);
         orthogonalize_wQR(wset.UMatrices(Beta), wset.DMatrices(Beta), wset.VMatrices(Beta), scl_dn);

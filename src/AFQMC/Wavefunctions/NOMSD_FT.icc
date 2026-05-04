@@ -257,6 +257,8 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
   memory::check_memory_space<MEM>(Ov);
   const int ndet = ci.size();
   const int nw   = wset.size();
+  const int nspin = walker_type == COLLINEAR_FT ? 2 : 1;
+  const int npol = walker_type == NONCOLLINEAR_FT ? 2 : 1;
   utils::check(Ov.size() == nw, "Size mismatch");
   // Log_Overlap accumulates!!!
   Ov() = ComplexType(0.0);
@@ -305,8 +307,8 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
       det_ops::Log_Overlap(ULup,DLup(nt,nda::range::all),VLup,
                         wset.UMatrices(Alpha),wset.DMatrices(Alpha),wset.VMatrices(Alpha),
                         sclL_up, sclR_up, Ov);
-    //if(walker_type == CLOSED) {
-    //  nda::tensor::scale(ComplexType(2.0),Ov);
+      if(walker_type == CLOSED) utils::check(false, "Closed walkers not implemented for finite-T");
+      //  nda::tensor::scale(ComplexType(2.0),Ov);
       if (walker_type == COLLINEAR_FT)  {
         memory::buffered_array<MEM,ComplexType,1> sclR_dn(nw);
         wset.getProperty(LOGSCL_DN, sclR_dn(nda::range::all));

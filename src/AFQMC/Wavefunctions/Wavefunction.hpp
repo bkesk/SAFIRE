@@ -42,7 +42,7 @@ public:
 
   explicit Wavefunction(PHMSD<MEM>&& other) : var(std::move(other)) {}
   explicit Wavefunction(PHMSD<MEM> const& other) : var(other) {} 
-
+  
   // Add finite-T NOMSD wavefunctions
   explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>> const& other) = delete;

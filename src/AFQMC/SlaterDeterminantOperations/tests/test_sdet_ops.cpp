@@ -108,7 +108,6 @@ void SDetOps()
   auto A_ = A(range(0,2),range(0,3));
   auto B_ = B(all,range(0,3),range(0,2));
 
-
   /**** Overlaps ****/
   //SECTION("Overlaps")
   {

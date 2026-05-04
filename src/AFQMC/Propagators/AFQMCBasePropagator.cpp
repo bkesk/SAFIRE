@@ -65,8 +65,8 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
   // discrete propagators setup their own vMF
   memory::buffered_array<MEM,ComplexType,1> vMF_discrete(vMF.extent(0)); 
   if(discrete_propg) {
-    int npol         = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nspin        = (walker_type == COLLINEAR) ? 2 : 1;
+    int npol         = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
+    int nspin        = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     nda::array<ComplexType,1> nMF(2*NMO, ComplexType(0.0));
     // setup sparse vector to generate <nI>
     auto Gmf_shm = wfn->G_MF();
@@ -136,9 +136,9 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
 
   // assemble H1(i,j) = dt * (h(i,j) + vn0(i,j) + sum_n vMF[n]*vn(i,j,n))
   // H1 should have the same spin structure as walker_type
-  // everyone computes until I write a csr_matrix in shared memory
-  int nspin = (walker_type == COLLINEAR ? 2 : 1);
-  int npol  = (walker_type == NONCOLLINEAR ? 2 : 1);
+  // everypne computes until I write a csr_matrix in shared memory
+  int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT ? 2 : 1);
+  int npol  = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT ? 2 : 1);
 
   // resize if needed
   if(P1d.shape() != std::array<long,3>{nspin,npol*NMO,npol*NMO}) {
@@ -155,6 +155,7 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
   if(head_shared) {
     auto vMF_h = nda::to_host(vMF());
     auto H1 = wfn->getOneBodyPropagatorMatrix(dt, vMF_h);
+
     utils::check(H1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO}, "Shape mismatch.");
     if(external_H1) nda::tensor::add(ComplexType(1.0),H1ext(),"sij",ComplexType(1.0),H1(),"sij");
 
