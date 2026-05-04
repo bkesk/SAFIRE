@@ -140,21 +140,6 @@ from afqmctools.hamiltonian.mol import write_hamil_mol
 ... 
 ```
 
-## Requirements
-
-TODO: 07252024 This needs to be tested; minimum versions are not known
-MAM: We seem to depend also on yaml and toml. Either make explicit or guard in the code.
-
-The tools work with the following:
-
-* python > 3.6
-* pyscf >= 1.6.0
-* scipy >= 0.18.1
-* numpy >= 1.11.2
-* h5py >= 2.6.0 with parallel hdf5 support for k-point symmetric integral generation
-  (optional).
-* mpi4py >= 2.0.0
-
 ## Tests
 
 To run all unit tests,  navigate to `/utils`, and run `$ pytest`.
