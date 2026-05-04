@@ -107,7 +107,7 @@ void product(T alpha, nda::MemoryArray auto const& a,
   static_assert(nda::mem::have_compatible_addr_space<A_t,B_t,C_t> and
                 nda::have_same_value_type_v<A_t,C_t>,
                 "Failed requirements");
-  sfqmc::utils::check(op_A=='N', "Invalid matrix operation");
+  static_assert(op_A=='N', "Invalid matrix operation");
   math::sparse::csrmm<op_B>(v_t{alpha},a,b,v_t{beta},c); 
 }
 
@@ -143,7 +143,7 @@ void product(T alpha, math::sparse::CSRMatrix auto const& a,
   static_assert(nda::mem::have_compatible_addr_space<A_t,B_t,C_t> and
                 nda::have_same_value_type_v<B_t,C_t>,
                 "Failed requirements");
-  sfqmc::utils::check(op_B=='N', "Invalid matrix operation");
+  static_assert(op_B=='N', "Invalid matrix operation");
   math::sparse::csrmm<op_A>(v_t{alpha},a,b,v_t{beta},c); 
 }
 

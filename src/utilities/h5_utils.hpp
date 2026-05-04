@@ -100,7 +100,23 @@ auto h5_read_with_cast(h5::group& g, std::string name, nda::MemoryArray auto && 
   }
 }
 
-// reads complex numbers even if has_complex_attribute is false 
+/// @brief Read an HDF5 dataset into an nda MemoryArray.
+///
+/// Most storage conventions (TRIQS complex attribute, plain real promotion to
+/// complex, type matching) are handled natively by `nda::h5_read` and
+/// delegated to it directly.
+///
+/// The one special case handled here is backwards compatibility with an older
+/// **interleaved real/imag dimension** format: if @p A holds complex values and
+/// `rank(dataset) == rank(A) + 1` (a trailing dimension of size 2 stores
+/// `[real, imag]` pairs), a real-valued view of @p A is constructed with
+/// `memory::to_real_view` and passed to `nda::h5_read`.
+///
+/// Device arrays are staged through a host copy.
+///
+/// @param g    HDF5 group containing the dataset.
+/// @param name Name of the dataset within @p g.
+/// @param A    Destination array or array-view; must satisfy `nda::MemoryArray`.
 auto h5_read(h5::group& g, std::string name, nda::MemoryArray auto && A)
 {
   using A_t = std::decay_t<decltype(A)>;
@@ -109,14 +125,13 @@ auto h5_read(h5::group& g, std::string name, nda::MemoryArray auto && A)
     if constexpr (nda::is_complex_v<T>) {
       using T_real = nda::remove_complex_t<T>; 
       auto l = h5::array_interface::get_dataset_info(g,name);
-      if (l.has_complex_attribute) {
-        nda::h5_read(g,name,A);
-      } else {
-        // check if the rank and size match
-        utils::check(nda::get_rank<A_t>+1 == l.rank(), "Rank mismatch");  
-// to_real_view fails if the array is empty, resize if possible here based on l.lengths
+      // backwards-compatibility with older format
+      if (!l.has_complex_attribute && nda::get_rank<A_t>+1 == l.rank())
+      {
         auto Ar = memory::to_real_view(A);
         nda::h5_read(g,name,Ar);
+      } else {
+        nda::h5_read(g,name,A);
       }
     } else { 
       nda::h5_read(g,name,A);

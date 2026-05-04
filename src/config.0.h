@@ -45,10 +45,6 @@
 #define byRows 999
 #define byCols 111
 
-// guard with directive that checks if boost version is >=1.65
-// uncomment to enable stacktrace
-#include <boost/version.hpp>
-
 namespace sfqmc
 {
 namespace afqmc

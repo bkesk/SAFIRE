@@ -1,33 +1,25 @@
-
-#-------------------------------------------------------------------
-# Sources
-#-------------------------------------------------------------------
-set (AFQMC_SRCS
-  Utilities/AFQMCTimer.cpp 
-  Utilities/readWfn.cpp
-  Utilities/probit.cpp
-  AFQMCFactory.cpp
-  Drivers/DriverFactory.cpp
-  Drivers/AFQMCDriver.cpp
-#  Drivers/CSAFQMCDriver.cpp
-  Propagators/AFQMCBasePropagator.cpp
-#  Propagators/AFQMCModelPropagator.cpp
-  Propagators/PropagatorFactory.cpp
-  Wavefunctions/WavefunctionFactory.cpp
-  HamiltonianOperations/HamiltonianOperations.cpp
-  Hamiltonians/KPFactorizedHamiltonian.cpp
-  Hamiltonians/RealDenseHamiltonian.cpp
-  Hamiltonians/ModelHamOpsGenerator.cpp
-  Hamiltonians/HamiltonianFactory.cpp
-  Hamiltonians/THCHamiltonian.cpp
-  Hamiltonians/KPTHCHamiltonian.cpp
-  )
-
-add_library(afqmc ${AFQMC_SRCS})
-target_link_libraries(afqmc PUBLIC utils qmcio numerics)
+target_sources(safire_lib
+  PRIVATE
+    Utilities/AFQMCTimer.cpp 
+    Utilities/readWfn.cpp
+    AFQMCFactory.cpp
+    Drivers/DriverFactory.cpp
+    Drivers/AFQMCDriver.cpp
+  #  Drivers/CSAFQMCDriver.cpp
+    Propagators/AFQMCBasePropagator.cpp
+  #  Propagators/AFQMCModelPropagator.cpp
+    Propagators/PropagatorFactory.cpp
+    Wavefunctions/WavefunctionFactory.cpp
+    HamiltonianOperations/HamiltonianOperations.cpp
+    Hamiltonians/KPFactorizedHamiltonian.cpp
+    Hamiltonians/RealDenseHamiltonian.cpp
+    Hamiltonians/ModelHamOpsGenerator.cpp
+    Hamiltonians/HamiltonianFactory.cpp
+    Hamiltonians/THCHamiltonian.cpp
+    Hamiltonians/KPTHCHamiltonian.cpp
+)
 
 if (BUILD_UNIT_TESTS)
-  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/extern/catch)
 #  if (ENABLE_DEVICE)
 #    set(AFQMC_UNIT_TEST_INPUTS 
 #      # Removed FactorizedSparse test files: ham_chol_sc.h5 (3 pairs), ham_chol.h5 (1 pair)
@@ -57,14 +49,14 @@ if (BUILD_UNIT_TESTS)
       ${PROJECT_SOURCE_DIR}/tests/unit_test_files/hubbard/4x4squareU1/wfn_uhf.h5
     )
 #  endif()
-  SUBDIRS(SlaterDeterminantOperations/tests)
-#  SUBDIRS(SlaterDeterminantOperations/time_propagation)
-  SUBDIRS(Walkers/tests)
-  SUBDIRS(Hamiltonians/tests)
-  SUBDIRS(HamiltonianOperations/tests)
-  SUBDIRS(Wavefunctions/tests)
-  SUBDIRS(Propagators/tests)
-  SUBDIRS(Drivers/tests)
-  SUBDIRS(Estimators/tests)
+  add_subdirectory(SlaterDeterminantOperations/tests)
+#  add_subdirectory(SlaterDeterminantOperations/time_propagation)
+  add_subdirectory(Walkers/tests)
+  add_subdirectory(Hamiltonians/tests)
+  add_subdirectory(HamiltonianOperations/tests)
+  add_subdirectory(Wavefunctions/tests)
+  add_subdirectory(Propagators/tests)
+  add_subdirectory(Drivers/tests)
+  add_subdirectory(Estimators/tests)
 endif()
 
