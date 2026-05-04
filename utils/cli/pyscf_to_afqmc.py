@@ -84,9 +84,6 @@ def parse_args(comm):
                             type=float, default=0.95,
                             help='Upper threshold for non-integer occupancies'
                             'to include in multi-determinant exansion.')
-        parser.add_argument('--sparse', dest='sparse',
-                        action='store_true', default=False,
-                        help='Write sparse Hamiltonian.')
         parser.add_argument('--sfx2c', dest='sfx2c',
                             action='store_true', default=False,
                             help='Use sfx2c 1-body hamiltonian.')
@@ -169,7 +166,6 @@ def main():
                   phdf=options.phdf,
                   low=options.low_thresh,
                   high=options.high_thresh,
-                  dense=(not options.sparse),
                   with_sfx2c=options.sfx2c,
                   with_x2c=options.x2c)
     if comm.rank == 0:

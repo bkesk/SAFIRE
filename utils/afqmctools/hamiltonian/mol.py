@@ -16,10 +16,7 @@ from afqmctools.utils.io import (
         format_fixed_width_floats,
         format_fixed_width_strings,
         )
-from afqmctools.hamiltonian.io import (
-        write_sparse,
-        write_dense
-        )
+from afqmctools.hamiltonian.io import write_dense
 from afqmctools.utils.slater_types import (
     _SlaterType,
     _slater_enum_map,
