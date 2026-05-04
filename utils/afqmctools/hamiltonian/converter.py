@@ -22,11 +22,6 @@ from afqmctools.utils.io import (
         to_complex,
         from_complex
         )
-from afqmctools.hamiltonian.io import (
-        write_sparse_basic,
-        write_sparse_chol_chunk
-        )
-
 
 def fcidump_header(nel:int, norb:int, spin:int) -> str:
     """
@@ -235,8 +230,6 @@ def read_hamil_type(filename:str) -> str:
     with h5.File(filename,'r') as fh5:
         if 'Hamiltonian/DenseFactorized/L' in fh5:
             return 'dense'
-        elif 'Hamiltonian/Factorized/vals_0' in fh5:
-            return 'sparse'
         elif 'Hamiltonian/KPFactorized/L0' in fh5:
             return 'kpoint'
         elif 'Interaction/Vq0' in fh5:
@@ -293,17 +286,6 @@ def read_hamiltonian(filename, get_chol=True, walker_type=1):
             'minus_k': minus_k,
             'qk_k2': qkk2
             }
-    elif ham_type == 'sparse':
-        hc, chol, enuc, nmo, nelec = read_sparse(filename,
-                                                         get_chol=get_chol)
-        hamil = {
-            'hcore': hc,
-            'chol': chol,
-            'enuc': enuc,
-            'nmo': nmo,
-            'nelec': nelec
-            }
-        return hamil
     elif ham_type == 'dense':
         hcore, chol, enuc, nelec = read_dense(filename)
         hamil = {
@@ -330,127 +312,6 @@ def read_model(filename):
     Read model Hamiltonian from hdf5 file `fname`
     """
     raise NotImplementedError("[for devlopers] implement model H reader")
-
-
-def read_sparse(filename, get_chol=True):
-    r"""Read in sparse integrals from hdf5.
-
-    Parameters
-    ----------
-    filename : string
-        File containing integrals in internal format (\*.h5).
-
-    Returns
-    -------
-    hcore : :class:`np.ndarray`
-        One-body part of the Hamiltonian.
-    chol_vecs : :class:`scipy.sparse.csr_array`
-        Two-electron integrals. Shape: [nmo*nmo, nchol]
-    ecore : float
-        Core contribution to the total energy.
-    nmo : int
-        Number of orbitals.
-    nelec : tuple
-        Number of electrons.
-    """
-    warn("Sparse Hamiltonian format is deprecated. Use dense format and GPU acceleration instead.",DeprecationWarning)
-    enuc, dims, hcore, real_ints = read_common_input(filename)
-    chunks = dims[2]
-    nmo = dims[3]
-    nalpha = dims[4]
-    nbeta = dims[5]
-    nchol = dims[7]
-    if get_chol:
-        chol_vecs = read_cholesky(filename, real_ints=real_ints)
-    else:
-        chol_vecs = None
-    return (hcore, chol_vecs, enuc, int(nmo), (int(nalpha), int(nbeta)))
-
-def read_cholesky(filename:str, full=True, ichunk=None, real_ints=False):
-    r"""
-    Read in Cholesky integrals from internal HDF5 format.
-
-    Parameters
-    ----------
-    filename : str
-        File containing integrals in internal format (HDF5, \*.h5).
-    full : bool
-        If True, return full Cholesky matrix. Optional. Default: True.
-    ichunk : int
-        Index of Cholesky chunk to read. Optional. Default: None.
-    real_ints : bool
-        If True, read real integrals. Optional. Default: False.
-
-    Returns
-    -------
-    chol_vecs : :class:`scipy.sparse.csr_array`
-        Cholesky vectors.
-    """
-    with h5.File(filename, 'r') as fh5:
-        if 'Hamiltonian/Factorized/block_sizes' not in fh5:
-            raise RuntimeError(f"  no dataset called 'Hamiltonian/Factorized/block_sizes' in {filename}")
-        block_sizes = fh5['Hamiltonian/Factorized/block_sizes'][...]
-        nval = sum(block_sizes)
-        s = 0
-        dims = fh5['Hamiltonian/dims'][:]
-        nmo = dims[3]
-        nchol = dims[-1]
-        if full:
-            if real_ints:
-                vals = np.zeros(nval, dtype=np.float64)
-            else:
-                vals = np.zeros(nval, dtype=np.complex128)
-            row_ix = np.zeros(nval, dtype=np.int32)
-            col_ix = np.zeros(nval, dtype=np.int32)
-            for ic, bs in enumerate(block_sizes):
-                ixs, vchunk = get_chunk(fh5, ic, real_ints)
-                row_ix[s:s+bs] = ixs[::2]
-                col_ix[s:s+bs] = ixs[1::2]
-                vals[s:s+bs] = vchunk
-                s += bs
-            chol_vecs = scipy.sparse.csr_array((vals, (row_ix, col_ix)),
-                                                shape=(nmo*nmo,nchol))
-            return chol_vecs
-        else:
-            return get_chunk(fh5, ichunk, real_ints)
-
-
-def get_chunk(fh5, ichunk, real_ints):
-    """
-    Get Cholesky chunk from hdf5 file.
-
-    Parameters
-    ----------
-    fh5 : :class:`h5py.File`
-        HDF5 file handle containing Cholesky vectors.
-    ichunk : int
-        Index of Cholesky chunk to read.
-    real_ints : bool
-        If True, read real integrals.
-
-    Returns
-    -------
-    ixs : :class:`np.ndarray`
-        Indices of Cholesky vectors.
-    vals : :class:`np.ndarray`
-        Cholesky vectors.
-    
-    Raises
-    ------
-    RuntimeError : if Cholesky chunk does not exist in file.
-    """
-    ixs = fh5['Hamiltonian/Factorized/index_%i'%ichunk][:]
-    dset_name =  f'Hamiltonian/Factorized/vals_{ichunk}'
-    if dset_name in fh5:
-        vals = fh5[dset_name][...]
-        if real_ints:
-            vals = vals.ravel()
-        else:
-            vals = vals.view(np.complex128).ravel()
-        return ixs, vals
-    else:
-        raise RuntimeError(f"  no dataset called '{dset_name}' in HDF5 file")
-        
 
 def check_sym(ikjl, nmo, sym):
     """Check permutational symmetry of integral
@@ -1223,119 +1084,3 @@ def write_fcidump_kpoint(filename, hcore, chol, enuc, nmo_tot, nelec,
 
         out = fmt_integral(enuc+0j, -1, -1, -1, -1, cplx, paren=paren)
         f.write(out)
-
-def sparse_to_dense(sparse_file, dense_file, real_chol=False):
-    """
-    Convert sparse Hamiltonian to dense format.
-
-    Parameters
-    ----------
-    sparse_file : string
-        File containing sparse Hamiltonian.
-    dense_file : string
-        File to write dense Hamiltonian to.
-    real_chol : bool
-        If True, write real Cholesky vectors. Optional. Default: False.
-    """
-    hcore, chol, enuc, nmo, nelec = read_sparse(sparse_file,
-                                                        get_chol=False)
-    with h5.File(dense_file, 'w') as fh5:
-        fh5['Hamiltonian/Energies'] = np.array([enuc,0])
-        with h5.File(sparse_file, 'r') as sph5:
-            block_sizes = sph5['Hamiltonian/Factorized/block_sizes'][:]
-            dims = sph5['Hamiltonian/dims'][:]
-            nchol = dims[-1]
-            if real_chol:
-                fh5['Hamiltonian/hcore'] = hcore.real
-                shape = (nmo*nmo,nchol)
-            else:
-                fh5['Hamiltonian/hcore'] = to_complex(hcore.astype(np.complex128))
-                shape = (nmo*nmo,nchol,2)
-            fh5['Hamiltonian/dims'] = dims
-            chol_dset = fh5.create_dataset('Hamiltonian/DenseFactorized/L',
-                                           shape,
-                                           dtype=np.float64)
-            s = 0
-            for ic, bs in enumerate(block_sizes):
-                ixs, vchunk = get_chunk(sph5, ic, real_chol)
-                row_ix, col_ix = ixs[::2], ixs[1::2]
-                sort = np.argsort(row_ix)
-                row_ix = row_ix[sort]
-                col_ix = col_ix[sort]
-                vchunk = vchunk[sort]
-                rows = np.unique(row_ix)
-                for r in rows:
-                    # H5PY array slicing is restrictive.
-                    # index has to be in increasing order
-                    rix = row_ix == r
-                    cr = col_ix[rix]
-                    vr = vchunk[rix]
-                    sort = np.argsort(cr)
-                    if real_chol:
-                        chol_dset[r,cr[sort]] = np.real(vr[sort])
-                    else:
-                        chol_dset[r,cr[sort]] = to_complex(vr[sort])
-
-def kpoint_to_sparse(kp_file, sp_file, real_chol=False,
-                     thresh=1e-8):
-    """
-    Convert k-point Hamiltonian to sparse format.
-
-    Parameters
-    ----------
-    kp_file : string
-        File containing k-point Hamiltonian.
-    sp_file : string
-        File to write sparse Hamiltonian to.
-    real_chol : bool
-        If True, write real Cholesky vectors. Optional. Default: False.
-    thresh : float
-        Threshold for sparse integral values. Integrals with absolute value less then
-        thresh are considered 0.0 Optional. Default: 1e-8.
-    """
-    warn("Sparse format is deprecated. Use k-point factorized Hamiltonian format instead.", DeprecationWarning)
-    hamil = read_hamiltonian(kp_file, get_chol=False)
-    hcore = hamil['hcore']
-    enuc = hamil['enuc']
-    nelec = hamil['nelec']
-    nmo = hamil['nmo']
-    nmo_pk = hamil['nmo_pk']
-    minus_k = hamil['minus_k']
-    qk_k2 = hamil['qk_k2']
-    nkp = len(hcore)
-    # 1. Extend hcore to block diagonal.
-    hcore = scipy.linalg.block_diag(*hcore)
-    nchol_pk = hamil['nchol_pk']
-    nchol = sum(nchol_pk)
-    orb_offset = np.zeros(nkp, dtype=np.int32)
-    chol_offset = np.zeros(nkp, dtype=np.int32)
-    write_sparse_basic(sp_file, hcore, enuc, nelec, real_chol=real_chol)
-    for i in range(1, nkp):
-        orb_offset[i] = orb_offset[i-1] + nmo_pk[i-1]
-        chol_offset[i] = chol_offset[i-1] + nchol_pk[i-1]
-    block_sizes = []
-    for iq in range(nkp):
-        s = chol_offset[iq]
-        e = s + nchol_pk[iq]
-        lq = get_kpoint_chol(kp_file, nchol_pk, minus_k, iq, qk_k2, nmo_pk)
-        vals = []
-        ixs = []
-        for ki in range(nkp):
-            for i in range(0, nmo_pk[ki]):
-                kk = qk_k2[iq,ki]
-                I = i + orb_offset[ki]
-                for k in range(0, nmo_pk[kk]):
-                    K = k + orb_offset[kk]
-                    for nc in range(0,nchol_pk[iq]):
-                        ll = lq[ki,(i*nmo_pk[ki]+k)*nchol_pk[iq]+nc]
-                        if abs(ll) > thresh:
-                            vals.append(ll)
-                            ixs.append([I*nmo+K,s+nc])
-        block_sizes.append(len(vals))
-        write_sparse_chol_chunk(np.array(ixs).ravel(), vals, iq, filename=sp_file)
-
-    with h5.File(sp_file, 'a') as fh5:
-        fh5['Hamiltonian/Factorized/block_sizes'] = block_sizes
-        fh5['Hamiltonian/dims'] = np.array([0, sum(block_sizes),
-                                               nkp, nmo, nelec[0], nelec[1], 0,
-                                               nchol])

@@ -33,7 +33,7 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
                   cas=None, wfn_file=None,
                   write_hamil=True, ndet_max=None, real_chol=False,
                   phdf=False, low=0.1, high=0.95,
-                  walker_type=None, with_sfx2c=False,
+                  with_sfx2c=False,
                   with_x2c=False):
     """Dispatching routine dependent on options.
 
@@ -85,9 +85,6 @@ def pyscf_to_afqmc(chkfile, hamil_file, threshold, comm=None,
         )
         scf_data['orthAO'] = ortho_ao
 
-        if walker_type is None:
-            warn("walker_type argument is no longer used")
-        
         if write_hamil:
             write_hamil_mol(
                 scf_data,

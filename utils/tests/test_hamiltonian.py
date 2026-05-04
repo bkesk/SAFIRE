@@ -39,7 +39,7 @@ from afqmctools.hamiltonian.converter import (
         )
 import afqmctools.hamiltonian.mol as mol
 from afqmctools.utils.linalg import modified_cholesky_direct
-from afqmctools.hamiltonian.io import write_sparse
+from afqmctools.hamiltonian.io import write_dense
 import afqmctools.hamiltonian.kpoint as kp
 import afqmctools.hamiltonian.supercell as sc
 from afqmctools.utils.linalg import get_ortho_ao
@@ -49,15 +49,12 @@ from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 
 
 class TestConverter:
-
-
     def test_convert_real(self,tmp_path,random_real_hamiltonian):
         nmo = 17
         nelec = (3,3)
-        print(random_real_hamiltonian)
         h1e, chol, enuc, _ = random_real_hamiltonian
-        write_sparse(h1e, chol.reshape((-1,nmo*nmo)).T.copy(),
-                             nelec, nmo, e0=enuc, real_chol=True, filename=tmp_path/'hamiltonian.h5')
+        write_dense(h1e, chol.reshape((-1,nmo*nmo)).T.copy(),
+                             nelec, nmo, enuc=enuc, real_chol=True, filename=tmp_path/'hamiltonian.h5')
         hamil = read_hamiltonian(tmp_path/'hamiltonian.h5')
         write_fcidump(tmp_path/'FCIDUMP', hamil['hcore'], hamil['chol'], hamil['enuc'],
                       hamil['nmo'], hamil['nelec'], sym=8, cplx=False)
@@ -93,8 +90,8 @@ class TestConverter:
         nmo = 17
         nelec = (3,3)
         h1e, chol, enuc, _ = random_cplx_hamiltonian
-        write_sparse(h1e, chol.reshape((-1,nmo*nmo)).T.copy(),
-                             nelec, nmo, e0=enuc, real_chol=False, filename=tmp_path/'hamiltonian.h5')
+        write_dense(h1e, chol.reshape((-1,nmo*nmo)).T.copy(),
+                             nelec, nmo, enuc=enuc, real_chol=False, filename=tmp_path/'hamiltonian.h5')
         hamil = read_hamiltonian(tmp_path/'hamiltonian.h5')
         write_fcidump(tmp_path/'FCIDUMP', hamil['hcore'], hamil['chol'], hamil['enuc'],
                       hamil['nmo'], hamil['nelec'], sym=4, cplx=True)
@@ -127,7 +124,6 @@ class TestConverter:
             "test_input,expected",
                 [
                     ['Hamiltonian/DenseFactorized/L','dense'],
-                    ['Hamiltonian/Factorized/vals_0','sparse'],
                     ['Hamiltonian/KPFactorized/L0','kpoint'],
                     ['Hamiltonian/THC/Luv','thc'],
                     ['RandomName',None]

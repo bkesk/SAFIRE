@@ -103,69 +103,6 @@ def add_group(fh5:h5.File, name):
         del fh5[name]
     return fh5.create_group(name)
 
-
-def read_csrm(grp):
-  """Read CSR matrix from hdf5 group
-
-  Parameters
-  ----------
-  grp: h5py.Group 
-    h5py hd5f group
-  
-  Returns
-  -------
-  csra: scipy.sparse.csr_array
-
-  Example:
-    >>> fp = h5py.File('mat.h5', 'r')
-    >>> g = fp['sparse_matrix']
-    >>> mat = read_csrm(g)
-  """
-  warnings.warn("'read_csrm' is deprecated and will be removed")
-  # data could be real or complex
-  darr = grp['data_'][()]
-  dshape = darr.shape
-  if len(dshape) == 1:
-    data = darr
-  elif (len(dshape) == 2):
-    data = from_complex(darr)
-  else:
-    msg = 'read_csrm cannot handle data shape %s' % dshape
-    raise RuntimeError(msg)
-  # matrix indices
-  indices = grp['jdata_'][()]
-  lastptr = [grp['pointers_end_'][-1]]
-  indptr = np.concatenate([grp['pointers_begin_'][()], lastptr])
-  shape = grp['dims'][:2]
-  mat = sps.csr_array((data, indices, indptr), shape=shape)
-  return mat
-
-
-def write_csrm(grp, mat):
-  """Write CSR matrix to hdf5 group
-
-  Parameters
-  ----------
-    grp : h5py.Group
-        h5py hdf group to write to
-    mat : scipy.sparse.csr_array
-        sparse matrix to write
-
-  Example:
-    >>> fp = h5py.File('mat.h5', 'w')
-    >>> g = fp.create_group('sparse_matrix')
-    >>> write_csrm(g, mat)
-  """
-  warnings.warn("'write_csrm' is deprecated and will be removed")
-  dims = (mat.shape[1], mat.shape[0], mat.nnz)
-  grp['data_'] = to_complex(mat.data)
-  grp['jdata_'] = mat.indices
-  grp['pointers_begin_'] = mat.indptr[:-1]
-  grp['pointers_end_'] = mat.indptr[1:]
-  grp['dims'] = dims
-
-
-
 def read_one_body(fname,format:str='csr'):
     """
     Read one-body Hamiltonian from file.
@@ -236,11 +173,10 @@ def _read_one_body_csr(fname:str|Path):
         print("Unique vals:")
         for c in comps:
             print(np.unique(c.data))
-                
     return sum(comps)
 
 
-def get_hamiltonain_spin_symm(fname):
+def get_hamiltonian_spin_symm(fname):
     """
     Get the spin symmetry of the Hamiltonian from a Hamiltonian HDF5 file.
 
