@@ -25,7 +25,6 @@ dependencies = [
     "matplotlib",
     "numba",
     "pytest",
-    "pyyaml",
     "toml",
     "tables",
     "dataclasses"
