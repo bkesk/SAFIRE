@@ -292,7 +292,7 @@ nelec = [6,6]
 ### Model Hamiltonian Builder Input Conventions
 
 Model Hamiltonian parameters can be specified either directly
-as a Python dict, or via an input file in json, toml, or yaml format.
+as a Python dict, or via an input file in toml format.
 All cases share the following conventions.
 
 First, the input is organized into a `hamiltonian` block - where Hamiltionan parameters are specified - and a `lattice` block - where the lattice that the Hamiltonian is defined on is specified.
