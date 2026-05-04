@@ -11,9 +11,6 @@
 import warnings
 from pathlib import Path
 
-import json
-import yaml
-# for Python 3.11+, migrate to tomllib
 import toml
 
 import numpy as np
@@ -26,7 +23,7 @@ from afqmctools.hamiltonian.model.ham_class import SpinSymm,Hamiltonian,get_spin
 spin_type = {
     SpinSymm.CLOSED : 'closed',
     SpinSymm.COLLINEAR : 'collinear',
-    SpinSymm.NONCOLLINEAR : 'noncollinear' 
+    SpinSymm.NONCOLLINEAR : 'noncollinear'
 }
 
 inv_spin_type = {
@@ -77,7 +74,7 @@ def add_dataset(fh5:h5.File, name, value):
         Value to write to dataset.
     """
     if name in fh5:
-        fh5[name] == value
+        fh5[name] = value
     else:
         fh5.create_dataset(name,data=value)
 
@@ -422,50 +419,13 @@ def write_pair_correlators(fname:str=None, pairs_dict=None):
             g.create_dataset(direction,data=np.array([pair]).T)
 
 
-def _write_param_json(fname:str=None,params=None):
-    warnings.warn(
-        "Saving lattice model parameters in JSON is deprecated and will be removed. "
-        "Use TOML instead."
-    )
-    assert fname.endswith('.json')
-    with open(fname,"w") as f:
-        json.dump(
-            params,
-            fp=f
-        )
-
-def _write_param_toml(fname:str=None,params=None):
-    assert fname.endswith('.toml')
-    with open(fname,"w") as f:
-        toml.dump(
-            params,
-            f=f
-        )
-
-def _write_param_yaml(fname:str=None,params=None):
-    warnings.warn(
-        "Saving lattice model parameters in YAML is deprecated and will be removed. "
-        "Use TOML instead."
-    )
-    assert fname.endswith('.yaml')
-    with open(fname,"w") as f:
-        yaml.dump(
-            params,
-            stream=f
-        )
-
-
-def write_model_params(fname="model_ham_param.json",params=None):
+def write_model_params(fname,params=None):
     """
-    Write Model Hamiltonian parameters to a human-readable file.
+    Write Model Hamiltonian parameters to a human-readable TOML file.
 
-    Output format is inferred from the file extension in `fname`.
-        Supported formats are .json, .toml, .yaml. The files produced
-        can be used in the future as an input file via the 
+    The files produced by this function can be used as an input files via the 
         `read_input_params(fname)` function.
 
-    .. warning:: JSON, and YAML formats are deprecated and will be removed in the future. Use TOML instead.
-    
     Parameters
     ----------
     fname : str
@@ -474,59 +434,14 @@ def write_model_params(fname="model_ham_param.json",params=None):
         Dictionary of model parameters to write. This dictionary has the same conventions as the model
         Hamiltonian builder. See the User Guide for more information.
     """
-    if fname.endswith(".json"):
-        _write_param_json(fname,params)
-    elif fname.endswith(".toml"):
-        _write_param_toml(fname,params)
-    elif fname.endswith(".yaml"):
-        _write_param_yaml(fname,params)
-    else:
-        raise ValueError("Unknown output file type. Only *.json, *.yaml, *.toml are supported")
+    with open(fname,"w") as f:
+        toml.dump(params, f)
 
-
-def _read_json(infile):
-    warnings.warn(
-        "Reading lattice model parameters from JSON is deprecated and will be removed. "
-        "Use TOML instead."
-    )
-    with open(infile,'r') as f:
-        params = json.loads(f.read())
-    return params
-
-
-def _read_yaml(infile):
-    warnings.warn(
-        "Reading lattice model parameters from YAML is deprecated and will be removed. "
-        "Use TOML instead."
-    )
-    with open(infile,'r') as f:
-        params = yaml.load(
-            f.read(),
-            Loader=yaml.SafeLoader
-        )
-    return params
-
-
-def _read_toml(infile):
+def read_input_params(infile:str=None) -> dict:
+    """Read parameters from a human-readable TOML input file and return them in a dictionary."""
     with open(infile,'r') as f:
         params = toml.loads(f.read())
     return params
-
-
-def read_input_params(infile:str=None):
-    """
-    Read parameters from a human-readable input file. 
-        Returns a Dictionary containing the parameters. 
-        Supported formats include, .json, .toml, .yaml.
-    """
-    if infile.endswith(".json"):
-        return _read_json(infile)
-    elif infile.endswith(".toml"):
-        return _read_toml(infile)
-    elif infile.endswith(".yaml"):
-        return _read_yaml(infile)
-    else:
-        raise ValueError("Unknown input file type. Only *.json, *.yaml, *.toml are supported")
 
 
 def h5_as_dict(fname):
