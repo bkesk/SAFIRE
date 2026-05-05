@@ -78,7 +78,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
               (type == CLOSED ? nup : PsiT(0,1).extent(0) ) );
   for(int i=0; i<ndet; ++i) 
     for(int ip=0; ip<npol; ++ip) {
-      utils::check(PsiT(i,0).shape() == std::array<long,2>{nup,NMO},"PsiT shape mismatch.");
+      utils::check(PsiT(i,0).shape() == std::array<long,2>{nup,npol*NMO},"PsiT shape mismatch.");
       if(type == COLLINEAR)
         utils::check(PsiT(i,1).shape() == std::array<long,2>{ndn,NMO},"PsiT shape mismatch.");
     }
@@ -86,12 +86,12 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
 
   // THC variables
   long nspin_in_file = nspin;
-  long npol_in_file = npol;
+  long npol_in_file = 1;
   long nu = 0; // number of interpolating points/vectors
   long nv = 0; // number of columns of Vuv matrix
   long nu_rot = 0; // number of interpolating points/vectors
   long nv_rot = 0; // number of columns of Vuv matrix
-  long have_rot_coul = 0;  
+  bool have_rot_coul = false;  
     
   // only root reads
   h5::file file;
@@ -115,10 +115,10 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       utils::check(n==1, base_error + "nkpts:1 differs from number_of_kpoints:{} in file",n);
       // read nspin_in_file
       h5::h5_read_attribute(*hgrp,"number_of_spins",n);
-      nspin_in_file = long(n);
+      // nspin_in_file = long(n);
       // read npol_in_file
-//      h5::h5_read_attribute(bz,"number_of_polarizations",n);
-//      npol_in_file=long(n);
+      // h5::h5_read_attribute(bz,"number_of_polarizations",n);
+      // npol_in_file=long(n);
       utils::check((nspin_in_file==1) or (nspin_in_file==nspin), 
                    base_error + " Incompatible nspin:{} in h5 file.",nspin_in_file);
 //      utils::check((npol_in_file==1) or (npol_in_file==npol), 
@@ -159,7 +159,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       utils::check((lL.lengths[0]==1) and (lL.lengths[1]==nu), 
                    base_error + "Incompatible dimensions of factorized_coulomb_matrix.");
       if(igrp.has_key("collocation_matrix_half_rotated")) {
-        have_rot_coul = 1;
+        have_rot_coul = true;
         auto lXr = h5::array_interface::get_dataset_info(igrp,"collocation_matrix_half_rotated");
         utils::check((lXr.lengths[0]==nspin_in_file) and (lXr.lengths[1]==1) and 
                      (lXr.lengths[2]==NMO),
@@ -170,7 +170,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
         utils::check((lZr.lengths[0]==1) and (lZr.lengths[1]==nu_rot),
                      base_error + "Incompatible dimensions of half_rotated_coulomb_matrix.");
       } else {
-        have_rot_coul = 0;
+        have_rot_coul = false;
         nu_rot = nu;
         nv_rot = nv;
         auto lZ = h5::array_interface::get_dataset_info(igrp,"coulomb_matrix");
@@ -387,34 +387,43 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   }
   mpi->comm.barrier();
 
-  // incomplete if npol>1
-  // this assumes that npol==npol_in_file, FIX!!!
-  utils::check(npol==1, "finish");
-  long nel[] = {nup, (type == COLLINEAR ? ndn : 0l) }; 
+  // haj(idet,a_is,j_ip2) = sum_i PsiT(idet,is)(a_is,ip1*NMO+i) H1(is,ip1*NMO+i,ip2*NMO+j)
+  long nel[] = {nup, (type == COLLINEAR ? ndn : 0l) };
   auto haj = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO});
-  {
-    for(long id=0, itot=0; id<ndet; ++id) {
-      for(long is=0; is<nspin; ++is, ++itot) {
-        if( itot%mpi->comm.size() != mpi->comm.rank() ) continue; 
-        auto h_ = haj()(id,range(is*nup,nup+is*ndn),all);
-        if constexpr (MEM==HOST_MEMORY) {
-          auto hij = H1()(is%nspin_in_file,all,all);
-          if constexpr (math::sparse::CSRMatrix<PsiT_Matrix<MEM>>) {
-            math::sparse::csrmm<'N'>(PsiT(id,is),hij,h_);
+  if constexpr (MEM == HOST_MEMORY) {
+    if(mpi->node_comm.root()) haj() = ComplexType(0.0);
+  } else {
+    haj() = ComplexType(0.0);
+  }
+  mpi->node_comm.barrier();
+
+  for(long id=0, itot=0; id<ndet; ++id) {
+    for(long is=0; is<nspin; ++is, ++itot) {
+      if( itot%mpi->comm.size() != mpi->comm.rank() ) continue;
+      long nelec_is = (is == 0 ? nup : ndn);
+      for(long ip1=0; ip1<npol; ++ip1) {
+        int ip1_ = ip1%npol_in_file;
+        auto Aai = math::sparse::to_array<'N'>(PsiT(id,is),range(0,nelec_is),range(ip1*NMO,(ip1+1)*NMO));
+        // haj = PsiT * H1
+        for(long ip2=0; ip2<npol; ++ip2) {
+          int ip2_ = ip2%npol_in_file;
+          auto h_ = haj()(id,range(is*nup,is*nup+nelec_is),range(ip2*NMO,(ip2+1)*NMO));
+          if constexpr (MEM==HOST_MEMORY) {
+            auto hij = H1()(is%nspin_in_file,range(ip1_*NMO,(ip1_+1)*NMO),range(ip2_*NMO,(ip2_+1)*NMO));
+            nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
           } else {
-            nda::blas::gemm(PsiT(id,is),hij,h_);
+            memory::array<MEM,ComplexType,2> hij(H1()(is%nspin_in_file,range(ip1_*NMO,(ip1_+1)*NMO),range(ip2_*NMO,(ip2_+1)*NMO)));
+            nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
           }
-        } else if constexpr (MEM==DEVICE_MEMORY) {
-//          auto hij = nda::to_device(H1()(is%nspin_in_file,all,all));
-          memory::array<MEM,ComplexType,2> hij(H1()(is%nspin_in_file,all,all));
-          if constexpr (math::sparse::CSRMatrix<PsiT_Matrix<MEM>>) {
-            math::sparse::csrmm<'N'>(PsiT(id,is),hij,h_);
-          } else {
-            nda::blas::gemm(PsiT(id,is),hij,h_);
-          }
-        }
-      }  // is
-    }  // id
+        } // ip2
+      } // ip1
+    }  // is
+  }  // id
+  mpi->comm.barrier();
+  if constexpr (MEM==HOST_MEMORY) {
+    if(mpi->node_comm.root()) mpi->internode_comm.all_reduce_in_place_n(haj.data(),haj.size(),std::plus<>{});
+  } else {
+    mpi->all_reduce(haj(),std::plus<>{});
   }
   mpi->comm.barrier();
 

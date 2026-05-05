@@ -92,19 +92,19 @@ public:
     int nv = _Luv_.extent(1);
     int nu_rot = (_Xsiu_rot_.has_value() ? _Xsiu_rot_->shape()[2] : nu);
     int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(1)/NMO;
+    int nspin_in_H = hij.extent(0);
+    int npol_in_H = hij.extent(1)/NMO;
     int ndet = haj.extent(0);
-    utils::check(vexx.shape() == std::array<long,3>{nstot*nptot,NMO,NMO},"THCOps: Size mismatch"); 
-    utils::check(hij.shape() == std::array<long,3>{nstot,nptot*NMO,nptot*NMO},"THCOps: Size mismatch"); 
+    utils::check(vexx.shape() == std::array<long,3>{nspin_in_H*npol_in_H,NMO,NMO},"THCOps: Size mismatch"); 
+    utils::check(hij.shape() == std::array<long,3>{nspin_in_H,npol_in_H*NMO,npol_in_H*NMO},"THCOps: Size mismatch"); 
     utils::check(haj.shape() == std::array<long,3>{ndet,nel,npol*NMO},"THCOps: Size mismatch"); 
-    utils::check(_Xsiu_.shape() == std::array<long,3>{nstot,npol*NMO,nu},"THCOps: Size mismatch"); 
+    utils::check(_Xsiu_.shape() == std::array<long,3>{nspin_in_H,npol_in_H*NMO,nu},"THCOps: Size mismatch"); 
     utils::check(_Ydsau_.shape() == std::array<long,5>{ndet,nspin,npol,nup,nu},"THCOps: Size mismatch"); 
     utils::check(_Luv_.shape() == std::array<long,2>{nu,nv},"THCOps: Size mismatch"); 
     if(_Zuv_.has_value())
       utils::check(_Zuv_->shape() == std::array<long,2>{nu,nu},"THCOps: Size mismatch"); 
     if(_Xsiu_rot_.has_value())
-      utils::check(_Xsiu_rot_->shape() == std::array<long,3>{nstot,npol*NMO,nu_rot},"THCOps: Size mismatch"); 
+      utils::check(_Xsiu_rot_->shape() == std::array<long,3>{nspin_in_H,npol*NMO,nu_rot},"THCOps: Size mismatch"); 
     if(_Ydsau_rot_.has_value())
       utils::check(_Ydsau_rot_->shape() == std::array<long,5>{ndet,nspin,npol,nup,nu_rot},"THCOps: Size mismatch"); 
     if(_Zuv_rot_.has_value())
@@ -126,36 +126,36 @@ public:
     auto all = range::all;
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(1)/NMO;
+    int nspin_in_H = hij.extent(0);
+    int npol_in_H = hij.extent(1)/NMO;
     utils::check(vMF.size() == number_of_cholesky_vectors(), "Size mismatch");
 
-    // v[nstot][nwalk=1][nptot*NMO][NMO]
+    // v[nspin_in_H][nwalk=1][npol_in_H*NMO][NMO]
     nda::array<ComplexType, 4> v;
     {
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
       v = std::move(vHS(vMF_2d, dt));
-      utils::check(v.shape() == std::array<long,4>{nstot,1,npol*NMO,NMO}, "Size mismatch");
+      utils::check(v.shape() == std::array<long,4>{nspin_in_H,1,npol*NMO,NMO}, "Size mismatch");
     }
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
     H1() = ComplexType(0.0);
     
-    // add hij(nstot,nptot*NMO,nptot*NMO) + vexx(nstot*nptot,NMO,NMO) and symmetrize
+    // add hij(nspin_in_H,npol_in_H*NMO,npol_in_H*NMO) + vexx(nspin_in_H*npol_in_H,NMO,NMO) and symmetrize
     //
     for (int is = 0; is < nspin; is++) {
-      int is_ = is%nstot;
+      int is_ = is%nspin_in_H;
       for (int p1 = 0; p1 < npol; p1++) {
-        int p1_ = p1%nptot;
+        int p1_ = p1%npol_in_H;
         for (int p2 = 0; p2 < npol; p2++) {
-          int p2_ = p2%nptot;
+          int p2_ = p2%npol_in_H;
           for (int i = 0; i < NMO; i++) {
             for (int j = 0 ; j < NMO; j++)
             {
               if(p1==p2) {
                 H1(is,p1*NMO+i,p2*NMO+j) = v(is_,0,p1_*NMO+i,j) + 
-                                           dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,i,j));
+                                           dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*npol_in_H+p1_,i,j));
               } else {
                 // only spin-orbit terms here coming from hij
                 H1(is,p1*NMO+i,p2*NMO+j) = dt * hij()(is_,p1_*NMO+i,p2_*NMO+j); 
@@ -236,8 +236,8 @@ public:
     const auto Zuv = ( has_rot ? (*_Zuv_rot_)() : (*_Zuv_)() );
 
     int nu = Zuv.extent(0);
-    long nstot = _Xsiu_().shape()[0];
-    long nptot = _Xsiu_().shape()[1]/NMO; 
+    long nspin_in_H = _Xsiu_().shape()[0];
+    long npol_in_H = _Xsiu_().shape()[1]/NMO; 
 
     // calculate how many walkers can be done concurrently
     long Bytes = default_buffer_size_in_MB * 1024L * 1024L;
@@ -259,10 +259,10 @@ public:
       Guu() = ComplexType(0.0);
       for (int ispin = 0; ispin < nspin; ++ispin)
       {
-        long is_ = long(ispin)%nstot; 
+        long is_ = long(ispin)%nspin_in_H; 
         for (int p1 = 0; p1 < npol; ++p1)
         {
-          long ip1_ = long(p1)%nptot; 
+          long ip1_ = long(p1)%npol_in_H; 
           for (int p2 = 0; p2 < npol; ++p2)
           {
             // Buffer space
@@ -392,8 +392,8 @@ public:
     const auto Zuv = ( has_rot ? (*_Zuv_rot_)() : (*_Zuv_)() );
 
     int nu = Zuv.extent(0);
-    long nstot = _Xsiu_().shape()[0];
-    long nptot = _Xsiu_().shape()[1]/NMO; 
+    long nspin_in_H = _Xsiu_().shape()[0];
+    long npol_in_H = _Xsiu_().shape()[1]/NMO; 
 
     // calculate how many walkers can be done concurrently
     long Bytes = default_buffer_size_in_MB * 1024L * 1024L;
@@ -410,10 +410,10 @@ public:
       memory::buffered_array<MEM,ComplexType,2> Guu(nu,nw);
       Guu() = ComplexType(0.0);
 
-      long is_ = long(ispin)%nstot; 
+      long is_ = long(ispin)%nspin_in_H; 
       for (int p1 = 0; p1 < npol; ++p1)
       {
-        long ip1_ = long(p1)%nptot; 
+        long ip1_ = long(p1)%npol_in_H; 
         for (int p2 = 0; p2 < npol; ++p2)
         {
           // Buffer space
@@ -512,16 +512,16 @@ public:
     auto all = range::all;
     int nchol = ( REAL ? _Luv_().extent(1) : 2 * _Luv_().extent(1) );
     int nwalk = X.extent(0);
-    long nstot = _Xsiu_().shape()[0];
-    long nptot = _Xsiu_().shape()[1]/NMO;
+    long nspin_in_H = _Xsiu_().shape()[0];
+    long npol_in_H = _Xsiu_().shape()[1]/NMO;
     utils::check_strides(X);
     // limiting X/v to contiguous arrays for simplicity now, reconsider if necessary
     utils::check(X.shape() == std::array<long,2>{nwalk,nchol}, "THC::vHS: Size mismatch.");
 
     // Note: Allocate first, to make better use of memory pool
     // vHS[nspin_in_vHS][nwalk][npol_in_vHS*NMO][NMO]
-    memory::buffered_array<MEM_X,ComplexType,4> v(nstot,nwalk,nptot*NMO,NMO);
-    auto v5d = nda::reshape(v, std::array<long,5>{nstot,nwalk,nptot,NMO,NMO});
+    memory::buffered_array<MEM_X,ComplexType,4> v(nspin_in_H,nwalk,npol_in_H*NMO,NMO);
+    auto v5d = nda::reshape(v, std::array<long,5>{nspin_in_H,nwalk,npol_in_H,NMO,NMO});
     v() = ComplexType(0.0);
 
     // scale by sqrt(dt)
@@ -562,8 +562,8 @@ public:
       memory::buffered_array<MEM,ComplexType,3> Qwiu(nw,NMO,nu);
       memory::buffered_array<MEM_X,ComplexType,2> vt_2d(nw*NMO,NMO);
       auto vt_3d = nda::reshape(vt_2d, std::array<long,3>{nw,NMO,NMO});
-      for( int is=0; is<nstot; ++is) {
-        for( int ip=0; ip<nptot; ++ip) {
+      for( int is=0; is<nspin_in_H; ++is) {
+        for( int ip=0; ip<npol_in_H; ++ip) {
        
           auto Xiu = Xsiu(is,range(ip*NMO,(ip+1)*NMO),all); 
           if constexpr (REAL) {
@@ -689,8 +689,8 @@ protected:
   {
     using nda::range;
     auto all = range::all;
-    long nstot = _Xsiu_().shape()[0];
-    long nptot = _Xsiu_().shape()[1]/NMO;
+    long nspin_in_H = _Xsiu_().shape()[0];
+    long npol_in_H = _Xsiu_().shape()[1]/NMO;
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
@@ -709,8 +709,8 @@ protected:
     for( int is=0; is<nspin; is++ ) {
       for( int ip=0; ip<npol; ip++ ) {
         
-        auto Xiu = Xsiu(is%nstot,range(ip%nptot*NMO,(ip%nptot+1)*NMO),all);
-        auto Yau = Ysau(is%nstot,ip%nptot,range(nelec[is]),all);
+        auto Xiu = Xsiu(is%nspin_in_H,range(ip%npol_in_H*NMO,(ip%npol_in_H+1)*NMO),all);
+        auto Yau = Ysau(is%nspin_in_H,ip%npol_in_H,range(nelec[is]),all);
 
         if constexpr (MEM==HOST_MEMORY) {
           memory::buffered_array<MEM,ComplexType,2> Tau(nelec[is],nu);    
@@ -805,15 +805,15 @@ protected:
   {
     using nda::range;
     auto all = range::all;
-    long nstot = _Xsiu_().shape()[0]; 
-    long nptot = _Xsiu_().shape()[1]/NMO; 
-    long ip_ = long(p2)%nptot;
+    long nspin_in_H = _Xsiu_().shape()[0]; 
+    long npol_in_H = _Xsiu_().shape()[1]/NMO; 
+    long ip_ = long(p2)%npol_in_H;
     range M_rng(ip_*NMO,(ip_+1)*NMO);
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nel  = G.extent(1); 
     bool has_rot = _Xsiu_rot_.has_value();
-    const auto Xiu = ( has_rot ? (*_Xsiu_rot_)()(ispin%nstot,M_rng,all) : 
-                                  _Xsiu_()(ispin%nstot,M_rng,all) );
+    const auto Xiu = ( has_rot ? (*_Xsiu_rot_)()(ispin%nspin_in_H,M_rng,all) : 
+                                  _Xsiu_()(ispin%nspin_in_H,M_rng,all) );
     const auto Yau = ( has_rot ? (*_Ydsau_rot_)()(idet,ispin,p1,range(nelec[ispin]),all) : 
                                  _Ydsau_()(idet,ispin,p1,range(nelec[ispin]),all) );
     int nw = int(G.extent(0));
