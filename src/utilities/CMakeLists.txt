@@ -49,10 +49,7 @@ IF (IS_GIT_PROJECT)
   MESSAGE("Git branch: ${GIT_CONFIG_BRANCH}")
   MESSAGE("Git commit hash: ${GIT_CONFIG_COMMIT_HASH}")
 ELSE()
-  add_custom_target(gitversion
-    COMMAND ${CMAKE_COMMAND} -E remove ${GITREV_FILE}
-    COMMAND ${CMAKE_COMMAND} -E touch ${GITREV_FILE}
-  )
+  file(WRITE ${GITREV_FILE})
 ENDIF()
 
 
@@ -62,9 +59,8 @@ target_sources(safire_lib
     mpi_context.cpp
     parser.cpp
     freemem.cpp
+    ${GITREV_FILE}
 )
-
-add_dependencies(safire_lib gitversion)
 
 if(BUILD_UNIT_TESTS)
   add_library(catch_main STATIC catch_main.cpp)
