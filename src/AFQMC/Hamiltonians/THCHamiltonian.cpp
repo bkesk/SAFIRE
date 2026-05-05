@@ -102,7 +102,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
     grp = std::make_optional(h5::group(file));
     format = get_hamiltonian_format(*grp);
     // open subgroup
-    utils::check(format.substr(0,6) == "coqui", base_error + " Only coqui format is allowed. Format found:{}",format); 
+    utils::check(format == "coqui", base_error + " Only coqui format is allowed. Format found:{}",format); 
     hgrp = std::make_optional(grp->open_group("System"));
     {
       int n;
