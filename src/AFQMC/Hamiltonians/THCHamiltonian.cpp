@@ -120,7 +120,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       // h5::h5_read_attribute(bz,"number_of_polarizations",n);
       // npol_in_file=long(n);
       utils::check((nspin_in_file==1) or (nspin_in_file==nspin), 
-                   base_error + " Incompatible nspin:{} in h5 file.",nspin_in_file);
+                   base_error + " nspin from hamiltonian file ({}) and input file ({}) are incompatible.",nspin_in_file, nspin);
 //      utils::check((npol_in_file==1) or (npol_in_file==npol), 
 //                   base_error + " Incompatible npol:{} in h5 file.",npol_in_file);
     }
@@ -131,9 +131,9 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
 // MAM: fix this, integer types in h5 file are not consistent!!!
       long n;
       // read nspin_in_file
-      h5::h5_read_attribute(igrp,"number_of_spins",n);
-      utils::check(nspin_in_file==n,
-                   base_error + " Incompatible nspin:{} in h5::/Interaction.",n);
+      h5::h5_read_attribute(igrp,"number_of_spins",nspin_in_file);
+      // utils::check(nspin_in_file==n,
+      //              base_error + " Incompatible nspin:{} in h5::/Interaction.",n);
       // read npol_in_file
 //      h5::h5_read_attribute(igrp,"number_of_polarizations",n);
 //      utils::check(npol_in_file==n,

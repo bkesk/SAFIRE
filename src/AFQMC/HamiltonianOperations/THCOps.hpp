@@ -136,7 +136,8 @@ public:
       memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
       vMF_2d(0,all) = vMF();
       v = std::move(vHS(vMF_2d, dt));
-      utils::check(v.shape() == std::array<long,4>{nspin_in_H,1,npol*NMO,NMO}, "Size mismatch");
+      auto expected_shape = std::to_array<long>({nspin_in_H,1,npol_in_H*NMO,NMO});
+      utils::check(v.shape() == expected_shape, "Size mismatch {} != {}", v.shape(), expected_shape);
     }
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
