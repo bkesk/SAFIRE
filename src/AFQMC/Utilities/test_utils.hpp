@@ -34,8 +34,10 @@ template<typename T>
 struct TEST_DATA
 {
   int NMO, nup, ndown;
-  T E0, E1, E2;
-  T Xsum, Vsum;
+  nda::array<T, 1> E1, EJ, EXX;
+  nda::array<T, 2> vbias;
+  nda::array<T, 4> VHS;
+  bool available;
 };
 
 inline int read_nmo_from_hdf(std::string fileName)
@@ -135,38 +137,42 @@ TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_ty
   } else {
     utils::check(false," Error in read_test_results_from_hdf(): Invalid h5 format. ");
   }
-  T E0(0), E1(0), E2(0), Xsum(0), Vsum(0);
+  nda::array<T, 1> E1, EJ, EXX;
+  nda::array<T, 2> vbias;
+  nda::array<T, 4> VHS;
+  bool available{};
 // MAM: put test results inside Wavefunction dataset, to avoid needing to provide wfn_type.
 //      This also allows a single Hamiltonian to be used in multiple tests with different wfn_types.
   if (grp.has_key("TEST_RESULTS"))
-  { 
-    // Data might be real even if T is complex
+  {
     h5::group tgrp = grp.open_group("TEST_RESULTS");
-    auto l = h5::array_interface::get_dataset_info(tgrp,wfn_type + "_E0");
-    if ((not nda::is_complex_v<T>) or 
-        (l.has_complex_attribute or (l.rank()==2 and l.lengths[0]==1 and l.lengths[1]==2))) {
-      // real, or h5:: complex or regular complex type (2 components as vector of size 2)
-      h5::h5_read(tgrp,wfn_type + "_E0",E0);
-      h5::h5_read(tgrp,wfn_type + "_E1",E1);
-      h5::h5_read(tgrp,wfn_type + "_E2",E2);
-      h5::h5_read(tgrp,wfn_type + "_Xsum",Xsum);
-      h5::h5_read(tgrp,wfn_type + "_Vsum",Vsum);
-    } else {
-      double tmp;
-      h5::h5_read(tgrp,wfn_type + "_E0",tmp);      
-      E0 = tmp;
-      h5::h5_read(tgrp,wfn_type + "_E1",tmp);
-      E1 = tmp;
-      h5::h5_read(tgrp,wfn_type + "_E2",tmp);
-      E2 = tmp;
-      h5::h5_read(tgrp,wfn_type + "_Xsum",tmp);
-      Xsum = tmp;
-      h5::h5_read(tgrp,wfn_type + "_Vsum",tmp);
-      Vsum = tmp;
+    if (tgrp.has_key(wfn_type)) {
+      available = true;
+      h5::group wgrp = tgrp.open_group(wfn_type);
+      h5::read(wgrp, "E1", E1);
+      h5::read(wgrp, "EJ", EJ);
+      h5::read(wgrp, "EXX", EXX);
+      h5::read(wgrp, "vbias", vbias);
+      h5::read(wgrp, "VHS", VHS);
     }
   }
 
-  return TEST_DATA<T>{nmo, nup, ndn, E0, E1, E2, Xsum, Vsum};
+  return TEST_DATA<T>{nmo, nup, ndn, std::move(E1), std::move(EJ), std::move(EXX), vbias, VHS, available};
+}
+
+template<typename T>
+void write_test_results_to_hdf(std::string filename, std::string wfn_type, const TEST_DATA<T>& data) {
+  h5::file file(filename,'a');
+  h5::group grp = h5::group{file};
+  h5::group tgrp = grp.create_group("TEST_RESULTS");
+  h5::group wgrp = tgrp.create_group(wfn_type);
+
+  h5::write(wgrp, "E1", data.E1);
+  h5::write(wgrp, "EJ", data.EJ);
+  h5::write(wgrp, "EXX", data.EXX);
+  h5::write(wgrp, "vbias", data.vbias);
+  h5::write(wgrp, "VHS", data.VHS);
+  
 }
 
 /*

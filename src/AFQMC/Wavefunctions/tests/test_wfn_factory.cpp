@@ -53,6 +53,7 @@ using std::ifstream;
 using std::string;
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
+extern bool WRITE_REFERENCE;
 
 namespace sfqmc
 {
@@ -60,8 +61,12 @@ using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
 void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
-             std::string hamil_file, std::string wfn_file, bool dense_trial)
+             std::string hamil_file, std::string wfn_file, bool dense_trial, bool write_reference)
 {
+  app_log(1, "Running wavefunctions unit test "
+    "with files:\n --hamil {} \\\n --wfn {}", 
+    hamil_file, wfn_file
+  );
   using sfqmc::utils::ARRAY_EQUAL;
   using sfqmc::utils::VALUE_EQUAL;
   using nda::range;
@@ -77,9 +82,9 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
   test_wfn = test_wfn.substr(test_wfn.find('_') + 1);
 
-  auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
+  auto reference_data = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "any");
-  utils::check(NMO == file_data.NMO, "Incompatible NMO.");
+  utils::check(NMO == reference_data.NMO, "Incompatible NMO.");
 
   WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "any");
   int nspin            = (type == COLLINEAR or type == COLLINEAR_FT) ? 2 : 1;
@@ -111,12 +116,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
 
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
-  if(type == CLOSED) wlk_pt.put("walker_type","closed");
-  else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
-  else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
-  else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
-  else if(type == COLLINEAR_FT) wlk_pt.put("walker_type","collinear-ft");
-  else if(type == NONCOLLINEAR_FT) wlk_pt.put("walker_type","noncollinear-ft");
+  wlk_pt.put("walker_type", walkerTypeToString(type));
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
@@ -146,6 +146,32 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     wset.resize(nwalk, initial_guess_ft);
   }
 
+  // Perturb the initial guess by a deterministic non-trivial sequence and re-orthonormalise.
+  // Causes inconsistency between CPU/GPU on finite temperature.
+  // {
+  //   std::array nels = {nup, ndown};
+  //   bool ft = (type == COLLINEAR_FT or type == NONCOLLINEAR_FT);
+  //   for (int spin = 0; spin < nspin; spin++) {
+  //     long nuv = (ft ? 2 : 1);
+  //     nda::array<ComplexType, 1> p_h(nuv * nwalk * npol * NMO * nels[spin]);
+  //     for (long k = 0; k < p_h.size(); ++k) {
+  //       double v = 0.01 * (k + 1);
+  //       p_h[k] = {v, v * v};
+  //     }
+  //     if (ft) {
+  //       memory::array<MEM, ComplexType, 4> p(reshape(p_h, 2, nwalk, npol * NMO, nels[spin]));
+  //       auto UM = wset.UMatrices(static_cast<SpinTypes>(spin));
+  //       auto VM = wset.VMatrices(static_cast<SpinTypes>(spin));
+  //       nda::tensor::add(p(0,nda::ellipsis{}), "ijk", UM, "ijk");
+  //       nda::tensor::add(p(1,nda::ellipsis{}), "ijk", VM, "ijk");
+  //     } else {
+  //       memory::array<MEM, ComplexType, 3> p(reshape(p_h, nwalk, npol * NMO, nels[spin]));
+  //       auto SM = wset.SlaterMatrices(static_cast<SpinTypes>(spin));
+  //       nda::tensor::add(p, "ijk", SM, "ijk");
+  //     }
+  //   }
+  // }
+
   // Overlap
   //if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT)
   wfn.Log_Overlap(wset);
@@ -153,23 +179,32 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   Watch Time;
   Time.reset();
 
+  // optimize HOps evaluation
+  wfn.runtime_optimization(wset);
+
   wfn.Energy(wset);
 
-  if (std::abs(file_data.E0 + file_data.E1 + file_data.E2) > 1e-8)
+  nda::array<ComplexType, 1> e1_w(nwalk), ej_w(nwalk), exx_w(nwalk);
+  wset.getProperty(E1_,  e1_w);
+  wset.getProperty(EJ_,  ej_w);
+  wset.getProperty(EXX_, exx_w);
+
+  if (!write_reference)
   {
-    for (auto it = wset.begin(); it != wset.end(); ++it)
-    {
-      VALUE_EQUAL(it->get_property(E1_), file_data.E0 + file_data.E1);
-      VALUE_EQUAL(it->get_property(EXX_) + it->get_property(EJ_), file_data.E2);
-      VALUE_EQUAL(it->energy(), file_data.E0 + file_data.E1 + file_data.E2);
+    if(reference_data.available) {
+      ARRAY_EQUAL(e1_w,        reference_data.E1);
+      ARRAY_EQUAL(ej_w, reference_data.EJ);
+      ARRAY_EQUAL(exx_w,     reference_data.EXX);
     }
-  }
+  } 
   else
   {
-    app_log(1," E: {}", wset[0].energy()); 
-    app_log(1," E0+E1: {}", wset[0].get_property(E1_));
-    app_log(1," EJ: {}", wset[0].get_property(EJ_)); 
-    app_log(1," EXX: {}", wset[0].get_property(EXX_));
+    reference_data.E1 = e1_w;
+    reference_data.EJ = ej_w;
+    reference_data.EXX = exx_w;
+    // app_log(1," E0+E1: {}", e1_w);
+    // app_log(1," EJ: {}", ej_w);
+    // app_log(1," EXX: {}", exx_w);
   }
   
   // must initialize discrete propagators for lattice models before calling vMF, vbias, etc.
@@ -190,6 +225,22 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   // G_MF
   {
     auto gMF = wfn.G_MF();
+    ComplexType trG = 0;
+    for(int spin = 0; spin < nspin; spin++) {
+      auto gMF_spin = gMF()(spin,all,all);
+      trG += nda::sum(nda::diagonal(gMF_spin)); 
+      ARRAY_EQUAL(gMF_spin, nda::transpose(gMF_spin));
+    }
+    if(type != COLLINEAR_FT && type != NONCOLLINEAR_FT) {
+      CHECK(trG.real() == Approx(nel));
+    }
+  }
+
+  // update_potentials with natural_shift=true (mirrors production flow)
+  {
+    nda::array<ComplexType,1> nMF_natural(2*NMO, ComplexType(1.0));
+    memory::array<MEM,ComplexType,1> vMF_natural(wfn.number_of_cholesky_vectors());
+    wfn.update_potentials(dt, nMF_natural, vMF_natural, true);
   }
 
   Time.reset();
@@ -199,130 +250,61 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   {
     auto X_h = nda::to_host(X);
     ComplexType Xsum = 0;
-    if (std::abs(file_data.Xsum) > 1e-8)
-    {
-      for (int n = 0; n < nwalk; n++)
-      {
-        Xsum = nda::sum(X_h(n,all));
-        VALUE_EQUAL(Xsum,file_data.Xsum);
+    if (!write_reference) {
+      if(reference_data.available) {
+        ARRAY_EQUAL(X_h, reference_data.vbias);
       }
-    }
-    else
-    {
-      Xsum = nda::sum(X_h(0,all));
-      ComplexType Xsum2 = 0;
-      for (auto& v: X_h(0,all) )
-        Xsum2 += ComplexType(0.5) * v * v; 
-      app_log(1," Xsum: {}", Xsum);
-      app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
+    } else {
+      reference_data.vbias = X_h;
     }
   }
 
-  if (wfn.getHamType() == ModelHamiltonian) // only sparseP2 is used - denseP2 is hardcoded to never run!
+  // One-body propagator matrix shape check
   {
+    auto X_h = nda::to_host(X);
+    nda::array<ComplexType,1> X_h_real = nda::real(X_h(0,all)); // cannot use finite imaginary part for vMF
+    auto h1 = wfn.getOneBodyPropagatorMatrix(dt, X_h_real);
+    REQUIRE( h1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO} );
+  }
 
-    auto vHS = wfn.vHS_sparse(X, dt); 
-    utils::check(vHS.extent(0) == nspin, "Size mismatch");
-    utils::check((vHS(0).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}) and
-                 (vHS(nspin-1).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}),
-                 "Size mismatch");        
-    /*
-        // Convert sparse matrices to dense CMatrix objects for easier manipulation
-        CMatrix vHS_up_dense({vHS_up->size(0), vHS_up->size(1)}, alloc_);
-        CMatrix vHS_down_dense({vHS_down->size(0), vHS_down->size(1)}, alloc_);
-        
-        // Initialize dense matrices to zero
-        std::fill_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), ComplexType(0.0));
-        std::fill_n(vHS_down_dense.origin(), vHS_down_dense.num_elements(), ComplexType(0.0));
-        
-        // Convert sparse to dense using correct sparse matrix API
-        for (int row = 0; row < static_cast<int>(vHS_up->size(0)); ++row) {
-          auto [nnz, vals, cols] = vHS_up->sparse_row(row);
-          for (size_t i = 0; i < nnz; ++i) {
-            vHS_up_dense[row][cols[i]] = vals[i];
-          }
-        }
-        
-        // For collinear systems, handle vHS_down if it's different from vHS_up
-        // For noncollinear systems, vHS_up and vHS_down point to the same matrix
-        if (vHS_up != vHS_down) {
-          // COLLINEAR case: fill vHS_down_dense separately
-          for (int row = 0; row < static_cast<int>(vHS_down->size(0)); ++row) {
-            auto [nnz, vals, cols] = vHS_down->sparse_row(row);
-            for (size_t i = 0; i < nnz; ++i) {
-              vHS_down_dense[row][cols[i]] = vals[i];
-            }
-          }
-        } else {
-          // NONCOLLINEAR case: copy the same data
-          std::copy_n(vHS_up_dense.origin(), vHS_up_dense.num_elements(), vHS_down_dense.origin());
-        }
-        
-        ComplexType Vsum = 0;
-        if (std::abs(file_data.Vsum) > 1e-8)
-        {
-          for (int n = 0; n < nwalk; n++)
-          {
-            Vsum = 0;
-            if (wfn.transposed_vHS())
-            {
-              for (int i = 0; i < vHS_up_dense.size(1); i++)
-                Vsum += vHS_up_dense[n][i];
-              for (int i = 0; i < vHS_down_dense.size(1); i++)
-                Vsum += vHS_down_dense[n][i];
-            }
-            else
-            {
-              for (int i = 0; i < vHS_up_dense.size(0); i++)
-                Vsum += vHS_up_dense[i][n];
-              for (int i = 0; i < vHS_down_dense.size(0); i++)
-                Vsum += vHS_down_dense[i][n];
-            }
-            VALUE_EQUAL(Vsum,file_data.Vsum);
-          }
-        } else {
-          Vsum = 0;
-          if (wfn.transposed_vHS())
-          {
-            for (int i = 0; i < vHS_up_dense.size(1); i++)
-              Vsum += vHS_up_dense[0][i];
-            for (int i = 0; i < vHS_down_dense.size(1); i++)
-              Vsum += vHS_down_dense[0][i];
-          }
-          else
-          {
-            for (int i = 0; i < vHS_up_dense.size(0); i++)
-              Vsum += vHS_up_dense[i][0];
-            for (int i = 0; i < vHS_down_dense.size(0); i++)
-              Vsum += vHS_down_dense[i][0];
-          }
-          app_log(1," Vsum: {}", ComplexType(Vsum));
-        }
-*/
-  } else { // not a model Hamiltonian
+  // Dense vHS shape + Vsum value check
+  {
+    auto[vHS_nspin, vHS_npol] = wfn.vHS_dims();
+    auto vHS_dense = wfn.vHS(X, dt);
+    REQUIRE( vHS_dense.shape() == std::array<long,4>{vHS_nspin,nwalk,vHS_npol*NMO,NMO} );
+    auto vHS_h = nda::to_host(vHS_dense);
 
-    /*
-    Time.reset();
-    auto vHS_d = wfn.vHS(X, dt);
-    auto vHS = nda::to_host(vHS_d);
-
-    ComplexType Vsum = 0;
-    if (std::abs(file_data.Vsum) > 1e-8)
+    if (!write_reference)
     {
-      for (int n = 0; n < nwalk; n++)
-      {
-        Vsum = nda::sum(vHS(all,n,all,all));
-        VALUE_EQUAL(Vsum,file_data.Vsum);
+      if(reference_data.available) {
+        ARRAY_EQUAL(vHS_h, reference_data.VHS);
       }
     }
     else
     {
-      Vsum = nda::sum(vHS(all,0,all,all));
-      app_log(1," Vsum: {}", Vsum);
+      reference_data.VHS = vHS_h;
     }
-    */
-
   }
+
+  // Sparse vHS shape + Vsum value check (ModelHamiltonian only)
+  if (wfn.getHamType() == ModelHamiltonian)
+  {
+    auto vHS_sp = wfn.vHS_sparse(X, dt);
+    utils::check(vHS_sp.extent(0) == nspin, "Size mismatch");
+    utils::check((vHS_sp(0).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}) and
+                 (vHS_sp(nspin-1).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}),
+                 "Size mismatch");
+    if (!write_reference && reference_data.available) {
+      auto vHS_sp_dense = math::sparse::to_array<'N'>(vHS_sp(0));
+      auto[vHS_nspin, vHS_npol] = wfn.vHS_dims();
+      ARRAY_EQUAL(vHS_sp_dense(range(vHS_npol*NMO), range(NMO)),
+                  reference_data.VHS(0,0,nda::ellipsis{}));
+    }
+  }
+
+  if(write_reference) {
+    write_test_results_to_hdf(hamil_file, test_wfn, reference_data);
+  }      
 }
 
 TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
@@ -331,38 +313,39 @@ TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
 
   app_log(0,"WavefunctionFactory unit testing.");
 
+  bool write_reference = WRITE_REFERENCE;
   if (UTEST_HAMIL!="" and UTEST_WFN!="") {
     app_log(0,"WavefunctionFactory unit testing. Running user provided test:");
     app_log(0," Hamiltonian: {}", UTEST_HAMIL);
     app_log(0," Wavefunction: {}", UTEST_WFN);
-    wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
-    wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
+    wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true,write_reference);
+    wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false,false);
 #if defined(ENABLE_DEVICE)
-    wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
-    wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
+    wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true,false);
+    wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false,false);
 #endif
   } else {
     app_log(0,"WavefunctionFactory unit testing. Running standard tests.");
     auto files = utils::get_unit_tests_files(true,true,true,true,false,true);
     for( auto f : files ) {
       try {
-        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true,write_reference);
       } catch (const sfqmc::AppAbortException& e) {
         FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
       }
       try {
-        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false,false);
       } catch (const sfqmc::AppAbortException& e) {
         FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
       }
 #if defined(ENABLE_DEVICE)
       try {
-        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
+        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true,false);
       } catch (const sfqmc::AppAbortException& e) {
         FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
       }
       try {
-        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
+        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false,false);
       } catch (const sfqmc::AppAbortException& e) {
         FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
       }

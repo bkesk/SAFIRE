@@ -143,7 +143,7 @@ void getSlaterMatrix_occ(Mat&& SM, nda::MemoryVector auto&& occs)
 
 template<MEMORY_SPACE MEM>
 void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
-             std::string hamil_file, std::string wfn_file)
+             std::string hamil_file, std::string wfn_file, bool write_reference)
 {
   using sfqmc::utils::VALUE_EQUAL;
   using sfqmc::utils::ARRAY_EQUAL;
@@ -158,6 +158,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   std::string base_name = wfn_file.substr(wfn_file.find_last_of("\\/") + 1);
   // Remove file extension.
   std::string test_wfn = base_name.substr(0, base_name.find_last_of("."));
+  test_wfn = test_wfn.substr(test_wfn.find('_') + 1);
   auto file_data       = read_test_results_from_hdf<ComplexType>(hamil_file, test_wfn);
   auto [NMO,nup,ndown] = read_info_from_wfn(wfn_file, "PHMSD");
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
@@ -363,6 +364,24 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   nda::apply(ComplexType(1.0),ov_ph0,nda::tensor::op::EXP);
 
   {
+    auto eloc_h = nda::to_host(eloc_ph0);
+    nda::array<ComplexType,1> e1_w  = eloc_h(all,0);
+    nda::array<ComplexType,1> exx_w = eloc_h(all,1);
+    nda::array<ComplexType,1> ej_w  = eloc_h(all,2);
+    if (!write_reference) {
+      if (file_data.available) {
+        ARRAY_EQUAL(e1_w,  file_data.E1);
+        ARRAY_EQUAL(ej_w,  file_data.EJ);
+        ARRAY_EQUAL(exx_w, file_data.EXX);
+      }
+    } else {
+      file_data.E1  = e1_w;
+      file_data.EJ  = ej_w;
+      file_data.EXX = exx_w;
+    }
+  }
+
+  {
     memory::array<MEM,ComplexType,2> eloc(nwalk,3);
     memory::array<MEM,ComplexType,1> ov(nwalk);
     nomsd.Energy(wset,eloc,ov);
@@ -409,24 +428,12 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   wfn.vbias(wset, X, dt);
   {
     auto X_h = nda::to_host(X);
-    ComplexType Xsum = 0;
-    if (std::abs(file_data.Xsum) > 1e-8)
-    {
-      for (int n = 0; n < nwalk; n++)
-      {
-        Xsum = nda::sum(X_h(n,all));
-        REQUIRE(real(Xsum) == Approx(real(file_data.Xsum)));
-        REQUIRE(imag(Xsum) == Approx(imag(file_data.Xsum)));
+    if (!write_reference) {
+      if (file_data.available) {
+        ARRAY_EQUAL(X_h, file_data.vbias);
       }
-    }
-    else
-    {
-      Xsum = nda::sum(X_h(0,all));
-      ComplexType Xsum2 = 0;
-      for (auto& v: X_h(0,all) )
-        Xsum2 += ComplexType(0.5) * v * v;
-      app_log(1," Xsum: {}", Xsum);
-      app_log(1," Xsum2 (EJ): {}", Xsum2 / dt);
+    } else {
+      file_data.vbias = X_h;
     }
 
     memory::array<MEM,ComplexType,2> X2(nwalk,nomsd.number_of_cholesky_vectors());
@@ -437,21 +444,16 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   // vHS
   auto vHS_d = wfn.vHS(X, dt);
   auto vHS = nda::to_host(vHS_d);
-
-  ComplexType Vsum = 0;
-  if (std::abs(file_data.Vsum) > 1e-8)
-  {
-    for (int n = 0; n < nwalk; n++)
-    {
-      Vsum = nda::sum(vHS(all,n,all,all));
-      REQUIRE(real(Vsum) == Approx(real(file_data.Vsum)));
-      REQUIRE(imag(Vsum) == Approx(imag(file_data.Vsum)));
+  if (!write_reference) {
+    if (file_data.available) {
+      ARRAY_EQUAL(vHS, file_data.VHS);
     }
+  } else {
+    file_data.VHS = vHS;
   }
-  else
-  {
-    Vsum = nda::sum(vHS(all,0,all,all));
-    app_log(1," Vsum: {}", Vsum);
+
+  if (write_reference) {
+    write_test_results_to_hdf(hamil_file, test_wfn, file_data);
   }
 
   mpi->comm.barrier();
@@ -470,9 +472,10 @@ TEST_CASE("test_phmsd", "[read_phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+  bool write_reference = false;
+  test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, write_reference);
 #if defined(ENABLE_DEVICE)
-  test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+  test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, false);
 #endif
 }
 
