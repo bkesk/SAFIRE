@@ -146,31 +146,32 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     wset.resize(nwalk, initial_guess_ft);
   }
 
-  // Perturb the initial guess by a deterministic non-trivial sequence and re-orthonormalise.
-  // Causes inconsistency between CPU/GPU on finite temperature.
-  // {
-  //   std::array nels = {nup, ndown};
-  //   bool ft = (type == COLLINEAR_FT or type == NONCOLLINEAR_FT);
-  //   for (int spin = 0; spin < nspin; spin++) {
-  //     long nuv = (ft ? 2 : 1);
-  //     nda::array<ComplexType, 1> p_h(nuv * nwalk * npol * NMO * nels[spin]);
-  //     for (long k = 0; k < p_h.size(); ++k) {
-  //       double v = 0.01 * (k + 1);
-  //       p_h[k] = {v, v * v};
-  //     }
-  //     if (ft) {
-  //       memory::array<MEM, ComplexType, 4> p(reshape(p_h, 2, nwalk, npol * NMO, nels[spin]));
-  //       auto UM = wset.UMatrices(static_cast<SpinTypes>(spin));
-  //       auto VM = wset.VMatrices(static_cast<SpinTypes>(spin));
-  //       nda::tensor::add(p(0,nda::ellipsis{}), "ijk", UM, "ijk");
-  //       nda::tensor::add(p(1,nda::ellipsis{}), "ijk", VM, "ijk");
-  //     } else {
-  //       memory::array<MEM, ComplexType, 3> p(reshape(p_h, nwalk, npol * NMO, nels[spin]));
-  //       auto SM = wset.SlaterMatrices(static_cast<SpinTypes>(spin));
-  //       nda::tensor::add(p, "ijk", SM, "ijk");
-  //     }
-  //   }
-  // }
+  // Perturb the initial guess by a deterministic non-trivial sequence.
+  {
+    std::array nels = {nup, ndown};
+    bool ft = (type == COLLINEAR_FT or type == NONCOLLINEAR_FT);
+    for (int spin = 0; spin < nspin; spin++) {
+      long nuv = (ft ? 2 : 1);
+      nda::array<ComplexType, 1> p_h(nuv * nwalk * npol * NMO * nels[spin]);
+      for (long k = 0; k < p_h.size(); ++k) {
+        double v = 0.1 * (k + 1);
+        p_h[k] = {std::cos(v), std::sin(v * v)};
+      }
+      if (ft) {
+        memory::array<MEM, ComplexType, 4> p(reshape(p_h, 2, nwalk, npol * NMO, nels[spin]));
+        auto UM = wset.UMatrices(static_cast<SpinTypes>(spin));
+        auto VM = wset.VMatrices(static_cast<SpinTypes>(spin));
+        auto DM = wset.DMatrices(static_cast<SpinTypes>(spin));
+        nda::tensor::add(1, p(0,nda::ellipsis{}), 1, UM);
+        nda::tensor::add(1, p(1,nda::ellipsis{}), 1, VM);
+        nda::tensor::add(1, p(0,all, 0, all), 1, DM);
+      } else {
+        memory::array<MEM, ComplexType, 3> p(reshape(p_h, nwalk, npol * NMO, nels[spin]));
+        auto SM = wset.SlaterMatrices(static_cast<SpinTypes>(spin));
+        nda::tensor::add(p, "ijk", SM, "ijk");
+      }
+    }
+  }
 
   // Overlap
   //if(type != COLLINEAR_FT and type != NONCOLLINEAR_FT)
