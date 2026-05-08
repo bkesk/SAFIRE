@@ -38,9 +38,6 @@ See the examples in SAFIRE/examples/afqmc for more details on using these script
 ### Deprecated CLI Tools
 
 - `aimbes_to_afqmc` : (deprecated) : use `aimbes_to_2nd_quant` instead : Convert AIMBES Hamiltonians saved in an HDF5 checkpoint file to an SAFIRE file.
-- `kp_to_sparse` : (deprecated) : sparse format is not officially supported : Converts SAFIRE K-point factorize Hamiltonain to SAFIRE 
-      generic-sparse Hamiltonian format.
-- `sparse_to_dense` : (deprecated) sparse format is not officially supported
 
 
 ## Installation
@@ -142,21 +139,6 @@ from afqmctools.hamiltonian.mol import write_hamil_mol
 
 ... 
 ```
-
-## Requirements
-
-TODO: 07252024 This needs to be tested; minimum versions are not known
-MAM: We seem to depend also on yaml and toml. Either make explicit or guard in the code.
-
-The tools work with the following:
-
-* python > 3.6
-* pyscf >= 1.6.0
-* scipy >= 0.18.1
-* numpy >= 1.11.2
-* h5py >= 2.6.0 with parallel hdf5 support for k-point symmetric integral generation
-  (optional).
-* mpi4py >= 2.0.0
 
 ## Tests
 
@@ -295,7 +277,7 @@ nelec = [6,6]
 ### Model Hamiltonian Builder Input Conventions
 
 Model Hamiltonian parameters can be specified either directly
-as a Python dict, or via an input file in json, toml, or yaml format.
+as a Python dict, or via an input file in toml format.
 All cases share the following conventions.
 
 First, the input is organized into a `hamiltonian` block - where Hamiltionan parameters are specified - and a `lattice` block - where the lattice that the Hamiltonian is defined on is specified.

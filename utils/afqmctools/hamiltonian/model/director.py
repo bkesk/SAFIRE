@@ -263,8 +263,7 @@ class HamiltonianDirector(_HamiltonianDirector):
             raise ValueError(
                 "Invalid parameter source."
                 " source must be either a dict, or a str"
-                " containing an input file name (json, toml,"
-                " or yaml)"
+                " containing the file name of a toml input file"
             )
     
         self._parse_input(source_dict['hamiltonian'])
