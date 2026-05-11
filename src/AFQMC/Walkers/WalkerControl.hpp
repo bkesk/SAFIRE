@@ -311,10 +311,7 @@ inline void pair_branch(std::vector<std::pair<double, int>>& buff, Random& rng, 
   }
   if (nzero > 0)
   {
-    app_error(" Error in pair_branch: nzero>0: {} ", nzero );
-    app_error(" Found walkers with zero weight after branch.");
-    app_error(" Try reducing subSteps or reducing the time step.");
-    APP_ABORT("Error in pair_branch.");
+    utils::check(false, "Found {} walkers with zero weight after branch. Try reducing subSteps or reducing the time step.", nzero);
   }
   if (nw != nnew)
     APP_ABORT("Error: Problems with pair_branching.");

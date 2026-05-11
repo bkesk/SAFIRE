@@ -110,7 +110,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
       psi(id,0) = math::sparse::combine_csr(up,dn,NMO);
     }
   } else {
-    utils::check(wfn_type == CLOSED, "Logic error: wfn_type:{}, walker_type:{}",int(wfn_type),int(walker_type)); 
+    utils::check(wfn_type == CLOSED, "Logic error: wfn_type: {}, walker_type: {}", walkerTypeToString(wfn_type), walkerTypeToString(walker_type)); 
     utils::check(walker_type == COLLINEAR or walker_type == NONCOLLINEAR, "Logic error."); 
     if(walker_type == COLLINEAR) {
       // upgrade from CLOSED to COLLINEAR 

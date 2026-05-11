@@ -104,12 +104,7 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
 
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
-  if(type == CLOSED) wlk_pt.put("walker_type","closed");
-  else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
-  else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
-  else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
-  else if(type == COLLINEAR_FT) wlk_pt.put("walker_type","collinear-ft");
-  else if(type == NONCOLLINEAR_FT) wlk_pt.put("walker_type","noncollinear-ft");
+  wlk_pt.put("walker_type", walkerTypeToString(type));
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
 
   ptree wfn_pt;
