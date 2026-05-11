@@ -49,7 +49,7 @@ std::tuple<int,int,int,int> getWavefunctionDims(std::string filename)
   } else if (wgrp.has_key("PHMSD")) {
     name = std::string("PHMSD");
   } else {
-    utils::check(false, "Error in getWavefunctionDims: Missing NOMSD/PHMSD block."); 
+    utils::check(false, "Missing NOMSD/PHMSD block."); 
   }
   h5::group ngrp = wgrp.open_group(name);
   std::vector<int> dims(5);
@@ -85,60 +85,14 @@ WALKER_TYPES getWalkerType(std::string filename, std::string type)
     else
       utils::check(false,"Missing NOMSD/PHMSD datasets in Wavefunction.");
   }
-  utils::check(wgrp.has_key(type), "Error in getWavefunctionDims: Missing wfn type:{}",type);
+  
+  utils::check(wgrp.has_key(type), "Missing wfn type:{}",type);
   h5::group ngrp = wgrp.open_group(type);
   std::vector<int> Idata(5);
-  h5::h5_read(ngrp,"dims",Idata);
-  int wfn_type = Idata[3];
-  if (wfn_type == 1)
-    return CLOSED;
-  else if (wfn_type == 2)
-    return COLLINEAR;
-  else if (wfn_type == 3)
-    return NONCOLLINEAR;
-  else if (wfn_type == 4)
-    return FULLYPOLARIZED;
-  else if (wfn_type == 5)
-    return COLLINEAR_FT;
-  else if (wfn_type == 6)
-    return NONCOLLINEAR_FT;
-  else
-    return UNDEFINED_WALKER_TYPE;
+  h5::read(ngrp,"dims",Idata);
+  
+  return initWALKER_TYPES(Idata[3]);
 }
-
-WALKER_TYPES getWalkerType(std::string filename)
-{
-  h5::file file(filename,'r');
-  h5::group grp(file);
-  h5::group wgrp = grp.open_group("Wavefunction");
-  std::string type;
-  if (wgrp.has_key("NOMSD")) {
-    type = std::string("NOMSD");
-  } else if (wgrp.has_key("PHMSD")) {
-    type = std::string("PHMSD");
-  } else {
-    utils::check(false, "Error in getWalkerType: Missing NOMSD/PHMSD block.");
-  }
-  h5::group ngrp = wgrp.open_group(type);
-  std::vector<int> Idata(5);
-  h5::h5_read(ngrp,"dims",Idata);
-  int wfn_type = Idata[3];
-  if (wfn_type == 1)
-    return CLOSED;
-  else if (wfn_type == 2)
-    return COLLINEAR;
-  else if (wfn_type == 3)
-    return NONCOLLINEAR;
-  else if (wfn_type ==4)
-    return FULLYPOLARIZED;
-  else if (wfn_type == 5)
-    return COLLINEAR_FT;
-  else if (wfn_type == 6)
-    return NONCOLLINEAR_FT;
-  else
-    return UNDEFINED_WALKER_TYPE;
-}
-
 
 void read_ph_wavefunction_hdf(h5::group& grp,
                               nda::array<ComplexType,1>& ci_coeff,
@@ -154,7 +108,7 @@ void read_ph_wavefunction_hdf(h5::group& grp,
   int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
   int nspin = (walker_type == COLLINEAR ? 2 : 1);
   utils::check(walker_type != UNDEFINED_WALKER_TYPE, "Undefined walker type.");
-  utils::check(walker_type != CLOSED, " Error: walker_type==CLOSED not yet implemented in read_ph_wavefunction_hdf.");
+  utils::check(walker_type != CLOSED, " walker_type==CLOSED not yet implemented in read_ph_wavefunction_hdf.");
   bool mixed = false;
   int NEL    = nup + (walker_type == COLLINEAR ? ndown : 0);
 
@@ -170,12 +124,12 @@ void read_ph_wavefunction_hdf(h5::group& grp,
   getCommonInput(grp, NMO, nup, ndown, ndets, ci_coeff, wtype);
   // make first coefficient positive (or maybe largest???)
   ci_coeff() *= ( std::real(ci_coeff(0)) < 0.0 ? -1.0 : 1.0 );  
-  utils::check(wtype != CLOSED, " Error: walker_type==CLOSED not yet implemented for PHMSD Trial wavefunctions.");
-  utils::check(wtype != NONCOLLINEAR, " Error: walker_type==NONCOLLINEAR not yet implemented for PHMSD Trial wavefunctions. Contact developers if you need this feature.");
+  utils::check(wtype != CLOSED, " walker_type==CLOSED not yet implemented for PHMSD Trial wavefunctions.");
+  utils::check(wtype != NONCOLLINEAR, " walker_type==NONCOLLINEAR not yet implemented for PHMSD Trial wavefunctions. Contact developers if you need this feature.");
 
   // limiting to this for now, kind of irrelevant until we find a FCI code that works in
   // a UHF basis
-  utils::check(wtype == walker_type, " Error: walker_type in wavefunction file differs from input file. ");
+  utils::check(wtype == walker_type, " walker_type ({}) in wavefunction file differs from input file ({}).", wtype, walkerTypeToString(wtype), walkerTypeToString(walker_type));
 
   int type_;
   h5::h5_read(grp,"type",type_);
@@ -188,7 +142,7 @@ void read_ph_wavefunction_hdf(h5::group& grp,
     type = "mixed";
     mixed = true;
   } else {
-    utils::check(false,"Error in read_ph_wavefunction_hdf: Unknown value of dataset type.");
+    utils::check(false,"Unknown value of dataset type.");
   }
 
   if (mixed)
@@ -199,21 +153,21 @@ void read_ph_wavefunction_hdf(h5::group& grp,
       h5::group g = grp.open_group("PsiT_"+ std::to_string(0));
       PsiT(0) = std::move(math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(g));
       utils::check(PsiT(0).extent(1) == npol*NMO, 
-                   "Error: For PHMSD type=mixed, PsiT.size(1) must be npol*NMO");
+                   "For PHMSD type=mixed, PsiT.size(1) must be npol*NMO");
     }
     if (type_ == 2)
     {
       utils::check(walker_type == COLLINEAR, 
-                   " Error in read_ph_wavefunction_hdf: Inconsistent walker_type and wfn type.");
+                   "Inconsistent walker_type and wfn type.");
       h5::group g = grp.open_group("PsiT_"+ std::to_string(1));
       PsiT(1) = std::move(math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(g));
       utils::check(PsiT(1).extent(1) == npol*NMO, 
-                   "Error: For PHMSD type=mixed, PsiT.size(1) must be npol*NMO");
+                   "For PHMSD type=mixed, PsiT.size(1) must be npol*NMO");
     }
   }
   nda::array<int,1> buff;
   nda::h5_read(grp,"occs",buff);
-  utils::check(buff.size() >= ndets*NEL," Error in read_ph_wavefunction_hdf: occupation array too small." );
+  utils::check(buff.size() >= ndets*NEL," occupation array too small." );
   occs.resize(ndets,NEL);
   std::copy_n(buff.data(),ndets*NEL,occs.data());
 }
@@ -254,7 +208,7 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
       for (int k = 0, q = 0; k < nup; k++)
       {
         q = occs(i,k);
-        utils::check(q>=0 and q<NMO, "Error: Bad occupation number " + std::to_string(q) + " in determinant " + std::to_string(i) + " in wavefunction file. ");
+        utils::check(q>=0 and q<NMO, "Bad occupation number " + std::to_string(q) + " in determinant " + std::to_string(i) + " in wavefunction file. ");
       }
       if (i == 0)
       {
@@ -270,7 +224,7 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
       for (int k = 0, q = 0; k < ndown; k++)
       {
         q = occs(i,nup + k);
-        utils::check(q>=NMO and q<2*NMO,"Error: Bad occupation number " + std::to_string(q) + " in determinant " + std::to_string(i) + " in wavefunction file. ");
+        utils::check(q>=NMO and q<2*NMO,"Bad occupation number " + std::to_string(q) + " in determinant " + std::to_string(i) + " in wavefunction file. ");
       }
       if (i == 0)
       {
@@ -320,7 +274,7 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
       for (int k = 0, q = 0; k < nup; k++)
       {
         q = occs(i,k);
-        utils::check(q>=0 and q<NMO,"Error: Bad occupation number " + std::to_string(q) + " in determinant " + std::to_string(i) + " in wavefunction file. ");
+        utils::check(q>=0 and q<NMO,"Bad occupation number " + std::to_string(q) + " in determinant " + std::to_string(i) + " in wavefunction file. ");
       }
       np = get_excitation_number(true, refa, occs(i,range(nup)), exct, ci, Iwork);
       alpha_index =
@@ -333,7 +287,7 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
       for (int k = 0, q = 0; k < ndown; k++)
       {
         q = occs(i,nup + k);
-        utils::check(q>=NMO and q<2*NMO,"Error: Bad occupation number " + std::to_string(q) + " in determinant " + std::to_string(i) + " in wavefunction file. ");
+        utils::check(q>=NMO and q<2*NMO,"Bad occupation number " + std::to_string(q) + " in determinant " + std::to_string(i) + " in wavefunction file. ");
       }
       np = get_excitation_number(true, refb, occs(i,range(nup,nup+ndown)), exct, ci, Iwork);
       beta_index =
@@ -342,6 +296,19 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
     }
   }
   return ph_struct;
+}
+
+
+void checkCommonDims(std::vector<int> const& dims, int NMO, int nup, int ndown, int& ndets_to_read, WALKER_TYPES walker_type) {
+  utils::check(NMO==dims[0], "Inconsistent NMO: given {} != {} in file", NMO, dims[0]);
+  std::array nels = {nup, ndown};
+  utils::check(nels == std::array{dims[1],dims[2]}, "Inconsistent (nup,ndown): given {} != {} in file", nels, std::array{dims[1], dims[2]});
+
+  if(ndets_to_read < 1) ndets_to_read = dims[4];
+  if(ndets_to_read > dims[4]) {
+    app_warning("Found less determinants than requested, adjusting request: requested {} > {} in file.", ndets_to_read, dims[4]);
+    ndets_to_read = dims[4];
+  }
 }
 
 /*
@@ -358,19 +325,12 @@ void getCommonInput(h5::group& grp,
   // check for consistency in parameters
   std::vector<int> dims(5);
   h5::h5_read(grp,"dims",dims);
-  utils::check(NMO==dims[0], " Error in getCommonInput(): Inconsistent NMO . ");
-  utils::check(nup == dims[1], " Error in getCommonInput(): Inconsistent  nup. ");
-  utils::check(ndown==dims[2], " Error in getCommonInput(): Inconsistent  ndown. ");
-  walker_type = afqmc::initWALKER_TYPES(dims[3]);
-  if(ndets_to_read < 1) ndets_to_read = dims[4];
-  if(ndets_to_read > dims[4]) {
-    app_warning("Found less determinants than requested, adjusting request: requested:{}, found:{}",ndets_to_read,dims[4]);
-    ndets_to_read = dims[4];
-  }
+  checkCommonDims(dims, NMO, nup, ndown, ndets_to_read, walker_type);
   app_log(1," - Number of determinants in trial wavefunction: {} ", ndets_to_read);
   ci.resize(ndets_to_read);
   nda::array<ComplexType,1> ci_t(dims[4]);
   utils::h5_read(grp,"ci_coeffs",ci_t);
+  walker_type = initWALKER_TYPES(dims[3]);
   ci() = ci_t(nda::range(ndets_to_read)); 
 }
 

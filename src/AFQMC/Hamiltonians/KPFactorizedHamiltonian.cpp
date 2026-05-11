@@ -103,7 +103,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     file = h5::file(fileName,'r');
     h5::group grp = h5::group(file);
     format = get_hamiltonian_format(grp);
-    if(format.substr(0,6) == "coqui") {
+    if(format == "coqui") {
       // open subgroup
       h5::group hgrp = grp.open_group("System");
       {
@@ -159,7 +159,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         // interaction
         h5::group igrp = grp.open_group("Interaction");
 
-        auto expected_shape = std::to_array<size_t>({nspin_in_file * npol_in_file, nkpts, nbnd, nbnd});
+        auto expected_shape = std::to_array<long>({nspin_in_file * npol_in_file, nkpts, nbnd, nbnd});
         nchol.resize(nkpts); 
         for(int Q=0; Q<nkpts; ++Q) {
           auto l = h5::array_interface::get_dataset_info(igrp,"Vq"+std::to_string(Q));
@@ -172,7 +172,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
             nchol(Q) = nchol(minusq(Q)); 
         }
       }
-    } else if(format.substr(0,4) == "std") {
+    } else if(format == "std") {
       // MAM: The "std" format, written for pyscf and the old fortran QE converter,
       //      was/is limited to spin independent basis sets. Generalize this if needed...
       // Current implementation is limited to cases with a consistent number of bands 

@@ -86,7 +86,8 @@ inline std::string walkerTypeToString(WALKER_TYPES type)
   else if (type == FULLYPOLARIZED) return "fullypolarized";
   else if (type == COLLINEAR_FT) return "collinear-ft";
   else if (type == NONCOLLINEAR_FT) return "noncollinear-ft";
-  return "undefined";
+  utils::check(false, "unknown walker type: {}", type);
+  return "unknown";
 }
 
 enum INTEGRAL_TYPES

@@ -53,6 +53,8 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
                                                  int nup,
                                                  int ndown);
 
+void checkCommonDims(std::vector<int> const& dims, int NMO, int nup, int ndown, int& ndets_to_read, WALKER_TYPES walker_type);
+
 void getCommonInput(h5::group& g,
                     int NMO,
                     int NAEA,
@@ -61,8 +63,7 @@ void getCommonInput(h5::group& g,
                     nda::array<ComplexType,1>& ci,
                     WALKER_TYPES& walker_type);
 
-WALKER_TYPES getWalkerType(std::string filename);
-WALKER_TYPES getWalkerType(std::string filename, std::string type);
+WALKER_TYPES getWalkerType(std::string filename, std::string type = "any");
 
 WAVEFUNCTION_TYPES getWavefunctionType(std::string filename);
 std::tuple<int,int,int,int> getWavefunctionDims(std::string filename);
@@ -79,12 +80,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
 
   std::vector<int> dims(5);
   h5::h5_read(grp,"dims",dims);
-  utils::check(NMO==dims[0], " Error in getCommonInput(): Inconsistent NMO . ");
-  utils::check(nup == dims[1], " Error in getCommonInput(): Inconsistent  nup. ");
-  utils::check(ndown==dims[2], " Error in getCommonInput(): Inconsistent  ndown. ");
-  utils::check(int(walker_type) >= dims[3],
-               " Error in getCommonInput(): Inconsistent walker_type. ");
-  utils::check(ndets <= dims[4], " Error in getCommonInput(): Inconsistent  ndets_to_read. ");
+  checkCommonDims(dims, NMO, nup, ndown, ndets, walker_type);
 
   // keep in on host at first
   nda::array<csr, 2> psi(ndets,nspin);
@@ -100,7 +96,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
       } 
     }
   } else if(wfn_type == COLLINEAR) { 
-    utils::check(walker_type == NONCOLLINEAR, "Error in getCommonInput(): walker_type==COLLINEAR incompatible with wfn_type:{}",int(wfn_type));
+    utils::check(walker_type == NONCOLLINEAR, "walker_type==COLLINEAR incompatible with wfn_type:{}",int(wfn_type));
     // upgrade from COLLINEAR to NONCOLLINEAR
     for(int id=0; id<ndets; ++id) {
       h5::group ugrp = grp.open_group("PsiT_"+std::to_string(2*id));
@@ -114,8 +110,8 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
       psi(id,0) = math::sparse::combine_csr(up,dn,NMO);
     }
   } else {
-    utils::check(wfn_type == CLOSED, "Error in getCommonInput(): Logic error: wfn_type:{}, walker_type:{}",int(wfn_type),int(walker_type)); 
-    utils::check(walker_type == COLLINEAR or walker_type == NONCOLLINEAR, "Error in getCommonInput(): Logic error."); 
+    utils::check(wfn_type == CLOSED, "Logic error: wfn_type:{}, walker_type:{}",int(wfn_type),int(walker_type)); 
+    utils::check(walker_type == COLLINEAR or walker_type == NONCOLLINEAR, "Logic error."); 
     if(walker_type == COLLINEAR) {
       // upgrade from CLOSED to COLLINEAR 
       utils::check(nup==ndown, "Problems upgrading wavefunction: nup != ndown when upgrading to COLLINEAR");
@@ -151,12 +147,12 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
   long Mtot = npol*NMO;
 
   std::vector<int> dims(5);
-  h5::h5_read(grp,"dims",dims);
-  utils::check(NMO==dims[0], " Error in getCommonInput(): Inconsistent NMO . ");
-  utils::check(ntau == dims[1], " Error in getCommonInput(): Inconsistent  ntau. ");
+  h5::read(grp,"dims",dims);
+  utils::check(NMO==dims[0], "Inconsistent NMO.");
+  utils::check(ntau == dims[1], "Inconsistent  ntau.");
   utils::check(int(walker_type) >= dims[3],
-               " Error in getCommonInput(): Inconsistent walker_type. ");
-  utils::check(ndets <= dims[4], " Error in getCommonInput(): Inconsistent  ndets_to_read. ");
+               "Inconsistent walker_type.");
+  utils::check(ndets <= dims[4], "Inconsistent  ndets_to_read.");
 
   // keep in on host at first
   nda::array<csr, 3> psi(ndets,nspin,3);
@@ -176,7 +172,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
       } 
     }
   } else if(wfn_type == COLLINEAR_FT) { 
-    utils::check(walker_type == NONCOLLINEAR_FT, "Error in getCommonInput(): walker_type==COLLINEAR incompatible with wfn_type:{}",int(wfn_type));
+    utils::check(walker_type == NONCOLLINEAR_FT, "walker_type==COLLINEAR incompatible with wfn_type:{}",int(wfn_type));
     // upgrade from COLLINEAR to NONCOLLINEAR
     for(int id=0; id<ndets; ++id) {
       h5::group ugrp = grp.open_group("UL_"+std::to_string(2*id));
@@ -210,8 +206,8 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
   } else {
     utils::check(wfn_type == CLOSED, "Closed wavefunction type not implemented for finite-T");
     /*
-    utils::check(wfn_type == CLOSED, "Error in getCommonInput(): Logic error: wfn_type:{}, walker_type:{}",int(wfn_type),int(walker_type)); 
-    utils::check(walker_type == COLLINEAR or walker_type == NONCOLLINEAR, "Error in getCommonInput(): Logic error."); 
+    utils::check(wfn_type == CLOSED, "Logic error: wfn_type:{}, walker_type:{}",int(wfn_type),int(walker_type)); 
+    utils::check(walker_type == COLLINEAR or walker_type == NONCOLLINEAR, "Logic error."); 
     if(walker_type == COLLINEAR) {
       // upgrade from CLOSED to COLLINEAR 
       utils::check(nup==ndown, "Problems upgrading wavefunction: nup!=ndown when upgrading to COLLINEAR");
