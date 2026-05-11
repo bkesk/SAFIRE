@@ -39,6 +39,7 @@
  */
 
 #include <math.h>
+#include "arch/arch.h"
 
 /* 
    Implementation of the approximation to the probit function  
@@ -52,9 +53,7 @@ namespace sfqmc::afqmc {
 #define PROBIT_LOW 0.02425
 #define PROBIT_HIGH 0.97575
 
-#if defined(__CUDACC__)
-  __host__ __device__
-#endif
+__host__ __device__
 inline double probit(double p)
 {
 

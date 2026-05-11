@@ -5,6 +5,7 @@
 #include "numerics/device_kernels/cuda/cuda_settings.h"
 #include "numerics/device_kernels/cuda/cuda_aux.hpp"
 #include "arch/arch.h"
+#include "arch/atomics.hpp"
 #include "nda/nda.hpp"
 #include <cuda/std/mdspan>
 #include "cub/device/device_for.cuh"
@@ -466,11 +467,7 @@ void phmsd_reduce_R_impl(int nex, int const* refc, int const* iex, W_t const& wg
         }
       if(a==orb_i) y += w_d(idet,iw);
     }
-    double re   = y.real();
-    double im   = y.imag();
-    double* re_ = reinterpret_cast<double*>(&R_d(iw,i,a));
-    atomicAdd(re_, re);
-    atomicAdd(re_ + 1, im);    
+    sfqmc::arch::atomic_add(&R_d(iw, i, a), y);
   };
   cub::DeviceFor::Bulk(nwalk*nblk*nel*nact,f);
   sfqmc::arch::synchronize();

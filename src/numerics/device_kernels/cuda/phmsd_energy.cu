@@ -5,6 +5,7 @@
 #include "numerics/device_kernels/cuda/cuda_settings.h"
 #include "numerics/device_kernels/cuda/cuda_aux.hpp"
 #include "arch/arch.h"
+#include "arch/atomics.hpp"
 #include "nda/nda.hpp"
 #include <cuda/std/mdspan>
 #include "cub/device/device_for.cuh"
@@ -52,11 +53,7 @@ __global__ void kernel_ph_excited_1body_energy(int const* iexcit, int const* ref
   {
     aggregate += S(iw,ip,iexcit[p+R.extent(2)]) - S(iw,ip,refc[ip]);
     aggregate *= w(idet,iw);
-//    double re   = aggregate.real();
-//    double im   = aggregate.imag();
-    double* re_ = reinterpret_cast<double*>(&E(iw));
-    atomicAdd(re_, aggregate.real());
-    atomicAdd(re_ + 1, aggregate.imag());
+    sfqmc::arch::atomic_add(&E(iw), aggregate);
   }
 
 }
@@ -191,11 +188,9 @@ __global__ void kernel_ph_excited_energy_real_dense_chol_Tpna_first(int const* i
     // eJ[iw][d] *= 0.5*wgt[d][iw]
     cache[blockDim.x] *= Type(0.5)*wgt(idet);
     // EX[iw] += eX[iw][d]
-    atomicAdd(reinterpret_cast<double*>(EX), cache[0].real());
-    atomicAdd(reinterpret_cast<double*>(EX) + 1, cache[0].imag());
+    sfqmc::arch::atomic_add(EX, cache[0]);
     // EJ[iw] += eJ[iw][d]
-    atomicAdd(reinterpret_cast<double*>(EJ), cache[blockDim.x].real());
-    atomicAdd(reinterpret_cast<double*>(EJ) + 1, cache[blockDim.x].imag());
+    sfqmc::arch::atomic_add(EJ, cache[blockDim.x]);
   }
 }
 
@@ -268,8 +263,7 @@ __global__ void kernel_ph_excited_energy_real_dense_chol_Tpna_second(int const* 
     // factor of TWO from above cancels factor of HALF here!    
     cache[0] *= -wgt(idet);
     // EX[iw] += eX[iw][d]
-    atomicAdd(reinterpret_cast<double*>(EX), cache[0].real());
-    atomicAdd(reinterpret_cast<double*>(EX) + 1, cache[0].imag());
+    sfqmc::arch::atomic_add(EX, cache[0]);
   }
 } 
 

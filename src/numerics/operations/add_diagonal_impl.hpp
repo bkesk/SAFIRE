@@ -22,6 +22,7 @@
 #include <complex>
 #include <limits>
 #endif
+#include "arch/arch.h"
 
 namespace math
 {
@@ -35,9 +36,7 @@ struct add_diagonal_impl
   V1 alpha;
   V2 A;
 
-#if defined(__CUDACC__)
   __device__
-#endif
   void operator()(long b)
   { 
 #if defined(__CUDACC__)

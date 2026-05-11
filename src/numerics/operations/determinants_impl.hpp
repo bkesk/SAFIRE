@@ -22,6 +22,7 @@
 #include <complex>
 #include <limits>
 #endif
+#include "arch/arch.h"
 
 namespace math
 {
@@ -42,9 +43,7 @@ struct log_determinant_from_getrf_impl
 #endif
   static constexpr double pi = std::numbers::pi;
 
-#if defined(__CUDACC__)
   __device__
-#endif
   void operator()(long b)
   { 
 #if defined(__CUDACC__)
@@ -88,9 +87,7 @@ struct log_determinant_from_geqrf_impl
   T small = T(std::numeric_limits<double>::min());
 #endif
 
-#if defined(__CUDACC__)
   __device__
-#endif 
   void operator()(long b)
   { 
 #if defined(__CUDACC__)
