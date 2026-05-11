@@ -27,9 +27,9 @@ void construct_X_impl(bool zero, bool fp, double sqrtdt, double vbias_bound, V1 
   auto HW_d = to_cuda_std_mdspan(hybrid_weight);
   auto RN_d = to_cuda_std_mdspan(RN);
   auto X_d = to_cuda_std_mdspan(X);
-  auto F = sfqmc::afqmc::detail::construct_X_impl<decltype(FT_d),decltype(vMF_d),decltype(MF_d),decltype(RN_d),decltype(X_d)>{zero,fp,sqrtdt,vbias_bound,FT_d,vMF_d,MF_d,HW_d,RN_d,X_d};
+  sfqmc::afqmc::detail::construct_X_impl construct_X{zero,fp,sqrtdt,vbias_bound,FT_d,vMF_d,MF_d,HW_d,RN_d,X_d};
 
-  cub::DeviceFor::Bulk(N,F);
+  cub::DeviceFor::Bulk(N,construct_X);
   sfqmc::arch::synchronize_if_set();
 }
 

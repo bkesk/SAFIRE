@@ -38,6 +38,7 @@
  * Made freely available at http://home.online.no/~pjacklam/notes/invnorm/. 
  */
 
+#pragma once
 #include <math.h>
 #include "arch/arch.h"
 
