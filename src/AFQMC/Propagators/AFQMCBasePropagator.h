@@ -436,14 +436,6 @@ protected:
     }
   }
 
-  template<typename T>
-  T apply_bound_vbias(T v, RealType sqrtdt)
-  {
-    // explicit cast to avoid compiler warnings when T is std::complex<float>.
-    return (std::abs(v) > std::abs(static_cast<T>(static_cast<SPRealType>(vbias_bound * sqrtdt))))
-        ? (v / (std::abs(v) / static_cast<T>(static_cast<SPRealType>(vbias_bound * sqrtdt))))
-        : (v);
-  }
 
 /*
   template<class WlkSet>

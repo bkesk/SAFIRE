@@ -29,8 +29,17 @@
 #include "CUDA/cuda_sync.h"
 #endif
 
+// you can put __host__ or __device__ without guarding them
+#ifndef __host__
+#define __host__
+#endif
+#ifndef __device__
+#define __device__
+#endif
+
 #include "config.h"
 #include "nda/nda.hpp"
+
 
 namespace sfqmc {
 namespace arch

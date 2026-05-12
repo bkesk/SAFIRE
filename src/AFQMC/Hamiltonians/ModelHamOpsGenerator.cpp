@@ -122,8 +122,8 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   h5::file file = h5::file(fileName,'r'); 
   h5::group grp = h5::group(file).open_group("Hamiltonian");
 
-  std::vector<int> Idata(8);
-  h5::h5_read(grp,"dims",Idata);
+  std::vector<long> Idata(8);
+  h5::read(grp,"dims",Idata);
   ValueType E0;
   {
     std::vector<RealType> E_(2);
@@ -134,11 +134,11 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
 
   h5::group mgrp = grp.open_group("ModelHamiltonian"); 
   
-  int num_components(0);
-  h5::h5_read(mgrp,"number_of_components",num_components);
+  long num_components(0);
+  h5::read(mgrp,"number_of_components",num_components);
   // can check file and determine maximum_connections directly!
-  int maximum_connections(12);
-  h5::h5_read(mgrp,"maximum_connectivity",maximum_connections);
+  long maximum_connections(12);
+  h5::read(mgrp,"maximum_connectivity",maximum_connections);
   
   std::vector<ModelComponent<MEM,REAL>> Hams;
   Hams.reserve(num_components);
@@ -366,7 +366,7 @@ ModelHamOpsGenerator::getHamiltonianOperations(WALKER_TYPES type,
     h5::file file(fileName,'r');
     h5::group grp(file);
     h5::group mgrp = grp.open_group("Hamiltonian").open_group("ModelHamiltonian");
-    int num_components;
+    long num_components;
     h5::h5_read(mgrp,"number_of_components",num_components);
     for(int n=0; n<num_components; n++)  {
       h5::group gn = mgrp.open_group("ModelComponent_"+ std::to_string(n));

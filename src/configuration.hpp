@@ -17,7 +17,6 @@
 #include "config.h"
 #include "config.0.h"
 #include "IO/AppAbort.hpp"
-
 #include "nda/nda.hpp"
 
 using RealType = double;

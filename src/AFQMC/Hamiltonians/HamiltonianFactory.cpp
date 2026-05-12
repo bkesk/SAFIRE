@@ -68,7 +68,7 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
     app_log(1, " Found hamiltonian with format: {}", format);
     htype = peekHamType(*grp,format);
     // open subgroup
-    if(format.substr(0,6) == "coqui") {
+    if(format == "coqui") {
       hgrp = std::make_optional(grp->open_group("System"));
     } else {
       hgrp = std::make_optional(grp->open_group("Hamiltonian"));
@@ -80,9 +80,9 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
     htype = HamiltonianTypes(htype_);
   }
 
-  std::vector<int> Idata(8);
+  std::vector<long> Idata(8);
   if (mpi->comm.root()) {
-    if(format.substr(0,6) == "coqui") { // coqui always complex for now!
+    if(format == "coqui") { // coqui always complex for now!
       h5::h5_read_attribute(*hgrp,"number_of_bands",Idata[3]);  // per kpoint
       h5::group bz = hgrp->open_group("BZ");
       h5::h5_read_attribute(bz,"number_of_kpoints",Idata[2]);
@@ -110,7 +110,7 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
         NuclearCoulombEnergy = Rdata[0];
       if (Rdata.size() > 1)
         FrozenCoreEnergy = Rdata[1];
-    } else if(format.substr(0,6) == "coqui") {
+    } else if(format == "coqui") {
       NuclearCoulombEnergy = 0.0;
       if( H5Aexists(h5::hid_t(*hgrp),"nuclear_energy") )
         h5::h5_read_attribute(*hgrp,"nuclear_energy",NuclearCoulombEnergy);  

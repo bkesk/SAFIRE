@@ -96,10 +96,7 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("system","info0");
-  if(type == CLOSED) wlk_pt.put("walker_type","closed");
-  else if(type == COLLINEAR) wlk_pt.put("walker_type","collinear");
-  else if(type == NONCOLLINEAR) wlk_pt.put("walker_type","noncollinear");
-  else if(type == FULLYPOLARIZED) wlk_pt.put("walker_type","fullypolarized");
+  wlk_pt.put("walker_type", walkerTypeToString(type));
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
 
   int nspin            = (type == COLLINEAR) ? 2 : 1;

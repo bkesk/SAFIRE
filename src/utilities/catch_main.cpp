@@ -15,7 +15,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #define CATCH_CONFIG_RUNNER
-#include "catch2/catch.hpp"
+#include <catch2/catch.hpp>
 
 #include "config.h"
 #include "arch/arch.h"
@@ -31,6 +31,7 @@ namespace sfqmc::utils::detail {
 
 // input files 
 std::string UTEST_HAMIL, UTEST_WFN;
+bool WRITE_REFERENCE{};
 
 int main(int argc, char* argv[])
 {
@@ -54,6 +55,7 @@ int main(int argc, char* argv[])
   using namespace Catch::clara;
   // Build command line parser.
   auto cli = session.cli() |
+      Opt(WRITE_REFERENCE)["--write-reference"]("Record reference results if applicable.") |
       Opt(UTEST_HAMIL, "UTEST_HAMIL")["--hamil"]("Hamiltonian file to be used by unit test if applicable.") |
       Opt(UTEST_WFN, "UTEST_WFN")["--wfn"]("Wavefunction file to be used by unit test if applicable.");
   session.cli(cli);

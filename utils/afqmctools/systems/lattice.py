@@ -438,33 +438,12 @@ class Lattice:
         else:
             return np.array([s.position for s in self.sites])
 
-    def get_kvecs(self,checkOverlap=True):
+    def get_kvecs(self):
       '''
       get b1,b2 the Bravais lattice vectors
-
-      checkOverlap=True to check sign and values of a_i @ b_i
       '''
       self._fail_if_not_built()
-      a1,a2 = np.array([*self.a1,0]),np.array([*self.a2,0])
-      a3 = np.array([0,0,1]) # temp for formulas
-      b1 = np.cross(a2, a3)
-      b2 = np.cross(a3, a1)
-      #b3 = np.cross(a1, a2)
-
-      vol = np.cross(self.a1,self.a2)
-      ratio = 2*np.pi/vol
-      rvecs = ratio*np.vstack([b1[:-1],b2[:-1]])
-
-      ovs = self.A@rvecs
-      # check sign
-      for i in range(2):
-        if np.allclose(ovs[i,i],-2*np.pi):
-            rvecs[i] *= -1
-        elif checkOverlap and not np.isclose(ovs[i,i],2*np.pi):
-              raise ValueError(f"Uh oh, b_{i} {rvecs[i]} not a \
-                                reciprocal vector to a_{i} {self.A[i]}")
-
-      return rvecs
+      return 2*np.pi*np.linalg.inv(np.array([self.a1, self.a2])).T
 
     def get_planewaves(self, returnKVecs = False):
       '''

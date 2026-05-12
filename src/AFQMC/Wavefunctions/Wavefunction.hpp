@@ -172,7 +172,7 @@ public:
   } 
 */
 
-  HamiltonianTypes getHamType() const 
+  HamiltonianTypes getHamType() const
   {
     return std::visit([&](auto&& a) { return a.getHamType(); }, var);
   }

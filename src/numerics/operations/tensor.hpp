@@ -51,16 +51,6 @@ void accumulate(nda::get_value_t<A_t> alpha, A_t const& A, B_t && B) {
   }
 }
 
-template<nda::MemoryArray A_t>
-void scale(nda::get_value_t<A_t> alpha, A_t && A) {
-#if defined(ENABLE_DEVICE)
-    if constexpr (nda::mem::have_device_compatible_addr_space<A_t> and nda::get_rank<A_t> < 5) {
-      kernels::device::scale(alpha,A);
-    } else
-#endif
-      nda::tensor::scale(alpha,A); 
-}
-
 template<nda::MemoryArray Arr>
 void zero_imag(Arr && A)
 {

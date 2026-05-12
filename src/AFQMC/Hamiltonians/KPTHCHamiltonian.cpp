@@ -116,7 +116,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     h5::group grp = h5::group(file);
     format = get_hamiltonian_format(grp);
     // open subgroup
-    utils::check(format.substr(0,6) == "coqui", base_error + " Only coqui format is allowed. Format found:{}",format); 
+    utils::check(format == "coqui", base_error + " Only coqui format is allowed. Format found:{}",format);
     h5::group hgrp = grp.open_group("System");
     {
       int n;

@@ -13,6 +13,9 @@
 
 #pragma once
 
+#include <cstdlib>
+#include <string>
+
 #ifdef __linux__
 #include <sys/sysinfo.h>
 #include <sys/resource.h>

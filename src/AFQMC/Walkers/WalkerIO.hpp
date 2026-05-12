@@ -193,7 +193,7 @@ bool restartFromHDF5(WalkerSet& wset,
   int ndn       = Idata[6];
   utils::check(wlk_nterms == wset.walkerSizeIO(), 
                " Inconsistent walker restart file: IO size, NMO, nup, ndown, WalkerType: {}, {}, {}, {}, {} ",
-               wset.walkerSizeIO(), NMO, nup, ndn, int(wset.getWalkerType()));
+               wset.walkerSizeIO(), NMO, nup, ndn, walkerTypeToString(wset.getWalkerType()));
 
   // walker range belonging to this comm 
   int nW0, nWN;

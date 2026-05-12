@@ -22,6 +22,7 @@
 #include <complex>
 #include <limits>
 #endif
+#include "arch/arch.h"
 
 namespace math
 {
@@ -40,9 +41,7 @@ struct splitDmatrix_impl
   V4 res;
   V5 scl;
 
-#if defined(__CUDACC__)
   __device__
-#endif
   void operator()(long b)
   { 
 #if defined(__CUDACC__)
