@@ -51,7 +51,7 @@ inline int read_nmo_from_hdf(std::string fileName)
   {
     utils::check(grp.has_subgroup("Hamiltonian"), "Missing Hamiltonian dataset.");
     h5::group hgrp = grp.open_group("Hamiltonian");
-    std::vector<int> Idata(8);
+    std::vector<long> Idata(8);
     h5::h5_read(hgrp,"dims",Idata);
     NMO = Idata[3];
   } else if (format == "coqui") {
@@ -95,7 +95,7 @@ TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_ty
   if (grp.has_key("Hamiltonian"))
   {
     h5::group hgrp = grp.open_group("Hamiltonian");
-    std::vector<int> Idata(8);
+    std::vector<long> Idata(8);
     h5::h5_read(hgrp,"dims",Idata);
     nmo = Idata[3];
     nup = Idata[4];

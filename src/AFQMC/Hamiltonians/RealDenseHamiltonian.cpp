@@ -74,7 +74,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
               (type == CLOSED ? nact_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
   bool head_shared = (MEM==HOST_MEMORY ? mpi->node_comm.root() : true );
 
-  std::vector<int> Idata(8);
+  std::vector<long> Idata(8);
   ComplexType E0;
   h5::file file;
   if (mpi->comm.root()) 

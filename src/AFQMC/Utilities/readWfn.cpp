@@ -324,7 +324,7 @@ void getCommonInput(h5::group& grp,
 {
   // check for consistency in parameters
   std::vector<int> dims(5);
-  h5::h5_read(grp,"dims",dims);
+  h5::read(grp,"dims",dims);
   checkCommonDims(dims, NMO, nup, ndown, ndets_to_read, walker_type);
   app_log(1," - Number of determinants in trial wavefunction: {} ", ndets_to_read);
   ci.resize(ndets_to_read);
