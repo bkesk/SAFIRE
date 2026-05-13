@@ -245,7 +245,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     h5::group wg = g_.create_group("Wavefunction");
     h5::group ng = wg.create_group("NOMSD");
  
-    nda::vector<int> dims = {NMO,nup,ndown,int(type),coeffs.size()};
+    nda::vector<int> dims = {NMO,nup,ndown,int(type),int(coeffs.size())};
     nda::h5_write(ng,"dims",dims);
     nda::h5_write(ng,"ci_coeffs",coeffs);
 
