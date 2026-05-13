@@ -266,7 +266,6 @@ bool dumpToHDF5(WalkerSet& wset, h5::file& fh5)
 {
   auto all = nda::range::all;
   auto mpi = wset.get_mpi();
-  auto MEM = wset.get_memory_space();
 
   int nW = wset.size();
   auto nw_per_rank = mpi->comm.all_gather_value(nW);

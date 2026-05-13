@@ -57,7 +57,6 @@ void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communica
 {
   using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
-  auto all = range::all;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
   utils::check(utils::file_exists(wfn_file),
@@ -72,9 +71,6 @@ void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communica
   utils::check(NMO == file_data.NMO, "Incompatible NMO.");
 
   WALKER_TYPES type    = afqmc::getWalkerType(wfn_file, "PHMSD");
-  int nspin            = (type == COLLINEAR) ? 2 : 1;
-  int npol             = (type == NONCOLLINEAR) ? 2 : 1;
-  int nel              = (type == COLLINEAR) ? nup+ndown : nup;
 
   h5::file file(wfn_file,'r');
   h5::group grp(file);
@@ -166,8 +162,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   WALKER_TYPES type = afqmc::getWalkerType(wfn_file, "PHMSD");
   int nspin         = (type == COLLINEAR) ? 2 : 1;
   int npol          = (type == NONCOLLINEAR) ? 2 : 1;
-  int nel           = (type == COLLINEAR) ? nup+ndown : nup;
-  int nwalk         = 1; 
+  int nwalk         = 1;
   int ndets         = ( MEM == HOST_MEMORY ? 100 : 1000 ); 
   double dt         = 0.01;
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();

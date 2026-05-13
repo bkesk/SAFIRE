@@ -66,7 +66,6 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
   memory::buffered_array<MEM,ComplexType,1> vMF_discrete(vMF.extent(0)); 
   if(discrete_propg) {
     int npol         = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
-    int nspin        = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     nda::array<ComplexType,1> nMF(2*NMO, ComplexType(0.0));
     // setup sparse vector to generate <nI>
     auto Gmf_shm = wfn->G_MF();

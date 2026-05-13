@@ -156,7 +156,6 @@ public:
 
        utils::check(walker_type != NONCOLLINEAR,"Error: Not yet implemented: acc_with_rotation && noncollinear.");
 
-      int nw = G_host.extent(0);  
       int nX   = XRot().extent(0);
       // Grot = Xc * G * H(Xc)
       memory::buffered_array<HOST_MEMORY,ComplexType,4> T1(nwalk,nspin,nX,npol*NMO); 

@@ -450,7 +450,6 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
   utils::check(MEM == wset.get_memory_space(), "Memory space mismatch");
   memory::check_memory_space<MEM>(ldet);
   auto walker_type = wset.getWalkerType();
-  const int nspin = ( (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1 );
   const int nwalk = wset.size();
   utils::check(ldet.size() >= nwalk, "Size mismatch");
   ldet() = ComplexType(0.0);

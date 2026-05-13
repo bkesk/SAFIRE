@@ -37,7 +37,6 @@ void NOMSD<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt)
   const int ndet = ci.size();
   const int nw   = wset.size();
   const int nel = (walker_type==COLLINEAR ? nup+ndown : nup ); 
-  const int nspin = (walker_type==COLLINEAR ? 2 : 1 ); 
   const int npol = (walker_type==NONCOLLINEAR ? 2 : 1 ); 
   utils::check(Ov.size() == nw, "Size mismatch");
   utils::check(E.shape() == std::array<long,2>{nw,3}, "Size mismatch");
@@ -463,7 +462,6 @@ auto NOMSD<MEM,devPsiT>::G_MF()
   auto gMF = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
                       {nspin,npol*NMO,npol*NMO});
 
-  bool found = false;
   if (ndet == 1)
   {
     if(mpi->comm.root()) {
@@ -571,7 +569,6 @@ void NOMSD<MEM,devPsiT>::vMF(nda::MemoryVector auto&& v, double dt)
   int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
   int ndet  = ci.size();
 
-  bool found = false;
   if (ndet == 1)
   {
     memory::buffered_array<MEM,ComplexType,1> Ov(1); 

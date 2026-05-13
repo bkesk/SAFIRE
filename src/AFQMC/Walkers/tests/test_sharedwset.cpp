@@ -277,7 +277,6 @@ void test_basic_walker_features(std::string wtype)
   REQUIRE(wset.GlobalPopulation() == nwalkers * mpi->comm.size());
   REQUIRE(wset.GlobalPopulation() == wset.get_global_target_population());
   REQUIRE(wset.GlobalWeight() == Approx(static_cast<RealType>(wset.get_global_target_population())));
-  double nx = (wset.getWalkerType() == NONCOLLINEAR or wset.getWalkerType() == FULLYPOLARIZED ? 1.0 : 2.0);
   for (int i = 0; i < wset.size(); i++)
   {
     auto w = wset[i];
@@ -338,12 +337,12 @@ void test_basic_walker_features(std::string wtype)
 template<MEMORY_SPACE MEM>
 void test_walker_io(std::string wtype)
 {
-  using Type = std::complex<double>;
-  using nda::array;
-
-  auto& mpi = utils::make_unit_test_mpi_context();
 
 /*
+  using Type = std::complex<double>;
+  using nda::array;
+  auto& mpi = utils::make_unit_test_mpi_context();
+
   int NMO = 8, nup = 2, ndown = 2, nwalkers = 10;
   if (wtype == "noncollinear")
   {

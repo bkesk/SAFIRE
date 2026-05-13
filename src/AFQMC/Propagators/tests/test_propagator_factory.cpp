@@ -65,7 +65,6 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
 {
   using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
-  auto all = range::all;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
   utils::check(utils::file_exists(wfn_file),
@@ -192,7 +191,6 @@ void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> 
       prop.Propagate(wset, Eshift, dt, i+1);
       wfn.Energy(wset, i+1);
       ComplexType eav = 0, ov = 0;
-      int n = 0;
       for (auto it = wset.begin(); it != wset.end(); ++it)
       {
         eav += it->get_property(WEIGHT) * (it->energy());

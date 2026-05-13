@@ -244,7 +244,6 @@ private:
     int M = NMO;	
     int M2 = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2*M : M;
     int Madd = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? M : 0;
-    bool head_shared = ( MEM==HOST_MEMORY ? mpi->node_comm.root() : true ); 
 
     if(mpi->comm.root()) {
  

@@ -123,7 +123,6 @@ auto h5_read(h5::group& g, std::string name, nda::MemoryArray auto && A)
   using T = nda::get_value_t<A_t>;
   if constexpr (nda::mem::on_host<A_t>) {
     if constexpr (nda::is_complex_v<T>) {
-      using T_real = nda::remove_complex_t<T>; 
       auto l = h5::array_interface::get_dataset_info(g,name);
       // backwards-compatibility with older format
       if (!l.has_complex_attribute && nda::get_rank<A_t>+1 == l.rank())

@@ -69,8 +69,9 @@ std::array<long, 4> g_shape(int nwalk, int NMO, WALKER_TYPES wt)
     case CLOSED:       return {nwalk, 1, NMO,     NMO};
     case COLLINEAR:    return {nwalk, 2, NMO,     NMO};
     case NONCOLLINEAR: return {nwalk, 1, 2 * NMO, 2 * NMO};
+    default:
+      utils::check(false, "unreachable: unknown walker type");
   }
-  utils::check(false, "unreachable: unknown walker type");
   return {};
 }
 

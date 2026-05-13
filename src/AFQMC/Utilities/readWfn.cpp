@@ -106,7 +106,6 @@ void read_ph_wavefunction_hdf(h5::group& grp,
                               std::string& type)
 {
   int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
-  int nspin = (walker_type == COLLINEAR ? 2 : 1);
   utils::check(walker_type != UNDEFINED_WALKER_TYPE, "Undefined walker type.");
   utils::check(walker_type != CLOSED, " walker_type==CLOSED not yet implemented in read_ph_wavefunction_hdf.");
   bool mixed = false;
@@ -181,7 +180,6 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
                                                  int ndown)
 {
   using nda::range;
-  auto all = range::all;
   ComplexType ci;
   // count number of k-particle excitations
   // counts[0] has special meaning, it must be equal to nup+ndown.
@@ -299,7 +297,7 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
 }
 
 
-void checkCommonDims(std::vector<int> const& dims, int NMO, int nup, int ndown, int& ndets_to_read, WALKER_TYPES walker_type) {
+void checkCommonDims(std::vector<int> const& dims, int NMO, int nup, int ndown, int& ndets_to_read) {
   utils::check(NMO==dims[0], "Inconsistent NMO: given {} != {} in file", NMO, dims[0]);
   std::array nels = {nup, ndown};
   utils::check(nels == std::array{dims[1],dims[2]}, "Inconsistent (nup,ndown): given {} != {} in file", nels, std::array{dims[1], dims[2]});
@@ -325,7 +323,7 @@ void getCommonInput(h5::group& grp,
   // check for consistency in parameters
   std::vector<int> dims(5);
   h5::read(grp,"dims",dims);
-  checkCommonDims(dims, NMO, nup, ndown, ndets_to_read, walker_type);
+  checkCommonDims(dims, NMO, nup, ndown, ndets_to_read);
   app_log(1," - Number of determinants in trial wavefunction: {} ", ndets_to_read);
   ci.resize(ndets_to_read);
   nda::array<ComplexType,1> ci_t(dims[4]);

@@ -28,7 +28,6 @@ SparseEnergy<MEM,REAL> ModelHamOpsGenerator::make_SparseEnergy(
   using nda::range;
   using csrM = math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>;
   auto all = range::all;
-  int nspin = (type == COLLINEAR or type == COLLINEAR_FT ? 2 : 1 );
   int npol = (type == NONCOLLINEAR or type == NONCOLLINEAR_FT ? 2 : 1 );
   long M = NMO;
   long M2 = npol*M; 
@@ -453,13 +452,10 @@ nda::array<long,1> ModelHamOpsGenerator::find_occupied_pairs(WALKER_TYPES type,
 
   utils::check(type != CLOSED, " Error: Model Hamiltonians not allowed with CLOSED walkers. ");
   using nda::range;
-  using csrM = math::sparse::csr_matrix<ValueType, HOST_MEMORY, int, int>;
-  auto all = range::all;
-  int nspin = (type == COLLINEAR or type == COLLINEAR_FT ? 2 : 1 );
   int npol = (type == NONCOLLINEAR or type == NONCOLLINEAR_FT ? 2 : 1 );
   long M = long(NMO);
-  long M2 = npol*M; 
-  long Madd = M2-M; 
+  long M2 = npol*M;
+  long Madd = M2-M;
 
   nda::array<long,1> n2IJ;
   {
@@ -574,8 +570,7 @@ void ModelHamOpsGenerator::addComponent( WALKER_TYPES wtype, PropagatorTypes pty
      nda::array<long,1>& n2IJ, map_t& IJ2n)
 {
   using nda::range;
-  auto all = range::all;
-  utils::check(ptype == ContinuousChargePropagator or 
+  utils::check(ptype == ContinuousChargePropagator or
 	 ptype == ContinuousSpinPropagator or 
 	 ptype == DiscreteChargePropagator or 
 	 ptype == DiscreteSpinPropagator, "Invalid propagator type.");
@@ -645,9 +640,8 @@ void ModelHamOpsGenerator::addComponent( WALKER_TYPES wtype, PropagatorTypes pty
   nFields = 0;
   bool writer = mpi->node_comm.root(); 
 
-  int nspin = (wtype == COLLINEAR or wtype == COLLINEAR_FT ? 2 : 1 );
   int npol = (wtype == NONCOLLINEAR or wtype == NONCOLLINEAR_FT ? 2 : 1 );
-  long M2 = npol*M; 
+  long M2 = npol*M;
   long Madd = M2-M;
   // General formula for COLLINEAR and NONCOLLINEAR
   // IJ = i*M2+j            for up/up
