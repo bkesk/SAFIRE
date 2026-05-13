@@ -170,26 +170,23 @@ if(DEFINED NDA)
   set(FETCHCONTENT_SOURCE_DIR_NDA ${NDA})
 endif()
 # set nda options before FetchContent_Declare
-#set(CutensorSupport ${ENABLE_CUTENSOR} CACHE INTERNAL "")
-set(CutensorSupport ${ENABLE_CUDA} CACHE INTERNAL "")
-set(CudaSupport ${ENABLE_CUDA} CACHE INTERNAL "")
-set(TblisSupport ON CACHE INTERNAL "")
-set(Build_Tests ${COMPILE_NDA_TESTS} CACHE INTERNAL "")
-if(COQUI_PYTHON_SUPPORT)
-  # nda_py library is needed in CoQui python version
-  set(PythonSupport ON CACHE INTERNAL "")
-else()
-  set(PythonSupport ${NDA_PYTHON_SUPPORT} CACHE INTERNAL "")
-endif()
-FetchContent_Declare(
-        nda
-        GIT_REPOSITORY "https://github.com/triqs/nda.git"
-        GIT_TAG        tensor 
-)
-FetchContent_MakeAvailable(nda)
+block()
+  set(CutensorSupport ${ENABLE_CUDA})
+  set(Cutensor_USE_STATIC ON)
+  set(CudaSupport ${ENABLE_CUDA})
+  set(TblisSupport ON)
+  set(Build_Tests ${COMPILE_NDA_TESTS})
+  set(PythonSupport OFF)
+  FetchContent_Declare(
+          nda
+          GIT_REPOSITORY "https://github.com/triqs/nda.git"
+          GIT_TAG        tensor
+  )
+  FetchContent_MakeAvailable(nda)
+endblock()
 
 ######################################################################
-# CCCL from github (useful if CudaToolkit is old 
+# CCCL from github (useful if CudaToolkit is old)
 ######################################################################
 if(ENABLE_CUDA AND FETCH_CCCL)
   # set nevanlinna options before FetchContent_Declare
@@ -231,12 +228,15 @@ endif()
 # cpptrace 
 ######################################################################
 if(ENABLE_CPPTRACE)
-  FetchContent_Declare(
-    cpptrace
-    GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-    GIT_TAG        v0.8.2
-  )
-  FetchContent_MakeAvailable(cpptrace)
+  block()
+    set(CMAKE_SKIP_INSTALL_RULES ON)
+    FetchContent_Declare(
+      cpptrace
+      GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+      GIT_TAG        v0.8.2
+    )
+    FetchContent_MakeAvailable(cpptrace)
+  endblock()
 endif(ENABLE_CPPTRACE)
 
 ######################################################################
