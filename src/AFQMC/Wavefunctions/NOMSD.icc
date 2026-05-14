@@ -158,7 +158,8 @@ void NOMSD<MEM,devPsiT>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&&
   const int npol  = (walker_type==NONCOLLINEAR ? 2 : 1 );
   utils::check(Ov.size() == nw, "Size mismatch");
   const int nc    = ( compact ? nel : nspin*npol*NMO );
-  utils::check(G.shape() == std::array<long,2>{nw,nc*npol*NMO}, "Size mismatch");
+  auto expected_shape = std::to_array<long>({nw, nc * npol * NMO});
+  utils::check(G.shape() == expected_shape, "Size mismatch: given {} != {} expected", G.shape(), expected_shape);
   G() = ComplexType(0.0);
   Ov() = ComplexType(0.0);
 
