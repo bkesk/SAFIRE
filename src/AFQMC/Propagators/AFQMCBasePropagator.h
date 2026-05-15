@@ -73,6 +73,7 @@ public:
   {
     utils::check(bool(mpi), "Error: Null mpi_context.");
     std::tie(nspins_in_vHS, npol_in_vHS) = wfn->vHS_dims();
+    app_log(1," vHS dimensions: nspins = {}, npol = {}", nspins_in_vHS, npol_in_vHS);
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
     app_log(2,"\nBasePropagator input:\n\n{}\n",io::to_string(pt));
