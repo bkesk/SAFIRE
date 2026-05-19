@@ -21,7 +21,6 @@ template<nda::MemoryArrayOfRank<3> A, nda::MemoryMatrix IPIV, nda::MemoryVector 
 requires(std::decay_t<A>::is_stride_order_C() and std::decay_t<IPIV>::is_stride_order_C() and
          nda::mem::have_compatible_addr_space<A,IPIV,V>)
 void log_determinant_from_getrf(A const& a, IPIV const& ipiv, V && log_det) {
-  using T = nda::get_value_t<V>;
   static_assert(nda::is_complex_v<nda::get_value_t<V>>,
                 "log_determinant_from_getrf expects complex numbers.");
   sfqmc::utils::check(a.extent(0) == ipiv.extent(0), "Size mismatch");
@@ -40,7 +39,6 @@ template<nda::MemoryArrayOfRank<3> A, nda::MemoryMatrix S, nda::MemoryVector V>
 requires(std::decay_t<A>::is_stride_order_C() and std::decay_t<S>::is_stride_order_C() and
          nda::mem::have_compatible_addr_space<A,S,V>)
 void log_determinant_from_geqrf(A const& a, S && scl, V && log_det) {
-  using T = nda::get_value_t<V>;
   static_assert(nda::is_complex_v<nda::get_value_t<V>>,
                 "log_determinant_from_getrf expects complex numbers.");
   sfqmc::utils::check(a.extent(0) == log_det.extent(0), "Size mismatch");

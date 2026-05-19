@@ -68,7 +68,6 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
 {
   using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
-  auto all = range::all;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
   utils::check(utils::file_exists(wfn_file),
@@ -101,7 +100,6 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
 
   int nspin            = (type == COLLINEAR) ? 2 : 1;
   int npol             = (type == NONCOLLINEAR) ? 2 : 1;
-  int nel              = (type == COLLINEAR) ? nup+ndown : nup;
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
@@ -120,7 +118,7 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
 
   PropagatorFactory<MEM> PropgFac(InfoMap);
   PropgFac.push("prop0", prop_pt);
-  auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
+  PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
   auto initial_guess = WfnFac.getInitialGuess("wfn0");
   REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});

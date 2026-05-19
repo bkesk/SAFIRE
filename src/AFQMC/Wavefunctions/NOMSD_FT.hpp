@@ -131,9 +131,8 @@ public:
   void runtime_optimization(WlkSet& wset)
   {
     const int nw   = wset.size();
-    const int nel = (walker_type==COLLINEAR ? nup+ndown : nup );
-    const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
-    const int npol = (walker_type==NONCOLLINEAR ? 2 : 1 );
+    const int nel = (walker_type==COLLINEAR_FT ? nup+ndown : nup );
+    const int npol = (walker_type==NONCOLLINEAR_FT ? 2 : 1 );
     memory::array<MEM,ComplexType,2> G(nw,nel*npol*NMO);
     // don't use buffered_array!!!
     HamOp.runtime_optimization(G);

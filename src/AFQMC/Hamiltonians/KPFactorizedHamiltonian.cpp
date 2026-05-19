@@ -94,7 +94,6 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   nda::array<int,1> kp_trev_pair;
   nda::array<int,1> nchol;
   nda::array<double,2> qpoints;
-  int number_of_trev_kpoint_pairs=0;
 
   h5::file file;
   // Read nbnd, BZ info, etc from h5. Only root reads
@@ -242,10 +241,10 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   mpi->broadcast(minusq);
   mpi->broadcast(qk_to_k2);
 
-  int nchol_av = nda::sum(nchol)/double(nchol.extent(0));
+  double nchol_av = nda::sum(nchol)/double(nchol.extent(0));
   app_log(1," # k-points (IBZ): {} ({})", nkpts, nkpts_ibz);
   app_log(1," # Q-points (IBZ): {} ({})", nqpts, nqpts_ibz);
-  app_log(1," Average # of cholesky vectors {}", nchol_av);
+  app_log(1," Average # of cholesky vectors {:.2g}", nchol_av);
 
   // If q==minusq(q), qmap(q) has the position of q in Lbnk.
   nda::array<int,1> Qmap(nkpts,-1);  

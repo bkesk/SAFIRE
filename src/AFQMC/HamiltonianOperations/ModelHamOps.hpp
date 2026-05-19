@@ -80,7 +80,6 @@ public:
       nCV += v.number_of_cholesky_vectors();
     }
 
-    int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
     int M     = PsiC.extent(2);
     int NMO   = M/npol;
@@ -252,7 +251,6 @@ public:
               bool addEXX = true)
   {
     int npol  = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
-    int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     int ispin = ( spin_component==Alpha ? 0 : 1 );
     int NMO   = PsiC.extent(2) / npol;
     int nwalk = G.extent(0);
@@ -487,7 +485,6 @@ private:
     using nda::range;
     auto all = range::all;
     int npol   = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
-    int nspin  = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     int NMO    = PsiC.extent(2) / npol;
     int nwalk  = Gc.extent(0);
     utils::check( Gc.shape() == std::array<long,3>{nwalk,nel[ispin],npol*NMO}, "Shape mismatch");
@@ -495,7 +492,6 @@ private:
     auto Gfull_3d = nda::reshape(Gfull, std::array<long,3>{npol * NMO, npol * NMO, nwalk});
 
     auto psi = PsiC()(idet,ispin,all,range(nel[ispin]));
-    int n0 = (ispin == 0 ? 0 : nel[0]);
     if constexpr (MEM==HOST_MEMORY) {
       memory::buffered_array<MEM,ComplexType,2> G_(npol * NMO, npol * NMO);
       auto Gfull_2d = nda::reshape(Gfull, std::array<long,2>{npol * NMO * npol * NMO, nwalk});
@@ -550,7 +546,6 @@ private:
     using nda::range;
     auto all = range::all;
     int npol   = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
-    int nspin  = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     int M      = PsiC.extent(2);
     int NMO    = PsiC.extent(2) / npol;
     int nwalk  = Gc.extent(0);
@@ -596,7 +591,6 @@ private:
     using nda::range;
     auto all = range::all;
     int npol   = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
-    int nspin  = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
     int M      = PsiC.extent(2);
     int NMO    = PsiC.extent(2) / npol;
     int nwalk  = Gc.extent(0);
@@ -718,9 +712,7 @@ private:
   {
     using nda::range;
     auto all = range::all;
-    int npol  = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
     int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
-    int NMO   = PsiC.extent(2) / npol;
     int nwalk = G3d.extent(0);
     TimerManager Timer;
 

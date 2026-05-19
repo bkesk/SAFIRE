@@ -62,7 +62,6 @@ public:
     // expect hij as a sparse Matrix with a single row (to reuse csr_matrix class) 
     int nIJ = n2IJ_host.extent(0);
     int nspin = (type == COLLINEAR or type == COLLINEAR_FT ? 2 : 1);
-    int npol  = (type == NONCOLLINEAR or type == NONCOLLINEAR_FT ? 2 : 1);
     utils::check(SpVJ.size() == 1 + (nspin-1)*2, "Size mismatch");
     utils::check(SpVX.size() == 1 + (nspin-1), "Size mismatch");
     utils::check(hij[0].shape() == std::array<long,2>{1,nIJ}, "Size mismatch");

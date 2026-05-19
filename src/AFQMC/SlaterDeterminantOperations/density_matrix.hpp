@@ -124,7 +124,6 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool herm = true, bool invert = false)
 {
-  auto _ = nda::ellipsis{};
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
@@ -168,7 +167,6 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
-  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
@@ -490,7 +488,6 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
 void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ0, IVec && ref)
 {
   auto all = nda::range::all;
-  auto _ = nda::ellipsis{};
   utils::check_strides(B,ovlp,QQ0,ref);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -542,7 +539,6 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool compact = true, bool herm = true)
 {
-  auto _ = nda::ellipsis{};
   utils::check_strides(B,C,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -612,7 +608,6 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
-  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = A.shape();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
@@ -661,7 +656,6 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
-  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   auto NACT = A.extent(0);
   utils::check(A.shape() == std::array<long,2>{NACT,NMO}, "Size mismatch");
@@ -731,7 +725,6 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
-  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   auto NACT = A.extent(0);
   utils::check(A.shape() == std::array<long,2>{NACT,NMO}, "Size mismatch");

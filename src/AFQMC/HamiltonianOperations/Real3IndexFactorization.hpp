@@ -200,7 +200,6 @@ public:
     memory::check_memory_space<MEM>(E,G);
     using nda::range;
     auto all = range::all;
-    RealType scl = (walker_type == CLOSED ? 2.0 : 1.0);
     int nspin = (walker_type == COLLINEAR ? 2 : 1);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nwalk = G.extent(0);
@@ -241,9 +240,7 @@ public:
     memory::check_memory_space<MEM>(E,G,EJn);
     using nda::range;
     auto all = range::all;
-    RealType scl = (walker_type == CLOSED ? 2.0 : 1.0);
     int ispin = ( spin_component == Alpha ? 0 : 1);
-    int nspin = (walker_type == COLLINEAR ? 2 : 1);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nwalk = G.extent(0);
     int nel  = (ispin==0 ? nup : ndown);
@@ -343,8 +340,6 @@ public:
     static_assert(MEM == MEM_X, "Memory space mismatch");
     using nda::range;
     auto all = range::all;
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
-    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nwalk = X.extent(0);
     int nstot = (walker_type == COLLINEAR) ? Likn.extent(0) : 1;
     int nptot = (walker_type == NONCOLLINEAR) ? Likn.extent(0) : 1;
@@ -837,7 +832,6 @@ private:
     utils::check(idet >= 0 and idet < haj.extent(0), "Invalid idet");
 
     int nwalk = G.extent(0);
-    int nspin = (walker_type == COLLINEAR ? 2 : 1);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nel[2] = {nup,ndown};
     RealType scl = (walker_type == CLOSED ? 2.0 : 1.0);
@@ -953,7 +947,6 @@ private:
     utils::check(haj.extent(0) == 1, "Calling ph_ref_energy_impl with ndet>1.");
 
     int nwalk = G2d.extent(0);
-    int nspin = (walker_type == COLLINEAR ? 2 : 1);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     int nel = G2d.extent(1)/(npol*NMO);
     int nact[2] = {nup,ndown};

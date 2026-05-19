@@ -130,7 +130,6 @@ public:
         for (int beta = 0; beta < num_correlators; beta++)
         {
           const auto &pair_map_j = this->pair_map.at(beta);
-          int pair_ind = alpha * num_correlators + beta;
 
           auto avg = pair_corr_average(iav, alpha, beta, range::all);
           int idx{};

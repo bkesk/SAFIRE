@@ -276,7 +276,6 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
         // opposite spin (i<=j)
         auto vals = Jij.values();
         auto cols = Jij.columns();
-        long cnt=0;
         for( int r=0; r<NMO; ++r) {
           for(long i=Jij.row_begin(r); i<Jij.row_end(r); ++i) {
             auto v_ = vals(i);

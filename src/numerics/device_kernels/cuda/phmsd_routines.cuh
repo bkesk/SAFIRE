@@ -104,7 +104,6 @@ template<nda::MemoryArrayOfRank<3> T_t, nda::MemoryArrayOfRank<4> R_t>
 void calculate_compact_ph_R(int const* refc, int const* iexcit, T_t const& T, R_t &R)
 {
   using nda::range;
-  auto all = range::all;
   // T(nw,nact,nel)
   // R(nw,ndet,nex,nact)
   auto [nwalk,ndet,nex,nact] = R.shape(); 

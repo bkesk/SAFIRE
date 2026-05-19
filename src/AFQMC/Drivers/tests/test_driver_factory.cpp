@@ -67,7 +67,6 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     hamil_file, wfn_file
   );
   using nda::range;
-  auto all = range::all;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
   utils::check(utils::file_exists(wfn_file),

@@ -56,7 +56,6 @@ void run_hubbard_consistency()
   tests::HubbardSpec spec;
   // Defaults: 4x4 lattice, t=1, U=4, nup=ndown=4, COLLINEAR.
   int NMO   = spec.NMO();
-  int nspin = (spec.walker_type == COLLINEAR) ? 2 : 1;
   int npol  = (spec.walker_type == NONCOLLINEAR) ? 2 : 1;
   int nel   = spec.nel();
   int nwalk = 3;

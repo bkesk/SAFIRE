@@ -57,7 +57,6 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
 {
   using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
-  auto all = range::all;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
   utils::check(utils::file_exists(wfn_file),
@@ -92,7 +91,6 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
 
   int nspin            = (type == COLLINEAR) ? 2 : 1;
   int npol             = (type == NONCOLLINEAR) ? 2 : 1;
-  int nel              = (type == COLLINEAR) ? nup+ndown : nup;
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
@@ -234,7 +232,6 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
       }
     
     }
-    int expected_estimator_querries = nStep / test_ptree.get<int>("gcd");
     // Energy estimator uses meas1 as the global measure_interval_multiplier
     int energy_interval = test_ptree.get<int>("meas1") * population_control_interval;
     int expected_measurments = nStep / energy_interval;

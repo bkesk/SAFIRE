@@ -17,7 +17,6 @@ namespace detail
 template<typename V, nda::MemoryArrayOfRank<3> A>
 requires(std::decay_t<A>::is_stride_order_C())
 void add_diagonal(V alpha, A&& a) {
-  using T = nda::get_value_t<V>;
   sfqmc::utils::check(a.extent(1) == a.extent(2), "add_diagonal requires square matrices");
 
   auto a_b = to_basic_layout(a());

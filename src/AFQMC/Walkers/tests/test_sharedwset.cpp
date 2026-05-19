@@ -74,8 +74,6 @@ template<MEMORY_SPACE MEM>
 void test_basic_walker_features(std::string wtype)
 {
   using Type = std::complex<double>;
-  using nda::array;
-  using nda::array_view;
 
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -96,19 +94,21 @@ void test_basic_walker_features(std::string wtype)
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("walker_type",wtype);
-  std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
+  auto rng = std::make_shared<utils::RandomGenerator_t<>>();
   auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, info, rng);
   
   if(wtype != "collinear-ft" and wtype != "noncollinear-ft"){
     int M((wtype == "noncollinear") ? 2 * NMO : NMO);
     int nspin = (wtype == "collinear" ? 2 : 1); 
-    array<Type, 3> initA(nspin, M, nup);
-    initA() = Type(0.0);
+    nda::array<Type, 3> initA_h(nspin, M, nup);
+    initA_h() = Type(0.0);
     for (int i = 0; i < nup; i++)
-      initA(0,i,i) = Type(0.22);
+      initA_h(0,i,i) = Type(0.22);
     if(wtype == "collinear")
       for (int i = 0; i < ndown; i++)
-        initA(1,i,i) = Type(0.33);
+        initA_h(1,i,i) = Type(0.33);
+
+    auto initA = memory::to_memory_space<MEM>(initA_h);
 
     wset.resize(nwalkers, initA);
 
@@ -117,15 +117,11 @@ void test_basic_walker_features(std::string wtype)
     //Type tot_weight(0.0);
     for (auto it = wset.begin(); it != wset.end(); ++it)
     {
-      auto sm = it->SlaterMatrix(Alpha);
-      REQUIRE( sm.extent(0) == initA.extent(1) );	
-      REQUIRE( sm.extent(1) == nup );	
-      REQUIRE(nda::to_host(it->SlaterMatrix(Alpha)) == initA(0,nda::ellipsis{}));
-      if( wset.getWalkerType() == COLLINEAR ) { 
-        auto smB = it->SlaterMatrix(Beta);
-        REQUIRE( smB.extent(0) == initA.extent(1) );	
-        REQUIRE( smB.extent(1) == ndown );	
-        REQUIRE( nda::to_host(it->SlaterMatrix(Beta)) == initA(1,nda::range::all,nda::range(ndown)));
+      for(int spin = 0; spin < nspin; spin++) {
+        auto sm = it->SlaterMatrix(static_cast<SpinTypes>(spin));
+        REQUIRE( sm.extent(0) == initA.extent(1) );	
+        REQUIRE( sm.extent(1) == nup );	
+        REQUIRE(nda::to_host(sm) == initA_h(spin, nda::ellipsis{}));
       }
       it->set_property(WEIGHT,base * 1.0 + 0.5);
       it->set_property(OVLP,base * 1.0 + 0.5);
@@ -136,31 +132,34 @@ void test_basic_walker_features(std::string wtype)
       base += Type(1.0);
       cnt++;
     }
-  }
-  else{
+  } else {
     int M((wtype == "noncollinear-ft") ? 2 * NMO : NMO);
     int nspin = (wtype == "collinear-ft" ? 2 : 1); 
-    array<Type, 3> initU(nspin, M, M);
-    array<Type, 2> initD(nspin, M);
-    array<Type, 3> initV(nspin, M, M);
-    initU() = Type(0.0);
+    nda::array<Type, 3> initU_h(nspin, M, M);
+    nda::array<Type, 2> initD_h(nspin, M);
+    nda::array<Type, 3> initV_h(nspin, M, M);
+    initU_h() = Type(0.0);
     for (int i = 0; i < M; i++)
-      initU(0,i,i) = Type(0.22);
+      initU_h(0,i,i) = Type(0.22);
     if(wtype == "collinear-ft")
       for (int i = 0; i < M; i++)
-        initU(1,i,i) = Type(0.33);
-    initD() = Type(0.0);
+        initU_h(1,i,i) = Type(0.33);
+    initD_h() = Type(0.0);
     for (int i = 0; i < M; i++)
-      initD(0,i) = Type(0.44);
+      initD_h(0,i) = Type(0.44);
     if(wtype == "collinear-ft")
       for (int i = 0; i < M; i++)
-        initD(1,i) = Type(0.55);
-    initV() = Type(0.0);
+        initD_h(1,i) = Type(0.55);
+    initV_h() = Type(0.0);
     for (int i = 0; i < M; i++)
-      initV(0,i,i) = Type(0.66);
+      initV_h(0,i,i) = Type(0.66);
     if(wtype == "collinear-ft")
       for (int i = 0; i < M; i++)
-        initV(1,i,i) = Type(0.77);
+        initV_h(1,i,i) = Type(0.77);
+
+    auto initU = memory::to_memory_space<MEM>(initU_h);
+    auto initD = memory::to_memory_space<MEM>(initD_h);
+    auto initV = memory::to_memory_space<MEM>(initV_h);
 
     wset.resize(nwalkers, initU, initD, initV);
 
@@ -277,7 +276,6 @@ void test_basic_walker_features(std::string wtype)
   REQUIRE(wset.GlobalPopulation() == nwalkers * mpi->comm.size());
   REQUIRE(wset.GlobalPopulation() == wset.get_global_target_population());
   REQUIRE(wset.GlobalWeight() == Approx(static_cast<RealType>(wset.get_global_target_population())));
-  double nx = (wset.getWalkerType() == NONCOLLINEAR or wset.getWalkerType() == FULLYPOLARIZED ? 1.0 : 2.0);
   for (int i = 0; i < wset.size(); i++)
   {
     auto w = wset[i];
@@ -338,12 +336,11 @@ void test_basic_walker_features(std::string wtype)
 template<MEMORY_SPACE MEM>
 void test_walker_io(std::string wtype)
 {
-  using Type = std::complex<double>;
-  using nda::array;
 
+
+  using Type = std::complex<double>;
   auto& mpi = utils::make_unit_test_mpi_context();
 
-/*
   int NMO = 8, nup = 2, ndown = 2, nwalkers = 10;
   if (wtype == "noncollinear")
   {
@@ -356,17 +353,19 @@ void test_walker_io(std::string wtype)
   info.nup = nup;
   info.ndown = ndown;
   info.name = "walker";
-  int M((wtype == "noncollinear") ? 2 * NMO : NMO);
-  array<Type, 2> initA(M, nup);
-  array<Type, 2> initB(M, ndown);
-  initA() = Type(0.0);
-  initB() = Type(0.0);
-  for (int i = 0; i < nup; i++)
-    initA(i,i) = Type(0.22);
-  for (int i = 0; i < ndown; i++)
-    initB(i,i) = Type(0.33);
-  std::shared_ptr<utils::RandomGenerator_t> rng = std::make_shared<utils::RandomGenerator_t>();
+  int npol = (wtype == "noncollinear") ? 2 : 1;
+  int nspin = wtype == "collinear" ? 2 : 1;
+  nda::array<Type, 3> initA_h(nspin, npol * NMO, nup);
+  initA_h() = 0.0;
+  for(int spin = 0; spin < nspin; spin++) {
+    for (int i = 0; i < nup; i++) { 
+      initA_h(spin,i,i) = Type(0.11 * (spin + 2));
+    }
+  }
+  auto rng = std::make_shared<utils::RandomGenerator_t<>>();
 
+  auto initA = memory::to_memory_space<MEM>(initA_h);
+  
   ptree pt0;
   pt0.put("WalkerSet.name","wset0");
   pt0.put("WalkerSet.walker_type",wtype);
@@ -379,15 +378,11 @@ void test_walker_io(std::string wtype)
   Type tot_weight(0.0);
   for (auto it = wset.begin(); it != wset.end(); ++it)
   {
-    auto sm = it->SlaterMatrix(Alpha);
-    REQUIRE( sm.extent(0) == initA.extent(0) );
-    REQUIRE( sm.extent(1) == initA.extent(1) ); 
-    REQUIRE( nda::to_host(it->SlaterMatrix(Alpha)) == initA );
-    if( wset.getWalkerType() == COLLINEAR ) {
-      auto smB = it->SlaterMatrix(Beta);
-      REQUIRE( smB.extent(0) == initB.extent(0) );
-      REQUIRE( smB.extent(1) == initB.extent(1) ); 
-      REQUIRE( nda::to_host(it->SlaterMatrix(Beta)) == initB );
+    for(int spin = 0; spin < nspin; spin++) {
+      auto sm = it->SlaterMatrix(static_cast<SpinTypes>(spin));
+      REQUIRE(sm.extent(0) == initA.extent(1));
+      REQUIRE(sm.extent(1) == initA.extent(2)); 
+      REQUIRE(nda::to_host(sm) == nda::to_host(initA(spin,nda::ellipsis{})));
     }
     it->set_property(WEIGHT,base * 1.0 + 0.1);
     it->set_property(OVLP,base * 1.0 + 0.2);
@@ -424,7 +419,7 @@ void test_walker_io(std::string wtype)
   mpi->comm.barrier();
   if (mpi->comm.root())
     remove("dummy_walkers.h5");
-*/
+
 }
 
 // MAM: Tests are not GPU enabled, fix direct access to GPU memory

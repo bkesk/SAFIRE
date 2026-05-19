@@ -172,7 +172,6 @@ public:
   {
     const int nw   = wset.size();
     const int nel = (walker_type==COLLINEAR ? nup+ndown : nup );
-    const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
     const int npol = (walker_type==NONCOLLINEAR ? 2 : 1 );
     memory::array<MEM,ComplexType,2> G(nw,nel*npol*NMO);
     // don't use buffered_array!!!
@@ -237,7 +236,6 @@ public:
     memory::check_memory_space<MEM>(v);
     AFQMCTimer.start(G_for_vbias_timer);
     int nact  = OrbMats(0).extent(0) + (walker_type==COLLINEAR ? OrbMats(OrbMats.extent(0)-1).extent(0) : 0);
-    int nspin = (walker_type==COLLINEAR ? 2 : 1);
     int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
     int nw = wset.size();
     utils::check(v.shape() == std::array<long,2>{nw,HamOp.number_of_cholesky_vectors()},
@@ -381,7 +379,6 @@ public:
     memory::check_memory_space<MEM>(Refs);
     int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
-    int nspin = (walker_type == COLLINEAR ? 2 : 1);
     if(number_of_references==0) return;
     if(number_of_references < 0) number_of_references = total_number_of_references(); 
     utils::check(number_of_references > 0 and

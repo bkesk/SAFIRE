@@ -330,7 +330,6 @@ auto HDF2CSR(h5::group grp)
   sfqmc::utils::check(data.size() == nnz, "Size mismatch");
   nda::h5_read(grp,"jdata_",jdata);
   sfqmc::utils::check(jdata.size() == nnz, "Size mismatch");
-  long cnt = 0;
   for (long r = 0; r < nrows; r++)
   {
     for(long i=ptrb[r]; i<ptre[r]; ++i) 

@@ -268,8 +268,7 @@ public:
           {
             // Buffer space
             memory::buffered_array<MEM,ComplexType,3> Tva(nw,nu,nelec[ispin]);
-            auto T2d = nda::reshape(Tva, std::array<long,2>{nw*nu,nelec[ispin]});
-            Guv_Guu(ispin, p1, p2, G3d(range(iw, iw + nw), range(ispin*nup,nup+ispin*ndown), all), 
+            Guv_Guu(ispin, p1, p2, G3d(range(iw, iw + nw), range(ispin*nup,nup+ispin*ndown), all),
                     Guv, Guu, nda::flatten(Tva), idet);
 
 /*
@@ -302,7 +301,6 @@ public:
 
             // reuse Guv memory
             memory::array_view<MEM,ComplexType,3> Twib(std::array<long,3>{nw,NMO,nelec[ispin]},Guv.data());
-            auto Tb_2d = nda::reshape(Twib, std::array<long,2>{nw*NMO,nelec[ispin]});
 
             // R[w,u][b] = sum_v Guv[w,u][v] * rotcXau[b][v]
             auto Yau = Ysau(ispin,p2,range(nelec[ispin]),all);
@@ -359,7 +357,6 @@ public:
     using nda::range;
     auto all  = range::all;
     int nwalk = G.extent(0);
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nel   = G.extent(1)/(npol*NMO); 
     int ispin = (spin_component == Alpha ? 0 : 1);
@@ -618,7 +615,6 @@ public:
   {
     memory::check_memory_space<MEM>(G,v);
     using nda::range;
-    auto all = range::all;
     int nchol = ( REAL ? _Luv_().extent(1) : 2 * _Luv_().extent(1) );
     int nwalk = G.extent(0);
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
