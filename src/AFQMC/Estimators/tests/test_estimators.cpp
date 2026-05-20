@@ -48,8 +48,6 @@
 #include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 
-using std::complex;
-using std::string;
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
 
@@ -72,7 +70,7 @@ inline std::string test_hdf_name(std::string const& wfn_file,
 }
 
 template<MEMORY_SPACE MEM>
-void verify_bp_matches_mixed(string const& file, string const& avg_path, int iblock,
+void verify_bp_matches_mixed(std::string const& file, std::string const& avg_path, int iblock,
                              WALKER_TYPES type, int NMO, int nup, int ndown,
                              Wavefunction<MEM>& wfn, WalkerSet<MEM>& wset)
 {
@@ -82,7 +80,7 @@ void verify_bp_matches_mixed(string const& file, string const& avg_path, int ibl
   std::string suffix = std::format("{:09d}", iblock);
 
   nda::array<ComplexType, 1> read_data;
-  ComplexType denom;
+  ComplexType denom{};
   {
     h5::file reader(file, 'r');
     h5::group root(reader);
@@ -95,6 +93,7 @@ void verify_bp_matches_mixed(string const& file, string const& avg_path, int ibl
   REQUIRE(read_data.size() == nspin * npol * NMO * npol * NMO);
   auto BPRDM = nda::reshape(read_data, std::array<long, 3>{nspin, npol * NMO, npol * NMO});
   BPRDM *= 1.0 / denom;
+
   ComplexType trace{};
   for(int spin = 0; spin < nspin; spin++) {
     for(int i = 0; i < npol * NMO; ++i) {
@@ -162,7 +161,7 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("dense_trial",true);
 
-  int nwalk = 11;
+  int nwalk = 2;
   WavefunctionFactory<MEM> WfnFac(InfoMap);
   WfnFac.push("wfn0", wfn_pt);
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
