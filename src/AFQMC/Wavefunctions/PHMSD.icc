@@ -481,6 +481,7 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
 
   if (walker_type == NONCOLLINEAR)
   {
+    utils::check(false, "noncollinear PHMSD MixedDensityMatrix not implemented");
 /*
     // always calculate compact and multiply by OrbMat at the end if full
     auto Gdims      = dm_dims(false, Alpha);
@@ -594,8 +595,7 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
   }
   else
   {
-    long nexcit[2] = {long(abij.number_of_unique_excitations()[0]), 
-                      long(abij.number_of_unique_excitations()[1])};
+    const auto& nexcit = abij.number_of_unique_excitations();
     const int nbatch__  = nwalk; 
 
     auto SMup=wset.SlaterMatrices(Alpha);
@@ -680,14 +680,7 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
         if (compact)
         {
           auto G3d = nda::reshape(G,std::array<long,3>{nwalk,nact,NMO});
-          if constexpr (MEM==HOST_MEMORY) {
-            for(int i=0; i<nw; ++i)
-              nda::blas::gemm(nda::transpose(Rb(i,all,all)),GB(i,all,all),
-                              G3d(iw+i,range(nactA,nact),all));
-          } else {
-            nda::tensor::contract(ComplexType(1.0), Rb, "wia", GB, "wik",
-                ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA,nact),all), "wak");
-          }
+          math::product<'T','N'>(Rb, GB, G3d(range(iw,iw+nw), range(nactA,nact), all));
         }
         else
         {
@@ -734,6 +727,7 @@ void PHMSD<MEM>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
   Ov() = ComplexType(0.0);
   if (walker_type == NONCOLLINEAR)
   {
+    utils::check(false, "noncollinear PHMSD MixedDensityMatrix not implemented");
 /*
     long nexcit = long(abij.number_of_unique_excitations()[0]);
     StaticVector ov0(iextensions<1u>{nbatch__}, ComplexType(0.0),

@@ -378,13 +378,14 @@ public:
     auto all = range::all;
     memory::check_memory_space<MEM>(Refs);
     int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
+    int nspin = walker_type == COLLINEAR ? 2 : 1;
+    int nspin_in_wfn = OrbMats.extent(0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
     if(number_of_references==0) return;
     if(number_of_references < 0) number_of_references = total_number_of_references(); 
     utils::check(number_of_references > 0 and
-                 number_of_references < OrbMats.extent(0) and
-                 number_of_references < Refs.extent(0),
-                 "Invalid number_of_references:{}", number_of_references);
+                 number_of_references <= Refs.extent(0),
+                 "Invalid number_of_references: {} should fulfill 0 < n <= {}!", number_of_references, Refs.extent(0));
     utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
     if (RefOrbMats.extent(0) < number_of_references)
     {
@@ -392,30 +393,21 @@ public:
       RefOrbMats = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{number_of_references,npol*NMO,nel}); 
       if (mpi->node_comm.root())
       {
-        {
-          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(0)));
-          nda::vector<int> Ac(nup);
-          for (int i_det = 0; i_det < number_of_references; ++i_det)
-          {
+        std::array nels = {nup, ndown};
+        std::array spin_offset = {0, nup};
+        for(int spin = 0; spin < nspin; spin++) {
+          int spin_ = spin % nspin_in_wfn;
+          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(spin_)));
+          nda::vector<int> Ac(nels[spin]);
+          for (int i_det = 0; i_det < number_of_references; ++i_det) {
             auto c=abij.configuration(i_det);
-            abij.get_configuration(0, std::get<0>(*c), Ac);
-            for (int a = 0; a < nup; ++a)
-              RefOrbMats()(i_det,all,a) = nda::conj(psi(Ac(a),all));
+            abij.get_configuration(spin, std::get<0>(*c), Ac);
+            for (int a = 0; a < nels[spin]; ++a) {
+              RefOrbMats()(i_det,all,spin_offset[spin]+a) = nda::conj(psi(Ac(a),all));
+            }
           }
         }
-        if(walker_type == COLLINEAR) 
-        {
-          auto psi = nda::to_host(math::sparse::to_array<'N'>(OrbMats(1)));
-          nda::vector<int> Ac(ndown); 
-          for (int i_det = 0; i_det < number_of_references; ++i_det)
-          { 
-            auto c=abij.configuration(i_det);
-            abij.get_configuration(1, std::get<0>(*c), Ac);
-            for (int a = 0; a < ndown; ++a)
-              RefOrbMats()(i_det,all,nup+a) = nda::conj(psi(Ac(a),all));
-          }
-        }
-      }                    // TG.Node().root()
+      }
     }
     mpi->node_comm.barrier();
     utils::check(RefOrbMats.extent(0) >= number_of_references and
