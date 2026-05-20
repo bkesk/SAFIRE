@@ -179,7 +179,8 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
   wset.resize(nwalk, initial_guess);
 
   // generate P1 with dt=0 so the BP RDM should match the mixed estimate
-  prop.generateP1(0.0, wset.getWalkerType());
+  // we cannot actually use exactly 0 because that changes the sparsity structure in model hamiltonians
+  prop.generateP1(1e-10, wset.getWalkerType());
 
   using EstimPtr = std::unique_ptr<EstimatorBase<MEM>>;
 

@@ -228,6 +228,8 @@ private:
                     nda::MemoryVector auto const& n2IJ, map_t& IJ2n, 
                     nda::MemoryVector auto&& vMF, bool natural_shift)
   {
+    // if dt == 0, it will mess up the sparsity structure below
+    utils::check(dt > 0, "dt has to be positive");
     
     int NMO = U.extent(0) / 2;
 
@@ -336,7 +338,7 @@ private:
         // now transpose  
         nda::array<ComplexType,2> Vn_array = math::sparse::to_array<'T'>(VnT);
         auto Vn = math::sparse::to_csr<HOST_MEMORY,int,int>(Vn_array);
-        utils::check(Vn.nnz() == SpVn.nnz(), "Error: Contact developers.");                  
+        utils::check(Vn.nnz() == SpVn.nnz(), "Error: Contact developers.");
         nda::range rng(Vn.nnz());
         auto col_h = nda::to_host(SpVn.columns());
         utils::check(nda::sum(nda::abs(Vn.columns()(rng)-col_h(rng)))==0, "Error: Contact developers.");
