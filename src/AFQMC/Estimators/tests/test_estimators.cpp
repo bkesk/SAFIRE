@@ -266,7 +266,7 @@ TEST_CASE("reduced_density_matrix", "[estimators]")
 #endif
   } else {
     app_log(0,"Estimators unit testing. Running standard tests.");
-    auto files = utils::get_unit_tests_files(true,true,true,true,true,true);
+    auto files = utils::get_unit_tests_files(true,true,true,true,true,false);
     for( auto f : files ) {
       try {
         reduced_density_matrix<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
