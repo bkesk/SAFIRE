@@ -336,11 +336,9 @@ public:
     } else { 
       for(int i=0; i<number_of_references; ++i) {
         nda::tensor::add(nda::conj(OrbMats(i,0)()),"ji",Refs(i,all,range(nup)),"ij");
-        if(walker_type == COLLINEAR)
-          nda::tensor::add(nda::conj(OrbMats(i,0)()),"ji",Refs(i,all,range(nup,nel)),"ij");
-//        Refs(i,all,range(nup)) = nda::dagger(OrbMats(i,0)());
-//        if(walker_type == COLLINEAR)
-//          Refs(i,all,range(nup,nel)) = nda::dagger(OrbMats(i,1)());
+        if(walker_type == COLLINEAR) {
+          nda::tensor::add(nda::conj(OrbMats(i,1)()),"ji",Refs(i,all,range(nup,nel)),"ij");
+        }
       }
     }
   }
