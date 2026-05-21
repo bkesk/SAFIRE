@@ -336,7 +336,7 @@ void phmsd_compact_R_impl(int nex, int const* refc, int const* iex, T_t const& T
         long iw   = n/ndet;
         long idet = n - iw*ndet;
         int const* x = iex + 6*idet;
-        ov_d(idet,iw) = _D3x3_(T_d(iw,x[3],x[0]),T_d(iw,x[3],x[1]),T_d(iw,x[3],x[2]),
+        ov_d(iw,idet) = _D3x3_(T_d(iw,x[3],x[0]),T_d(iw,x[3],x[1]),T_d(iw,x[3],x[2]),
                              T_d(iw,x[4],x[0]),T_d(iw,x[4],x[1]),T_d(iw,x[4],x[2]),
                              T_d(iw,x[5],x[0]),T_d(iw,x[5],x[1]),T_d(iw,x[5],x[2]));
         if(abs(ov_d(iw,idet)) != 0) { 
@@ -355,7 +355,7 @@ void phmsd_compact_R_impl(int nex, int const* refc, int const* iex, T_t const& T
         long iw   = n/ndet;
         long idet = n - iw*ndet;
         int const* x = iex + 8*idet;
-        ov_d(idet,iw) = D4x4(T_d(iw,x[4],x[0]),T_d(iw,x[4],x[1]),T_d(iw,x[4],x[2]),T_d(iw,x[4],x[3]),
+        ov_d(iw,idet) = D4x4(T_d(iw,x[4],x[0]),T_d(iw,x[4],x[1]),T_d(iw,x[4],x[2]),T_d(iw,x[4],x[3]),
                              T_d(iw,x[5],x[0]),T_d(iw,x[5],x[1]),T_d(iw,x[5],x[2]),T_d(iw,x[5],x[3]),
                              T_d(iw,x[6],x[0]),T_d(iw,x[6],x[1]),T_d(iw,x[6],x[2]),T_d(iw,x[6],x[3]),
                              T_d(iw,x[7],x[0]),T_d(iw,x[7],x[1]),T_d(iw,x[7],x[2]),T_d(iw,x[7],x[3]));
