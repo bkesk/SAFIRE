@@ -159,7 +159,6 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
   wfn_pt.put("name","wfn0");
   wfn_pt.put("system","info0");
   wfn_pt.put("filename",wfn_file);
-  wfn_pt.put("dense_trial",true);
 
   int nwalk = 2;
   WavefunctionFactory<MEM> WfnFac(InfoMap);
