@@ -145,10 +145,10 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   auto all = range::all;
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
+  app_log(1, "Running estimators unit test "
+    "with files:\n --hamil {} \\\n --wfn {}", 
+    hamil_file, wfn_file
+  );
 
   // First strip path of filename.
   std::string base_name = wfn_file.substr(wfn_file.find_last_of("\\/") + 1);
@@ -163,7 +163,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   int nspin         = (type == COLLINEAR) ? 2 : 1;
   int npol          = (type == NONCOLLINEAR) ? 2 : 1;
   int nwalk         = 1;
-  int ndets         = ( MEM == HOST_MEMORY ? 100 : 1000 ); 
+  int ndets         = -1; 
   double dt         = 0.01;
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
 
@@ -184,7 +184,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   wfn_pt.put("system","info0");
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("rediag","no");
-  wfn_pt.put("ndets_to_read",ndets);
+  wfn_pt.put("ndets_to_read",-1);
   wfn_pt.put("algorithm",0);
 
   WavefunctionFactory<MEM> WfnFac(InfoMap);
@@ -304,16 +304,17 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   ComplexType log_ovlp_sum = std::log(ovlp_sum);
 
   // the phase can be off by 2*pi due to small round-off errors around 0, what to do???
-  for (auto it = wset.begin(); it != wset.end(); ++it)
-    VALUE_EQUAL(std::exp(it->get_property(OVLP)), ovlp_sum);
+  for (const auto &w : wset)
+    VALUE_EQUAL(std::exp(w.get_property(OVLP)), ovlp_sum);
 
   {
     memory::array<MEM,ComplexType,1> log_ov(nwalk);
     nomsd.Log_Overlap(wset,log_ov); 
     auto ov_h = nda::to_host(log_ov);
     ov_h() = nda::exp(ov_h());
-    for(int i=0; i<nwalk; ++i)
+    for(int i=0; i<nwalk; ++i) {
       VALUE_EQUAL(std::exp(wset[i].get_property(OVLP)), ov_h(i)); 
+    }
   }
 
   // 2. Green function
@@ -389,7 +390,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     wfn1_pt.put("system","info0");
     wfn1_pt.put("filename",wfn_file);
     wfn1_pt.put("rediag","no");
-    wfn1_pt.put("ndets_to_read",ndets);
+    wfn1_pt.put("ndets_to_read",-1);
     wfn1_pt.put("algorithm",1);
 
     WfnFac.push("wfn1", wfn1_pt);
@@ -457,7 +458,20 @@ TEST_CASE("test_read_phmsd", "[test_read_phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  test_read_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
+    test_read_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
+  } else {
+    app_log(0,"test_read_phmsd: running standard PHMSD test files.");
+    auto files = utils::get_unit_tests_files(false, true, false, false, true);
+    for (auto f : files) {
+      try {
+        test_read_phmsd<HOST_MEMORY>(mpi, std::get<0>(f), std::get<1>(f));
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in test_read_phmsd(" << std::get<1>(f)
+                   << "): " << e.what());
+      }
+    }
+  }
 }
 
 TEST_CASE("test_phmsd", "[read_phmsd]")
@@ -465,10 +479,31 @@ TEST_CASE("test_phmsd", "[read_phmsd]")
   auto& mpi = utils::make_unit_test_mpi_context();
 
   bool write_reference = false;
-  test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, write_reference);
+  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
+    test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, write_reference);
 #if defined(ENABLE_DEVICE)
-  test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, false);
+    test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, false);
 #endif
+  } else {
+    app_log(0,"test_phmsd: running standard PHMSD test files.");
+    auto files = utils::get_unit_tests_files(false, true, false, false, true);
+    for (auto f : files) {
+      try {
+        test_phmsd<HOST_MEMORY>(mpi, std::get<0>(f), std::get<1>(f), write_reference);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in test_phmsd<HOST_MEMORY>(" << std::get<1>(f)
+                   << "): " << e.what());
+      }
+#if defined(ENABLE_DEVICE)
+      try {
+        test_phmsd<DEVICE_MEMORY>(mpi, std::get<0>(f), std::get<1>(f), false);
+      } catch (const sfqmc::AppAbortException& e) {
+        FAIL_CHECK("APP_ABORT in test_phmsd<DEVICE_MEMORY>(" << std::get<1>(f)
+                   << "): " << e.what());
+      }
+#endif
+    }
+  }
 }
 
 } // namespace sfqmc

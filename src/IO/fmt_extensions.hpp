@@ -23,21 +23,22 @@
 #include <spdlog/fmt/bundled/ranges.h>
 
 template <> struct fmt::formatter<std::complex<double>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    auto it = ctx.begin(), end = ctx.end();
-    if (it == end || *it == '}') return it;
-    if (*it == 'f') ++it;
-    if (it != end && *it != '}')
-      throw format_error("invalid format");
-    return it;
+  fmt::formatter<double> inner;
+  
+  constexpr auto parse(format_parse_context& ctx) {
+    return inner.parse(ctx);
   }
 
   template <typename FormatContext>
-  auto format(const std::complex<double>& p, FormatContext& ctx) -> decltype(ctx.out()) {
-    return format_to(
-        ctx.out(),
-        "({:f}, {:f})", 
-        std::real(p), std::imag(p));
+  auto format(const std::complex<double>& p, FormatContext& ctx) {
+    auto out = ctx.out();
+    *out++ = '(';
+    out = inner.format(std::real(p), ctx);
+    *out++ = ',';
+    ctx.advance_to(out);
+    out = inner.format(std::imag(p), ctx);
+    *out++ = ')';
+    return out;
   }
 };
 
