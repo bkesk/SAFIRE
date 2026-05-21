@@ -49,8 +49,11 @@ void NOMSD<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt)
 
   if( ndet == 1) {
 
-    DensityMatrix(wset, OrbMats(0,all), G, Ov); 
-    HamOp.energy(E, G(), 0); 
+    DensityMatrix(wset, OrbMats(0,all), G, Ov);
+    HamOp.energy(E, G(), 0);
+    ComplexType val = std::log(std::abs(ci(0)) < 1e-12 ? ComplexType(1e-12) : std::conj(ci(0)));
+    memory::buffered_array<MEM,ComplexType,1> buff(nw,val);
+    nda::tensor::add(1.0, buff,"w", 1.0, Ov,"w");
 
   } else {
 
@@ -229,6 +232,9 @@ void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
     } else if (walker_type == COLLINEAR)  {
       det_ops::Log_Overlap(OrbMats(0,1)(),wset.SlaterMatrices(Beta),Ov);
     }
+    ComplexType val = std::log(std::abs(ci(0)) < 1e-12 ? 1e-12 : std::conj(ci(0)));
+    memory::buffered_array<MEM,ComplexType,1> buff(nw,val);
+    nda::tensor::add(1.0, buff,"w", 1.0, Ov,"w");
   } else {
     // compute separate, assemble afterwards
     memory::buffered_array<MEM,ComplexType,2> log_ovlps(ndet,nw);
@@ -243,7 +249,7 @@ void NOMSD<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
       ComplexType val( std::log( (std::abs(ci(d)) < 1e-12 ? ComplexType(1e-12) : std::conj(ci(d)) ) ) );
       memory::buffered_array<MEM,ComplexType,1> buff(nw,val);
       // log_ovlp(d,w) = log( ci(d) ) + log( Ov(d, Beta) ) + log( Ov(d, Alpha) )
-      nda::tensor::add(ComplexType(1.0),buff,"w",ComplexType(1.0),log_ovlps(d,all),"w");
+      nda::tensor::add(1.0, buff,"w", 1.0, log_ovlps(d,all),"w");
     }
   
     // now assemble avoiding round-off problems 
