@@ -243,7 +243,7 @@ if(ENABLE_CPPTRACE)
 endif(ENABLE_CPPTRACE)
 
 ######################################################################
-# cpptrace 
+# cxxopts 
 ######################################################################
 find_package(cxxopts 3.3.1 QUIET)
 if(NOT cxxopts_FOUND)

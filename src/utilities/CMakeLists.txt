@@ -37,6 +37,9 @@ target_sources(safire_lib
 
 if(BUILD_UNIT_TESTS)
   add_library(catch_main STATIC catch_main.cpp)
-  target_link_libraries(catch_main PUBLIC safire_lib Catch2::Catch2 cpptrace::cpptrace)
+  target_link_libraries(catch_main PUBLIC safire_lib Catch2::Catch2)
+  if(ENABLE_CPPTRACE)
+    target_link_libraries(safire_lib PUBLIC cpptrace::cpptrace)
+  endif()
 endif(BUILD_UNIT_TESTS)
 
