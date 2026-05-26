@@ -23,7 +23,7 @@
 
 #include <complex>
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "nda/nda.hpp"
 #include "utilities/test_common.hpp"
@@ -79,7 +79,7 @@ void test_csr_matrix()
     auto i0 = row_begin(0);
     for(long r=0; r<nr; r++) 
       for(long i=row_begin(r); i<row_end(r); ++i)
-        sfqmc::utils::VALUE_EQUAL(A_(r,cols(i-i0)),vals(i-i0)); 
+        CHECK_THAT(A_(r,cols(i-i0)), sfqmc::utils::Approx(vals(i-i0))); 
   };
 
   {
@@ -335,7 +335,7 @@ void test_array_of_csr()
     auto i0 = row_begin(0);
     for(long r=0; r<nr; r++)
       for(long i=row_begin(r); i<row_end(r); ++i)
-        sfqmc::utils::VALUE_EQUAL(A_(r,cols(i-i0)),vals(i-i0));
+        CHECK_THAT(A_(r,cols(i-i0)), sfqmc::utils::Approx(vals(i-i0)));
   };
 
   auto csr_host = math::sparse::to_csr<HOST_MEMORY,IndxType,IntType>(As,0.0); 

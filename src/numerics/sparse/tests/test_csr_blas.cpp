@@ -23,7 +23,7 @@
 
 #include <complex>
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "nda/nda.hpp"
 #include "arch/arch.h"
@@ -84,11 +84,11 @@ void test_csr_blas()
     math::sparse::csrmm<'T'>(Type(1.0),a,B2d,Type(0.0),AtB2d);  
     math::sparse::csrmm<'H'>(Type(1.0),a,B2d,Type(0.0),AhB2d); 
 
-    sfqmc::utils::ARRAY_EQUAL(Ax,nda::to_host(Axd));
-    sfqmc::utils::ARRAY_EQUAL(Aty,nda::to_host(Atyd));
-    sfqmc::utils::ARRAY_EQUAL(AB,nda::to_host(ABd));
-    sfqmc::utils::ARRAY_EQUAL(AtB2,nda::to_host(AtB2d));
-    sfqmc::utils::ARRAY_EQUAL(AhB2,nda::to_host(AhB2d));
+    CHECK_THAT(Ax, sfqmc::utils::Approx(nda::to_host(Axd)));
+    CHECK_THAT(Aty, sfqmc::utils::Approx(nda::to_host(Atyd)));
+    CHECK_THAT(AB, sfqmc::utils::Approx(nda::to_host(ABd)));
+    CHECK_THAT(AtB2, sfqmc::utils::Approx(nda::to_host(AtB2d)));
+    CHECK_THAT(AhB2, sfqmc::utils::Approx(nda::to_host(AhB2d)));
   }
 
   { 
@@ -108,26 +108,26 @@ void test_csr_blas()
     math::sparse::csrmm<'T'>(Type(1.0),a,B2d_r,Type(0.0),AtB2d);
     math::sparse::csrmm<'H'>(Type(1.0),a,B2d_r,Type(0.0),AhB2d);
 
-    sfqmc::utils::ARRAY_EQUAL(Ax(nda::range(5,15)),nda::to_host(Axd(nda::range(5,15))));
-    sfqmc::utils::ARRAY_EQUAL(Aty,nda::to_host(Atyd));
-    sfqmc::utils::ARRAY_EQUAL(AB(nda::range(5,15),all),nda::to_host(ABd(nda::range(5,15),all)));
-    sfqmc::utils::ARRAY_EQUAL(AtB2,nda::to_host(AtB2d));
-    sfqmc::utils::ARRAY_EQUAL(AhB2,nda::to_host(AhB2d));
+    CHECK_THAT(Ax(nda::range(5,15)), sfqmc::utils::Approx(nda::to_host(Axd(nda::range(5,15)))));
+    CHECK_THAT(Aty, sfqmc::utils::Approx(nda::to_host(Atyd)));
+    CHECK_THAT(AB(nda::range(5,15),all), sfqmc::utils::Approx(nda::to_host(ABd(nda::range(5,15),all))));
+    CHECK_THAT(AtB2, sfqmc::utils::Approx(nda::to_host(AtB2d)));
+    CHECK_THAT(AhB2, sfqmc::utils::Approx(nda::to_host(AhB2d)));
   }
 
   // now test A*B with B csr using B^T * T(A)  
   {    
     auto b = to_csr<MEM,IndxType,IntType>(Bh,0.0); 
     math::sparse::csrmm<'T'>(Type(1.0),b,nda::transpose(Ad),Type(0.0),nda::transpose(ABd));
-    sfqmc::utils::ARRAY_EQUAL(AB,nda::to_host(ABd));
+    CHECK_THAT(AB, sfqmc::utils::Approx(nda::to_host(ABd)));
 
     math::sparse::csrmm<'N'>(Type(1.0),Ad,b,Type(0.0),ABd);
-    sfqmc::utils::ARRAY_EQUAL(AB,nda::to_host(ABd));
+    CHECK_THAT(AB, sfqmc::utils::Approx(nda::to_host(ABd)));
 
     auto b_r = b(nda::range(5,15));
     math::sparse::csrmm<'N'>(Type(1.0),Ad(all,nda::range(5,15)),b_r,Type(0.0),ABd);
     nda::blas::gemm(Type(1.0),Ah(all,nda::range(5,15)),Bh(nda::range(5,15),all),Type(0.0),AB); 
-    sfqmc::utils::ARRAY_EQUAL(AB,nda::to_host(ABd));
+    CHECK_THAT(AB, sfqmc::utils::Approx(nda::to_host(ABd)));
   }
 
 }

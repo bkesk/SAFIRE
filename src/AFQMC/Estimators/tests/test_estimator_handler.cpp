@@ -13,7 +13,7 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "AFQMC/config.h"
@@ -50,7 +50,6 @@ template<MEMORY_SPACE MEM>
 void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
-  using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);

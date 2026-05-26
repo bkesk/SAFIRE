@@ -16,7 +16,7 @@
 
 //#undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "IO/AppAbort.hpp"
@@ -55,7 +55,6 @@ template<MEMORY_SPACE MEM>
 void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
-  using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
@@ -141,8 +140,6 @@ template<MEMORY_SPACE MEM>
 void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file, bool write_reference)
 {
-  using sfqmc::utils::VALUE_EQUAL;
-  using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   auto all = range::all;
   app_log(1, "Running estimators unit test "
@@ -305,7 +302,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
 
   // the phase can be off by 2*pi due to small round-off errors around 0, what to do???
   for (const auto &w : wset)
-    VALUE_EQUAL(std::exp(w.get_property(OVLP)), ovlp_sum);
+    CHECK_THAT(std::exp(w.get_property(OVLP)), utils::Approx(ovlp_sum));
 
   {
     memory::array<MEM,ComplexType,1> log_ov(nwalk);
@@ -313,7 +310,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     auto ov_h = nda::to_host(log_ov);
     ov_h() = nda::exp(ov_h());
     for(int i=0; i<nwalk; ++i) {
-      VALUE_EQUAL(std::exp(wset[i].get_property(OVLP)), ov_h(i)); 
+      CHECK_THAT(std::exp(wset[i].get_property(OVLP)), utils::Approx(ov_h(i))); 
     }
   }
 
@@ -348,7 +345,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     auto Gt2d = nda::reshape(Gd,std::array<long,2>{nwalk,nspin*npol*NMO*npol*NMO});
     Gt2d() = ComplexType(0.0);
     wfn.MixedDensityMatrix(wset,Gt2d,false);
-    ARRAY_EQUAL(G,Gd);
+    CHECK_THAT(G, utils::Approx(Gd));
   }
 
   memory::array<MEM,ComplexType,2> eloc_ph0(nwalk,3);
@@ -363,9 +360,9 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     nda::array<ComplexType,1> ej_w  = eloc_h(all,2);
     if (!write_reference) {
       if (file_data.available) {
-        ARRAY_EQUAL(e1_w,  file_data.E1);
-        ARRAY_EQUAL(ej_w,  file_data.EJ);
-        ARRAY_EQUAL(exx_w, file_data.EXX);
+        CHECK_THAT(e1_w, utils::Approx(file_data.E1));
+        CHECK_THAT(ej_w, utils::Approx(file_data.EJ));
+        CHECK_THAT(exx_w, utils::Approx(file_data.EXX));
       }
     } else {
       file_data.E1  = e1_w;
@@ -379,8 +376,8 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     memory::array<MEM,ComplexType,1> ov(nwalk);
     nomsd.Energy(wset,eloc,ov);
     nda::apply(ComplexType(1.0),ov,nda::tensor::op::EXP);
-    ARRAY_EQUAL(ov_ph0,ov);
-    ARRAY_EQUAL(eloc_ph0,eloc);
+    CHECK_THAT(ov_ph0, utils::Approx(ov));
+    CHECK_THAT(eloc_ph0, utils::Approx(eloc));
   }
 
   if(wfn.getHamType() == RealDenseFactorized)  // add THC
@@ -401,8 +398,8 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     wfn1.Energy(wset,eloc,ov);
     nda::apply(ComplexType(1.0),ov,nda::tensor::op::EXP);
 
-    ARRAY_EQUAL(ov_ph0,ov);
-    ARRAY_EQUAL(eloc_ph0,eloc);
+    CHECK_THAT(ov_ph0, utils::Approx(ov));
+    CHECK_THAT(eloc_ph0, utils::Approx(eloc));
   }
 
   // vMF
@@ -423,7 +420,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     auto X_h = nda::to_host(X);
     if (!write_reference) {
       if (file_data.available) {
-        ARRAY_EQUAL(X_h, file_data.vbias);
+        CHECK_THAT(X_h, utils::Approx(file_data.vbias));
       }
     } else {
       file_data.vbias = X_h;
@@ -431,7 +428,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
 
     memory::array<MEM,ComplexType,2> X2(nwalk,nomsd.number_of_cholesky_vectors());
     nomsd.vbias(wset, X2, dt);
-    ARRAY_EQUAL(X,X2);
+    CHECK_THAT(X, utils::Approx(X2));
   }
 
   // vHS
@@ -439,7 +436,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   auto vHS = nda::to_host(vHS_d);
   if (!write_reference) {
     if (file_data.available) {
-      ARRAY_EQUAL(vHS, file_data.VHS);
+      CHECK_THAT(vHS, utils::Approx(file_data.VHS));
     }
   } else {
     file_data.VHS = vHS;

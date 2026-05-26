@@ -16,7 +16,7 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "IO/AppAbort.hpp"
@@ -67,8 +67,6 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     "with files:\n --hamil {} \\\n --wfn {}", 
     hamil_file, wfn_file
   );
-  using sfqmc::utils::ARRAY_EQUAL;
-  using sfqmc::utils::VALUE_EQUAL;
   using nda::range;
   auto all = range::all;
   utils::check(utils::file_exists(hamil_file),
@@ -193,9 +191,9 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   if (!write_reference)
   {
     if(reference_data.available) {
-      ARRAY_EQUAL(e1_w,        reference_data.E1);
-      ARRAY_EQUAL(ej_w, reference_data.EJ);
-      ARRAY_EQUAL(exx_w,     reference_data.EXX);
+      CHECK_THAT(e1_w, utils::Approx(reference_data.E1));
+      CHECK_THAT(ej_w, utils::Approx(reference_data.EJ));
+      CHECK_THAT(exx_w, utils::Approx(reference_data.EXX));
     }
   } 
   else
@@ -230,10 +228,10 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     for(int spin = 0; spin < nspin; spin++) {
       auto gMF_spin = gMF()(spin,all,all);
       trG += nda::sum(nda::diagonal(gMF_spin)); 
-      ARRAY_EQUAL(gMF_spin, nda::transpose(gMF_spin));
+      CHECK_THAT(gMF_spin, utils::Approx(nda::transpose(gMF_spin)));
     }
     if(type != COLLINEAR_FT && type != NONCOLLINEAR_FT) {
-      CHECK(trG.real() == Approx(nel));
+      CHECK_THAT(trG.real(), utils::Approx(nel));
     }
   }
 
@@ -252,7 +250,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     auto X_h = nda::to_host(X);
     if (!write_reference) {
       if(reference_data.available) {
-        ARRAY_EQUAL(X_h, reference_data.vbias);
+        CHECK_THAT(X_h, utils::Approx(reference_data.vbias));
       }
     } else {
       reference_data.vbias = X_h;
@@ -277,7 +275,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     if (!write_reference)
     {
       if(reference_data.available) {
-        ARRAY_EQUAL(vHS_h, reference_data.VHS);
+        CHECK_THAT(vHS_h, utils::Approx(reference_data.VHS));
       }
     }
     else
@@ -297,8 +295,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     if (!write_reference && reference_data.available) {
       auto vHS_sp_dense = math::sparse::to_array<'N'>(vHS_sp(0));
       auto[vHS_nspin, vHS_npol] = wfn.vHS_dims();
-      ARRAY_EQUAL(vHS_sp_dense(range(vHS_npol*NMO), range(NMO)),
-                  reference_data.VHS(0,0,nda::ellipsis{}));
+      CHECK_THAT(vHS_sp_dense(range(vHS_npol*NMO), range(NMO)), utils::Approx(reference_data.VHS(0,0,nda::ellipsis{})));
     }
   }
 

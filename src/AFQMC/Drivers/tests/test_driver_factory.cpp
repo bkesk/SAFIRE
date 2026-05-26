@@ -13,7 +13,7 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
   
 #include "config.h"
 #include "IO/app_loggers.h"

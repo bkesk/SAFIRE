@@ -15,7 +15,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #define CATCH_CONFIG_RUNNER
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_session.hpp>
 
 #include "config.h"
 #include "arch/arch.h"
@@ -52,7 +53,7 @@ int main(int argc, char* argv[])
   sfqmc::arch::init(world.root(),output_level,debug_level);
 
   Catch::Session session;
-  using namespace Catch::clara;
+  using namespace Catch::Clara;
   // Build command line parser.
   auto cli = session.cli() |
       Opt(WRITE_REFERENCE)["--write-reference"]("Record reference results if applicable.") |

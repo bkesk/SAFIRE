@@ -25,7 +25,7 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "IO/ptree/ptree_utilities.hpp"
@@ -162,8 +162,8 @@ void compare_diagonal2rdm_case(std::string const& case_group, WALKER_TYPES wt)
   }
 
   REQUIRE(new_diag.size() == ref_diag.size());
-  utils::VALUE_EQUAL(new_denom, ref_denom);
-  utils::ARRAY_EQUAL(new_diag, ref_diag);
+  CHECK_THAT(new_denom, utils::Approx(ref_denom));
+  CHECK_THAT(new_diag, utils::Approx(ref_diag));
 
   if (mpi->comm.root())
     std::remove(out_file.c_str());
@@ -215,8 +215,8 @@ void compare_spinspin_case(std::string const& case_group, WALKER_TYPES wt)
   }
 
   REQUIRE(new_ss.size() == ref_ss.size());
-  utils::VALUE_EQUAL(new_denom, ref_denom);
-  utils::ARRAY_EQUAL(new_ss, ref_ss);
+  CHECK_THAT(new_denom, utils::Approx(ref_denom));
+  CHECK_THAT(new_ss, utils::Approx(ref_ss));
 
   if (mpi->comm.root())
     std::remove(out_file.c_str());
@@ -271,8 +271,8 @@ void compare_full2rdm_case()
   }
 
   REQUIRE(new_two_rdm.size() == ref_two_rdm.size());
-  utils::VALUE_EQUAL(new_denom, ref_denom);
-  utils::ARRAY_EQUAL(new_two_rdm, ref_two_rdm);
+  CHECK_THAT(new_denom, utils::Approx(ref_denom));
+  CHECK_THAT(new_two_rdm, utils::Approx(ref_two_rdm));
 
   if (mpi->comm.root())
     std::remove(out_file.c_str());

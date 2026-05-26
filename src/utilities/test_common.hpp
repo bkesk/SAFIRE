@@ -25,7 +25,9 @@
 #include<memory>
 #include <filesystem>
 
-#include "catch2/catch.hpp"
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
+#include <catch2/matchers/catch_matchers_templated.hpp>
 #include "configuration.hpp"
 #include "utilities/check.hpp"
 #include "utilities/type_traits.hpp"
@@ -232,63 +234,68 @@ inline std::shared_ptr<mpi_context_t<mpi3::communicator>>& make_unit_test_mpi_co
   return detail::__unit_test_mpi_context__;
 }
 
-template<typename T>
-void VALUE_EQUAL(T const& A, T const& B, double m=1e-8, double eps=1e-8)
-{
-  REQUIRE_THAT(A,
-               Catch::Matchers::WithinRel(B, T(eps)) ||
-               Catch::Matchers::WithinAbs(B, T(m)));
-}
+template<nda::Array Array>
+struct ApproxArrayMatcher : Catch::Matchers::MatcherGenericBase {
+  ApproxArrayMatcher(Array const& array, RealType abstol, RealType reltol)
+    : array{array},
+      abstol{abstol},
+      reltol{reltol}
+  {}
 
-template<typename T>
-void VALUE_EQUAL(std::complex<T> const& A, std::complex<T> const& B, double m=1e-8, double eps=1e-8)
-{
-  REQUIRE_THAT(real(A),
-               Catch::Matchers::WithinRel(real(B), T(eps)) ||
-               Catch::Matchers::WithinAbs(real(B), T(m)));
-  REQUIRE_THAT(imag(A),
-               Catch::Matchers::WithinRel(imag(B), T(eps)) ||
-               Catch::Matchers::WithinAbs(imag(B), T(m)));
-}
+  bool match(nda::Array auto const& other) const {
+    if(other.shape() != array.shape()) {
+      return false;
+    }
+    // make_regular required for flatten in case array is not contiguous
+    auto other_host = nda::flatten(nda::make_regular(nda::to_host(other)));
+    auto array_host = nda::flatten(nda::make_regular(nda::to_host(array)));
+    auto diffnorm = nda::norm(other_host - array_host, INFINITY);
+    auto valnorm = std::max(nda::norm(array_host, INFINITY), nda::norm(other_host, INFINITY));
 
-template<typename T>
-void VALUE_EQUAL(T const& A, std::complex<T> const& B, double m=1e-8, double eps=1e-8)
-{
-  REQUIRE_THAT(A,
-               Catch::Matchers::WithinRel(real(B), T(eps)) ||
-               Catch::Matchers::WithinAbs(real(B), T(m)));
-  REQUIRE_THAT(imag(B),
-               Catch::Matchers::WithinAbs(T(0.0), T(m)));
-}
-
-
-template<typename T>
-void VALUE_EQUAL(std::complex<T> const& A, T const& B, double m=1e-8, double eps=1e-8)
-{
-  REQUIRE_THAT(real(A),
-               Catch::Matchers::WithinRel(B, T(eps)) ||
-               Catch::Matchers::WithinAbs(B, T(m)));
-  REQUIRE_THAT(imag(A),
-               Catch::Matchers::WithinAbs(T(0.0), T(m)));
-}
-
-
-template<nda::Array Arr1, nda::Array Arr2>
-void ARRAY_EQUAL(Arr1&& A_, Arr2&& B_, double m=1e-8, double eps=1e-8)
-{ 
-  static_assert(nda::get_rank<std::decay_t<Arr1>> == 
-	        nda::get_rank<std::decay_t<Arr2>>, "Rank mismatch.");
-  REQUIRE(A_.size() == B_.size()); 
-  auto A = nda::to_host(A_());
-  auto B = nda::to_host(B_());
-  auto itA = A.begin();
-  auto itB = B.begin();
-  auto itAend = A.end();
-  auto itBend = B.end();
-  for( ; itA != itAend; ++itA, ++itB ) { 
-    check( itB != itBend , "Size mismatch.");
-    VALUE_EQUAL( *itA, *itB, m, eps);
+    return diffnorm < std::max(abstol, reltol * valnorm);
   }
+
+  std::string describe() const override {
+      return std::format("Approx(atol={}, rtol={}): {}", abstol, reltol, array);
+  }
+
+private:
+  Array array;
+  RealType abstol{};
+  RealType reltol{};
+};
+
+template<typename T>
+struct ApproxScalarMatcher : Catch::Matchers::MatcherGenericBase {
+  ApproxScalarMatcher(T val, RealType abstol, RealType reltol)
+    : val{val},
+      abstol{abstol},
+      reltol{reltol}
+  {}
+
+  bool match(T other) const {
+    return std::abs(val-other) < std::max(abstol, reltol * std::abs(val));
+  }
+
+  std::string describe() const override {
+      return std::format("Approx(atol={}, rtol={}): {}", abstol, reltol, val);
+  }
+
+private:
+  T val;
+  RealType abstol{};
+  RealType reltol{};
+};
+
+
+inline auto Approx(nda::Array auto&& array, RealType abstol=1e-8, RealType reltol = 1e-8) {
+  return ApproxArrayMatcher{array, abstol, reltol};
+}
+template<typename T>
+  requires (not nda::Array<T>)
+inline auto Approx(T val, RealType abstol=1e-8, RealType reltol = 1e-8) {
+  // + 0.0 makes sure we get a floating point matcher even if val is integral
+  return ApproxScalarMatcher{val + 0.0, abstol, reltol};
 }
 
 

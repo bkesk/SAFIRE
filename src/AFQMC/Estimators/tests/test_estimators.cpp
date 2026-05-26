@@ -16,7 +16,7 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 
@@ -103,13 +103,13 @@ void verify_bp_matches_mixed(std::string const& file, std::string const& avg_pat
   if(type == CLOSED) {
     trace *= 2;
   }
-  REQUIRE(trace.real() == Approx(nup + ndown));
-  REQUIRE(trace.imag() == Approx(0.0).margin(1e-9));
+  REQUIRE_THAT(trace.real(), utils::Approx(nup + ndown));
+  REQUIRE_THAT(trace.imag(), utils::Approx(0.0, 1e-9));
 
   memory::array<MEM, ComplexType, 2> Gw(wset.size(), nspin * npol * NMO * npol * NMO);
   wfn.MixedDensityMatrix(wset, Gw, false);
   auto G = nda::reshape(Gw(0,nda::ellipsis{}), std::array<long, 3>{nspin, npol * NMO, npol * NMO});
-  utils::ARRAY_EQUAL(G, BPRDM);
+  CHECK_THAT(G, utils::Approx(BPRDM));
 }
 } // namespace
 
