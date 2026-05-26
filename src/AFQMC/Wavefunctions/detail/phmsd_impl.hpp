@@ -17,15 +17,10 @@
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp"
 
-/*
 #if defined(ENABLE_CUDA)
-#include "Numerics/detail/CUDA/Kernels/phmsd_energy.cuh"
-#include "Numerics/detail/CUDA/Kernels/phmsd_determinants.cuh"
-#include "Numerics/detail/CUDA/Kernels/phmsd_inverse.cuh"
-#include "Numerics/detail/CUDA/Kernels/extract_overlap_matrix.cuh"
-#include "Numerics/detail/CUDA/Kernels/construct_phmsd_R.cuh"
+#include "numerics/device_kernels/cuda/phmsd_routines.cuh"
 #endif
-*/
+
 
 namespace sfqmc::afqmc 
 {
