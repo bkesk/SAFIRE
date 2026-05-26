@@ -44,7 +44,7 @@ public:
     utils::check(false, "Error in Observables::full1rdm: Reached disabled default constructor.");
   }
 
-  full1rdm(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave_ = 1)
+  full1rdm(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave = 1)
       : AFQMCInfo(info),
         mpi(_mpi),
         walker_type(wlk),
@@ -132,7 +132,7 @@ public:
     }
 
     ncalls = 0;
-    DMAverage.resize(nave_, dm_size);
+    DMAverage.resize(nave, dm_size);
     DMAverage() = ComplexType(0.0, 0.0);
   }
 
