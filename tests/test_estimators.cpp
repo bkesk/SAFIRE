@@ -27,9 +27,9 @@
 #include "utilities/h5_utils.hpp"
 #include "IO/app_loggers.h"
 
-#include "nda/nda.hpp"
-#include "nda/tensor.hpp"
-#include "nda/h5.hpp"
+#include <nda/nda.hpp>
+#include <nda/tensor.hpp>
+#include <nda/h5.hpp>
 
 #include <string>
 #include <vector>
@@ -40,13 +40,11 @@
 #include "AFQMC/config.h"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
-#include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Estimators/EstimatorBase.h"
 #include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
 #include "AFQMC/Propagators/PropagatorFactory.h"
 #include "AFQMC/Utilities/readWfn.h"
 #include "AFQMC/Utilities/test_utils.hpp"
-#include "AFQMC/Utilities/AFQMCTimer.h"
 
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
@@ -70,7 +68,7 @@ inline std::string test_hdf_name(std::string const& wfn_file,
 }
 
 template<MEMORY_SPACE MEM>
-void verify_bp_matches_mixed(std::string const& file, std::string const& avg_path, int iblock,
+void verify_bp_matches_mixed(h5::file const& file, std::string const& avg_path, int iblock,
                              WALKER_TYPES type, int NMO, int nup, int ndown,
                              Wavefunction<MEM>& wfn, WalkerSet<MEM>& wset)
 {
@@ -82,8 +80,7 @@ void verify_bp_matches_mixed(std::string const& file, std::string const& avg_pat
   nda::array<ComplexType, 1> read_data;
   ComplexType denom{};
   {
-    h5::file reader(file, 'r');
-    h5::group root(reader);
+    h5::group root(file);
     utils::h5_read(root, avg_path + "/one_rdm_" + suffix, read_data);
     h5::read(root, avg_path + "/denominator_" + suffix, denom);
   }
@@ -199,18 +196,18 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
     std::string file = test_hdf_name(UTEST_WFN, UTEST_HAMIL, "run1");
     std::ofstream out;
     {
-      h5::file h5out(file, 'w');
+      h5::file h5out{};
       for (int iblock = 0; iblock < 10*afqmc::DEFAULT_POPULATION_CONTROL_INTERVAL; ++iblock)
       {
         wset.advanceBPPos();
         estimators[0]->accumulate_block(iblock*0.01, wset);
         estimators[0]->print(out, h5out, wset);
       }
+      verify_bp_matches_mixed<MEM>(h5out,
+          "Observables/BackPropagated/FullOneRDM/Average_0", 5,
+          type, NMO, nup, ndown, wfn, wset);
     }
 
-    verify_bp_matches_mixed<MEM>(file,
-        "Observables/BackPropagated/FullOneRDM/Average_0", 5,
-        type, NMO, nup, ndown, wfn, wset);
   }
 
   // ---- Run 2: vector measure_interval_multiplier ----
@@ -237,7 +234,7 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
     std::string file = test_hdf_name(wfn_file, hamil_file, "run2");
     std::ofstream out;
     {
-      h5::file h5out(file, 'w');
+      h5::file h5out{};
       // 6 * pc_interval = 60 steps, with max_nback_prop = 3 * pc_interval = 30
       // => iblock reaches 2; check Average_1 (multiplier=2) written at iblock=2
       for (int iblock = 0; iblock < 6*afqmc::DEFAULT_POPULATION_CONTROL_INTERVAL; ++iblock)
@@ -246,11 +243,11 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
         estimators2[0]->accumulate_block(iblock*0.01, wset);
         estimators2[0]->print(out, h5out, wset);
       }
+      verify_bp_matches_mixed<MEM>(h5out,
+          "Observables/BackPropagated/FullOneRDM/Average_1", 2,
+          type, NMO, nup, ndown, wfn, wset);
     }
 
-    verify_bp_matches_mixed<MEM>(file,
-        "Observables/BackPropagated/FullOneRDM/Average_1", 2,
-        type, NMO, nup, ndown, wfn, wset);
   }
 }
 
