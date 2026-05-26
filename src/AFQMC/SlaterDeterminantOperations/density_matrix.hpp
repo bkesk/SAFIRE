@@ -80,7 +80,7 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, int nbatch = 0, bool 
 
   // Invert
   if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
+    nda::lapack::getri_or_zero(TNN,ipiv,work);
 }
 
 template<nda::MemoryArrayOfRank<3> A_t, typename O_t, nda::MemoryArrayOfRank<3> T_t>
@@ -112,7 +112,7 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, bool invert = true)
 
   // Invert
   if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
+    nda::lapack::getri_or_zero(TNN,ipiv,work);
 }
 
 template<typename A_t, nda::MemoryArrayOfRank<3> B_t, nda::MemoryArrayOfRank<1> O_t,
@@ -151,8 +151,9 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert
-  if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
+  if(invert) {
+    nda::lapack::getri_or_zero(TNN,ipiv,work);
+  }
 }
 
 template<nda::MemoryArrayOfRank<3> A_t, nda::MemoryArrayOfRank<3> B_t, 
@@ -186,8 +187,9 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert
-  if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
+  if(invert) {
+    nda::lapack::getri_or_zero(TNN,ipiv,work);
+  }
 }
 
 //finite-T
@@ -519,9 +521,7 @@ void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert 
-  nda::lapack::getri(TNN,ipiv,work);
-
-  // fill_if_zero()
+  nda::lapack::getri_or_zero(TNN,ipiv,work);
 
   // QQ0 = TMN * inv(TNN)
   math::product(TMN,TNN,QQ0);
@@ -558,9 +558,6 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
 
   // A*B and overlap
   detail::log_overlap_impl(A,B,ovlp,TNN,herm,true);
-
-  // zero out TNN if determinant is zero
-//  math::fill_if_zero(TNN, ovlp, Type(0.0));
 
   if(compact) {
 
@@ -620,9 +617,6 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
 
   // A*B and overlap
   detail::log_overlap_impl(A,B,ovlp,TNN,true);
-
-  // zero out TNN if determinant is zero
-//  math::fill_if_zero(TNN, ovlp, Type(0.0));
 
   if(compact) {
 
@@ -687,9 +681,7 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert 
-  nda::lapack::getri(TNN,ipiv,work);
-
-  // fill_if_zero()
+  nda::lapack::getri_or_zero(TNN,ipiv,work);
 
   // QQ0 = TAB * inv(TNN)
   math::product(TAB,TNN,QQ0);
@@ -755,7 +747,7 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert 
-  nda::lapack::getri(TNN,ipiv,work);
+  nda::lapack::getri_or_zero(TNN,ipiv,work);
 
   // fill_if_zero()
 

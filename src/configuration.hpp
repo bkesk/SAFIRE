@@ -157,16 +157,16 @@ using array_view = std::conditional_t<MEM==HOST_MEMORY, host_array_view<T,N,Layo
                                                            default_array_view<T,N,Layout>>>>;
 
 template<MEMORY_SPACE MEM>
-auto to_memory_space(auto &&A)
+decltype(auto) to_memory_space(auto &&A)
 {
   if constexpr (MEM==HOST_MEMORY) {
-    return nda::to_host(A);
+    return nda::to_host(std::forward<decltype(A)>(A));
   } else if constexpr (MEM==DEVICE_MEMORY) {
-    return nda::to_device(A);
+    return nda::to_device(std::forward<decltype(A)>(A));
   } else if constexpr (MEM==UNIFIED_MEMORY) {
-    return nda::to_unified(A);
+    return nda::to_unified(std::forward<decltype(A)>(A));
   } else {
-    return to_memory_space<DEFAULT_MEMORY_SPACE>(A); 
+    return to_memory_space<DEFAULT_MEMORY_SPACE>(std::forward<decltype(A)>(A)); 
   }
 }
 

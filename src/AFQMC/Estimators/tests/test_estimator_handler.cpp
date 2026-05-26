@@ -39,11 +39,6 @@
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Utilities/readWfn.cpp"
 
-using std::complex;
-using std::cout;
-using std::endl;
-using std::ifstream;
-using std::string;
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
 
@@ -63,7 +58,7 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
                " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
   int population_control_interval = 10;
-  auto[NMO,nup, ndown] = read_info_from_wfn(UTEST_WFN, "any");
+  auto[NMO,nup, ndown] = read_info_from_wfn(wfn_file, "any");
   utils::check(NMO == read_nmo_from_hdf(hamil_file), "NMO differ between hamil and wfn files.");
 
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
@@ -126,28 +121,24 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   test_case.put("name", "case1");
   test_case.put("meas1", 5);
   test_case.put("meas2", 20);
-  test_case.put("gcd", 5*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
 
   test_case.put("name", "case2");
   test_case.put("meas1", 20);
   test_case.put("meas2", 10);
-  test_case.put("gcd", 10*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
   test_case.put("name", "case3");
   test_case.put("meas1", 5);
   test_case.put("meas2", 7);
-  test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
     
   test_case.put("name", "case4");
   test_case.put("meas1", 11);
   test_case.put("meas2", 7);
-  test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
   
@@ -155,7 +146,6 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   test_case.put("name", "case5");
   test_case.put("meas1", 1);
   test_case.put("meas2", 7);
-  test_case.put("gcd", 1*population_control_interval);
   cases.push_back(test_case);
   test_case.clear();
 
@@ -191,8 +181,7 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
     std::cout <<" Test case Ptree:  "<< std::endl;
     std::cout << io::to_string(est_pt) << std::endl;
 
-    int measure_interval;
-    int estimator_handler_querries = 0;
+    int measure_interval{};
     {
       int nPopulation = 1;
       float dt = 0.01f;
@@ -204,7 +193,7 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
     
       // set measurement intervals
       measure_interval = estim0.get_max_common_interval();
-      std::cout << "Querrying estimator handler with interval " << measure_interval << " (commensurate with all measurement intervals)" << std::endl;
+      std::cout << "Querying estimator handler with interval " << measure_interval << " (commensurate with all measurement intervals)" << std::endl;
 
       /* Fake Driver Block */
       std::vector<ComplexType> dummyData;
@@ -227,14 +216,13 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
         {
           estim0.accumulate_block(total_time, wset);
           estim0.print(iStep + 1, total_time, E1, wset);
-          estimator_handler_querries++;
         }
       }
     
     }
     // Energy estimator uses meas1 as the global measure_interval_multiplier
     int energy_interval = test_ptree.get<int>("meas1") * population_control_interval;
-    int expected_measurments = nStep / energy_interval;
+    int expected_measurements = nStep / energy_interval;
     // read results from "test_est_handler.scalar.dat"
     std::string filename = "test_est_handler.scalar.dat";
     std::ifstream in(filename.c_str());
@@ -244,12 +232,10 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
     while (std::getline(in, line))
     {
       line_count++;
-      cout << line << endl;
+      std::cout << line << std::endl;
     }
     app_log(1, "\n[TESTS] Running test case: {} \n",test_ptree.get<std::string>("name","no name"));
-//    CHECK(measure_interval == test_ptree.get<int>("gcd"));
-//    CHECK(estimator_handler_querries == expected_estimator_querries);
-    CHECK(line_count == expected_measurments);
+    CHECK(line_count == expected_measurements);
     in.close();
 
     mpi->comm.barrier();
@@ -259,14 +245,23 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
 }
 
 TEST_CASE("measure_schedule", "[estimators]")
-{ 
+{
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  measure_schedule<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-
+  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
+    measure_schedule<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #if defined(ENABLE_DEVICE)
-  measure_schedule<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+    measure_schedule<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #endif
+  } else {
+    app_log(0,"EstimatorHandler unit testing. Running standard test.");
+    std::string hamil = utils::unit_test_base() + "models/square_4x4_hubbard_nup5_ndn5/afqmc_inputs/ham_collinear.h5";
+    std::string wfn   = utils::unit_test_base() + "models/square_4x4_hubbard_nup5_ndn5/afqmc_inputs/uhf_U0.1_wfn_nup5_ndn5.h5";
+    measure_schedule<HOST_MEMORY>(mpi, hamil, wfn);
+#if defined(ENABLE_DEVICE)
+    measure_schedule<DEVICE_MEMORY>(mpi, hamil, wfn);
+#endif
+  }
 }
 
 }

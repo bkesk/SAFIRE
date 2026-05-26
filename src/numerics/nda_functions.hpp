@@ -374,6 +374,34 @@ void gemm(A const &a, B const &b, C &&c)
 
 }
 
+namespace lapack
+{
+
+// checks lapack info and zeros output if inversion has failed. CPU lapack seems to do this
+// (sometimes?), but cusolve can fill A with nans, which will break subsequent usage.
+//
+// This function is useful for example when calculating the mixed one-rdm, where it can happen that the overlap between
+// Slater determinants is zero, leading to a singularity that does not matter because in the final form, A does not contribute.
+auto getri_or_zero(MemoryArray auto &&A, MemoryArray auto&& ipiv, MemoryArray auto&& work) {
+  auto infos = nda::lapack::getri(A,ipiv,work);
+  int idx{};
+  if constexpr (nda::get_rank<std::decay_t<decltype(A)>> == 2) {
+    if(infos != 0) {
+      A() = 0;
+    }
+  } else {
+    for(int info : infos) {
+      if(info != 0) { // singular
+        A(idx,nda::ellipsis{}) = 0;
+      }
+      idx++;
+    }
+  }
+  return infos;
+}
+
+}
+
 namespace tensor
 {
 
