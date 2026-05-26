@@ -14,8 +14,8 @@
 #pragma once
 
 #include <complex>
-#include <vector>
-//#include "nda/nda.hpp"
+#include <format>
+#include <nda/nda.hpp>
 
 #if defined(ENABLE_SPDLOG)
 
@@ -33,6 +33,7 @@ template <> struct fmt::formatter<std::complex<double>> {
   auto format(const std::complex<double>& p, FormatContext& ctx) {
     auto out = ctx.out();
     *out++ = '(';
+    ctx.advance_to(out);
     out = inner.format(std::real(p), ctx);
     *out++ = ',';
     ctx.advance_to(out);
@@ -42,101 +43,36 @@ template <> struct fmt::formatter<std::complex<double>> {
   }
 };
 
-template <> struct fmt::formatter<std::complex<float>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    auto it = ctx.begin(), end = ctx.end();
-    if (it == end || *it == '}') return it;
-    if (*it == 'f') ++it;
-    if (it != end && *it != '}')
-      throw format_error("invalid format");
-    return it;
+#endif
+
+template <typename T> struct std::formatter<std::complex<T>> {
+  std::formatter<T> inner;
+  
+  constexpr auto parse(format_parse_context& ctx) {
+    return inner.parse(ctx);
   }
 
   template <typename FormatContext>
-  auto format(const std::complex<float>& p, FormatContext& ctx) -> decltype(ctx.out()) {
-    return format_to(
-        ctx.out(),
-        "({:f}, {:f})", 
-        std::real(p), std::imag(p));
+  auto format(const std::complex<T>& p, FormatContext& ctx) const {
+    auto out = ctx.out();
+    *out++ = '(';
+    ctx.advance_to(out);
+    out = inner.format(std::real(p), ctx);
+    *out++ = ',';
+    ctx.advance_to(out);
+    out = inner.format(std::imag(p), ctx);
+    *out++ = ')';
+    return out;
   }
 };
 
-
-#else
-
-#include <format>
-namespace std
-{
-template <> struct formatter<std::complex<double>> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
-    auto it = ctx.begin(), end = ctx.end();
-    if (it == end || *it == '}') return it;
-    if (*it == 'f') ++it;
-    if (it != end && *it != '}')
-      throw format_error("invalid format");
-    return it;
-  } 
-
-  template<typename FormatContext>
-  auto format(const std::complex<double>& p, FormatContext& ctx) const -> decltype(ctx.out()) {
-    return std::format_to(
-        ctx.out(),
-        "({:f}, {:f})", 
-        std::real(p), std::imag(p));
+template <nda::Array A, typename CharT>
+struct std::formatter<A, CharT> : std::formatter<std::string_view, CharT> {
+  auto format(A const& a, auto& ctx) const {
+    std::ostringstream os;
+    os << a;
+    return std::formatter<std::string_view, CharT>::format(os.str(), ctx);
   }
-};
-
-template <> struct formatter<std::complex<float>> {
-//  char presentation = 'f';
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
-    auto it = ctx.begin(), end = ctx.end();
-    if (it == end || *it == '}') return it;
-    if (*it == 'f') ++it;
-    if (it != end && *it != '}')
-      throw format_error("invalid format");
-    return it;
-  }
-  
-  template<typename FormatContext>
-  auto format(const std::complex<float>& p, FormatContext& ctx) -> decltype(ctx.out()) {
-    return std::format_to(
-        ctx.out(),
-        "({:f}, {:f})", 
-        std::real(p), std::imag(p));
-  }
-};
-
-template<typename T> 
-struct formatter<std::vector<T>> 
-{
-
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
-    auto it = ctx.begin(), end = ctx.end();
-    if (it == end || *it == '}') return it;
-    if (*it == 'f') ++it;
-    if (it != end && *it != '}')
-      throw format_error("invalid format");
-    return it;
-  }
-
-  template<typename FormatContext>
-  auto format(std::vector<T> const& p, FormatContext& ctx) const -> decltype(ctx.out()) {
-    *ctx.out()++ = '[';
-    bool first = true;
-    for(auto const& v : p) {
-      if (!first) {
-        *ctx.out()++ = ',';
-      }
-      std::format_to(ctx.out(), "{}", v);
-      first = false;
-    }
-    *ctx.out()++ = ']';
-    return ctx.out();
-  }
-
 };
 
 /*
@@ -171,8 +107,4 @@ struct formatter<Arr>
 
 };
 */
-
-} // std
-
-#endif
 
