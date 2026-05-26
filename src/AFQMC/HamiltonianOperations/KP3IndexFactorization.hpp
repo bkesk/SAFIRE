@@ -85,7 +85,6 @@ public:
         default_buffer_size_in_MB(bf_size),
         E0(e0_)
   {
-    auto all = nda::range::all;
     // setup
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
@@ -467,7 +466,6 @@ public:
     ComplexType one(1.0), zero(0.0);
     int is = (spin_component == Alpha ? 0 : 1);
     int nwalk = G.extent(0);
-    int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nup = nda::sum(nocc(0,all));
     int ndown = (walker_type==COLLINEAR ? nda::sum(nocc(1,all)) : 0);
@@ -705,8 +703,6 @@ public:
     using nda::range;
     auto all  = range::all;
     ComplexType one(1.0), zero(0.0);
-    int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
-    int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nwalk = X.extent(0);
     int NMO   = nkpts*nbnd;
     int nspin_in_H = hij.extent(0);
@@ -1006,10 +1002,7 @@ protected:
     using nda::range;
     auto all  = range::all;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int nwalk = G.extent(0); 
-    int nup   = nda::sum(nocc(0,all));
-    int ndown = (walker_type==COLLINEAR ? nda::sum(nocc(1,all)) : 0);
  
     auto G6d = nda::reshape(GKK,std::array<long,6>{nkpts,nkpts,nwalk,nocc_max,npol,nbnd});
     GKK() = ComplexType(0.0);
@@ -1045,10 +1038,7 @@ protected:
     using nda::range;
     auto all  = range::all;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nspin = (walker_type == COLLINEAR) ? 2 : 1;
     int nwalk = G.extent(0);
-    int nup   = nda::sum(nocc(0,all));
-    int ndown = (walker_type==COLLINEAR ? nda::sum(nocc(1,all)) : 0);
 
     auto G5d = nda::reshape(GQK,std::array<long,5>{nwalk,nkpts,nocc_max,npol,nbnd});
     GQK() = ComplexType(0.0);

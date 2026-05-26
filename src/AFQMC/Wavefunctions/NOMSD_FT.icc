@@ -253,12 +253,9 @@ template<MEMORY_SPACE MEM, class devPsiT>
 template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
 void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
 {
-  auto all = nda::range::all;
   memory::check_memory_space<MEM>(Ov);
   const int ndet = ci.size();
   const int nw   = wset.size();
-  const int nspin = walker_type == COLLINEAR_FT ? 2 : 1;
-  const int npol = walker_type == NONCOLLINEAR_FT ? 2 : 1;
   utils::check(Ov.size() == nw, "Size mismatch");
   // Log_Overlap accumulates!!!
   Ov() = ComplexType(0.0);
@@ -829,7 +826,6 @@ auto NOMSD_FT<MEM,devPsiT>::G_MF()
   using nda::range;
   auto all = range::all;
 
-  int nel   = (walker_type==COLLINEAR_FT ? nup+ndown : nup);
   int nspin = (walker_type==COLLINEAR_FT ? 2 : 1);
   int npol  = (walker_type==NONCOLLINEAR_FT ? 2 : 1);
   int ndet  = ci.size();
@@ -837,7 +833,6 @@ auto NOMSD_FT<MEM,devPsiT>::G_MF()
   auto gMF = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
                       {nspin,npol*NMO,npol*NMO});
 
-  bool found = false;
   if (ndet == 1)
   {
     if(mpi->comm.root()) {
@@ -971,7 +966,6 @@ void NOMSD_FT<MEM,devPsiT>::vMF(nda::MemoryVector auto&& v, double dt)
   int npol  = (walker_type==NONCOLLINEAR_FT ? 2 : 1);
   int ndet  = ci.size();
 
-  bool found = false;
   if (ndet == 1)
   {
     memory::buffered_array<MEM,ComplexType,1> Ov(1); 

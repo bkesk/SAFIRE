@@ -37,7 +37,6 @@ void PHMSD<MEM>::energy_alg0(const WlkSet& wset, Mat&& E, TVec&& Ov)
 {
   using nda::range;
   auto all = range::all;
-  int npol   = (walker_type==NONCOLLINEAR?2:1);
   int nspin = (walker_type==COLLINEAR?2:1);
   long nkev = HamOp.number_of_ke_vectors();
   int nwalk = wset.size();
@@ -295,8 +294,6 @@ void PHMSD<MEM>::energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
   using nda::range;
   auto all = range::all;
   ComplexType one(1.0),zero(0.0);
-  int npol   = (walker_type==NONCOLLINEAR?2:1);
-  int nspin = (walker_type==COLLINEAR?2:1);
   long nkev = HamOp.number_of_ke_vectors();
   int nwalk = wset.size();
   utils::check(E.extent(0) == nwalk and E.extent(1) == 3, "Size mismatch");
@@ -311,8 +308,6 @@ void PHMSD<MEM>::energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
   int nspin_in_orbmat = OrbMats.extent(0);
   int nactA = OrbMats(0).extent(0);
   int nactB = (walker_type==COLLINEAR ? OrbMats(nspin_in_orbmat-1).extent(0) : 0);
-  int nact = nactA+nactB;
-  long nel[2] = {nup,(walker_type==COLLINEAR?ndown:0)};
   memory::buffered_array<MEM,ComplexType,1> log_ov(nwalk,zero); 
 
   if (walker_type != COLLINEAR)
@@ -471,7 +466,6 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
   using nda::range;
   auto all = nda::range::all;
   memory::check_memory_space<MEM>(G,Ov);
-  const int nel   = (walker_type==COLLINEAR ? nup+ndown : nup );
   const int nspin = (walker_type==COLLINEAR?2:1);
   const int npol  = (walker_type==NONCOLLINEAR?2:1);
   const int nwalk = wset.size();
@@ -487,6 +481,7 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
 
   if (walker_type == NONCOLLINEAR)
   {
+    utils::check(false, "noncollinear PHMSD MixedDensityMatrix not implemented");
 /*
     // always calculate compact and multiply by OrbMat at the end if full
     auto Gdims      = dm_dims(false, Alpha);
@@ -600,8 +595,7 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
   }
   else
   {
-    long nexcit[2] = {long(abij.number_of_unique_excitations()[0]), 
-                      long(abij.number_of_unique_excitations()[1])};
+    const auto& nexcit = abij.number_of_unique_excitations();
     const int nbatch__  = nwalk; 
 
     auto SMup=wset.SlaterMatrices(Alpha);
@@ -686,14 +680,7 @@ void PHMSD<MEM>::MixedDensityMatrix(const WlkSet& wset, MatG&& G, TVec&& Ov, boo
         if (compact)
         {
           auto G3d = nda::reshape(G,std::array<long,3>{nwalk,nact,NMO});
-          if constexpr (MEM==HOST_MEMORY) {
-            for(int i=0; i<nw; ++i)
-              nda::blas::gemm(nda::transpose(Rb(i,all,all)),GB(i,all,all),
-                              G3d(iw+i,range(nactA,nact),all));
-          } else {
-            nda::tensor::contract(ComplexType(1.0), Rb, "wia", GB, "wik",
-                ComplexType(0.0), G3d(range(iw,iw+nw),range(nactA,nact),all), "wak");
-          }
+          math::product<'T','N'>(Rb, GB, G3d(range(iw,iw+nw), range(nactA,nact), all));
         }
         else
         {
@@ -740,8 +727,9 @@ void PHMSD<MEM>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
   Ov() = ComplexType(0.0);
   if (walker_type == NONCOLLINEAR)
   {
-    long nexcit = long(abij.number_of_unique_excitations()[0]);
+    utils::check(false, "noncollinear PHMSD MixedDensityMatrix not implemented");
 /*
+    long nexcit = long(abij.number_of_unique_excitations()[0]);
     StaticVector ov0(iextensions<1u>{nbatch__}, ComplexType(0.0),
                        buffer_manager.get_generator().template get_allocator<ComplexType>());
     StaticMatrix ovlp_list({nexcit, nbatch__}, ComplexType(0.0),
@@ -782,9 +770,10 @@ void PHMSD<MEM>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
   }
   else
   {
-    long nexcit[2] = {long(abij.number_of_unique_excitations()[0]),
-                      long(abij.number_of_unique_excitations()[1])};
-    long maxn_unique_confg(std::max(nexcit[0],nexcit[1]));
+    auto nexcit = std::to_array<long>({
+      abij.number_of_unique_excitations()[0],
+      abij.number_of_unique_excitations()[1]
+    });
     int nwbatch = nwalk; // tune later
 
     auto SMup=wset.SlaterMatrices(Alpha);
@@ -1281,7 +1270,6 @@ void PHMSD<MEM>::vMF(nda::MemoryVector  auto&& v, double dt)
   mpi->comm.barrier();
 
   int nspin_in_orbmat = OrbMats.extent(0);
-  int nel   = (walker_type==COLLINEAR ? nup+ndown : nup);
   int nspin = (walker_type==COLLINEAR ? 2 : 1);
   int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
   int nelec[2] = { nup, (walker_type==COLLINEAR ? ndown : 0) };

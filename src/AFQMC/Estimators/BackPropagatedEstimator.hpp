@@ -197,7 +197,6 @@ public:
     int nwalk = wset.size();
     int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
-    int nspin = (walker_type == COLLINEAR ? 2 : 1);
     utils::check(bp_step>0," Error: Found bp_step <=0 in BackPropagate::accumulate_block. ");
     utils::check(bp_step<=max_nback_prop, " Error: max_nback_prop in back propagation estimator must be commensurate with measure_interval.");
     utils::check(max_nback_prop <= wset.NumBackProp()," Error: max_nback_prop > wset.NumBackProp() ");

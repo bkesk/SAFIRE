@@ -22,7 +22,6 @@ template<nda::MemoryMatrix A_t, nda::MemoryMatrix B_t, nda::MemoryMatrix C_t, nd
 requires(std::decay_t<A_t>::is_stride_order_C() and std::decay_t<B_t>::is_stride_order_C() and
          std::decay_t<C_t>::is_stride_order_C() and nda::mem::have_compatible_addr_space<A_t,B_t,C_t,V_t,S_t>)
 void splitDmatrix(A_t const& A, B_t && B, C_t && C, V_t && log_det, S_t const& scl) {
-  using T = nda::get_value_t<V_t>;
   //static_assert(nda::is_complex_v<nda::get_value_t<V>>,
   //              "log_determinant_from_getrf expects complex numbers.");
   sfqmc::utils::check(A.shape() == B.shape(), "Size mismatch");

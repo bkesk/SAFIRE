@@ -17,6 +17,6 @@
 #ifndef UTILITIES_APP_VERSION_HPP
 #define UTILITIES_APP_VERSION_HPP
 
-void print_version(int verbosity);
+void print_version();
 
 #endif

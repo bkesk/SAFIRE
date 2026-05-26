@@ -41,7 +41,6 @@ inline void BasicWalkerData(WlkBucket& wlk, DVec&& curData, mpi3::communicator& 
   wlk.getProperty(WEIGHT, w_data(range(0, nW), 0));
   wlk.getProperty(OVLP, w_data(range(0, nW), 1));
   wlk.getProperty(PSEUDO_ELOC_, w_data(range(0, nW), 2));
-  WALKER_TYPES wtype = wlk.getWalkerType();
   bool modified = false;
   for (int iw = 0; iw < nW; iw++)
   {

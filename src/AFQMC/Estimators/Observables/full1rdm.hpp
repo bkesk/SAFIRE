@@ -44,11 +44,10 @@ public:
     utils::check(false, "Error in Observables::full1rdm: Reached disabled default constructor.");
   }
 
-  full1rdm(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave_ = 1)
+  full1rdm(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, AFQMCInfo& info, ptree pt, WALKER_TYPES wlk, int nave = 1)
       : AFQMCInfo(info),
         mpi(_mpi),
         walker_type(wlk),
-        nave(nave_),
         apply_rotation(false),
         XRot(memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{1,1,1})),
         print_from_list(false),
@@ -156,7 +155,6 @@ public:
 
        utils::check(walker_type != NONCOLLINEAR and walker_type != NONCOLLINEAR_FT,"Error: Not yet implemented: acc_with_rotation && noncollinear.");
 
-      int nw = G_host.extent(0);  
       int nX   = XRot().extent(0);
       // Grot = Xc * G * H(Xc)
       memory::buffered_array<HOST_MEMORY,ComplexType,4> T1(nwalk,nspin,nX,npol*NMO); 
@@ -212,27 +210,21 @@ public:
      utils::check(false," Finish: accumulate_excited_configuration_second "); 
   }
 
-  void print(int iblock, h5::group *g, nda::MemoryVector auto && Wsum)
+  void print(int iblock, h5::group *group, nda::MemoryVector auto && Wsum)
   {
     memory::check_memory_space<HOST_MEMORY>(Wsum);
-    const int n_zero = 9;
-
     DMAverage() *= ComplexType(1.0 / double(ncalls));
     mpi->all_reduce(DMAverage, std::plus<>{});
     if (mpi->comm.root())
     {
-      h5::group grp = ( g->has_key("FullOneRDM") ? 
-                        g->open_group("FullOneRDM")  : 
-                        g->create_group("FullOneRDM") );
-      for (int i = 0; i < nave; ++i)
+      assert(group);
+      h5::group parent = group->create_group("FullOneRDM");
+      for (int i = 0; i < DMAverage.shape(0); ++i)
       {
-        std::string dname = std::string("Average_") + std::to_string(i);
-        h5::group agrp = ( grp.has_key(dname) ? grp.open_group(dname) : grp.create_group(dname)); 
-        std::string padded_iblock =
-            std::string(n_zero - std::to_string(iblock).length(), '0') + std::to_string(iblock);
-        auto DMAverage_i = DMAverage(i, nda::range::all);
-        nda::h5_write(agrp,"one_rdm_" + padded_iblock,DMAverage_i);
-        h5::h5_write(agrp,"denominator_" + padded_iblock,Wsum(i));
+        h5::group obs_group = parent.create_group(std::format("Average_{}", i));
+        std::string padded_iblock = std::format("{:09}", iblock);
+        h5::write(obs_group, "one_rdm_" + padded_iblock, nda::to_host(nda::flatten(DMAverage(i, nda::ellipsis{}))));
+        h5::write(obs_group, "denominator_" + padded_iblock, Wsum[i]);
       }
     }
     ncalls=0;
@@ -245,8 +237,6 @@ private:
   WALKER_TYPES walker_type;
 
   int ncalls = 0;
-
-  int nave = 1;
 
   int dm_size;
 

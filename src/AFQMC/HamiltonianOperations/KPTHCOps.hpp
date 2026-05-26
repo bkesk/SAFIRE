@@ -230,8 +230,7 @@ public:
     int nwalk = G.extent(0);
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
-    int nocc_max = _Ydsau_.extent(4);
+    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0
     utils::check(E.shape() == std::array<long,2>{nwalk,3}, "THC::energy: Size mismatch.");
     utils::check(G.extent(1) == nel*npol*NMO, "THC::energy: Size mismatch.");
     utils::check_strides(E,G);
@@ -251,21 +250,11 @@ public:
 
     // get array_views to the correct data and correct determinant
     bool has_rot = _Xsiu_rot_.has_value();
-    const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_() );
-    const auto Ysau = ( has_rot ? (*_Ydsau_rot_)()(idet,nda::ellipsis{}) : _Ydsau_()(idet,nda::ellipsis{}) );
     const auto Zuv = ( has_rot ? (*_Zuv_rot_)() : (*_Zuv_)() );
 
     int nu = Zuv.extent(1);
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(2)/nbnd;
 
-    // calculate how many walkers can be done concurrently
-//    long Bytes = default_buffer_size_in_MB * 1024L * 1024L;
-//    Bytes /= long((nu * nu + nu + nu * nup) * sizeof(ComplexType));
-//    int nwmax = std::min(nwalk, std::max(1, int(Bytes)));
-    int nwmax = nwalk;
-
-    utils::check(G.is_contiguous(), "Layout mismatch"); 
+    utils::check(G.is_contiguous(), "Layout mismatch");
     memory::array_view<MEM,const ComplexType,5> G5d(std::array<long,5>{nwalk,nel,npol,nkpts,nbnd},G.data());
 
     if constexpr (MEM==HOST_MEMORY)
@@ -278,10 +267,8 @@ public:
         Guu() = ComplexType(0.0);
         for (int ispin = 0; ispin < nspin; ++ispin)
         {
-          long is_ = long(ispin)%nstot; 
           for (int p1 = 0; p1 < npol; ++p1)
           {
-            long ip1_ = long(p1)%nptot; 
             for (int p2 = 0; p2 < npol; ++p2)
             {
 
@@ -447,7 +434,6 @@ public:
     const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_() );
     const auto Luv = _Luv_(); 
     int nu = Luv.extent(1);
-    int nv = Luv.extent(2);
 
     auto X4d = nda::reshape(X,std::array<long,4>{nwalk,2,nkpts,nu});
 
@@ -892,9 +878,8 @@ protected:
     auto all = range::all;
     int nstot = hij.extent(0);
     int nptot = hij.extent(2)/nbnd;
-    int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
+    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0
     bool has_rot = _Xsiu_rot_.has_value();
     // [nstot][nkpts][nptot*nbnd][nu]
     const auto Xsiu = ( has_rot ? (*_Xsiu_rot_)() : _Xsiu_());

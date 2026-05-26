@@ -80,7 +80,7 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, int nbatch = 0, bool 
 
   // Invert
   if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
+    nda::lapack::getri_or_zero(TNN,ipiv,work);
 }
 
 template<nda::MemoryArrayOfRank<3> A_t, typename O_t, nda::MemoryArrayOfRank<3> T_t>
@@ -112,7 +112,7 @@ void inverse_logdet(A_t const& A, O_t && ovlp, T_t && TNN, bool invert = true)
 
   // Invert
   if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
+    nda::lapack::getri_or_zero(TNN,ipiv,work);
 }
 
 template<typename A_t, nda::MemoryArrayOfRank<3> B_t, nda::MemoryArrayOfRank<1> O_t,
@@ -124,7 +124,6 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool herm = true, bool invert = false)
 {
-  auto _ = nda::ellipsis{};
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
@@ -152,8 +151,9 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert
-  if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
+  if(invert) {
+    nda::lapack::getri_or_zero(TNN,ipiv,work);
+  }
 }
 
 template<nda::MemoryArrayOfRank<3> A_t, nda::MemoryArrayOfRank<3> B_t, 
@@ -168,7 +168,6 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
-  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
@@ -188,8 +187,9 @@ void log_overlap_impl(A_t const& A, B_t const& B, O_t && ovlp, T_t && TNN, bool 
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert
-  if(invert)
-    nda::lapack::getri(TNN,ipiv,work);
+  if(invert) {
+    nda::lapack::getri_or_zero(TNN,ipiv,work);
+  }
 }
 
 //finite-T
@@ -490,7 +490,6 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
 void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ0, IVec && ref)
 {
   auto all = nda::range::all;
-  auto _ = nda::ellipsis{};
   utils::check_strides(B,ovlp,QQ0,ref);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -522,9 +521,7 @@ void Log_OverlapForWoodbury(A_t const& A, B_t const& B, O_t && ovlp, QQ0_t && QQ
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert 
-  nda::lapack::getri(TNN,ipiv,work);
-
-  // fill_if_zero()
+  nda::lapack::getri_or_zero(TNN,ipiv,work);
 
   // QQ0 = TMN * inv(TNN)
   math::product(TMN,TNN,QQ0);
@@ -542,7 +539,6 @@ requires( (CSRMatrix<A_t> or nda::MemoryMatrix<A_t>) and
         )
 void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool compact = true, bool herm = true)
 {
-  auto _ = nda::ellipsis{};
   utils::check_strides(B,C,ovlp);
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
@@ -562,9 +558,6 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
 
   // A*B and overlap
   detail::log_overlap_impl(A,B,ovlp,TNN,herm,true);
-
-  // zero out TNN if determinant is zero
-//  math::fill_if_zero(TNN, ovlp, Type(0.0));
 
   if(compact) {
 
@@ -612,7 +605,6 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
-  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = A.shape();
   utils::check(A.shape() == B.shape(), "Size mismatch");
   utils::check(ovlp.size() >= nbatch, "");
@@ -625,9 +617,6 @@ void MixedDensityMatrix(A_t const& A, B_t const& B, C_t && C, O_t && ovlp, bool 
 
   // A*B and overlap
   detail::log_overlap_impl(A,B,ovlp,TNN,true);
-
-  // zero out TNN if determinant is zero
-//  math::fill_if_zero(TNN, ovlp, Type(0.0));
 
   if(compact) {
 
@@ -661,7 +650,6 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
-  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   auto NACT = A.extent(0);
   utils::check(A.shape() == std::array<long,2>{NACT,NMO}, "Size mismatch");
@@ -693,9 +681,7 @@ void MixedDensityMatrixForWoodbury(A_t const& A, B_t const& B, C_t &&C, O_t && o
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert 
-  nda::lapack::getri(TNN,ipiv,work);
-
-  // fill_if_zero()
+  nda::lapack::getri_or_zero(TNN,ipiv,work);
 
   // QQ0 = TAB * inv(TNN)
   math::product(TAB,TNN,QQ0);
@@ -731,7 +717,6 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<A_t>();
   using Type = nda::get_value_t<B_t>;
 
-  auto _ = nda::ellipsis{};
   auto [nbatch, NMO, NEL] = B.shape();
   auto NACT = A.extent(0);
   utils::check(A.shape() == std::array<long,2>{NACT,NMO}, "Size mismatch");
@@ -762,7 +747,7 @@ void MixedDensityMatrixFromConfiguration(A_t const& A, B_t const& B, C_t &&C, O_
   math::log_determinant_from_getrf(TNN,ipiv,ovlp);
 
   // Invert 
-  nda::lapack::getri(TNN,ipiv,work);
+  nda::lapack::getri_or_zero(TNN,ipiv,work);
 
   // fill_if_zero()
 

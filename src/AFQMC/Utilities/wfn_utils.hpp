@@ -49,8 +49,7 @@ auto nocc_per_kpoint(WALKER_TYPES type, int nkpts, nda::array<PsiT_Matrix<MEM>,2
   nocc_per_kp() = 0;
   // 1st det
   {
-    for(int is=0; is<nspin; is++) { 
-      auto vals = nda::to_host(PsiT(0,is%nspin_in_PsiT).values());
+    for(int is=0; is<nspin; is++) {
       auto cols = nda::to_host(PsiT(0,is%nspin_in_PsiT).columns());
       auto row_begin = nda::to_host(PsiT(0,is%nspin_in_PsiT).row_begin());
       auto row_end = nda::to_host(PsiT(0,is%nspin_in_PsiT).row_end());
@@ -70,7 +69,6 @@ auto nocc_per_kpoint(WALKER_TYPES type, int nkpts, nda::array<PsiT_Matrix<MEM>,2
     nda::array<int, 2> nocc(nspin,nkpts);
     nocc() = 0;
     for(int is=0; is<nspin; is++) {
-      auto vals = nda::to_host(PsiT(id,is%nspin_in_PsiT).values());
       auto cols = nda::to_host(PsiT(id,is%nspin_in_PsiT).columns());
       auto row_begin = nda::to_host(PsiT(id,is%nspin_in_PsiT).row_begin());
       auto row_end = nda::to_host(PsiT(id,is%nspin_in_PsiT).row_end());

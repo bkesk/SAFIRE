@@ -53,7 +53,6 @@ template<MEMORY_SPACE MEM>
 void SDetOps()
 {
 
-  auto& mpi = utils::make_unit_test_mpi_context();
   auto all = nda::range::all;
   using nda::range;
 
@@ -67,7 +66,6 @@ void SDetOps()
   using matrix       = memory::array<MEM,Type,2>;
   using matrix_view  = memory::array_view<MEM,Type,2>;
   using array       = memory::array<MEM,Type,3>;
-  using array_F     = memory::array<MEM,Type,3,nda::F_layout>;
   using array_view  = memory::array_view<MEM,Type,3>;
   using sfqmc::utils::ARRAY_EQUAL;
 
@@ -210,8 +208,6 @@ void SDetOps()
 
   {
     array G(nwalk, NMO, NMO);
-    auto G_ = G(all,range(3),range(3));
-    auto Gc_ = G(all,range(2),range(3));
     array Gc(nwalk, NEL, NMO);
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
 

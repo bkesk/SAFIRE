@@ -53,7 +53,7 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
                                                  int nup,
                                                  int ndown);
 
-void checkCommonDims(std::vector<int> const& dims, int NMO, int nup, int ndown, int& ndets_to_read, WALKER_TYPES walker_type);
+void checkCommonDims(std::vector<int> const& dims, int NMO, int nup, int ndown, int& ndets_to_read);
 
 void getCommonInput(h5::group& g,
                     int NMO,
@@ -80,7 +80,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
 
   std::vector<int> dims(5);
   h5::h5_read(grp,"dims",dims);
-  checkCommonDims(dims, NMO, nup, ndown, ndets, walker_type);
+  checkCommonDims(dims, NMO, nup, ndown, ndets);
 
   // keep in on host at first
   nda::array<csr, 2> psi(ndets,nspin);
@@ -143,8 +143,6 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
 {
   using csr = PsiT_Matrix<MEM>;
   long nspin = (walker_type == COLLINEAR_FT ? 2 : 1);
-  long npol = (walker_type == NONCOLLINEAR_FT ? 2 : 1);
-  long Mtot = npol*NMO;
 
   std::vector<int> dims(5);
   h5::read(grp,"dims",dims);

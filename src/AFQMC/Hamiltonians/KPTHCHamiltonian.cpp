@@ -105,9 +105,9 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   nda::array<bool,1> kp_trev;  
   nda::array<bool,1> qp_trev;  
   nda::array<int,1> kp_trev_pair;
-  nda::array<double,2> qpoints; 
-  long number_of_trev_kpoint_pairs=0;
-  
+  nda::array<double,2> qpoints;
+
+
   // only root reads
   h5::file file;
   if (mpi->comm.root())
@@ -337,8 +337,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     for(long is=0; is<nspin; ++is) 
       for(long ik=0; ik<nkpts; ++ik, ++itot) 
       {
-        if( itot%mpi->comm.size() != mpi->comm.rank() ) continue; 
-        using matrix_t = memory::buffered_array<MEM,ComplexType,2>;
+        if( itot%mpi->comm.size() != mpi->comm.rank() ) continue;
         long is_ = is%nspin_in_file;
         int n0 = ( ik==0 ? 0 : nda::sum(nocc(is,range(ik))) );
         int nel = nocc(is,ik); 

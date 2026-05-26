@@ -80,7 +80,7 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
     htype = HamiltonianTypes(htype_);
   }
 
-  std::vector<long> Idata(8);
+  std::vector<int> Idata(8);
   if (mpi->comm.root()) {
     if(format == "coqui") { // coqui always complex for now!
       h5::h5_read_attribute(*hgrp,"number_of_bands",Idata[3]);  // per kpoint

@@ -302,7 +302,6 @@ void ph_excited_energies_first_step(ph_excitations<int, ComplexType, memory::get
   memory::check_memory_space<MEM>(wgt,T,E,KE);
   auto [nwalk,nact,nelec] = T.shape();
   int nconfg = KE.extent(0);
-  int nke = KE.extent(2);
   utils::check(E.extent(0) == nwalk and E.extent(1)==3, "Size mismatch");
   utils::check(wgt.extent(0) == nconfg and wgt.extent(1)==nwalk, "Size mismatch");
   utils::check(KE.extent(1) == nwalk, "Size mismatch");

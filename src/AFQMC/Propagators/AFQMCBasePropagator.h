@@ -82,7 +82,7 @@ public:
     double external_field_scale;
     i_ = pt.get<int>("i");
     a_ = pt.get<int>("a");
-    order                = pt.get<double>("taylor_n");
+    order                = pt.get<int>("taylor_n");
     vbias_bound          = pt.get<double>("vbias_bound");
     external_field_scale = pt.get<double>("external_field_scale");
     upper_cutoff_scale = pt.get<double>("upper_cutoff_scale");

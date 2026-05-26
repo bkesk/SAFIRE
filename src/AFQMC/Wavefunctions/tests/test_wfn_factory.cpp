@@ -250,7 +250,6 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   //std::cout<<"X = "<<X()<<std::endl;
   {
     auto X_h = nda::to_host(X);
-    ComplexType Xsum = 0;
     if (!write_reference) {
       if(reference_data.available) {
         ARRAY_EQUAL(X_h, reference_data.vbias);

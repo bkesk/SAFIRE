@@ -21,7 +21,7 @@
 #include "app_version.h"
 #include "git-rev.h"
 
-void print_version(int verbosity) {
+void print_version() {
   constexpr const char* mkl_feature =
   #ifdef HAVE_MKL
       " MKL";

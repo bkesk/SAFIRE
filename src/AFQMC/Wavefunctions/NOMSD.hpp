@@ -127,7 +127,6 @@ public:
   {
     const int nw   = wset.size();
     const int nel = (walker_type==COLLINEAR ? nup+ndown : nup );
-    const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
     const int npol = (walker_type==NONCOLLINEAR ? 2 : 1 );
     memory::array<MEM,ComplexType,2> G(nw,nel*npol*NMO);
     // don't use buffered_array!!!
@@ -321,7 +320,6 @@ public:
     memory::check_memory_space<MEM>(Refs);
     int nel = nup + (walker_type == COLLINEAR ? ndown : 0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
-    int nspin = (walker_type == COLLINEAR ? 2 : 1);
     if(number_of_references==0) return;
     if(number_of_references < 0) number_of_references = OrbMats.extent(0);
     utils::check(number_of_references > 0 and 
@@ -338,11 +336,9 @@ public:
     } else { 
       for(int i=0; i<number_of_references; ++i) {
         nda::tensor::add(nda::conj(OrbMats(i,0)()),"ji",Refs(i,all,range(nup)),"ij");
-        if(walker_type == COLLINEAR)
-          nda::tensor::add(nda::conj(OrbMats(i,0)()),"ji",Refs(i,all,range(nup,nel)),"ij");
-//        Refs(i,all,range(nup)) = nda::dagger(OrbMats(i,0)());
-//        if(walker_type == COLLINEAR)
-//          Refs(i,all,range(nup,nel)) = nda::dagger(OrbMats(i,1)());
+        if(walker_type == COLLINEAR) {
+          nda::tensor::add(nda::conj(OrbMats(i,1)()),"ji",Refs(i,all,range(nup,nel)),"ij");
+        }
       }
     }
   }

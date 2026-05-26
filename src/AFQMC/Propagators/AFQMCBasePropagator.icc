@@ -576,7 +576,6 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
      nda::MemoryArrayOfRank<1> auto&& HWs, int nt, bool addRAND)
 {
   using nda::range;
-  auto all = range::all;
   // On entry, X(iw,m) = vbias(iw,m);
   // remember to call vbi = apply_bound_vbias(*vb);
 

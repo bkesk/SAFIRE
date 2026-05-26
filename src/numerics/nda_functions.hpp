@@ -374,6 +374,34 @@ void gemm(A const &a, B const &b, C &&c)
 
 }
 
+namespace lapack
+{
+
+// checks lapack info and zeros output if inversion has failed. CPU lapack seems to do this
+// (sometimes?), but cusolve can fill A with nans, which will break subsequent usage.
+//
+// This function is useful for example when calculating the mixed one-rdm, where it can happen that the overlap between
+// Slater determinants is zero, leading to a singularity that does not matter because in the final form, A does not contribute.
+auto getri_or_zero(MemoryArray auto &&A, MemoryArray auto&& ipiv, MemoryArray auto&& work) {
+  auto infos = nda::lapack::getri(A,ipiv,work);
+  int idx{};
+  if constexpr (nda::get_rank<std::decay_t<decltype(A)>> == 2) {
+    if(infos != 0) {
+      A() = 0;
+    }
+  } else {
+    for(int info : infos) {
+      if(info != 0) { // singular
+        A(idx,nda::ellipsis{}) = 0;
+      }
+      idx++;
+    }
+  }
+  return infos;
+}
+
+}
+
 namespace tensor
 {
 
@@ -411,8 +439,6 @@ void reduce([[maybe_unused]] get_value_t<A> alpha, A const& a, std::string_view 
   if constexpr (mem::have_device_compatible_addr_space<A, B>) {
 #if defined(ENABLE_DEVICE)
 #if defined(NDA_HAVE_CUTENSOR)
-      using value_t = get_value_t<A>;
-      constexpr int rank = get_rank<A>;
       cutensor::cutensor_desc<get_value_t<A>, get_rank<A>> a_t(a);
       cutensor::cutensor_desc<get_value_t<B>, get_rank<B>> b_t(b);
       cutensor::reduce(alpha, a_t, op::ID, a.data(), indxA, beta, b_t, op::ID, b.data(), indxB, b.data(), oper);

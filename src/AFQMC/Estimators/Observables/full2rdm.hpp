@@ -162,15 +162,9 @@ private:
   auto acc_no_rotation(int iav, nda::MemoryArrayOfRank<4> auto&& G, nda::MemoryVector auto&& Xw)
   {
     using nda::ellipsis;
-    // doing this 1 walker at a time and not worrying about speed
-    int nw(G.shape(0));
-
     // (ikjl) = Gik * Gjl - (same spin) Gil Gjk
     if (walker_type == COLLINEAR or walker_type == COLLINEAR_FT)
     {
-      size_t M2(NMO * NMO);
-      size_t M4(M2 * M2);
-
       memory::buffered_array<MEM,ComplexType,2> R(NMO * NMO, NMO * NMO);
       memory::buffered_array<MEM,ComplexType,2> Q(NMO, NMO * NMO * NMO);
     

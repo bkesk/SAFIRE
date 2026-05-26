@@ -214,8 +214,6 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
     return false;
   }
   auto& AFinfo = InfoMap[system];
-  int NMO      = AFinfo.NMO;
-  int ndown     = AFinfo.ndown;
 
   std::string hdf_read_restart;
   bool set_nWalker_target;

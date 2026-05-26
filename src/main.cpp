@@ -101,7 +101,7 @@ int main_impl(int argc, char** argv)
   {
     if(root) {
       std::cout << welcome;
-      print_version(3);  // print everything
+      print_version();  // print everything
     }
     return 0;
   }
@@ -126,7 +126,7 @@ int main_impl(int argc, char** argv)
   app_log(1, welcome);      
 
   if(root)
-    print_version(output_level);
+    print_version();
 
   // !!!! assume a single input for now
   std::string myinput = inputs[0];

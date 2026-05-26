@@ -72,7 +72,6 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   // MAM: should this be zero with CLOSED shell???
   int nact_dn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
               (type == CLOSED ? nact_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
-  bool head_shared = (MEM==HOST_MEMORY ? mpi->node_comm.root() : true );
 
   std::vector<long> Idata(8);
   ComplexType E0;

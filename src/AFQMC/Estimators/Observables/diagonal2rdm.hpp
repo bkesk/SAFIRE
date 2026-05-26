@@ -64,9 +64,6 @@ public:
     // assumes G[nwalk][spin][M][M]
     ncalls++;
 
-    int nspin = walker_type == COLLINEAR or walker_type == COLLINEAR_FT ? 2 : 1;
-    int npol = walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT ? 2 : 1;
-
     memory::buffered_array<MEM, ComplexType,4> XwG(G.shape());
     nda::tensor::contract(memory::to_memory_space<MEM>(Xw), "w", G, "wsij", XwG, "wsij");
     

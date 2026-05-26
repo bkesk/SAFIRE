@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18.0)
+cmake_minimum_required(VERSION 3.25.0)
 
 project(safire VERSION 1.0.0 LANGUAGES CXX)
 
@@ -170,26 +170,24 @@ if(DEFINED NDA)
   set(FETCHCONTENT_SOURCE_DIR_NDA ${NDA})
 endif()
 # set nda options before FetchContent_Declare
-#set(CutensorSupport ${ENABLE_CUTENSOR} CACHE INTERNAL "")
-set(CutensorSupport ${ENABLE_CUDA} CACHE INTERNAL "")
-set(CudaSupport ${ENABLE_CUDA} CACHE INTERNAL "")
-set(TblisSupport ON CACHE INTERNAL "")
-set(Build_Tests ${COMPILE_NDA_TESTS} CACHE INTERNAL "")
-if(COQUI_PYTHON_SUPPORT)
-  # nda_py library is needed in CoQui python version
-  set(PythonSupport ON CACHE INTERNAL "")
-else()
-  set(PythonSupport ${NDA_PYTHON_SUPPORT} CACHE INTERNAL "")
-endif()
-FetchContent_Declare(
-        nda
-        GIT_REPOSITORY "https://github.com/triqs/nda.git"
-        GIT_TAG        tensor 
-)
-FetchContent_MakeAvailable(nda)
+block()
+  set(CutensorSupport ${ENABLE_CUDA})
+  set(Cutensor_USE_STATIC ON)
+  set(CudaSupport ${ENABLE_CUDA})
+  set(TblisSupport ON)
+  set(Build_Tests ${COMPILE_NDA_TESTS})
+  set(PythonSupport OFF)
+  FetchContent_Declare(
+          nda
+          GIT_REPOSITORY "https://github.com/triqs/nda.git"
+          GIT_TAG        tensor
+          SYSTEM
+  )
+  FetchContent_MakeAvailable(nda)
+endblock()
 
 ######################################################################
-# CCCL from github (useful if CudaToolkit is old 
+# CCCL from github (useful if CudaToolkit is old)
 ######################################################################
 if(ENABLE_CUDA AND FETCH_CCCL)
   # set nevanlinna options before FetchContent_Declare
@@ -197,6 +195,7 @@ if(ENABLE_CUDA AND FETCH_CCCL)
         cccl
         GIT_REPOSITORY "https://github.com/NVIDIA/cccl.git"
         GIT_TAG        v3.3.3
+        SYSTEM
   )
   FetchContent_MakeAvailable(cccl)
 endif()
@@ -231,12 +230,16 @@ endif()
 # cpptrace 
 ######################################################################
 if(ENABLE_CPPTRACE)
-  FetchContent_Declare(
-    cpptrace
-    GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-    GIT_TAG        v0.8.2
-  )
-  FetchContent_MakeAvailable(cpptrace)
+  block()
+    set(CMAKE_SKIP_INSTALL_RULES ON)
+    FetchContent_Declare(
+      cpptrace
+      GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+      GIT_TAG        v0.8.2
+      SYSTEM
+    )
+    FetchContent_MakeAvailable(cpptrace)
+  endblock()
 endif(ENABLE_CPPTRACE)
 
 ######################################################################
@@ -248,6 +251,7 @@ if(NOT cxxopts_FOUND)
     cxxopts
     GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
     GIT_TAG v3.3.1
+    SYSTEM
   )
   FetchContent_MakeAvailable(cxxopts)
 endif()
@@ -295,21 +299,17 @@ install(FILES ${PROJECT_BINARY_DIR}/bin/safire.settings DESTINATION bin)
 add_library(${PROJECT_NAME}_warnings INTERFACE)
 target_compile_options(${PROJECT_NAME}_warnings
   INTERFACE
-#    -Wall
-#    -Wextra
-#    -Wfloat-conversion
-#    -Wpedantic
-#    -Wno-sign-compare
-    $<$<CXX_COMPILER_ID:GNU>:-Wno-comma-subscript>
-    $<$<CXX_COMPILER_ID:GNU>:-Wno-psabi> # Disable notes about ABI changes
-#    $<$<CXX_COMPILER_ID:GNU>:-Wshadow=local>
+   -Wall
+   -Wextra
+   -Wfloat-conversion
+   -Wpedantic
+   -Wno-sign-compare
+   -Wno-unused-parameter
     $<$<CXX_COMPILER_ID:GNU>:-Wno-attributes>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-deprecated-declarations>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-deprecated-comma-subscript>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-deprecated-declarations>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-unknown-warning-option>
-#    $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wshadow>
-#    $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wimplicit-float-conversion>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-gcc-compat>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-c++20-extensions>
     $<$<CXX_COMPILER_ID:AppleClang,Clang,IntelLLVM>:-Wno-c++20-compat>
