@@ -16,13 +16,13 @@
 
 #undef NDEBUG
 
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
 #include "config.h"
 #include "configuration.hpp"
 #include "IO/AppAbort.hpp"
 #include "utilities/Random.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
 #include "IO/ptree/ptree_utilities.hpp"
 #include "IO/app_loggers.h"

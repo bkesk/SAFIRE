@@ -27,7 +27,7 @@
 
 #include "nda/nda.hpp"
 #include "arch/arch.h"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/Timer.hpp"
 
 #include "numerics/sparse/sparse.hpp"

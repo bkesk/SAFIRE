@@ -30,7 +30,7 @@
 #include "IO/app_loggers.h"
 
 #include "nda/nda.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "numerics/operations/product.hpp"
 #include "numerics/sparse/sparse.hpp"
 

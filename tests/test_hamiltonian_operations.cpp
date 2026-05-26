@@ -36,9 +36,9 @@
 #include "IO/app_loggers.h"
 #include "nda/nda.hpp"
 #include "utilities/check.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
-#include "AFQMC/HamiltonianOperations/tests/hubbard_factorizations.hpp"
+#include "hubbard_factorizations.hpp"
 
 namespace sfqmc
 {

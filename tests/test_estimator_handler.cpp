@@ -22,7 +22,7 @@
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/Random.hpp"
 #include "IO/app_loggers.h"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp"
@@ -37,7 +37,7 @@
 //#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
 #include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
-#include "AFQMC/Utilities/readWfn.cpp"
+#include "AFQMC/Utilities/readWfn.h"
 
 
 extern std::string UTEST_HAMIL, UTEST_WFN;

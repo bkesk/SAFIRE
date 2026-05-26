@@ -26,7 +26,7 @@
 #include "catch2/catch_test_macros.hpp"
 
 #include "nda/nda.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/Timer.hpp"
 
 #include "numerics/sparse/sparse.hpp"

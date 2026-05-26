@@ -27,7 +27,7 @@
 #include <iomanip>
 
 #include "IO/app_loggers.h"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/mpi_context.h"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"

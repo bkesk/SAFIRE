@@ -20,7 +20,7 @@
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/Timer.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/check.hpp"
 
 #include <string>

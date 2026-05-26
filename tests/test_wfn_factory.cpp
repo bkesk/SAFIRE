@@ -36,10 +36,10 @@
 #include <random>
 
 #include "utilities/Timer.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/check.hpp"
 #include "AFQMC/Utilities/test_utils.hpp"
-#include "AFQMC/Utilities/readWfn.cpp"
+#include "AFQMC/Utilities/readWfn.h"
 
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"

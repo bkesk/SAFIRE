@@ -18,7 +18,7 @@
 
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/h5_utils.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/Timer.hpp"
 #include "IO/app_loggers.h"
 

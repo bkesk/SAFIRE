@@ -25,7 +25,7 @@
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
 #include "utilities/h5_utils.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "IO/app_loggers.h"
 
 #include <string>

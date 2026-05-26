@@ -30,7 +30,7 @@
 #include "config.h"
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/check.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/h5_utils.hpp"
 
 #include "nda/nda.hpp"

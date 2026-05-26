@@ -11,6 +11,11 @@ add_library(safire_lib STATIC)
 add_subdirectory(IO)
 add_subdirectory(arch)
 add_subdirectory(utilities)
+
+if(BUILD_UNIT_TESTS)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/tests ${PROJECT_BINARY_DIR}/tests)
+endif()
+
 add_subdirectory(numerics)
 
 add_subdirectory(AFQMC)

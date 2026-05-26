@@ -29,7 +29,7 @@
 
 #include "nda/nda.hpp"
 #include "numerics/fft/nda.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
 namespace bdft_tests
 {

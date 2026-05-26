@@ -23,7 +23,7 @@
 #include "IO/ptree/ptree_utilities.hpp"
 #include "IO/app_loggers.h" 
 #include "utilities/check.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/mpi_context.h"
 #include "numerics/sparse/sparse.hpp"
 #include "numerics/operations/split_singular_vals.hpp"
