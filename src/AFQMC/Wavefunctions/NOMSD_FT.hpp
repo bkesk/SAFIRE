@@ -68,7 +68,8 @@ public:
         ci(std::move(ci_)),
         OrbMats(std::move(orbs_)),
         RefOrbMats(0, 0, 0, 0),
-        NuclearCoulombEnergy(nce)
+        NuclearCoulombEnergy(nce),
+        sclL(walker_type == COLLINEAR_FT ? 2: 1)
   {
 
     //std::cout<<"OrbMats(0,1,1)"<<std::endl;
@@ -85,6 +86,9 @@ public:
       utils::check(false,"finish");
       //recompute_ci();
     }
+    
+    resetLogScale();
+
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -131,10 +135,9 @@ public:
   void runtime_optimization(WlkSet& wset)
   {
     const int nw   = wset.size();
-    const int nel = (walker_type==COLLINEAR ? nup+ndown : nup );
-    const int nspin = (walker_type==COLLINEAR ? 2 : 1 );
-    const int npol = (walker_type==NONCOLLINEAR ? 2 : 1 );
-    memory::array<MEM,ComplexType,2> G(nw,nel*npol*NMO);
+    const int nspin = (walker_type==COLLINEAR_FT ? 2 : 1 );
+    const int npol = (walker_type==NONCOLLINEAR_FT ? 2 : 1 );
+    memory::array<MEM,ComplexType,2> G(nw,nspin*npol*NMO*npol*NMO);
     // don't use buffered_array!!!
     HamOp.runtime_optimization(G);
   }
@@ -335,22 +338,62 @@ public:
     utils::check(false, "back propagation not implemented for finite-T");
   }
 
+  // FIX: multi-determinant finiteT wfns?
   void updateLogScale(auto scl_new, SpinTypes s)
   {
-    if(s==Alpha) 
-        sclL_up += scl_new;
-    else if(s==Beta)
-        sclL_dn += scl_new;     
-  }
-
-  auto getLogScale(SpinTypes s)
-  {
-    if(s==Alpha) 
-        return sclL_up;
+    if(s==Alpha)
+      sclL(0) = scl_new;
     else
-        return sclL_dn;     
+      sclL(1) = scl_new;
+    /*
+    if(s==Alpha){
+      if(MEM==DEVICE_MEMORY){
+        auto scl_h = nda::to_host(sclL);
+        sclL(0) = scl_h(0)+scl_new; 
+      }
+      else{
+        sclL(0) += scl_new;
+      }
+    }
+    else if(s==Beta){
+      if(MEM==DEVICE_MEMORY){
+        auto scl_h = nda::to_host(sclL);
+        sclL(1) = scl_h(1)+scl_new; 
+      }
+      else{
+        sclL(1) += scl_new;
+      }   
+    }
+    */
   }
 
+  auto getLogScale(SpinTypes s){
+    if(MEM==DEVICE_MEMORY){
+      auto scl_h = nda::to_host(sclL);
+      if(s==Alpha)
+        return scl_h(0);
+      else
+        return scl_h(1);
+    }
+    else{
+      if(s==Alpha)
+        return sclL(0);
+      else
+        return sclL(1);
+    }
+  }
+
+  void resetLogScale(){
+    sclL() = ComplexType(0.0);
+  }
+
+  void setLogPT0(nda::MemoryArrayOfRank<1> auto&& v)
+  {
+    LogPT0 = v;
+  }
+
+  auto const& getLogPT0() const {return LogPT0;}
+  
 protected:
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
@@ -369,7 +412,9 @@ protected:
   memory::array<MEM,ComplexType,4> RefOrbMats;
 
   // log scale for DL
-  ComplexType sclL_up = 0.0, sclL_dn = 0.0;
+  nda::array<ComplexType, 1> sclL;
+
+  memory::array<MEM,ComplexType,1> LogPT0;
 
   ComplexType NuclearCoulombEnergy;
 

@@ -170,6 +170,11 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
 
       // Create Trial wavefunction.
       auto PsiT = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,ntau);
+      //using csr = PsiT_Matrix<MEM>;
+      //nda::array<csr, 3> PsiT(ndets_to_read,nspin,3);
+      //memory::array<MEM,ComplexType, 1> sclL(nspin*ndets_to_read);
+      //nda::array<ComplexType, 1> sclL(nspin*ndets_to_read);
+      //std::tie(PsiT, sclL) = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,ntau);
 
       // Set initial walker's Slater matrix.
       getInitialGuess(ngrp, mpi, name, NMO, nup, ndown, walker_type);
@@ -218,13 +223,17 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
         }
 
         mpi->comm.barrier();
+        //return Wavefunction(NOMSD_FT<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+        //                              std::move(ci), std::move(PsiT_dense), NCE, std::move(sclL), targetNW)); 
         return Wavefunction(NOMSD_FT<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
-                                      std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
+                                      std::move(ci), std::move(PsiT_dense), NCE, targetNW)); 
       }
       else
       {
+        //return Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
+        //                              std::move(ci), std::move(PsiT),NCE, std::move(sclL), targetNW));
         return Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
-                                      std::move(ci), std::move(PsiT),NCE,targetNW));
+                                      std::move(ci), std::move(PsiT),NCE, targetNW));
       }
 
     }

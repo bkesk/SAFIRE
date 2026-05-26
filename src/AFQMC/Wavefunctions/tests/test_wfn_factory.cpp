@@ -63,7 +63,7 @@ template<MEMORY_SPACE MEM>
 void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file, bool dense_trial, bool write_reference)
 {
-  app_log(1, "Running wavefunctions unit test "
+  app_log(1, "\nRunning wavefunctions unit test "
     "with files:\n --hamil {} \\\n --wfn {}", 
     hamil_file, wfn_file
   );

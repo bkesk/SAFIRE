@@ -81,7 +81,24 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   DriverFactory<MEM> DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac);
 
   const auto[NMO, nup, ndown] = read_info_from_wfn(wfn_file,"any");
-  AFQMCInfo info("sys0",NMO,nup,ndown);
+  bool ft = (walker_type == COLLINEAR_FT or walker_type == NONCOLLINEAR_FT);
+
+  AFQMCInfo info;//("sys0",NMO,nup,ndown,ntau);
+  
+  info.name = "sys0";
+  info.NMO = NMO;
+  if(ft){
+    //for finite-T wfn dims are [NMO, ntau, 0]
+    //walker matrices are NMO x NMO, not NMO x nelec
+    info.nup = NMO;
+    info.ndown = NMO;
+    info.ntau = nup;
+  }
+  else{
+    info.nup = nup;
+    info.ndown = ndown;
+  }
+
   InfoMap.insert(std::pair<std::string, AFQMCInfo>(info.name, info));
 
   ptree ham_full;
@@ -161,7 +178,10 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put_child("propagator",prop_min);
   exec.put_child("walker_set",wlk_min);
   app_log(0,"[driver_fac] TEST: wfn+ham+prop+wlk (all inline); walker_type={}", walkerTypeToString(walker_type));
-  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  if(ft)
+    CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+  else
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
   if (default_walker) {
     // external wfn
@@ -192,8 +212,10 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put("propagator","prop0");
   exec.put("walker_set","wlk0");
   app_log(0,"[driver_fac] TEST: wfn+ham+prop+wlk (all external); walker_type={}", walkerTypeToString(walker_type));
-  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
-
+  if(ft)
+    CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+  else
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   // mixed external internal
   exec.clear();
   exec.put("seed", test_seed);
@@ -201,7 +223,10 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put("walker_set","wlk0");
   if (hamil_file == wfn_file) {
     app_log(0,"[driver_fac] TEST: wfn(inline)+wlk(external); walker_type={}", walkerTypeToString(walker_type));
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    if(ft)
+      CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+    else
+      CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   }
 
   if (default_walker) {
@@ -219,7 +244,10 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put_child("hamiltonian",ham_min);
   exec.put("walker_set","wlk0");
   app_log(0,"[driver_fac] TEST: wfn(external)+ham(inline)+wlk(external); walker_type={}", walkerTypeToString(walker_type));
-  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+  if(ft)
+    CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+  else
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
   exec.clear();
   exec.put("seed", test_seed);
@@ -227,8 +255,10 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   exec.put_child("hamiltonian",ham_min);
   exec.put_child("walker_set",wlk_min);
   app_log(0,"[driver_fac] TEST: wfn(external)+ham(inline)+wlk(inline); walker_type={}", walkerTypeToString(walker_type));
-  CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
- 
+  if(ft)
+    CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+  else
+    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   // many more possibilities (combinatorial...) Add any problematic ones if needed
 }
 
@@ -240,9 +270,20 @@ TEST_CASE("driver_fac", "[driver_factory]")
     app_log(0,"Driver factory unit testing. Running user provided test:");
     app_log(0," Hamiltonian: {}", UTEST_HAMIL);
     app_log(0," Wavefunction: {}", UTEST_WFN);
-    driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+    bool ft = false;
+    if (UTEST_WFN.find("ft") != std::string::npos
+        or UTEST_WFN.find("FT") != std::string::npos) {
+      ft = true;
+    }
+    if(ft)
+      driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,COLLINEAR_FT);
+    else
+      driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #if defined(ENABLE_DEVICE)
-    driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
+    if(ft)
+      driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,COLLINEAR_FT);
+    else
+      driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
 #endif
    } else {
     app_log(0,"Driver factory unit testing. Running standard tests.");
