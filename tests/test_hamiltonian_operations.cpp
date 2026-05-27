@@ -45,7 +45,7 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void run_hubbard_consistency()
+void hamiltonian_operations_hubbard_4x4_collinear_consistency()
 {
   using nda::range;
   auto all = range::all;
@@ -178,10 +178,10 @@ void run_hubbard_consistency()
 
 } // namespace sfqmc
 
-TEST_CASE("hubbard_consistency_4x4_collinear", "[hamiltonian_operations]")
+TEST_CASE("hamiltonian_operations: hubbard 4x4 collinear consistency", "[hamiltonian_operations]")
 {
-  sfqmc::run_hubbard_consistency<HOST_MEMORY>();
+  sfqmc::hamiltonian_operations_hubbard_4x4_collinear_consistency<HOST_MEMORY>();
 #if defined(ENABLE_DEVICE)
-  sfqmc::run_hubbard_consistency<DEVICE_MEMORY>();
+  sfqmc::hamiltonian_operations_hubbard_4x4_collinear_consistency<DEVICE_MEMORY>();
 #endif
 }

@@ -60,7 +60,7 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file, bool dense_trial)
 {
   using nda::range;
@@ -200,15 +200,15 @@ std::cout<<" setup: " <<AFQMCTimer.elapsed(setup_timer) <<std::endl;
   if(mpi->comm.root()) AFQMCTimer.print_all();
 }
 
-TEST_CASE("propg_fac", "[propagator_factory]")
+TEST_CASE("propagator_factory: build", "[propagator_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
   using namespace utils;
 
   run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
-    propg_fac<MEM>(mpi, hamil_file, wfn_file, true);
-    propg_fac<MEM>(mpi, hamil_file, wfn_file, false);
+    propagator_factory_build<MEM>(mpi, hamil_file, wfn_file, true);
+    propagator_factory_build<MEM>(mpi, hamil_file, wfn_file, false);
   }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::FINITE_T | TestFiles::ALL_SYSTEMS);
 }
 

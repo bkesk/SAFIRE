@@ -30,7 +30,7 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void test_ph_excited_energy_real_dense_cholesky() {
+void phmsd_components_ph_excited_energy_real_dense_cholesky() {
   
 
   int ndet = 50;
@@ -124,10 +124,10 @@ void test_ph_excited_energy_real_dense_cholesky() {
   }  
 }
 
-TEST_CASE("test_ph_excited_energy_real_dense_cholesky", "[Numerics][misc_kernels]") {
-  test_ph_excited_energy_real_dense_cholesky<HOST_MEMORY>();
+TEST_CASE("phmsd_components: ph excited energy (real dense cholesky)", "[phmsd_components]") {
+  phmsd_components_ph_excited_energy_real_dense_cholesky<HOST_MEMORY>();
 #if defined(ENABLE_DEVICE)
-  test_ph_excited_energy_real_dense_cholesky<DEVICE_MEMORY>();
+  phmsd_components_ph_excited_energy_real_dense_cholesky<DEVICE_MEMORY>();
 #endif
 }
 

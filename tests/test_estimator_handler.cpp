@@ -47,7 +47,7 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
   using nda::range;
@@ -243,7 +243,7 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   }
 }
 
-TEST_CASE("measure_schedule", "[estimators]")
+TEST_CASE("estimator_handler: measure schedule", "[estimator_handler]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -254,9 +254,9 @@ TEST_CASE("measure_schedule", "[estimators]")
     wfn = UTEST_WFN;
   }
     
-  measure_schedule<HOST_MEMORY>(mpi, hamil, wfn);
+  estimator_handler_measure_schedule<HOST_MEMORY>(mpi, hamil, wfn);
 #if defined(ENABLE_DEVICE)
-  measure_schedule<DEVICE_MEMORY>(mpi, hamil, wfn);
+  estimator_handler_measure_schedule<DEVICE_MEMORY>(mpi, hamil, wfn);
 #endif
 }
 

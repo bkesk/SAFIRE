@@ -111,7 +111,7 @@ void verify_bp_matches_mixed(h5::file const& file, std::string const& avg_path, 
 } // namespace
 
 template<MEMORY_SPACE MEM>
-void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void estimators_reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
   auto [NMO, nup, ndown] = read_info_from_wfn(wfn_file, "any");
@@ -241,14 +241,14 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
   }
 }
 
-TEST_CASE("reduced_density_matrix", "[estimators]")
+TEST_CASE("estimators: reduced density matrix", "[estimators]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
   using namespace utils;
 
   run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
-    reduced_density_matrix<MEM>(mpi, hamil_file, wfn_file);
+    estimators_reduced_density_matrix<MEM>(mpi, hamil_file, wfn_file);
   }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 

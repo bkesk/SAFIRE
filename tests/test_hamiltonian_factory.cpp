@@ -51,7 +51,7 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void ham_factory(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void hamiltonian_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                  std::string hamil_file) 
 {
   utils::check(utils::file_exists(hamil_file), 
@@ -74,14 +74,14 @@ void ham_factory(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>
   [[maybe_unused]] Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 }
 
-TEST_CASE("ham_factory", "[hamiltonian_factory]")
+TEST_CASE("hamiltonian_factory: build", "[hamiltonian_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
   using namespace utils;
 
   run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
-    ham_factory<MEM>(mpi, hamil_file);
+    hamiltonian_factory_build<MEM>(mpi, hamil_file);
   }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::PHMSD | TestFiles::FINITE_T | TestFiles::ALL_SYSTEMS);
 }
 

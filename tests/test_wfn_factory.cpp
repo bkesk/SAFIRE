@@ -60,7 +60,7 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file, bool dense_trial, bool write_reference)
 {
   using nda::range;
@@ -296,7 +296,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   }      
 }
 
-TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
+TEST_CASE("wfn_factory: sdet", "[wfn_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -307,8 +307,8 @@ TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
   bool write_reference = WRITE_REFERENCE;
 
   run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
-    wfn_fac<MEM>(mpi, hamil_file, wfn_file, true, write_reference && MEM == HOST_MEMORY);
-    wfn_fac<MEM>(mpi, hamil_file, wfn_file, false, false);
+    wfn_factory_sdet<MEM>(mpi, hamil_file, wfn_file, true, write_reference && MEM == HOST_MEMORY);
+    wfn_factory_sdet<MEM>(mpi, hamil_file, wfn_file, false, false);
   }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::FINITE_T | TestFiles::ALL_SYSTEMS);
   
 }

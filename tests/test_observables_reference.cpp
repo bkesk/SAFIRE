@@ -114,7 +114,7 @@ std::string reference_file_path()
 }
 
 template<MEMORY_SPACE MEM>
-void compare_diagonal2rdm_case(std::string const& case_group, WALKER_TYPES wt)
+void observables_reference_diagonal2rdm(std::string const& case_group, WALKER_TYPES wt)
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -169,7 +169,7 @@ void compare_diagonal2rdm_case(std::string const& case_group, WALKER_TYPES wt)
     std::remove(out_file.c_str());
 }
 
-void compare_spinspin_case(std::string const& case_group, WALKER_TYPES wt)
+void observables_reference_spinspin(std::string const& case_group, WALKER_TYPES wt)
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -222,7 +222,7 @@ void compare_spinspin_case(std::string const& case_group, WALKER_TYPES wt)
     std::remove(out_file.c_str());
 }
 template<MEMORY_SPACE MEM>
-void compare_full2rdm_case()
+void observables_reference_full2rdm()
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -279,57 +279,57 @@ void compare_full2rdm_case()
 }
 } // namespace
 
-TEST_CASE("full2rdm_vs_old_reference", "[estimators][observables][full2rdm]")
+TEST_CASE("observables_reference: full2rdm", "[observables_reference][full2rdm]")
 {
-  compare_full2rdm_case<HOST_MEMORY>();
+  observables_reference_full2rdm<HOST_MEMORY>();
 #if defined(ENABLE_DEVICE)
-  compare_full2rdm_case<DEVICE_MEMORY>();
+  observables_reference_full2rdm<DEVICE_MEMORY>();
 #endif
 }
 
-TEST_CASE("diagonal2rdm_vs_old_reference_closed",
-          "[estimators][observables][diagonal2rdm]")
+TEST_CASE("observables_reference: diagonal2rdm closed",
+          "[observables_reference][diagonal2rdm]")
 {
-  compare_diagonal2rdm_case<HOST_MEMORY>("closed", CLOSED);
+  observables_reference_diagonal2rdm<HOST_MEMORY>("closed", CLOSED);
 #if defined(ENABLE_DEVICE)
-  compare_diagonal2rdm_case<DEVICE_MEMORY>("closed", CLOSED);
+  observables_reference_diagonal2rdm<DEVICE_MEMORY>("closed", CLOSED);
 #endif
 }
 
-TEST_CASE("diagonal2rdm_vs_old_reference_collinear",
-          "[estimators][observables][diagonal2rdm]")
+TEST_CASE("observables_reference: diagonal2rdm collinear",
+          "[observables_reference][diagonal2rdm]")
 {
-  compare_diagonal2rdm_case<HOST_MEMORY>("collinear", COLLINEAR);
+  observables_reference_diagonal2rdm<HOST_MEMORY>("collinear", COLLINEAR);
 #if defined(ENABLE_DEVICE)
-  compare_diagonal2rdm_case<DEVICE_MEMORY>("collinear", COLLINEAR);
+  observables_reference_diagonal2rdm<DEVICE_MEMORY>("collinear", COLLINEAR);
 #endif
 }
 
-TEST_CASE("diagonal2rdm_vs_old_reference_noncollinear",
-          "[estimators][observables][diagonal2rdm]")
+TEST_CASE("observables_reference: diagonal2rdm noncollinear",
+          "[observables_reference][diagonal2rdm]")
 {
-  compare_diagonal2rdm_case<HOST_MEMORY>("noncollinear", NONCOLLINEAR);
+  observables_reference_diagonal2rdm<HOST_MEMORY>("noncollinear", NONCOLLINEAR);
 #if defined(ENABLE_DEVICE)
-  compare_diagonal2rdm_case<DEVICE_MEMORY>("noncollinear", NONCOLLINEAR);
+  observables_reference_diagonal2rdm<DEVICE_MEMORY>("noncollinear", NONCOLLINEAR);
 #endif
 }
 
-TEST_CASE("spinspin_vs_old_reference_closed",
-          "[estimators][observables][spinspin]")
+TEST_CASE("observables_reference: spinspin closed",
+          "[observables_reference][spinspin]")
 {
-  compare_spinspin_case("closed", CLOSED);
+  observables_reference_spinspin("closed", CLOSED);
 }
 
-TEST_CASE("spinspin_vs_old_reference_collinear",
-          "[estimators][observables][spinspin]")
+TEST_CASE("observables_reference: spinspin collinear",
+          "[observables_reference][spinspin]")
 {
-  compare_spinspin_case("collinear", COLLINEAR);
+  observables_reference_spinspin("collinear", COLLINEAR);
 }
 
-TEST_CASE("spinspin_vs_old_reference_noncollinear",
-          "[estimators][observables][spinspin]")
+TEST_CASE("observables_reference: spinspin noncollinear",
+          "[observables_reference][spinspin]")
 {
-  compare_spinspin_case("noncollinear", NONCOLLINEAR);
+  observables_reference_spinspin("noncollinear", NONCOLLINEAR);
 }
 
 } // namespace sfqmc

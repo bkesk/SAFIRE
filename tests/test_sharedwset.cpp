@@ -46,7 +46,7 @@ using namespace afqmc;
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void test_basic_walker_features(std::string wtype)
+void sharedwset_basic_walker_features(std::string wtype)
 {
   using Type = std::complex<double>;
 
@@ -308,7 +308,7 @@ void test_basic_walker_features(std::string wtype)
 }
 
 template<MEMORY_SPACE MEM>
-void test_walker_io(std::string wtype)
+void sharedwset_walker_io(std::string wtype)
 {
 
 
@@ -397,32 +397,32 @@ void test_walker_io(std::string wtype)
 }
 
 // MAM: Tests are not GPU enabled, fix direct access to GPU memory
-TEST_CASE("swset_test_basic", "[shared_wset]")
+TEST_CASE("sharedwset: basic walker features", "[sharedwset]")
 {
-  test_basic_walker_features<HOST_MEMORY>("closed");
-  test_basic_walker_features<HOST_MEMORY>("collinear");
-  test_basic_walker_features<HOST_MEMORY>("noncollinear");
-  test_basic_walker_features<HOST_MEMORY>("fullypolarized");
-  test_basic_walker_features<HOST_MEMORY>("collinear-ft");
-  test_basic_walker_features<HOST_MEMORY>("noncollinear-ft");
+  sharedwset_basic_walker_features<HOST_MEMORY>("closed");
+  sharedwset_basic_walker_features<HOST_MEMORY>("collinear");
+  sharedwset_basic_walker_features<HOST_MEMORY>("noncollinear");
+  sharedwset_basic_walker_features<HOST_MEMORY>("fullypolarized");
+  sharedwset_basic_walker_features<HOST_MEMORY>("collinear-ft");
+  sharedwset_basic_walker_features<HOST_MEMORY>("noncollinear-ft");
 #if defined(ENABLE_DEVICE)
-  test_basic_walker_features<DEVICE_MEMORY>("closed");
-  test_basic_walker_features<DEVICE_MEMORY>("collinear");
-  test_basic_walker_features<DEVICE_MEMORY>("noncollinear");
-  test_basic_walker_features<DEVICE_MEMORY>("fullypolarized");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("closed");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("collinear");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("noncollinear");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("fullypolarized");
 #endif
 }
-TEST_CASE("walker_io", "[shared_wset]")
+TEST_CASE("sharedwset: walker io", "[sharedwset]")
 {
-  test_walker_io<HOST_MEMORY>("closed");
-  test_walker_io<HOST_MEMORY>("collinear");
-  test_walker_io<HOST_MEMORY>("noncollinear");
-  test_walker_io<HOST_MEMORY>("fullypolarized");
+  sharedwset_walker_io<HOST_MEMORY>("closed");
+  sharedwset_walker_io<HOST_MEMORY>("collinear");
+  sharedwset_walker_io<HOST_MEMORY>("noncollinear");
+  sharedwset_walker_io<HOST_MEMORY>("fullypolarized");
 #if defined(ENABLE_DEVICE)
-  test_walker_io<DEVICE_MEMORY>("closed");
-  test_walker_io<DEVICE_MEMORY>("collinear");
-  test_walker_io<DEVICE_MEMORY>("noncollinear");
-  test_walker_io<DEVICE_MEMORY>("fullypolarized");
+  sharedwset_walker_io<DEVICE_MEMORY>("closed");
+  sharedwset_walker_io<DEVICE_MEMORY>("collinear");
+  sharedwset_walker_io<DEVICE_MEMORY>("noncollinear");
+  sharedwset_walker_io<DEVICE_MEMORY>("fullypolarized");
 #endif
 }
 } // namespace sfqmc

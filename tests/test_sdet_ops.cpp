@@ -50,7 +50,7 @@ namespace afqmc
 
 using namespace afqmc;
 template<MEMORY_SPACE MEM>
-void SDetOps()
+void sdet_ops_operations()
 {
 
   auto all = nda::range::all;
@@ -644,11 +644,11 @@ void SDetOps()
 }
 
 
-TEST_CASE("SDetOps", "[sdet_ops]")
+TEST_CASE("sdet_ops: operations", "[sdet_ops]")
 {
-  SDetOps<HOST_MEMORY>();
+  sdet_ops_operations<HOST_MEMORY>();
 #if defined(ENABLE_DEVICE)
-  SDetOps<DEVICE_MEMORY>();
+  sdet_ops_operations<DEVICE_MEMORY>();
 #endif
 }
 

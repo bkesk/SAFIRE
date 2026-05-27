@@ -50,7 +50,7 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void phmsd_read(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
   using nda::range;
@@ -131,7 +131,7 @@ void getSlaterMatrix_occ(Mat&& SM, nda::MemoryVector auto&& occs)
 }
 
 template<MEMORY_SPACE MEM>
-void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file, bool write_reference)
 {
   using nda::range;
@@ -445,7 +445,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   mpi->comm.barrier();
 }
 
-TEST_CASE("test_read_phmsd", "[test_read_phmsd]")
+TEST_CASE("phmsd: read", "[phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -453,12 +453,12 @@ TEST_CASE("test_read_phmsd", "[test_read_phmsd]")
 
   run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
     if constexpr (MEM == HOST_MEMORY) {
-      test_read_phmsd<MEM>(mpi, hamil_file, wfn_file);
+      phmsd_read<MEM>(mpi, hamil_file, wfn_file);
     }
   }, UTEST_HAMIL, UTEST_WFN, TestFiles::UHF | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 
-TEST_CASE("test_phmsd", "[read_phmsd]")
+TEST_CASE("phmsd: compute", "[phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
@@ -467,7 +467,7 @@ TEST_CASE("test_phmsd", "[read_phmsd]")
   using namespace utils;
 
   run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
-    test_phmsd<MEM>(mpi, hamil_file, wfn_file, write_reference && MEM == HOST_MEMORY);
+    phmsd_compute<MEM>(mpi, hamil_file, wfn_file, write_reference && MEM == HOST_MEMORY);
   }, UTEST_HAMIL, UTEST_WFN, TestFiles::UHF | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 
