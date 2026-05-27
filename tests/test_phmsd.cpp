@@ -29,10 +29,7 @@
 #include "IO/app_loggers.h"
 
 #include <string>
-#include <vector>
 #include <complex>
-#include <iomanip>
-#include <random>
 #include <algorithm>
 
 #include "AFQMC/Wavefunctions/Excitations.hpp"
@@ -57,10 +54,6 @@ void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communica
              std::string hamil_file, std::string wfn_file)
 {
   using nda::range;
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
   // First strip path of filename.
   std::string base_name = wfn_file.substr(wfn_file.find_last_of("\\/") + 1);
@@ -456,52 +449,26 @@ TEST_CASE("test_read_phmsd", "[test_read_phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    test_read_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
-  } else {
-    app_log(0,"test_read_phmsd: running standard PHMSD test files.");
-    auto files = utils::get_unit_tests_files(false, true, false, false, true);
-    for (auto f : files) {
-      try {
-        test_read_phmsd<HOST_MEMORY>(mpi, std::get<0>(f), std::get<1>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in test_read_phmsd(" << std::get<1>(f)
-                   << "): " << e.what());
-      }
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    if constexpr (MEM == HOST_MEMORY) {
+      test_read_phmsd<MEM>(mpi, hamil_file, wfn_file);
     }
-  }
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::UHF | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 
 TEST_CASE("test_phmsd", "[read_phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  bool write_reference = false;
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, write_reference);
-#if defined(ENABLE_DEVICE)
-    test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, false);
-#endif
-  } else {
-    app_log(0,"test_phmsd: running standard PHMSD test files.");
-    auto files = utils::get_unit_tests_files(false, true, false, false, true);
-    for (auto f : files) {
-      try {
-        test_phmsd<HOST_MEMORY>(mpi, std::get<0>(f), std::get<1>(f), write_reference);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in test_phmsd<HOST_MEMORY>(" << std::get<1>(f)
-                   << "): " << e.what());
-      }
-#if defined(ENABLE_DEVICE)
-      try {
-        test_phmsd<DEVICE_MEMORY>(mpi, std::get<0>(f), std::get<1>(f), false);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in test_phmsd<DEVICE_MEMORY>(" << std::get<1>(f)
-                   << "): " << e.what());
-      }
-#endif
-    }
-  }
+  bool write_reference = WRITE_REFERENCE;
+  
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    test_phmsd<MEM>(mpi, hamil_file, wfn_file, write_reference && MEM == HOST_MEMORY);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::UHF | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 
 } // namespace sfqmc

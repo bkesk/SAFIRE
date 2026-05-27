@@ -78,35 +78,11 @@ TEST_CASE("ham_factory", "[hamiltonian_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  if(UTEST_HAMIL!="") {
-    DYNAMIC_SECTION("User provided hamiltonian: " + UTEST_HAMIL) {
-      app_log(0,"Hamiltonian factory unit testing. Running user provided test:");
-      app_log(0," Hamiltonian: {}", UTEST_HAMIL);
-      ham_factory<HOST_MEMORY>(mpi,UTEST_HAMIL);
-#if defined(ENABLE_DEVICE)
-      ham_factory<DEVICE_MEMORY>(mpi,UTEST_HAMIL);
-#endif
-    }
-  } else {
-    app_log(0,"Hamiltonian factory unit testing. Running standard tests.");
-    auto files = utils::get_unit_tests_files(true,true,true,true,true,true);
-    for( auto f : files ) {
-      DYNAMIC_SECTION("Hamiltonian file: " + std::get<0>(f)) {
-        try {
-          ham_factory<HOST_MEMORY>(mpi,std::get<0>(f));
-        } catch (const sfqmc::AppAbortException& e) {
-          FAIL_CHECK("APP_ABORT in ham_factory<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-        }
-#if defined(ENABLE_DEVICE)
-        try {
-          ham_factory<DEVICE_MEMORY>(mpi,std::get<0>(f));
-        } catch (const sfqmc::AppAbortException& e) {
-          FAIL_CHECK("APP_ABORT in ham_factory<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-        }
-#endif
-      }
-    }
-  }
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    ham_factory<MEM>(mpi, hamil_file);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::PHMSD | TestFiles::FINITE_T | TestFiles::ALL_SYSTEMS);
 }
 
 

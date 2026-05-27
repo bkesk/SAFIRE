@@ -43,13 +43,6 @@
 #include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Drivers/DriverFactory.h"
 
-using std::cerr;
-using std::complex;
-using std::cout;
-using std::endl;
-using std::ifstream;
-using std::setprecision;
-using std::string;
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
 
@@ -62,16 +55,6 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
              std::string hamil_file, std::string wfn_file,
              WALKER_TYPES walker_type = UNDEFINED_WALKER_TYPE)
 {
-  app_log(1, "Running driver unit test "
-    "with files:\n --hamil {} \\\n --wfn {}", 
-    hamil_file, wfn_file
-  );
-  using nda::range;
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
-
   std::map<std::string, AFQMCInfo> InfoMap;
   HamiltonianFactory HamFac(InfoMap);
   WalkerSetFactory<MEM> WSetFac(InfoMap);
@@ -235,32 +218,11 @@ TEST_CASE("driver_fac", "[driver_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
   
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    app_log(0,"Driver factory unit testing. Running user provided test:");
-    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
-    app_log(0," Wavefunction: {}", UTEST_WFN);
-    driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#if defined(ENABLE_DEVICE)
-    driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#endif
-   } else {
-    app_log(0,"Driver factory unit testing. Running standard tests.");
-    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
-    for( auto f : files ) {
-      try {
-        driver_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in driver_fac<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-      }
-#if defined(ENABLE_DEVICE)
-      try {
-        driver_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in driver_fac<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-      }
-#endif
-    }
-  }
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES walker_type) {
+    driver_fac<MEM>(mpi, hamil_file, wfn_file, walker_type);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::ALL_SYSTEMS);
 }
 
 

@@ -114,16 +114,6 @@ template<MEMORY_SPACE MEM>
 void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
-  app_log(1, "Running estimators unit test "
-    "with files:\n --hamil {} \\\n --wfn {}", 
-    hamil_file, wfn_file
-  );
-
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
-
   auto [NMO, nup, ndown] = read_info_from_wfn(wfn_file, "any");
   utils::check(NMO == read_nmo_from_hdf(hamil_file), "NMO differ between hamil and wfn files.");
 
@@ -255,29 +245,11 @@ TEST_CASE("reduced_density_matrix", "[estimators]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    reduced_density_matrix<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#if defined(ENABLE_DEVICE)
-    reduced_density_matrix<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#endif
-  } else {
-    app_log(0,"Estimators unit testing. Running standard tests.");
-    auto files = utils::get_unit_tests_files(true,true,true,true,true,false);
-    for( auto f : files ) {
-      try {
-        reduced_density_matrix<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in reduced_density_matrix<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-      }
-#if defined(ENABLE_DEVICE)
-      try {
-        reduced_density_matrix<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in reduced_density_matrix<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-      }
-#endif
-    }
-  }
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    reduced_density_matrix<MEM>(mpi, hamil_file, wfn_file);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 
 } // namespace sfqmc
