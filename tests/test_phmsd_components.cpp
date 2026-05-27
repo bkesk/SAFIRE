@@ -22,7 +22,7 @@
 #include "utilities/Timer.hpp"
 #include "IO/app_loggers.h"
 
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Wavefunctions/detail/phmsd_impl.hpp"
 
 namespace sfqmc

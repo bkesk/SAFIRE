@@ -32,7 +32,7 @@
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "utilities/Timer.hpp"
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
 #include "numerics/sparse/sparse.hpp"
 

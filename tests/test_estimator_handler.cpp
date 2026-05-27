@@ -35,7 +35,7 @@
 #include "AFQMC/Estimators/EstimatorHandler.h"
 #include "AFQMC/Propagators/PropagatorFactory.h"
 //#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Utilities/readWfn.h"
 

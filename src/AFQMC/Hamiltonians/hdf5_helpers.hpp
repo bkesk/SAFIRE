@@ -17,6 +17,7 @@
 
 #include "config.h"
 #include "AFQMC/config.h"
+#include "IO/app_loggers.h"
 #include "utilities/check.hpp"
 #include "nda/h5.hpp"
 
@@ -72,6 +73,26 @@ inline std::string get_hamiltonian_format(h5::group& grp)
   else
     utils::check(false,"Error in get_hamiltonian_format: Invalid format");
   return "";
+}
+
+inline std::tuple<int, int, int> read_info_from_wfn(std::string fileName, std::string type)
+{
+  app_log(1, "Reading info from wfn file: {} of type {} ", fileName, type);
+  h5::file file(fileName,'r');
+  h5::group grp(file);
+  h5::group wgrp = grp.open_group("Wavefunction");
+  if(type == "any") {
+    if( wgrp.has_key("NOMSD") )
+      type = "NOMSD";
+    else if( wgrp.has_key("PHMSD") )
+      type = "PHMSD";
+    else
+      utils::check(false,"Missing NOMSD/PHMSD datasets in Wavefunction.");
+  }
+  h5::group mgrp = wgrp.open_group(type);
+  std::vector<int> Idata(5);
+  h5::h5_read(mgrp,"dims",Idata);
+  return std::make_tuple(Idata[0], Idata[1], Idata[2]);
 }
 
 } // namespace afqmc

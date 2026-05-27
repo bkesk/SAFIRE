@@ -40,11 +40,12 @@
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Utilities/Utils.hpp"
 #include "AFQMC/Utilities/readWfn.h"
 #include "numerics/sparse/sparse.hpp"
 
+extern bool WRITE_REFERENCE;
 extern std::string UTEST_HAMIL, UTEST_WFN;
 
 namespace sfqmc

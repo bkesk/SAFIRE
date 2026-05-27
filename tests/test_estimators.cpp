@@ -44,7 +44,7 @@
 #include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
 #include "AFQMC/Propagators/PropagatorFactory.h"
 #include "AFQMC/Utilities/readWfn.h"
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 
 
 extern std::string UTEST_HAMIL, UTEST_WFN;

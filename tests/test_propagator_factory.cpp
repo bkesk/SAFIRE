@@ -36,7 +36,7 @@
 #include "nda/h5.hpp"
 #include "numerics/sparse/sparse.hpp"
 
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Utilities/readWfn.h" 
 
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
