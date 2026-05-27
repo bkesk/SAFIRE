@@ -44,6 +44,7 @@ public:
     using Catch::EventListenerBase::EventListenerBase;
 
     void testRunStarting(Catch::TestRunInfo const&) override {
+      boost::mpi3::initialize();
       auto world = boost::mpi3::environment::get_world_instance();
 
       int output_level=2, debug_level=2;
@@ -59,13 +60,17 @@ public:
       }
       sfqmc::arch::init(world.root(),output_level,debug_level);
     }
+
+    void testRunEnded(Catch::TestRunStats const&) override {
+      sfqmc::utils::detail::__unit_test_mpi_context__.reset();
+      boost::mpi3::finalize();
+    }
 };
 
 CATCH_REGISTER_LISTENER(testRunListener)
 
 int main(int argc, char* argv[])
 {
-  boost::mpi3::environment env(argc, argv);
   Catch::Session session;
   using namespace Catch::Clara;
   // Build command line parser.
@@ -81,7 +86,6 @@ int main(int argc, char* argv[])
 
   int result = session.run();
 
-  sfqmc::utils::detail::__unit_test_mpi_context__.reset();
 
   return result;
 }
