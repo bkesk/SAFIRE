@@ -243,7 +243,7 @@ if(ENABLE_CPPTRACE)
 endif(ENABLE_CPPTRACE)
 
 ######################################################################
-# cpptrace 
+# cxxopts 
 ######################################################################
 find_package(cxxopts 3.3.1 QUIET)
 if(NOT cxxopts_FOUND)
@@ -268,12 +268,12 @@ endif()
 ######################################################################
 # catch2
 ######################################################################
-find_package(Catch2 2.13.10 QUIET)
+find_package(Catch2 3.14.0 QUIET)
 if(NOT Catch2_FOUND)
   FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG        v2.13.10
+    GIT_TAG        v3.14.0
   )
   FetchContent_MakeAvailable(Catch2)
 endif()

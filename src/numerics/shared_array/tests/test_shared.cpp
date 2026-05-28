@@ -21,7 +21,7 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "configuration.hpp"
 #include "IO/AppAbort.hpp"
@@ -31,7 +31,7 @@
 
 #include "nda/nda.hpp"
 #include "numerics/shared_array/nda.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
 namespace bdft_tests
 {
@@ -49,7 +49,7 @@ TEST_CASE("shared_nda", "[math]") {
     array.local()() = 1.0;
   mpi->node_comm.barrier();
   for( auto& v : array.local() ) 
-    sfqmc::utils::VALUE_EQUAL(v,1.0);
+    CHECK_THAT(v, sfqmc::utils::Approx(1.0));
 }
 
 } // bdft_tests

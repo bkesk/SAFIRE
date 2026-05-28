@@ -24,7 +24,7 @@
 #include "nda/nda.hpp"
 #include "nda/h5.hpp"
 
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
 #include "utilities/Random.hpp"
 #include "AFQMC/Drivers/DriverFactory.h"
 #include "AFQMC/Drivers/AFQMCDriver.h"

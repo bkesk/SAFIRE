@@ -34,135 +34,77 @@ namespace sfqmc {
 
 extern bool __app_stacktrace__;
 
+class IostreamLogBackend {
+public:
+  void error(std::string_view fmt) const{
+    std::cerr << fmt << "\n";
+  }
+  template<typename... Args>
+  void error(std::string_view fmt, Args&&... args) const{
+    std::cerr << std::vformat(fmt, std::make_format_args(args...)) << "\n";
+  }
+  void flush() const {
+    std::cerr.flush();
+  }
+};
+static constexpr IostreamLogBackend _iostream_log_backend;
+
+inline auto get_abort_log_backend() {
+#if defined(ENABLE_SPDLOG)
+  auto l = spdlog::get("err_console");
+  if(!l) {
+    return spdlog::stdout_color_mt("err_console");
+  }
+  return l;
+#else
+  return &_iostream_log_backend;
+#endif
+}
+
 /// Exception thrown by APP_ABORT when the program is running in test mode.
 struct AppAbortException : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 
-#if defined(ENABLE_SPDLOG)
+template<typename... Args>
+void common_abort(std::optional<std::source_location> loc, Args&&... args) {
+  auto log_backend = get_abort_log_backend();
+  
+  log_backend->error("**********************************************");
+  log_backend->error("        APPLICATION ABORT: Fatal Error.");
+  log_backend->error("**********************************************");
+  if(loc) {
+    log_backend->error("file:     {}:{}:{}",loc->file_name(), loc->line(), loc->column());
+    log_backend->error("function: {}",loc->function_name());
+    log_backend->error("**********************************************");
+  }
+  log_backend->error(std::forward<Args>(args)...);
+  log_backend->error("**********************************************");
 
-template<class... Args>
-void APP_ABORT(Args&&... args)
-{
-  //open err_console and output message
-  auto l = spdlog::get("err_console");
-  if(not l)
-    auto err_logger = spdlog::stdout_color_mt("err_console");
-  spdlog::get("err_console")->error("**********************************************");
-  spdlog::get("err_console")->error("        APPLICATION ABORT: Fatal Error.");
-  spdlog::get("err_console")->error("**********************************************");
-  spdlog::get("err_console")->error(std::forward<Args>(args)...);
-  spdlog::get("err_console")->error("**********************************************");
   // how to make cpptrace interact with spdlog???
   if(__app_stacktrace__) {
-    spdlog::get("err_console")->error("**********************************************");
-    spdlog::get("err_console")->error("                Stack Trace                   ");
-    spdlog::get("err_console")->error("**********************************************");
 #if defined(ENABLE_CPPTRACE)     
     cpptrace::generate_trace().print();
 #else
-    spdlog::get("err_console")->error("  Not available in current compilation. ");
-    spdlog::get("err_console")->error("  Compile with -DENABLE_CPPTRACE=ON to make this feature available.");
+    log_backend->error("For stack trace, compile with -DENABLE_CPPTRACE=ON.");
 #endif
-    spdlog::get("err_console")->error("**********************************************");
+    log_backend->error("**********************************************");
   }
-  spdlog::get("err_console")->flush();
-  // Abort
-
-  throw AppAbortException("APP_ABORT triggered (see error log for details)");
-}
-
-template<class... Args>
-void APP_ABORT_with_source(const std::source_location& loc = std::source_location::current(), Args&&... args)
-{
-  auto l = spdlog::get("err_console");
-  if(not l)
-    auto err_logger = spdlog::stdout_color_mt("err_console");
-  spdlog::get("err_console")->error("**********************************************");
-  spdlog::get("err_console")->error("        APPLICATION ABORT: Fatal Error.");
-  spdlog::get("err_console")->error("**********************************************");
-  spdlog::get("err_console")->error(" file_name:     {}",loc.file_name());
-  spdlog::get("err_console")->error(" function_name: {}",loc.function_name());
-  spdlog::get("err_console")->error(" line:          {}",loc.line());
-  spdlog::get("err_console")->error(" column:        {}",loc.column());
-
-  spdlog::get("err_console")->error(std::forward<Args>(args)...);
-  spdlog::get("err_console")->error("**********************************************");
-  // how to make cpptrace interact with spdlog???
-  if(__app_stacktrace__) {
-    spdlog::get("err_console")->error("**********************************************");
-    spdlog::get("err_console")->error("                Stack Trace                   ");
-    spdlog::get("err_console")->error("**********************************************");
-#if defined(ENABLE_CPPTRACE)     
-    cpptrace::generate_trace().print();
-#else
-    spdlog::get("err_console")->error("  Not available in current compilation. ");
-    spdlog::get("err_console")->error("  Compile with -DENABLE_CPPTRACE=ON to make this feature available.");
-#endif
-    spdlog::get("err_console")->error("**********************************************");
-  }
-  spdlog::get("err_console")->flush();
+  log_backend->flush();
   // Abort
   throw AppAbortException("APP_ABORT triggered (see error log for details)");
 }
 
-#else
+
 
 template<class... Args>
-void APP_ABORT(const std::string_view format_string, Args&&... args)
-{
-  //open err_console and output message
-  std::cerr<<"**********************************************";
-  std::cerr<<"        APPLICATION ABORT: Fatal Error.\n";
-  std::cerr<<"**********************************************\n";
-  std::cerr<<std::vformat(format_string,std::make_format_args(args...)) <<"\n";
-  std::cerr<<"**********************************************\n";
-  if(__app_stacktrace__) {
-    std::cerr<<"**********************************************\n";
-    std::cerr<<"                Stack Trace                   \n";
-    std::cerr<<"**********************************************\n";
-#if defined(ENABLE_CPPTRACE)     
-    cpptrace::generate_trace().print();
-#else
-    std::cerr<<"  Not available in current compilation. \n";
-    std::cerr<<"  Compile with -DENABLE_CPPTRACE=ON to make this feature available.\n";
-#endif
-    std::cerr<<"**********************************************\n";
-  }
-  std::cerr.flush();
-  // Abort
-  throw AppAbortException(std::vformat(format_string, std::make_format_args(args...)));
+void APP_ABORT(Args&&... args) {
+  common_abort(std::nullopt, std::forward<Args>(args)...);
 }
 
 template<class... Args>
-void APP_ABORT_with_source(const std::source_location& loc, const std::string_view format_string, Args&&... args)
-{
-  std::cerr<<"**********************************************\n";
-  std::cerr<<"        APPLICATION ABORT: Fatal Error.\n";
-  std::cerr<<"**********************************************\n";
-  std::cerr<<std::format(" file_name:     {}",loc.file_name()) <<"\n";
-  std::cerr<<std::format(" function_name: {}",loc.function_name()) <<"\n";
-  std::cerr<<std::format(" line:          {}",loc.line()) <<"\n";
-  std::cerr<<std::format(" column:        {}",loc.column()) <<"\n";
-  std::cerr<<std::vformat(format_string,std::make_format_args(args...)) <<"\n";
-  std::cerr<<"**********************************************\n";
-  if(__app_stacktrace__) {
-    std::cerr<<"**********************************************\n";
-    std::cerr<<"                Stack Trace                   \n";
-    std::cerr<<"**********************************************\n";
-#if defined(ENABLE_CPPTRACE)     
-    cpptrace::generate_trace().print();
-#else
-    std::cerr<<"  Not available in current compilation. \n";
-    std::cerr<<"  Compile with -DENABLE_CPPTRACE=ON to make this feature available.\n";
-#endif
-    std::cerr<<"**********************************************\n";
-  }
-  std::cerr.flush();
-
-  throw AppAbortException(std::vformat(format_string, std::make_format_args(args...)));
+void APP_ABORT_with_source(const std::source_location& loc = std::source_location::current(), Args&&... args) {
+  common_abort(loc, std::forward<Args>(args)...);
 }
-
-#endif // ENABLE_SPDLOG
 
 } // sfqmc

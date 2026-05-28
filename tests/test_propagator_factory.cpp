@@ -16,14 +16,14 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "IO/app_loggers.h"
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/Timer.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/check.hpp"
 
 #include <string>
@@ -36,7 +36,7 @@
 #include "nda/h5.hpp"
 #include "numerics/sparse/sparse.hpp"
 
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Utilities/readWfn.h" 
 
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
@@ -60,15 +60,10 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void propg_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file, bool dense_trial)
 {
-  using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
   int NMO = read_nmo_from_hdf(hamil_file);
   auto[wfn_NMO,nup, ndown] = read_info_from_wfn(wfn_file,"any");
@@ -205,49 +200,16 @@ std::cout<<" setup: " <<AFQMCTimer.elapsed(setup_timer) <<std::endl;
   if(mpi->comm.root()) AFQMCTimer.print_all();
 }
 
-TEST_CASE("propg_fac", "[propagator_factory]")
+TEST_CASE("propagator_factory: build", "[propagator_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    app_log(0,"Propagator factory unit testing. Running user provided test:");
-    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
-    app_log(0," Wavefunction: {}", UTEST_WFN);
-    propg_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
-    propg_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
-#if defined(ENABLE_DEVICE)
-    propg_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false);
-    propg_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true);
-#endif
-  } else {
-    app_log(0,"Propagator factory unit testing. Running standard tests.");
-    bool finiteT = true;
-    auto files = utils::get_unit_tests_files(true,true,true,true,false,finiteT);
-    for( auto f : files ) {
-      try {
-        propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in propg_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
-      }
-      try {
-        propg_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in propg_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
-      }
-#if defined(ENABLE_DEVICE)
-      try {
-        propg_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in propg_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
-      }
-      try {
-        propg_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in propg_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
-      }
-#endif
-    }
-  }
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    propagator_factory_build<MEM>(mpi, hamil_file, wfn_file, true);
+    propagator_factory_build<MEM>(mpi, hamil_file, wfn_file, false);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::FINITE_T | TestFiles::ALL_SYSTEMS);
 }
 
 

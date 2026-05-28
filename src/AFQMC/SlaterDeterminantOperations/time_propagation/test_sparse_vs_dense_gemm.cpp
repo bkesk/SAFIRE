@@ -35,7 +35,6 @@
 
 #include "Utilities/Timer.hpp"
 #include "Utilities/app_loggers.h"
-#include "AFQMC/Utilities/test_utils.hpp"
 #include "AFQMC/Utilities/taskgroup.h"
 #include "AFQMC/Utilities/Utils.hpp"
 

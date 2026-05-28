@@ -35,8 +35,3 @@ target_sources(safire_lib
     freemem.cpp
 )
 
-if(BUILD_UNIT_TESTS)
-  add_library(catch_main STATIC catch_main.cpp)
-  target_link_libraries(catch_main PUBLIC safire_lib Catch2::Catch2 cpptrace::cpptrace)
-endif(BUILD_UNIT_TESTS)
-

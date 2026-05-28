@@ -13,7 +13,7 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "AFQMC/config.h"
@@ -22,7 +22,7 @@
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/Random.hpp"
 #include "IO/app_loggers.h"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp"
@@ -35,9 +35,9 @@
 #include "AFQMC/Estimators/EstimatorHandler.h"
 #include "AFQMC/Propagators/PropagatorFactory.h"
 //#include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
-#include "AFQMC/Utilities/readWfn.cpp"
+#include "AFQMC/Utilities/readWfn.h"
 
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
@@ -47,10 +47,9 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
-  using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   utils::check(utils::file_exists(hamil_file),
                " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
@@ -244,24 +243,21 @@ void measure_schedule(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   }
 }
 
-TEST_CASE("measure_schedule", "[estimators]")
+TEST_CASE("estimator_handler: measure schedule", "[estimator_handler]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
+  std::string hamil = utils::unit_test_base() + "models/square_4x4_hubbard_nup5_ndn5/afqmc_inputs/ham_collinear.h5";
+  std::string wfn   = utils::unit_test_base() + "models/square_4x4_hubbard_nup5_ndn5/afqmc_inputs/uhf_U0.1_wfn_nup5_ndn5.h5";
   if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    measure_schedule<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#if defined(ENABLE_DEVICE)
-    measure_schedule<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#endif
-  } else {
-    app_log(0,"EstimatorHandler unit testing. Running standard test.");
-    std::string hamil = utils::unit_test_base() + "models/square_4x4_hubbard_nup5_ndn5/afqmc_inputs/ham_collinear.h5";
-    std::string wfn   = utils::unit_test_base() + "models/square_4x4_hubbard_nup5_ndn5/afqmc_inputs/uhf_U0.1_wfn_nup5_ndn5.h5";
-    measure_schedule<HOST_MEMORY>(mpi, hamil, wfn);
-#if defined(ENABLE_DEVICE)
-    measure_schedule<DEVICE_MEMORY>(mpi, hamil, wfn);
-#endif
+    hamil = UTEST_HAMIL;
+    wfn = UTEST_WFN;
   }
+    
+  estimator_handler_measure_schedule<HOST_MEMORY>(mpi, hamil, wfn);
+#if defined(ENABLE_DEVICE)
+  estimator_handler_measure_schedule<DEVICE_MEMORY>(mpi, hamil, wfn);
+#endif
 }
 
 }

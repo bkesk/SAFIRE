@@ -6,7 +6,8 @@
 #include "numerics/device_kernels/cuda/cuda_aux.hpp"
 #include "arch/arch.h"
 #include "arch/atomics.hpp"
-#include "nda/nda.hpp"
+#include <nda/nda.hpp>
+#include "numerics/nda_functions.hpp"
 #include <cuda/std/mdspan>
 #include "cub/device/device_for.cuh"
 #include "numerics/operations/determinants.hpp"
@@ -392,7 +393,7 @@ void phmsd_compact_R_impl(int nex, int const* refc, int const* iex, T_t const& T
       nda::lapack::getrf(M3d,ipiv,work);
       math::log_determinant_from_getrf(M3d,ipiv,nda::flatten(ov));
       sfqmc::arch::synchronize();
-      nda::lapack::getri(M3d,ipiv,work);
+      nda::lapack::getri_or_zero(M3d,ipiv,work);
     }
   }
   sfqmc::arch::synchronize();
