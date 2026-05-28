@@ -50,6 +50,9 @@ namespace arch
   void synchronize_if_set();
   void synchronize();
   void check_device_configuration();
+  bool tblis_threads_was_user_set();
+  bool omp_threads_was_user_set();
+  void check_thread_oversubscription(int tasks_per_node);
 
   // device streams
   extern std::vector<nda::devStream_t> device_streams;

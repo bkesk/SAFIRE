@@ -27,8 +27,10 @@
 #include <map>
 #include <queue>
 #include <algorithm>
+#include <cstdlib>
 
 #include "config.h"
+#include "arch/arch.h"
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/mpi_context.h"
 
@@ -84,7 +86,12 @@ public:
     app_log(1, "    -- MPI tasks/node : {} ", mpi->node_comm.size());
     app_log(1, "    -- MPI nodes      : {} ", mpi->internode_comm.size());
     app_log(1, "    -- MPI tasks      : {} ", mpi->comm.size());
-    app_log(1, "    -- Compute Device : {} \n\n", (MEM==DEVICE_MEMORY?"gpu":"cpu")); 
+    app_log(1, "    -- Compute Device    : {} ", (MEM==DEVICE_MEMORY?"gpu":"cpu")); 
+    app_log(1, "    -- TBLIS_NUM_THREADS : {} {}", std::getenv("TBLIS_NUM_THREADS"),
+            sfqmc::arch::tblis_threads_was_user_set() ? "(user-provided)" : "");
+    app_log(1, "    -- OMP_NUM_THREADS   : {} {}\n\n", std::getenv("OMP_NUM_THREADS"),
+            sfqmc::arch::omp_threads_was_user_set() ? "(user-provided)" : "");
+    sfqmc::arch::check_thread_oversubscription(static_cast<int>(mpi->node_comm.size()));
 
     // parse input
     utils::check(parse(pt), " Error in AFQMCFactory: Problems parsing the input file. ");
