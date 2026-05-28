@@ -604,7 +604,7 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
     kernels::device::construct_X(use_cp_constraint or use_real_vbias,free_projection,sqrtdt, vbias_bound, FieldTypes_dev, vMF, MF, HWs, RNGbuff, X);
 #endif
   } else {
-    detail::construct_X_impl construct_X{use_cp_constraint || use_real_vbias, free_projection, sqrtdt, vbias_bound, FieldTypes, vMF(), MF, HWs, RNGbuff, X};
+    detail::construct_X_impl construct_X{use_cp_constraint || use_real_vbias, free_projection, sqrtdt, vbias_bound, FieldTypes, vMF(), MF(), HWs(), RNGbuff(), X()};
     for(int i=0; i < X.size(); i++) {
       construct_X(i);
     }
