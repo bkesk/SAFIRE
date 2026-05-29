@@ -933,7 +933,9 @@ public:
 
   /// Returns the number of spins and polarizations in the VHS potential.
   std::tuple<int,int> vHS_dims() const {
-    return std::make_tuple(1,1);
+    int nspin_in_H = hij.extent(0);
+    int npol_in_H = hij.extent(2)/nbnd;
+    return std::make_tuple(nspin_in_H, npol_in_H);
   }
   int number_of_ke_vectors() const { return 2 * ncvecs; }
   int number_of_cholesky_vectors() const { return 2 * ncvecs; }

@@ -33,5 +33,6 @@ target_sources(safire_lib
     mpi_context.cpp
     parser.cpp
     freemem.cpp
+    threading.cpp
 )
 

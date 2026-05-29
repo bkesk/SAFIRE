@@ -21,15 +21,13 @@
 
 #include "arch.h"
 
-#include <cstdlib>
 #include <nda/nda.hpp>
 
 #include "config.h"
+#include "utilities/threading.h"
 
 
 #if defined(ENABLE_CUDA)
-
-// MAM: Consider setting OMP_NUM_THREADS and TBLIS threading variables to 1 here!
 
 #include "CUDA/cuda_init.h"
 #include "CUDA/cuda_sync.h"
@@ -71,11 +69,13 @@ void init(bool active_log, int output_level=2, int debug_level=2)
   // setup loggers, can always be changed later
   setup_loggers(active_log, output_level, debug_level);
 
+  sfqmc::utils::init_threading();
+
 #if defined(ENABLE_CUDA)
   cuda::init();
 #endif
 
- // setup shared memory, memory buffers, etc, etc
+  // setup shared memory, memory buffers, etc, etc
 }
 
 // this is a problem if the cuda system is disabled before this is destroyed
