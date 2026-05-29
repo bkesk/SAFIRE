@@ -25,7 +25,7 @@ target_include_directories(safire_lib PUBLIC
   ${PROJECT_BINARY_DIR}/src/
 )
 
-target_link_libraries(safire_lib PUBLIC nda::nda_c mpi3 Boost::headers cxxopts::cxxopts safire_warnings)
+target_link_libraries(safire_lib PUBLIC nda::nda_c mpi3 Boost::headers cxxopts::cxxopts safire_warnings hdf5::hdf5 hdf5::hdf5_hl)
 
 if(ENABLE_CUDA)
   target_link_libraries(safire_lib PRIVATE CUDA::curand CUDA::cudart CCCL::CCCL)

@@ -164,6 +164,12 @@ include(CMakePrintHelpers)
 cmake_print_properties(TARGETS MPI::MPI_CXX PROPERTIES INTERFACE_LINK_LIBRARIES INTERFACE_INCLUDE_DIRECTORIES)
 
 ######################################################################
+# HDF5
+# we still use some of the raw HDF5 API. Remove once we no longer do.
+######################################################################
+find_package(HDF5 REQUIRED C HL)
+
+######################################################################
 # nda: a C++ library providing multi-dimensional array classes
 ######################################################################
 if(DEFINED NDA)
