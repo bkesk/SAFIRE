@@ -110,10 +110,15 @@ public:
       assert(group);
       auto compressed_average = nda::to_host(compress_dm_average(dm_average));
       
-      h5::group parent = group->create_group("DiagTwoRDM");
+      h5::group parent = ( group->has_key("DiagTwoRDM") ? 
+                           group->open_group("DiagTwoRDM") : 
+                           group->create_group("DiagTwoRDM") );
       for (int i = 0; i < dm_average.shape(0); ++i)
       {
-        h5::group obs_group = parent.create_group(std::format("Average_{}", i));
+        std::string avg_name = std::format("Average_{}", i);
+        h5::group obs_group = ( parent.has_key(avg_name) ? 
+                                parent.open_group(avg_name) :
+                                parent.create_group(avg_name) );
         std::string padded_iblock = std::format("{:09}", iblock);
         h5::write(obs_group, "diag_two_rdm_" + padded_iblock, compressed_average(i, nda::range::all));
         h5::write(obs_group, "denominator_" + padded_iblock, Wsum[i]);
