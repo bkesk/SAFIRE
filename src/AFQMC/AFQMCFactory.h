@@ -91,8 +91,6 @@ public:
             sfqmc::utils::tblis_threads_was_user_set() ? "(user-provided)" : "");
     app_log(1, "    -- OMP_NUM_THREADS   : {} {}\n\n", std::getenv("OMP_NUM_THREADS"),
             sfqmc::utils::omp_threads_was_user_set() ? "(user-provided)" : "");
-    sfqmc::utils::check_thread_oversubscription(static_cast<int>(mpi->node_comm.size()));
-
     // parse input
     utils::check(parse(pt), " Error in AFQMCFactory: Problems parsing the input file. ");
 
