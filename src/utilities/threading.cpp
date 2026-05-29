@@ -63,30 +63,4 @@ void init_threading()
                 "be aware of potential CPU oversubscription in MPI runs.",
                 parse_env_int("TBLIS_NUM_THREADS"));
 }
-
-/// @copydoc sfqmc::utils::check_thread_oversubscription
-void check_thread_oversubscription(int tasks_per_node)
-{
-  auto parse_env_int = [](const char* name) -> int {
-    const char* val = std::getenv(name);
-    if (!val) return 1;
-    try { return std::max(1, std::stoi(val)); } catch (...) { return 1; }
-  };
-  const int omp_threads   = parse_env_int("OMP_NUM_THREADS");
-  const int tblis_threads = parse_env_int("TBLIS_NUM_THREADS");
-  const int hw_cpus       = static_cast<int>(std::thread::hardware_concurrency());
-  if (hw_cpus > 0) {
-    if (omp_threads * tasks_per_node > hw_cpus)
-      app_warning("OMP_NUM_THREADS={} x MPI tasks/node={} = {} threads > {} logical CPUs. "
-                  "CPU oversubscription detected. Consider reducing OMP_NUM_THREADS or "
-                  "the number of MPI tasks per node.",
-                  omp_threads, tasks_per_node, omp_threads * tasks_per_node, hw_cpus);
-    if (tblis_threads * tasks_per_node > hw_cpus)
-      app_warning("TBLIS_NUM_THREADS={} x MPI tasks/node={} = {} threads > {} logical CPUs. "
-                  "CPU oversubscription detected. Consider reducing TBLIS_NUM_THREADS or "
-                  "the number of MPI tasks per node.",
-                  tblis_threads, tasks_per_node, tblis_threads * tasks_per_node, hw_cpus);
-  }
-}
-
 } // namespace sfqmc::utils
