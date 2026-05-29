@@ -30,8 +30,8 @@
 #include <cstdlib>
 
 #include "config.h"
-#include "arch/arch.h"
 #include "IO/ptree/ptree_utilities.hpp"
+#include "utilities/threading.h"
 #include "utilities/mpi_context.h"
 
 #include "AFQMC/Walkers/WalkerSetFactory.hpp"
@@ -57,7 +57,7 @@ namespace afqmc
   * - DriverFactory DriverFac
 
  *
- * @param type std::string describing the type of Driver to be used. Valid choices are "afqmc", "legacy_afqmc", and "csafqmc".
+ * @param type std::string describing the type of Driver to be used. Valid choices are "afqmc", and "csafqmc".
   * @param pt boost::property_tree::ptree The property tree containing input file parameters
  */
 template<MEMORY_SPACE MEM>
@@ -88,10 +88,10 @@ public:
     app_log(1, "    -- MPI tasks      : {} ", mpi->comm.size());
     app_log(1, "    -- Compute Device    : {} ", (MEM==DEVICE_MEMORY?"gpu":"cpu")); 
     app_log(1, "    -- TBLIS_NUM_THREADS : {} {}", std::getenv("TBLIS_NUM_THREADS"),
-            sfqmc::arch::tblis_threads_was_user_set() ? "(user-provided)" : "");
+            sfqmc::utils::tblis_threads_was_user_set() ? "(user-provided)" : "");
     app_log(1, "    -- OMP_NUM_THREADS   : {} {}\n\n", std::getenv("OMP_NUM_THREADS"),
-            sfqmc::arch::omp_threads_was_user_set() ? "(user-provided)" : "");
-    sfqmc::arch::check_thread_oversubscription(static_cast<int>(mpi->node_comm.size()));
+            sfqmc::utils::omp_threads_was_user_set() ? "(user-provided)" : "");
+    sfqmc::utils::check_thread_oversubscription(static_cast<int>(mpi->node_comm.size()));
 
     // parse input
     utils::check(parse(pt), " Error in AFQMCFactory: Problems parsing the input file. ");
