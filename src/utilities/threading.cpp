@@ -51,7 +51,6 @@ void init_threading()
 #endif
   }
   s_tblis_user_set = (std::getenv("TBLIS_NUM_THREADS") != nullptr);
-  if (!s_tblis_user_set) ::setenv("TBLIS_NUM_THREADS", "1", 1);
 
   // Warn if user-set threading variables are > 1 (oversubscription awareness).
   if (s_omp_user_set && parse_env_int("OMP_NUM_THREADS") > 1)
