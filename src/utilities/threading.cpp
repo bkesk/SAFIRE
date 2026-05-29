@@ -32,31 +32,7 @@ static bool s_omp_user_set   = false;
 bool tblis_threads_was_user_set() { return s_tblis_user_set; }
 bool omp_threads_was_user_set()   { return s_omp_user_set; }
 
-/**
- * @internal
- * @brief Configure the threading environment for the current process.
- *
- * @details
- * **Threading policy.**
- * SAFIRE is an MPI-parallel code and does not itself use shared-memory
- * threading (OpenMP, etc.).  Each MPI rank is expected to run as a
- * single thread.  Allowing a BLAS or tensor-contraction backend to spawn
- * additional threads would silently oversubscribe the CPU when many ranks
- * share a node, degrading performance or causing resource-manager violations.
- *
- * This function therefore sets `OMP_NUM_THREADS` and `TBLIS_NUM_THREADS` to
- * 1 — and calls `omp_set_num_threads(1)` when OpenMP is compiled in — unless
- * the user has already placed those variables in the environment.  A user who
- * sets them explicitly is assumed to understand the implications (e.g. they
- * are intentionally using a multi-threaded BLAS on a node with few ranks) and
- * is warned if the values exceed 1 so that the choice is visible in the log.
- *
- * **Future note.**
- * For very large system sizes it may become beneficial to introduce intra-node
- * threading.  If that is added, this function and the policy described here
- * should be updated accordingly — this docstring is the authoritative
- * reference for SAFIRE's threading policy.
- */
+/// @copydoc sfqmc::utils::init_threading
 void init_threading()
 {
   auto parse_env_int = [](const char* name) -> int {
