@@ -102,7 +102,8 @@ public:
     // if steps and measure_interval are not commensurate, add steps so that
     //  the last block will be.
     
-    // measure_interval not currently relevant for finite-T
+    // measure_interval not currently relevant for finite-T, but may be useful if
+    // backward sweeps are implemented
     //if (steps % measure_interval != 0)
     //{
     //  int scale = int(std::ceil((double)steps/(double)measure_interval));

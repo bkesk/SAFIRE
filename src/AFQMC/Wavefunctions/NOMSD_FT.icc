@@ -370,6 +370,7 @@ void NOMSD_FT<MEM,devPsiT>::accumulate_estimators(int iav, WlkSet& wset, nda::Me
   const int nspin  = (walker_type==COLLINEAR_FT ? 2 : 1 );
   const int npol   = (walker_type==NONCOLLINEAR_FT ? 2 : 1 );
 
+  nt = wset.getTauStep();
   // this is wrong without importanceSampling!!!
   utils::check(importanceSampling, "Finish");
 

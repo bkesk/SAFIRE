@@ -77,7 +77,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT)
       wfn->vbias(wset, X, dt);
     else
-      wfn->vbias(wset, X, nt-1);
+      wfn->vbias(wset, X, dt, nt-1);
   }
 
   // 2. Assemble X(nwalk, nCV)
@@ -128,7 +128,6 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
       wfn->Log_Overlap(wset, new_overlaps);
     else
       wfn->Log_Overlap(wset, new_overlaps, nt);
-      //std::cout<<"new_overlaps = "<<new_overlaps()<<std::endl;
   }
   else
   {

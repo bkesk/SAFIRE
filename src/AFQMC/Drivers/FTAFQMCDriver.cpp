@@ -64,6 +64,7 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
     total_time = 0.0;
     for (int iStep = 0; iStep < nStep; ++iStep)
     {
+      //app_log(1, "sweep {}, step {} ", iSweep, iStep);
       // reset wset log(ovlp), read initial value
       // from memory after sweep 1, rather than re-computing
       if(iStep==0 and iSweep>0){
@@ -78,7 +79,7 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
       prop0.Propagate(wset, Eshift, dt, iStep+1);
       total_time += dt;
 
-      if ((iStep + 1) % nStabilize == 0 )
+      if ((iStep + 1) % nStabilize == 0 && iStep != nStep - 1 )
       {
         AFQMCTimer.start(ortho_timer);
         prop0.Orthogonalize(wset);

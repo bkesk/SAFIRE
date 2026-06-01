@@ -150,7 +150,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     }
     else
     {     
-      app_log(1," Wavefunction type: NOMSD");
+      app_log(1," Wavefunction type: NOMSD_FT");
       h5::group ngrp = wgrp.open_group("NOMSD");
       nda::array<ComplexType,1> ci;
 

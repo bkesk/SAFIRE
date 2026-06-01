@@ -411,12 +411,12 @@ protected:
   // this should be a shared_array!!!
   memory::array<MEM,ComplexType,4> RefOrbMats;
 
-  // log scale for DL
-  nda::array<ComplexType, 1> sclL;
-
   memory::array<MEM,ComplexType,1> LogPT0;
 
   ComplexType NuclearCoulombEnergy;
+
+  // log scale for DL
+  nda::array<ComplexType, 1> sclL;
 
 /*
   void recompute_ci();

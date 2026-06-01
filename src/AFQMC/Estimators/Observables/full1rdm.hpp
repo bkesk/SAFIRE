@@ -218,10 +218,15 @@ public:
     if (mpi->comm.root())
     {
       assert(group);
-      h5::group parent = group->create_group("FullOneRDM");
+      //h5::group parent = group->create_group("FullOneRDM");
+      h5::group parent = ( group->has_key("FullOneRDM") ? group->open_group("FullOneRDM")
+                                                        : group->create_group("FullOneRDM") );
       for (int i = 0; i < DMAverage.shape(0); ++i)
       {
-        h5::group obs_group = parent.create_group(std::format("Average_{}", i));
+        //h5::group obs_group = parent.create_group(std::format("Average_{}", i));
+        std::string avg_name = std::format("Average_{}", i);
+        h5::group obs_group = ( parent.has_key(avg_name) ? parent.open_group(avg_name)
+                                                         : parent.create_group(avg_name) );
         std::string padded_iblock = std::format("{:09}", iblock);
         h5::write(obs_group, "one_rdm_" + padded_iblock, nda::to_host(nda::flatten(DMAverage(i, nda::ellipsis{}))));
         h5::write(obs_group, "denominator_" + padded_iblock, Wsum[i]);

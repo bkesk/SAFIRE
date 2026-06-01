@@ -167,8 +167,6 @@ public:
         if (importanceSampling)
         {
           dum = wprop(0,i) * std::exp( ovlp(i) - wprop(1,i) );
-          std::cout<<"weight = "<<wprop(0,i)<<std::endl;
-          std::cout<<"walker "<<i<<" ovlp old = "<<wprop(1,i)<<"  new = "<<ovlp(i)<<std::endl;
         }
         else
         {
@@ -183,8 +181,6 @@ public:
           continue;
         data(1) += dum;
         data(0) += et * dum;
-        std::cout<<"et = "<<et<<std::endl;
-        std::cout<<"dum = "<<dum<<std::endl;
         if(truncate) {
           data(2) += wet(1,i) * dum;
           data(3) += wet(2,i) * dum;
