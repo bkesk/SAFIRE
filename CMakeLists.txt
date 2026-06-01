@@ -201,7 +201,7 @@ if(ENABLE_CUDA AND FETCH_CCCL)
         cccl
         GIT_REPOSITORY "https://github.com/NVIDIA/cccl.git"
         GIT_TAG        v3.3.3
-        SYSTEM
+        # do not add SYSTEM here because then the CUDA-included headers may have precedence
   )
   FetchContent_MakeAvailable(cccl)
 endif()
