@@ -16,20 +16,20 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/h5_utils.hpp"
 #include "IO/app_loggers.h"
 
-#include "nda/nda.hpp"
-#include "nda/tensor.hpp"
-#include "nda/h5.hpp"
+#include <nda/nda.hpp>
+#include <nda/tensor.hpp>
+#include <nda/h5.hpp>
 
 #include <string>
 #include <vector>
@@ -40,13 +40,11 @@
 #include "AFQMC/config.h"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
-#include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Estimators/EstimatorBase.h"
 #include "AFQMC/Estimators/BackPropagatedEstimator.hpp"
 #include "AFQMC/Propagators/PropagatorFactory.h"
 #include "AFQMC/Utilities/readWfn.h"
-#include "AFQMC/Utilities/test_utils.hpp"
-#include "AFQMC/Utilities/AFQMCTimer.h"
+#include "test_utils.hpp"
 
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
@@ -70,7 +68,7 @@ inline std::string test_hdf_name(std::string const& wfn_file,
 }
 
 template<MEMORY_SPACE MEM>
-void verify_bp_matches_mixed(std::string const& file, std::string const& avg_path, int iblock,
+void verify_bp_matches_mixed(h5::file const& file, std::string const& avg_path, int iblock,
                              WALKER_TYPES type, int NMO, int nup, int ndown,
                              Wavefunction<MEM>& wfn, WalkerSet<MEM>& wset)
 {
@@ -82,8 +80,7 @@ void verify_bp_matches_mixed(std::string const& file, std::string const& avg_pat
   nda::array<ComplexType, 1> read_data;
   ComplexType denom{};
   {
-    h5::file reader(file, 'r');
-    h5::group root(reader);
+    h5::group root(file);
     utils::h5_read(root, avg_path + "/one_rdm_" + suffix, read_data);
     h5::read(root, avg_path + "/denominator_" + suffix, denom);
   }
@@ -103,30 +100,20 @@ void verify_bp_matches_mixed(std::string const& file, std::string const& avg_pat
   if(type == CLOSED) {
     trace *= 2;
   }
-  REQUIRE(trace.real() == Approx(nup + ndown));
-  REQUIRE(trace.imag() == Approx(0.0).margin(1e-9));
+  REQUIRE_THAT(trace.real(), utils::Approx(nup + ndown));
+  REQUIRE_THAT(trace.imag(), utils::Approx(0.0, 1e-9));
 
   memory::array<MEM, ComplexType, 2> Gw(wset.size(), nspin * npol * NMO * npol * NMO);
   wfn.MixedDensityMatrix(wset, Gw, false);
   auto G = nda::reshape(Gw(0,nda::ellipsis{}), std::array<long, 3>{nspin, npol * NMO, npol * NMO});
-  utils::ARRAY_EQUAL(G, BPRDM);
+  CHECK_THAT(G, utils::Approx(BPRDM));
 }
 } // namespace
 
 template<MEMORY_SPACE MEM>
-void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void estimators_reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
-  app_log(1, "Running estimators unit test "
-    "with files:\n --hamil {} \\\n --wfn {}", 
-    hamil_file, wfn_file
-  );
-
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
-
   auto [NMO, nup, ndown] = read_info_from_wfn(wfn_file, "any");
   utils::check(NMO == read_nmo_from_hdf(hamil_file), "NMO differ between hamil and wfn files.");
 
@@ -199,18 +186,18 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
     std::string file = test_hdf_name(UTEST_WFN, UTEST_HAMIL, "run1");
     std::ofstream out;
     {
-      h5::file h5out(file, 'w');
+      h5::file h5out{};
       for (int iblock = 0; iblock < 10*afqmc::DEFAULT_POPULATION_CONTROL_INTERVAL; ++iblock)
       {
         wset.advanceBPPos();
         estimators[0]->accumulate_block(iblock*0.01, wset);
         estimators[0]->print(out, h5out, wset);
       }
+      verify_bp_matches_mixed<MEM>(h5out,
+          "Observables/BackPropagated/FullOneRDM/Average_0", 5,
+          type, NMO, nup, ndown, wfn, wset);
     }
 
-    verify_bp_matches_mixed<MEM>(file,
-        "Observables/BackPropagated/FullOneRDM/Average_0", 5,
-        type, NMO, nup, ndown, wfn, wset);
   }
 
   // ---- Run 2: vector measure_interval_multiplier ----
@@ -237,7 +224,7 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
     std::string file = test_hdf_name(wfn_file, hamil_file, "run2");
     std::ofstream out;
     {
-      h5::file h5out(file, 'w');
+      h5::file h5out{};
       // 6 * pc_interval = 60 steps, with max_nback_prop = 3 * pc_interval = 30
       // => iblock reaches 2; check Average_1 (multiplier=2) written at iblock=2
       for (int iblock = 0; iblock < 6*afqmc::DEFAULT_POPULATION_CONTROL_INTERVAL; ++iblock)
@@ -246,41 +233,23 @@ void reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boost::mpi3::co
         estimators2[0]->accumulate_block(iblock*0.01, wset);
         estimators2[0]->print(out, h5out, wset);
       }
+      verify_bp_matches_mixed<MEM>(h5out,
+          "Observables/BackPropagated/FullOneRDM/Average_1", 2,
+          type, NMO, nup, ndown, wfn, wset);
     }
 
-    verify_bp_matches_mixed<MEM>(file,
-        "Observables/BackPropagated/FullOneRDM/Average_1", 2,
-        type, NMO, nup, ndown, wfn, wset);
   }
 }
 
-TEST_CASE("reduced_density_matrix", "[estimators]")
+TEST_CASE("estimators: reduced density matrix", "[estimators]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    reduced_density_matrix<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#if defined(ENABLE_DEVICE)
-    reduced_density_matrix<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#endif
-  } else {
-    app_log(0,"Estimators unit testing. Running standard tests.");
-    auto files = utils::get_unit_tests_files(true,true,true,true,true,false);
-    for( auto f : files ) {
-      try {
-        reduced_density_matrix<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in reduced_density_matrix<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-      }
-#if defined(ENABLE_DEVICE)
-      try {
-        reduced_density_matrix<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in reduced_density_matrix<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-      }
-#endif
-    }
-  }
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    estimators_reduced_density_matrix<MEM>(mpi, hamil_file, wfn_file);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 
 } // namespace sfqmc

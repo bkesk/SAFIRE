@@ -23,7 +23,7 @@
 
 #include <complex>
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "configuration.hpp"
 #include "IO/AppAbort.hpp"
@@ -33,7 +33,7 @@
 #include "nda/nda.hpp"
 #include "numerics/distributed_array/nda.hpp"
 #include "numerics/shared_array/nda.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/Timer.hpp"
 
 namespace bdft_tests

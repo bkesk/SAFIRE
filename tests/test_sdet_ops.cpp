@@ -16,14 +16,14 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "configuration.hpp"
 #include "IO/ptree/ptree_utilities.hpp"
 #include "IO/app_loggers.h" 
 #include "utilities/check.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/mpi_context.h"
 #include "numerics/sparse/sparse.hpp"
 #include "numerics/operations/split_singular_vals.hpp"
@@ -50,7 +50,7 @@ namespace afqmc
 
 using namespace afqmc;
 template<MEMORY_SPACE MEM>
-void SDetOps()
+void sdet_ops_operations()
 {
 
   auto all = nda::range::all;
@@ -67,7 +67,6 @@ void SDetOps()
   using matrix_view  = memory::array_view<MEM,Type,2>;
   using array       = memory::array<MEM,Type,3>;
   using array_view  = memory::array_view<MEM,Type,3>;
-  using sfqmc::utils::ARRAY_EQUAL;
 
   const Type ov_base  = std::log(-7.62332599999999 + 22.20453200000000i);
   const Type ov2_base = std::log(-10.37150000000000 - 7.15750000000000i);
@@ -111,38 +110,38 @@ void SDetOps()
   {
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(A, B, ovlp);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(ovlp, utils::Approx(ov));
     ovlp() = Type(0.0);
     det_ops::Log_Overlap(Aref, B, ovlp);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(ovlp, utils::Approx(ov));
     ovlp() = Type(0.0);
     det_ops::Log_Overlap(A, Bref, ovlp);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(ovlp, utils::Approx(ov));
     ovlp() = Type(0.0);
     det_ops::Log_Overlap(Aref, Bref, ovlp);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(ovlp, utils::Approx(ov));
   }
 
   //SECTION("range_overlap")
   {
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(A_, B_, ovlp);
-    ARRAY_EQUAL(ovlp,ov2);
+    CHECK_THAT(ovlp, utils::Approx(ov2));
     ovlp() = Type(0.0);
     det_ops::Log_Overlap(A(range(0,2),range(0,3)), B_, ovlp);
-    ARRAY_EQUAL(ovlp,ov2);
+    CHECK_THAT(ovlp, utils::Approx(ov2));
     ovlp() = Type(0.0);
     det_ops::Log_Overlap(A_, B(all,range(0,3),range(0,2)), ovlp);
-    ARRAY_EQUAL(ovlp,ov2);
+    CHECK_THAT(ovlp, utils::Approx(ov2));
   }
 
   {
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
     det_ops::Log_Overlap(Acsr, B, ovlp);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(ovlp, utils::Approx(ov));
     ovlp() = Type(0.0);
     det_ops::Log_Overlap(Acsr, Bref, ovlp);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(ovlp, utils::Approx(ov));
   } 
 
   /**** Density Matrices *****/
@@ -183,27 +182,27 @@ void SDetOps()
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
 
     det_ops::MixedDensityMatrix(A, B, G, ovlp, false);
-    ARRAY_EQUAL(G,g_ref);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(G, utils::Approx(g_ref));
+    CHECK_THAT(ovlp, utils::Approx(ov));
     ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A(), B(), G(), ovlp(), false);
-    ARRAY_EQUAL(G,g_ref);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(G, utils::Approx(g_ref));
+    CHECK_THAT(ovlp, utils::Approx(ov));
 
     det_ops::MixedDensityMatrix(A_, B_, G_, ovlp, false);
-    ARRAY_EQUAL(G_,g_ref_2);
+    CHECK_THAT(G_, utils::Approx(g_ref_2));
 
     ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A, B, Gc, ovlp, true);
-    ARRAY_EQUAL(Gc,gc_ref);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(Gc, utils::Approx(gc_ref));
+    CHECK_THAT(ovlp, utils::Approx(ov));
     ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(A(), B(), Gc(), ovlp(), true);
-    ARRAY_EQUAL(Gc,gc_ref);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(Gc, utils::Approx(gc_ref));
+    CHECK_THAT(ovlp, utils::Approx(ov));
 
     det_ops::MixedDensityMatrix(A_, B_, Gc_, ovlp, true);
-    ARRAY_EQUAL(Gc_,gc_ref_2);
+    CHECK_THAT(Gc_, utils::Approx(gc_ref_2));
   }
 
   {
@@ -212,21 +211,21 @@ void SDetOps()
     memory::array<MEM,Type,1> ovlp(nwalk,Type(0.0));
 
     det_ops::MixedDensityMatrix(Acsr, B, G, ovlp, false);
-    ARRAY_EQUAL(G,g_ref);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(G, utils::Approx(g_ref));
+    CHECK_THAT(ovlp, utils::Approx(ov));
     ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B(), G(), ovlp(), false);
-    ARRAY_EQUAL(G,g_ref);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(G, utils::Approx(g_ref));
+    CHECK_THAT(ovlp, utils::Approx(ov));
 
     ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B, Gc, ovlp, true);
-    ARRAY_EQUAL(Gc,gc_ref);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(Gc, utils::Approx(gc_ref));
+    CHECK_THAT(ovlp, utils::Approx(ov));
     ovlp() = Type(0.0);
     det_ops::MixedDensityMatrix(Acsr, B(), Gc(), ovlp(), true);
-    ARRAY_EQUAL(Gc,gc_ref);
-    ARRAY_EQUAL(ovlp,ov);
+    CHECK_THAT(Gc, utils::Approx(gc_ref));
+    CHECK_THAT(ovlp, utils::Approx(ov));
   }
 
   // Propagate
@@ -302,7 +301,7 @@ void SDetOps()
     memory::array<MEM,Type,1> ldet(nwalk,Type(0.0));
     det_ops::orthogonalize(Q,ldet);
     det_ops::Log_Overlap(Q, Q, ovlp);
-    ARRAY_EQUAL(oref,ovlp);
+    CHECK_THAT(oref, utils::Approx(ovlp));
   }
 
   // Finite temperature functions
@@ -326,9 +325,9 @@ void SDetOps()
       matrix Dmin(nwalk, NMO);
       matrix Dmax(nwalk, NMO);
       math::splitDmatrix(D, Dmin, Dmax, logdetD, scl0);
-      ARRAY_EQUAL(Dmin,dmin_ref);
-      ARRAY_EQUAL(Dmax,dmax_ref);
-      ARRAY_EQUAL(logdetD,logdet_ref);
+      CHECK_THAT(Dmin, utils::Approx(dmin_ref));
+      CHECK_THAT(Dmax, utils::Approx(dmax_ref));
+      CHECK_THAT(logdetD, utils::Approx(logdet_ref));
 
     }
 
@@ -352,8 +351,8 @@ void SDetOps()
 
       det_ops::detail::inverse_logdet(A, logdetA, Ainv);
 
-      ARRAY_EQUAL(Ainv,ainv_ref);
-      ARRAY_EQUAL(logdetA,logdetA_ref);
+      CHECK_THAT(Ainv, utils::Approx(ainv_ref));
+      CHECK_THAT(logdetA, utils::Approx(logdetA_ref));
 
     }
 
@@ -385,8 +384,8 @@ void SDetOps()
 
       det_ops::detail::LUsolve(A_LU,b_LU,ovlp_LU);
 
-      ARRAY_EQUAL(b_LU,x_ref);
-      ARRAY_EQUAL(ovlp_LU,ovlp_ref);
+      CHECK_THAT(b_LU, utils::Approx(x_ref));
+      CHECK_THAT(ovlp_LU, utils::Approx(ovlp_ref));
 
     }
 
@@ -445,7 +444,7 @@ void SDetOps()
         // first check computation of only PT = det[G^-1]
         det_ops::Log_Overlap(UL, DL, VL, UR, DR, VR, sclL, sclR, ovlp);
 
-        ARRAY_EQUAL(ovlp,pt_ref);
+        CHECK_THAT(ovlp, utils::Approx(pt_ref));
 
         ovlp() = Type(0.0);
 
@@ -453,8 +452,8 @@ void SDetOps()
         //det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL(0), sclR, false, false);
         det_ops::MixedDensityMatrix_v2(UL, DL, VL, UR, DR, VR, G, ovlp, sclL, sclR, false, false);
 
-//        ARRAY_EQUAL(G,g_ref);
-//        ARRAY_EQUAL(ovlp,pt_ref);
+//        CHECK_THAT(G, utils::Approx(g_ref));
+//        CHECK_THAT(ovlp, utils::Approx(pt_ref));
       }
 
       {
@@ -504,8 +503,8 @@ void SDetOps()
 
         det_ops::MixedDensityMatrix(UL, DL, VL, UR, DR, VR, G, ovlp, sclL, sclR, true, true);
 
-        ARRAY_EQUAL(G,g_ref);
-        ARRAY_EQUAL(ovlp,pt_ref);
+        CHECK_THAT(G, utils::Approx(g_ref));
+        CHECK_THAT(ovlp, utils::Approx(pt_ref));
 
       }
 
@@ -583,11 +582,11 @@ void SDetOps()
         {
           det_ops::orthogonalize_wSVD(UR,DR,VR,scl);
 
-          ARRAY_EQUAL(UR,UR_ref);
-          ARRAY_EQUAL(DR,DR_ref);
-          ARRAY_EQUAL(VR,VR_ref);
+          CHECK_THAT(UR, utils::Approx(UR_ref));
+          CHECK_THAT(DR, utils::Approx(DR_ref));
+          CHECK_THAT(VR, utils::Approx(VR_ref));
 
-          ARRAY_EQUAL(scl,scl_ref);
+          CHECK_THAT(scl, utils::Approx(scl_ref));
         }
       }
 
@@ -631,11 +630,11 @@ void SDetOps()
 
         det_ops::orthogonalize_wQR(UR,DR,VR,scl);
 
-        ARRAY_EQUAL(UR,UR_ref);
-        ARRAY_EQUAL(DR,DR_ref);
-        ARRAY_EQUAL(VR,VR_ref);
+        CHECK_THAT(UR, utils::Approx(UR_ref));
+        CHECK_THAT(DR, utils::Approx(DR_ref));
+        CHECK_THAT(VR, utils::Approx(VR_ref));
 
-        ARRAY_EQUAL(scl,scl_ref);
+        CHECK_THAT(scl, utils::Approx(scl_ref));
 
       }
     }
@@ -645,11 +644,11 @@ void SDetOps()
 }
 
 
-TEST_CASE("SDetOps", "[sdet_ops]")
+TEST_CASE("sdet_ops: operations", "[sdet_ops]")
 {
-  SDetOps<HOST_MEMORY>();
+  sdet_ops_operations<HOST_MEMORY>();
 #if defined(ENABLE_DEVICE)
-  SDetOps<DEVICE_MEMORY>();
+  sdet_ops_operations<DEVICE_MEMORY>();
 #endif
 }
 

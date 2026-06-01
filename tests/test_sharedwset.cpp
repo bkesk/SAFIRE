@@ -16,13 +16,13 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "test_common.hpp"
 
 #include "config.h"
 #include "configuration.hpp"
 #include "IO/AppAbort.hpp"
 #include "utilities/Random.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
 #include "IO/ptree/ptree_utilities.hpp"
 #include "IO/app_loggers.h"
@@ -31,10 +31,6 @@
 #include <string>
 #include <vector>
 #include <complex>
-#include <utility>
-
-#include "nda/nda.hpp"
-#include "utilities/mpi_context.h"
 
 #include "AFQMC/Walkers/WalkerSet.hpp"
 #include "AFQMC/Walkers/WalkerIO.hpp"
@@ -46,32 +42,11 @@ namespace sfqmc
 {
 using namespace afqmc;
 
-void myREQUIRE(const double& a, const double& b) { REQUIRE(a == Approx(b)); }
-
-void myREQUIRE(const std::complex<double>& a, const double& b) { REQUIRE(a.real() == Approx(b)); }
-
-void myREQUIRE(const std::complex<double>& a, const std::complex<double>& b)
-{
-  REQUIRE(a.real() == Approx(b.real()));
-  REQUIRE(a.imag() == Approx(b.imag()));
-}
-
-template<class M1, class M2>
-void check(M1&& A, M2& B)
-{
-  using element1 = typename std::decay<M1>::type::element;
-  using element2 = typename std::decay<M2>::type::element;
-  REQUIRE(A.size(0) == B.size(0));
-  REQUIRE(A.size(1) == B.size(1));
-  for (int i = 0; i < A.size(0); i++)
-    for (int j = 0; j < A.size(1); j++)
-      myREQUIRE(element1(A[i][j]), element2(B[i][j]));
-}
 
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void test_basic_walker_features(std::string wtype)
+void sharedwset_basic_walker_features(std::string wtype)
 {
   using Type = std::complex<double>;
 
@@ -270,17 +245,16 @@ void test_basic_walker_features(std::string wtype)
   std::vector<ComplexType> Wdata;
   wset.processWalkerData(Wdata);
   wset.popControl();
-  REQUIRE(wset.GlobalWeight() == Approx(static_cast<RealType>(wset.get_global_target_population())));
+  REQUIRE_THAT(wset.GlobalWeight(), utils::Approx(static_cast<RealType>(wset.get_global_target_population())));
   REQUIRE(wset.get_target_population() == nwalkers);
   REQUIRE(wset.get_global_target_population() == nwalkers * mpi->comm.size());
   REQUIRE(wset.GlobalPopulation() == nwalkers * mpi->comm.size());
   REQUIRE(wset.GlobalPopulation() == wset.get_global_target_population());
-  REQUIRE(wset.GlobalWeight() == Approx(static_cast<RealType>(wset.get_global_target_population())));
+  REQUIRE_THAT(wset.GlobalWeight(), utils::Approx(static_cast<RealType>(wset.get_global_target_population())));
   for (int i = 0; i < wset.size(); i++)
   {
     auto w = wset[i];
-//    myREQUIRE(std::exp(nx * wset.getLogOverlapFactor()) * w.get_property(OVLP), w.get_property(E1_));
-    REQUIRE(w.get_property(EXX_) ==w.get_property(E1_));
+    REQUIRE(w.get_property(EXX_) == w.get_property(E1_));
     REQUIRE(w.get_property(EJ_) == w.get_property(E1_));
   }
 
@@ -337,7 +311,7 @@ void test_basic_walker_features(std::string wtype)
 }
 
 template<MEMORY_SPACE MEM>
-void test_walker_io(std::string wtype)
+void sharedwset_walker_io(std::string wtype)
 {
 
 
@@ -426,34 +400,38 @@ void test_walker_io(std::string wtype)
 }
 
 // MAM: Tests are not GPU enabled, fix direct access to GPU memory
-TEST_CASE("swset_test_basic", "[shared_wset]")
+TEST_CASE("sharedwset: basic walker features", "[sharedwset]")
 {
-  test_basic_walker_features<HOST_MEMORY>("closed");
-  test_basic_walker_features<HOST_MEMORY>("collinear");
-  test_basic_walker_features<HOST_MEMORY>("noncollinear");
-  test_basic_walker_features<HOST_MEMORY>("fullypolarized");
-  test_basic_walker_features<HOST_MEMORY>("collinear-ft");
-  test_basic_walker_features<HOST_MEMORY>("noncollinear-ft");
+  sharedwset_basic_walker_features<HOST_MEMORY>("closed");
+  sharedwset_basic_walker_features<HOST_MEMORY>("collinear");
+  sharedwset_basic_walker_features<HOST_MEMORY>("noncollinear");
+  sharedwset_basic_walker_features<HOST_MEMORY>("fullypolarized");
+  sharedwset_basic_walker_features<HOST_MEMORY>("collinear-ft");
+  sharedwset_basic_walker_features<HOST_MEMORY>("noncollinear-ft");
 #if defined(ENABLE_DEVICE)
-  test_basic_walker_features<DEVICE_MEMORY>("closed");
-  test_basic_walker_features<DEVICE_MEMORY>("collinear");
-  test_basic_walker_features<DEVICE_MEMORY>("noncollinear");
-  test_basic_walker_features<DEVICE_MEMORY>("fullypolarized");
-  test_basic_walker_features<HOST_MEMORY>("collinear-ft");
-  test_basic_walker_features<HOST_MEMORY>("noncollinear-ft");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("closed");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("collinear");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("noncollinear");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("fullypolarized");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("collinear-ft");
+  sharedwset_basic_walker_features<DEVICE_MEMORY>("noncollinear-ft");
 #endif
 }
-TEST_CASE("walker_io", "[shared_wset]")
+TEST_CASE("sharedwset: walker io", "[sharedwset]")
 {
-  test_walker_io<HOST_MEMORY>("closed");
-  test_walker_io<HOST_MEMORY>("collinear");
-  test_walker_io<HOST_MEMORY>("noncollinear");
-  test_walker_io<HOST_MEMORY>("fullypolarized");
+  sharedwset_walker_io<HOST_MEMORY>("closed");
+  sharedwset_walker_io<HOST_MEMORY>("collinear");
+  sharedwset_walker_io<HOST_MEMORY>("noncollinear");
+  sharedwset_walker_io<HOST_MEMORY>("fullypolarized");
+  sharedwset_walker_io<HOST_MEMORY>("collinear-ft");
+  sharedwset_walker_io<HOST_MEMORY>("noncollinear-ft");  
 #if defined(ENABLE_DEVICE)
-  test_walker_io<DEVICE_MEMORY>("closed");
-  test_walker_io<DEVICE_MEMORY>("collinear");
-  test_walker_io<DEVICE_MEMORY>("noncollinear");
-  test_walker_io<DEVICE_MEMORY>("fullypolarized");
+  sharedwset_walker_io<DEVICE_MEMORY>("closed");
+  sharedwset_walker_io<DEVICE_MEMORY>("collinear");
+  sharedwset_walker_io<DEVICE_MEMORY>("noncollinear");
+  sharedwset_walker_io<DEVICE_MEMORY>("fullypolarized");
+  sharedwset_walker_io<DEVICE_MEMORY>("collinear-ft");
+  sharedwset_walker_io<DEVICE_MEMORY>("noncollinear-ft");  
 #endif
 }
 } // namespace sfqmc

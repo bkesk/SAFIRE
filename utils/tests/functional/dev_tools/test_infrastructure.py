@@ -177,16 +177,20 @@ class TestRule:
 def _wfn_is_implemented(case: AFQMCInputSet) -> bool:
     """
     Check if the wavefunction type is implemented.
-    
+
     Currently, only collinear PHMSD wavefunctions are implemented.
     NOMSD wavefunctions are implemented for all spin symmetries.
     """
+    if (
+        case.wavefunction.type == WavefunctionClass.PHMSD
+        and case.walker.spin_symm == SpinSymm.CLOSED
+    ):
+        # this was intentionally not implemented since it would require special handling
+        #     - i.e. perfect pairing
+        return False
     if case.wavefunction.type == WavefunctionClass.PHMSD:
         # currently, only collinear PHMSD wavefunctions are implemented
         return case.wavefunction.spin_symm == SpinSymm.COLLINEAR
-    if case.wavefunction.type == WavefunctionClass.PHMSD and case.walker.spin_symm == SpinSymm.CLOSED:
-        # this was intentionally not implemented since it would require special handling - i.e. perfect pairing
-        return False
     elif case.wavefunction.type == WavefunctionClass.NOMSD:
         return True
     else:

@@ -210,9 +210,14 @@ public:
     mpi->reduce(pair_corr_average, std::plus<>(), 0);
     if (mpi->comm.root()) {
       assert(group);
-      h5::group parent = group->create_group("PairCorrelator");
+      h5::group parent = ( group->has_key("PairCorrelator") ? 
+                           group->open_group("PairCorrelator") : 
+                           group->create_group("PairCorrelator") );
       for (int i = 0; i < pair_corr_average.shape(0); ++i) {
-        h5::group obs_group = parent.create_group(std::format("Average_{}", i)); 
+        std::string avg_name = std::format("Average_{}", i);
+        h5::group obs_group = ( parent.has_key(avg_name) ? 
+                                parent.open_group(avg_name) :
+                                parent.create_group(avg_name) ); 
         
         std::string padded_iblock = std::format("{:09}",iblock);
         h5::write(obs_group, "P" + padded_iblock, nda::flatten(pair_corr_average(i, nda::ellipsis{})));

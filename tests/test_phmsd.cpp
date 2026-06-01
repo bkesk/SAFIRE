@@ -16,7 +16,7 @@
 
 //#undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "IO/AppAbort.hpp"
@@ -25,14 +25,11 @@
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
 #include "utilities/h5_utils.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "IO/app_loggers.h"
 
 #include <string>
-#include <vector>
 #include <complex>
-#include <iomanip>
-#include <random>
 #include <algorithm>
 
 #include "AFQMC/Wavefunctions/Excitations.hpp"
@@ -40,11 +37,12 @@
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Utilities/Utils.hpp"
 #include "AFQMC/Utilities/readWfn.h"
 #include "numerics/sparse/sparse.hpp"
 
+extern bool WRITE_REFERENCE;
 extern std::string UTEST_HAMIL, UTEST_WFN;
 
 namespace sfqmc
@@ -52,15 +50,10 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void test_read_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void phmsd_read(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file)
 {
-  using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
   // First strip path of filename.
   std::string base_name = wfn_file.substr(wfn_file.find_last_of("\\/") + 1);
@@ -138,11 +131,9 @@ void getSlaterMatrix_occ(Mat&& SM, nda::MemoryVector auto&& occs)
 }
 
 template<MEMORY_SPACE MEM>
-void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file, bool write_reference)
 {
-  using sfqmc::utils::VALUE_EQUAL;
-  using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   auto all = range::all;
   app_log(1, "Running estimators unit test "
@@ -305,7 +296,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
 
   // the phase can be off by 2*pi due to small round-off errors around 0, what to do???
   for (const auto &w : wset)
-    VALUE_EQUAL(std::exp(w.get_property(OVLP)), ovlp_sum);
+    CHECK_THAT(std::exp(w.get_property(OVLP)), utils::Approx(ovlp_sum));
 
   {
     memory::array<MEM,ComplexType,1> log_ov(nwalk);
@@ -313,7 +304,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     auto ov_h = nda::to_host(log_ov);
     ov_h() = nda::exp(ov_h());
     for(int i=0; i<nwalk; ++i) {
-      VALUE_EQUAL(std::exp(wset[i].get_property(OVLP)), ov_h(i)); 
+      CHECK_THAT(std::exp(wset[i].get_property(OVLP)), utils::Approx(ov_h(i))); 
     }
   }
 
@@ -348,7 +339,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     auto Gt2d = nda::reshape(Gd,std::array<long,2>{nwalk,nspin*npol*NMO*npol*NMO});
     Gt2d() = ComplexType(0.0);
     wfn.MixedDensityMatrix(wset,Gt2d,false);
-    ARRAY_EQUAL(G,Gd);
+    CHECK_THAT(G, utils::Approx(Gd));
   }
 
   memory::array<MEM,ComplexType,2> eloc_ph0(nwalk,3);
@@ -363,9 +354,9 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     nda::array<ComplexType,1> ej_w  = eloc_h(all,2);
     if (!write_reference) {
       if (file_data.available) {
-        ARRAY_EQUAL(e1_w,  file_data.E1);
-        ARRAY_EQUAL(ej_w,  file_data.EJ);
-        ARRAY_EQUAL(exx_w, file_data.EXX);
+        CHECK_THAT(e1_w, utils::Approx(file_data.E1));
+        CHECK_THAT(ej_w, utils::Approx(file_data.EJ));
+        CHECK_THAT(exx_w, utils::Approx(file_data.EXX));
       }
     } else {
       file_data.E1  = e1_w;
@@ -379,8 +370,8 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     memory::array<MEM,ComplexType,1> ov(nwalk);
     nomsd.Energy(wset,eloc,ov);
     nda::apply(ComplexType(1.0),ov,nda::tensor::op::EXP);
-    ARRAY_EQUAL(ov_ph0,ov);
-    ARRAY_EQUAL(eloc_ph0,eloc);
+    CHECK_THAT(ov_ph0, utils::Approx(ov));
+    CHECK_THAT(eloc_ph0, utils::Approx(eloc));
   }
 
   if(wfn.getHamType() == RealDenseFactorized)  // add THC
@@ -401,8 +392,8 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     wfn1.Energy(wset,eloc,ov);
     nda::apply(ComplexType(1.0),ov,nda::tensor::op::EXP);
 
-    ARRAY_EQUAL(ov_ph0,ov);
-    ARRAY_EQUAL(eloc_ph0,eloc);
+    CHECK_THAT(ov_ph0, utils::Approx(ov));
+    CHECK_THAT(eloc_ph0, utils::Approx(eloc));
   }
 
   // vMF
@@ -423,7 +414,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     auto X_h = nda::to_host(X);
     if (!write_reference) {
       if (file_data.available) {
-        ARRAY_EQUAL(X_h, file_data.vbias);
+        CHECK_THAT(X_h, utils::Approx(file_data.vbias));
       }
     } else {
       file_data.vbias = X_h;
@@ -431,7 +422,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
 
     memory::array<MEM,ComplexType,2> X2(nwalk,nomsd.number_of_cholesky_vectors());
     nomsd.vbias(wset, X2, dt);
-    ARRAY_EQUAL(X,X2);
+    CHECK_THAT(X, utils::Approx(X2));
   }
 
   // vHS
@@ -439,7 +430,7 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   auto vHS = nda::to_host(vHS_d);
   if (!write_reference) {
     if (file_data.available) {
-      ARRAY_EQUAL(vHS, file_data.VHS);
+      CHECK_THAT(vHS, utils::Approx(file_data.VHS));
     }
   } else {
     file_data.VHS = vHS;
@@ -454,56 +445,30 @@ void test_phmsd(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
   mpi->comm.barrier();
 }
 
-TEST_CASE("test_read_phmsd", "[test_read_phmsd]")
+TEST_CASE("phmsd: read", "[phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    test_read_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN);
-  } else {
-    app_log(0,"test_read_phmsd: running standard PHMSD test files.");
-    auto files = utils::get_unit_tests_files(false, true, false, false, true);
-    for (auto f : files) {
-      try {
-        test_read_phmsd<HOST_MEMORY>(mpi, std::get<0>(f), std::get<1>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in test_read_phmsd(" << std::get<1>(f)
-                   << "): " << e.what());
-      }
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    if constexpr (MEM == HOST_MEMORY) {
+      phmsd_read<MEM>(mpi, hamil_file, wfn_file);
     }
-  }
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::UHF | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 
-TEST_CASE("test_phmsd", "[read_phmsd]")
+TEST_CASE("phmsd: compute", "[phmsd]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
-  bool write_reference = false;
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    test_phmsd<HOST_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, write_reference);
-#if defined(ENABLE_DEVICE)
-    test_phmsd<DEVICE_MEMORY>(mpi,UTEST_HAMIL, UTEST_WFN, false);
-#endif
-  } else {
-    app_log(0,"test_phmsd: running standard PHMSD test files.");
-    auto files = utils::get_unit_tests_files(false, true, false, false, true);
-    for (auto f : files) {
-      try {
-        test_phmsd<HOST_MEMORY>(mpi, std::get<0>(f), std::get<1>(f), write_reference);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in test_phmsd<HOST_MEMORY>(" << std::get<1>(f)
-                   << "): " << e.what());
-      }
-#if defined(ENABLE_DEVICE)
-      try {
-        test_phmsd<DEVICE_MEMORY>(mpi, std::get<0>(f), std::get<1>(f), false);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in test_phmsd<DEVICE_MEMORY>(" << std::get<1>(f)
-                   << "): " << e.what());
-      }
-#endif
-    }
-  }
+  bool write_reference = WRITE_REFERENCE;
+  
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    phmsd_compute<MEM>(mpi, hamil_file, wfn_file, write_reference && MEM == HOST_MEMORY);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::UHF | TestFiles::PHMSD | TestFiles::ALL_SYSTEMS);
 }
 
 } // namespace sfqmc

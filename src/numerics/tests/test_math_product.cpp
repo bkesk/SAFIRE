@@ -23,18 +23,17 @@
 
 #include <complex>
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "configuration.hpp"
 #include "IO/AppAbort.hpp"
 #include "IO/app_loggers.h"
 
 #include "nda/nda.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "numerics/operations/product.hpp"
 #include "numerics/sparse/sparse.hpp"
 
-using sfqmc::utils::ARRAY_EQUAL;
 using sfqmc::utils::make_random;
 
 namespace sfqmc::afqmc {
@@ -104,9 +103,9 @@ auto with_stack(Mat&& A) {
 template<char opA, char opB>
 auto check_result(const auto& A, const auto& B, auto& C, auto& C_expected) {
   math::product<opA,opB>(A, B, C);
-  ARRAY_EQUAL(nda::to_host(C), C_expected);
+  CHECK_THAT(nda::to_host(C), utils::Approx(C_expected));
   math::product<opA,opB>(0.6, A, B, 0.4, C);
-  ARRAY_EQUAL(nda::to_host(C), C_expected);
+  CHECK_THAT(nda::to_host(C), utils::Approx(C_expected));
 }
 
 template<char opA, char opB, bool sparseA, bool sparseB, bool stackA, bool stackB, typename T, MEMORY_SPACE MEM>

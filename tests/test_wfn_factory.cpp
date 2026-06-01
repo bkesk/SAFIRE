@@ -16,7 +16,7 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "IO/AppAbort.hpp"
@@ -36,10 +36,10 @@
 #include <random>
 
 #include "utilities/Timer.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/check.hpp"
-#include "AFQMC/Utilities/test_utils.hpp"
-#include "AFQMC/Utilities/readWfn.cpp"
+#include "test_utils.hpp"
+#include "AFQMC/Utilities/readWfn.h"
 
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
@@ -60,21 +60,11 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file, bool dense_trial, bool write_reference)
 {
-  app_log(1, "\nRunning wavefunctions unit test "
-    "with files:\n --hamil {} \\\n --wfn {}", 
-    hamil_file, wfn_file
-  );
-  using sfqmc::utils::ARRAY_EQUAL;
-  using sfqmc::utils::VALUE_EQUAL;
   using nda::range;
   auto all = range::all;
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
   // First strip path of filename.
   std::string base_name = wfn_file.substr(wfn_file.find_last_of("\\/") + 1);
@@ -193,9 +183,9 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   if (!write_reference)
   {
     if(reference_data.available) {
-      ARRAY_EQUAL(e1_w,        reference_data.E1);
-      ARRAY_EQUAL(ej_w, reference_data.EJ);
-      ARRAY_EQUAL(exx_w,     reference_data.EXX);
+      CHECK_THAT(e1_w, utils::Approx(reference_data.E1));
+      CHECK_THAT(ej_w, utils::Approx(reference_data.EJ));
+      CHECK_THAT(exx_w, utils::Approx(reference_data.EXX));
     }
   } 
   else
@@ -230,10 +220,10 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     for(int spin = 0; spin < nspin; spin++) {
       auto gMF_spin = gMF()(spin,all,all);
       trG += nda::sum(nda::diagonal(gMF_spin)); 
-      ARRAY_EQUAL(gMF_spin, nda::transpose(gMF_spin));
+      CHECK_THAT(gMF_spin, utils::Approx(nda::transpose(gMF_spin)));
     }
     if(type != COLLINEAR_FT && type != NONCOLLINEAR_FT) {
-      CHECK(trG.real() == Approx(nel));
+      CHECK_THAT(trG.real(), utils::Approx(nel));
     }
   }
 
@@ -252,7 +242,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     auto X_h = nda::to_host(X);
     if (!write_reference) {
       if(reference_data.available) {
-        ARRAY_EQUAL(X_h, reference_data.vbias);
+        CHECK_THAT(X_h, utils::Approx(reference_data.vbias));
       }
     } else {
       reference_data.vbias = X_h;
@@ -277,7 +267,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     if (!write_reference)
     {
       if(reference_data.available) {
-        ARRAY_EQUAL(vHS_h, reference_data.VHS);
+        CHECK_THAT(vHS_h, utils::Approx(reference_data.VHS));
       }
     }
     else
@@ -297,8 +287,7 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
     if (!write_reference && reference_data.available) {
       auto vHS_sp_dense = math::sparse::to_array<'N'>(vHS_sp(0));
       auto[vHS_nspin, vHS_npol] = wfn.vHS_dims();
-      ARRAY_EQUAL(vHS_sp_dense(range(vHS_npol*NMO), range(NMO)),
-                  reference_data.VHS(0,0,nda::ellipsis{}));
+      CHECK_THAT(vHS_sp_dense(range(vHS_npol*NMO), range(NMO)), utils::Approx(reference_data.VHS(0,0,nda::ellipsis{})));
     }
   }
 
@@ -307,51 +296,21 @@ void wfn_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mp
   }      
 }
 
-TEST_CASE("wfn_fac_sdet", "[wavefunction_factory]")
+TEST_CASE("wfn_factory: sdet", "[wfn_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
 
   app_log(0,"WavefunctionFactory unit testing.");
 
+  using namespace utils;
+
   bool write_reference = WRITE_REFERENCE;
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    app_log(0,"WavefunctionFactory unit testing. Running user provided test:");
-    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
-    app_log(0," Wavefunction: {}", UTEST_WFN);
-    wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true,write_reference);
-    wfn_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false,false);
-#if defined(ENABLE_DEVICE)
-    wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,true,false);
-    wfn_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,false,false);
-#endif
-  } else {
-    app_log(0,"WavefunctionFactory unit testing. Running standard tests.");
-    auto files = utils::get_unit_tests_files(true,true,true,true,false,true);
-    for( auto f : files ) {
-      try {
-        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true,write_reference);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
-      }
-      try {
-        wfn_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false,false);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in wfn_fac<HOST_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
-      }
-#if defined(ENABLE_DEVICE)
-      try {
-        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),true,false);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=false): " << e.what());
-      }
-      try {
-        wfn_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),false,false);
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in wfn_fac<DEVICE_MEMORY>(" << std::get<0>(f) << ", dense=true): " << e.what());
-      }
-#endif
-    }
-  }
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES) {
+    wfn_factory_sdet<MEM>(mpi, hamil_file, wfn_file, true, write_reference && MEM == HOST_MEMORY);
+    wfn_factory_sdet<MEM>(mpi, hamil_file, wfn_file, false, false);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::FINITE_T | TestFiles::ALL_SYSTEMS);
+  
 }
 
 

@@ -16,7 +16,7 @@
 
 //#undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "IO/AppAbort.hpp"
@@ -25,7 +25,7 @@
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
 #include "utilities/h5_utils.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/memory_utils.hpp"
 #include "IO/app_loggers.h"
 
@@ -41,7 +41,7 @@
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Walkers/WalkerSet.hpp"
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Utilities/Utils.hpp"
 #include "AFQMC/Utilities/readWfn.h"
 #include "numerics/sparse/sparse.hpp"

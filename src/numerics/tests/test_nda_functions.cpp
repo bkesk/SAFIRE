@@ -23,7 +23,7 @@
 
 #include <complex>
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "configuration.hpp"
 #include "IO/AppAbort.hpp"
@@ -31,7 +31,7 @@
 
 #include "nda/nda.hpp"
 #include "nda/tensor.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "numerics/device_kernels/kernels.h"
 #include "numerics/nda_functions.hpp"
 #include "utilities/Timer.hpp"
@@ -39,7 +39,6 @@
 namespace bdft_tests
 {
 
-using sfqmc::utils::VALUE_EQUAL;
 
 template<typename T>
 void test_argmax()
@@ -177,14 +176,14 @@ void test_copy_select()
     nda::array<T,1> B(B0); 
     copy_select(false,m,s,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,1> A_d(A);
     memory::device_array<T,1> B_d(B0);
     copy_select(false,m_d,s_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   {
@@ -197,14 +196,14 @@ void test_copy_select()
     nda::array<T,1> B(B0);
     copy_select(false,m,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,1> A_d(A);
     memory::device_array<T,1> B_d(B0);
     copy_select(false,m_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   {
@@ -218,14 +217,14 @@ void test_copy_select()
     nda::array<T,2> B(B0);
     copy_select(false,0,m,s,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,2> A_d(A);
     memory::device_array<T,2> B_d(B0);
     copy_select(false,0,m_d,s_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   {
@@ -239,14 +238,14 @@ void test_copy_select()
     nda::array<T,2> B(B0);
     copy_select(false,1,m,s,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,2> A_d(A);
     memory::device_array<T,2> B_d(B0);
     copy_select(false,1,m_d,s_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   {
@@ -260,14 +259,14 @@ void test_copy_select()
     nda::array<T,2> B(B0);
     copy_select(false,0,m,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,2> A_d(A);
     memory::device_array<T,2> B_d(B0);
     copy_select(false,0,m_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   {
@@ -281,14 +280,14 @@ void test_copy_select()
     nda::array<T,2> B(B0);
     copy_select(false,1,m,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,2> A_d(A);
     memory::device_array<T,2> B_d(B0);
     copy_select(false,1,m_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   // expand = true now
@@ -303,14 +302,14 @@ void test_copy_select()
     nda::array<T,1> B(B0);
     copy_select(true,m,s,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,1> A_d(A);
     memory::device_array<T,1> B_d(B0);
     copy_select(true,m_d,s_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   {
@@ -324,14 +323,14 @@ void test_copy_select()
     nda::array<T,1> B(B0);
     copy_select(true,m,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,1> A_d(A);
     memory::device_array<T,1> B_d(B0);
     copy_select(true,m_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   {
@@ -346,14 +345,14 @@ void test_copy_select()
     nda::array<T,2> B(B0);
     copy_select(true,0,m,s,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
 
     memory::device_array<T,2> A_d(A);
     memory::device_array<T,2> B_d(B0);
     copy_select(true,0,m_d,s_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   { 
@@ -368,14 +367,14 @@ void test_copy_select()
     nda::array<T,2> B(B0);
     copy_select(true,1,m,s,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
     
     memory::device_array<T,2> A_d(A);
     memory::device_array<T,2> B_d(B0);
     copy_select(true,1,m_d,s_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   { 
@@ -390,14 +389,14 @@ void test_copy_select()
     nda::array<T,2> B(B0);
     copy_select(true,0,m,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
     
     memory::device_array<T,2> A_d(A);
     memory::device_array<T,2> B_d(B0);
     copy_select(true,0,m_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 
   { 
@@ -412,14 +411,14 @@ void test_copy_select()
     nda::array<T,2> B(B0);
     copy_select(true,1,m,T(1.0),A,T(1.0),B);
     T sh=nda::sum(B);
-    VALUE_EQUAL( sref, sh );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sh));
     
     memory::device_array<T,2> A_d(A);
     memory::device_array<T,2> B_d(B0);
     copy_select(true,1,m_d,T(1.0),A_d,T(1.0),B_d);
     B=B_d;
     T sd=nda::sum(B);
-    VALUE_EQUAL( sref, sd );
+    CHECK_THAT(sref, sfqmc::utils::Approx(sd));
   }
 }
 

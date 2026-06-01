@@ -23,7 +23,7 @@
 // Used as the reference is the first variant constructed (Real3IndexFactorization);
 // every subsequent variant must agree with it.
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <complex>
 #include <random>
@@ -36,18 +36,17 @@
 #include "IO/app_loggers.h"
 #include "nda/nda.hpp"
 #include "utilities/check.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 
-#include "AFQMC/HamiltonianOperations/tests/hubbard_factorizations.hpp"
+#include "hubbard_factorizations.hpp"
 
 namespace sfqmc
 {
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void run_hubbard_consistency()
+void hamiltonian_operations_hubbard_4x4_collinear_consistency()
 {
-  using sfqmc::utils::ARRAY_EQUAL;
   using nda::range;
   auto all = range::all;
 
@@ -112,16 +111,16 @@ void run_hubbard_consistency()
 
   // The Cholesky / THC / KP-* variants share the same EXX / EJ bookkeeping
   // convention, so they must match component by component.
-  ARRAY_EQUAL(E_thc,   E_ref);
-  ARRAY_EQUAL(E_kp,    E_ref);
-  // ARRAY_EQUAL(E_kpthc, E_ref);
+  CHECK_THAT(E_thc, utils::Approx(E_ref));
+  CHECK_THAT(E_kp, utils::Approx(E_ref));
+  // CHECK_THAT(E_kpthc, utils::Approx(E_ref));
 
   // ModelHamOps uses a different decomposition (continuous-charge HS) that
   // routes the entire onsite Hubbard 2-body contribution through the J
   // channel, leaving its EXX column zero. Compare E1 alone and the
   // physically invariant total 2-body energy (EXX + EJ).
-  ARRAY_EQUAL(E_model(all, 0), E_ref(all,0));
-  ARRAY_EQUAL(nda::make_regular(E_model(all, 1) + E_model(all, 2)), nda::make_regular(E_ref(all, 1) + E_ref(all, 2)));
+  CHECK_THAT(E_model(all, 0), utils::Approx(E_ref(all,0)));
+  CHECK_THAT(nda::make_regular(E_model(all, 1) + E_model(all, 2)), utils::Approx(nda::make_regular(E_ref(all, 1) + E_ref(all, 2))));
 
   // ---- 2. getOneBodyPropagatorMatrix(dt, vMF=0) ----
   auto run_h1 = [&](auto& H) {
@@ -137,10 +136,10 @@ void run_hubbard_consistency()
   auto H1_kpthc = run_h1(H_kpthc);
   auto H1_model = run_h1(H_model);
 
-  ARRAY_EQUAL(H1_thc,   H1_ref);
-  ARRAY_EQUAL(H1_kp,    H1_ref);
-  // ARRAY_EQUAL(H1_kpthc, H1_ref);
-  ARRAY_EQUAL(H1_model, H1_ref);
+  CHECK_THAT(H1_thc, utils::Approx(H1_ref));
+  CHECK_THAT(H1_kp, utils::Approx(H1_ref));
+  // CHECK_THAT(H1_kpthc, utils::Approx(H1_ref));
+  CHECK_THAT(H1_model, utils::Approx(H1_ref));
 
   // ---- 3. vHS(vbias(G), dt) ----
   // The auxiliary-field basis differs across variants, so vbias outputs are not
@@ -163,9 +162,9 @@ void run_hubbard_consistency()
   // auto V_kpthc = run_vHS_of_vbias(H_kpthc);
   auto V_model = run_vHS_of_vbias(H_model);
 
-  ARRAY_EQUAL(V_thc,   V_ref);
-  ARRAY_EQUAL(V_kp,    V_ref);
-  // ARRAY_EQUAL(V_kpthc, V_ref);
+  CHECK_THAT(V_thc, utils::Approx(V_ref));
+  CHECK_THAT(V_kp, utils::Approx(V_ref));
+  // CHECK_THAT(V_kpthc, utils::Approx(V_ref));
 
   // ModelHamOps explicitly produces a block per walker spin, while the closed-
   // Hamiltonian variants return a single block intended to be applied to both
@@ -173,16 +172,16 @@ void run_hubbard_consistency()
   // so compare each spin block of the model output to the reference.
   REQUIRE(V_model.shape()[0] == 2);
   REQUIRE(V_ref.shape()[0]   == 1);
-  ARRAY_EQUAL(V_model(0, nda::ellipsis{}), V_ref(0, nda::ellipsis{}));
-  ARRAY_EQUAL(V_model(1, nda::ellipsis{}), V_ref(0, nda::ellipsis{}));
+  CHECK_THAT(V_model(0, nda::ellipsis{}), utils::Approx(V_ref(0, nda::ellipsis{})));
+  CHECK_THAT(V_model(1, nda::ellipsis{}), utils::Approx(V_ref(0, nda::ellipsis{})));
 }
 
 } // namespace sfqmc
 
-TEST_CASE("hubbard_consistency_4x4_collinear", "[hamiltonian_operations]")
+TEST_CASE("hamiltonian_operations: hubbard 4x4 collinear consistency", "[hamiltonian_operations]")
 {
-  sfqmc::run_hubbard_consistency<HOST_MEMORY>();
+  sfqmc::hamiltonian_operations_hubbard_4x4_collinear_consistency<HOST_MEMORY>();
 #if defined(ENABLE_DEVICE)
-  sfqmc::run_hubbard_consistency<DEVICE_MEMORY>();
+  sfqmc::hamiltonian_operations_hubbard_4x4_collinear_consistency<DEVICE_MEMORY>();
 #endif
 }

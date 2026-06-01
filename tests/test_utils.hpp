@@ -66,26 +66,6 @@ inline int read_nmo_from_hdf(std::string fileName)
   return NMO;
 }
 
-inline std::tuple<int, int, int> read_info_from_wfn(std::string fileName, std::string type)
-{
-  app_log(1, "Reading info from wfn file: {} of type {} ", fileName, type);
-  h5::file file(fileName,'r');
-  h5::group grp(file);
-  h5::group wgrp = grp.open_group("Wavefunction");
-  if(type == "any") {
-    if( wgrp.has_key("NOMSD") )
-      type = "NOMSD";
-    else if( wgrp.has_key("PHMSD") )
-      type = "PHMSD";
-    else
-      utils::check(false,"Missing NOMSD/PHMSD datasets in Wavefunction.");
-  }
-  h5::group mgrp = wgrp.open_group(type);
-  std::vector<int> Idata(5);
-  h5::h5_read(mgrp,"dims",Idata);
-  return std::make_tuple(Idata[0], Idata[1], Idata[2]);
-}
-
 template<typename T>
 TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_type = "")
 {
@@ -110,10 +90,10 @@ TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_ty
     h5::h5_read_attribute(sgrp,"number_of_elec",nel);
     std::vector<int> dims(5);
     // values based on System.
-// this can only be set correctly by integrating occ!!! 
-     
+// this can only be set correctly by integrating occ!!!
+
     nup = int(nel/2.0)*nkpts;
-    ndn = nup; 
+    ndn = nup;
     nmo = nbnd*nkpts;
     // If Wavefunction is present, overwrite from data there
     if(grp.has_key("Wavefunction")) {
@@ -132,8 +112,8 @@ TEST_DATA<T> read_test_results_from_hdf(std::string fileName, std::string wfn_ty
         nmo = Idata[0];
         nup = Idata[1];
         ndn = Idata[2];
-      } 
-    }   
+      }
+    }
   } else {
     utils::check(false," Error in read_test_results_from_hdf(): Invalid h5 format. ");
   }
@@ -172,7 +152,7 @@ void write_test_results_to_hdf(std::string filename, std::string wfn_type, const
   h5::write(wgrp, "EXX", data.EXX);
   h5::write(wgrp, "vbias", data.vbias);
   h5::write(wgrp, "VHS", data.VHS);
-  
+
 }
 
 /*
@@ -235,4 +215,3 @@ void fillRandomMatrix(std::vector<std::complex<T>>& vec)
 
 } // namespace afqmc
 } // namespace sfqmc
-

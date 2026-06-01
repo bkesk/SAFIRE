@@ -162,7 +162,7 @@ void calculate_R(int spin, ph_excitations<int, ComplexType, memory::get_memory_s
             // how to handle cases where this is basically zero?
             ov_a = std::exp(ov_a);
             if(std::abs(ov_a) != 0.0) 
-              nda::lapack::getri(Q,ipiv,work);
+              nda::lapack::getri_or_zero(Q,ipiv,work);
           }
           ComplexType w(weights(nd,iw));
           if (std::abs(ov_a) != 0.0)
@@ -255,7 +255,7 @@ void get_compact_ph_R_matrices(nda::MemoryVector auto const& iexcit,
           math::log_determinant_from_getrf(Q,ipiv,ov_a);
           // how to handle cases where this is basically zero?
           ov_a = std::exp(ov_a);
-          if(std::abs(ov_a) != 0.0) nda::lapack::getri(Q,ipiv,work);
+          if(std::abs(ov_a) != 0.0) nda::lapack::getri_or_zero(Q,ipiv,work);
         }
         if( std::abs(ov_a) != 0.0) {
           // compact notation:

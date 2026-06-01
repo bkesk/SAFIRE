@@ -291,9 +291,9 @@ class AFQMCHelper:
         }
       }, ''' 
             input_text += '''
-      "population_control_interval": "10",
-      "measure_interval_multiplier": "1",
-      "walker_ortho_interval": "10",
+      "population_control_interval": 10,
+      "measure_interval_multiplier": 1,
+      "walker_ortho_interval": 10,
       "seed": 42
     }
   }

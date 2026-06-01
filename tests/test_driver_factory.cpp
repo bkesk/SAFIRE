@@ -13,14 +13,14 @@
 
 #undef NDEBUG
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
   
 #include "config.h"
 #include "IO/app_loggers.h"
 #include "IO/ptree/ptree_utilities.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/Timer.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/check.hpp"
 
 #include <string>
@@ -33,7 +33,7 @@
 #include "nda/h5.hpp"
 #include "numerics/sparse/sparse.hpp"
   
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Utilities/readWfn.h"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 
@@ -43,13 +43,6 @@
 #include "AFQMC/Walkers/WalkerSetFactory.hpp"
 #include "AFQMC/Drivers/DriverFactory.h"
 
-using std::cerr;
-using std::complex;
-using std::cout;
-using std::endl;
-using std::ifstream;
-using std::setprecision;
-using std::string;
 
 extern std::string UTEST_HAMIL, UTEST_WFN;
 
@@ -58,20 +51,10 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+void driver_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
              std::string hamil_file, std::string wfn_file,
              WALKER_TYPES walker_type = UNDEFINED_WALKER_TYPE)
 {
-  app_log(1, "Running driver unit test "
-    "with files:\n --hamil {} \\\n --wfn {}", 
-    hamil_file, wfn_file
-  );
-  using nda::range;
-  utils::check(utils::file_exists(hamil_file),
-               " Hamiltonian file not found: {}. \n Run unit test with --hamil /path/to/hamil.h5 ", hamil_file);
-  utils::check(utils::file_exists(wfn_file),
-               " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
-
   std::map<std::string, AFQMCInfo> InfoMap;
   HamiltonianFactory HamFac(InfoMap);
   WalkerSetFactory<MEM> WSetFac(InfoMap);
@@ -154,18 +137,18 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     exec.put_child("wavefunction",wfn_min);
     // wfn only - this is invalid unless wfn file and hamil file are the same
     if (hamil_file == wfn_file) {
-      app_log(0,"[driver_fac] TEST: wfn only (inline); walker_type={}", walkerTypeToString(walker_type));
+      app_log(0,"[driver_factory] TEST: wfn only (inline); walker_type={}", walkerTypeToString(walker_type));
       CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
     }
     
     // wfn and ham
     exec.put_child("hamiltonian",ham_min);
-    app_log(0,"[driver_fac] TEST: wfn+ham (inline); walker_type={}", walkerTypeToString(walker_type));
+    app_log(0,"[driver_factory] TEST: wfn+ham (inline); walker_type={}", walkerTypeToString(walker_type));
     CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
     // wfn, ham, prop
     exec.put_child("propagator",prop_min);
-    app_log(0,"[driver_fac] TEST: wfn+ham+prop (inline); walker_type={}", walkerTypeToString(walker_type));
+    app_log(0,"[driver_factory] TEST: wfn+ham+prop (inline); walker_type={}", walkerTypeToString(walker_type));
     CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   }
 
@@ -188,18 +171,18 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     exec.put("seed", test_seed);
     exec.put("wavefunction","wfn0");
     if (hamil_file == wfn_file) {
-      app_log(0,"[driver_fac] TEST: wfn only (external); walker_type={}", walkerTypeToString(walker_type));
+      app_log(0,"[driver_factory] TEST: wfn only (external); walker_type={}", walkerTypeToString(walker_type));
       CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
     }
 
     // wfn and ham
     exec.put("hamiltonian","ham0");
-    app_log(0,"[driver_fac] TEST: wfn+ham (external); walker_type={}", walkerTypeToString(walker_type));
+    app_log(0,"[driver_factory] TEST: wfn+ham (external); walker_type={}", walkerTypeToString(walker_type));
     CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
 
     // wfn, ham, prop
     exec.put("propagator","prop0");
-    app_log(0,"[driver_fac] TEST: wfn+ham+prop (external); walker_type={}", walkerTypeToString(walker_type));
+    app_log(0,"[driver_factory] TEST: wfn+ham+prop (external); walker_type={}", walkerTypeToString(walker_type));
     CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   }
 
@@ -215,6 +198,7 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
   else
     CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+
   // mixed external internal
   exec.clear();
   exec.put("seed", test_seed);
@@ -233,7 +217,7 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     exec.put("seed", test_seed);
     exec.put_child("wavefunction",wfn_min);
     exec.put("hamiltonian","ham0");
-    app_log(0,"[driver_fac] TEST: wfn(inline)+ham(external); walker_type={}", walkerTypeToString(walker_type));
+    app_log(0,"[driver_factory] TEST: wfn(inline)+ham(external); walker_type={}", walkerTypeToString(walker_type));
     CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
   }
 
@@ -258,13 +242,15 @@ void driver_fac(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>
     CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
   else
     CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+
   // many more possibilities (combinatorial...) Add any problematic ones if needed
 }
 
-TEST_CASE("driver_fac", "[driver_factory]")
+TEST_CASE("driver_factory: build", "[driver_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
-  
+
+  /*
   if (UTEST_HAMIL!="" and UTEST_WFN!="") {
     app_log(0,"Driver factory unit testing. Running user provided test:");
     app_log(0," Hamiltonian: {}", UTEST_HAMIL);
@@ -302,6 +288,12 @@ TEST_CASE("driver_fac", "[driver_factory]")
 #endif
     }
   }
+  */
+  using namespace utils;
+
+  run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES walker_type) {
+    driver_factory_build<MEM>(mpi, hamil_file, wfn_file, walker_type);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::ALL_SYSTEMS);
 }
 
 

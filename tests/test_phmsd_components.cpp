@@ -11,24 +11,18 @@
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "config.h"
 #include "configuration.hpp"
 
 #include "IO/ptree/ptree_utilities.hpp"
-#include "utilities/Random.hpp"
-#include "utilities/check.hpp"
 #include "utilities/h5_utils.hpp"
-#include "utilities/test_common.hpp"
+#include "test_common.hpp"
 #include "utilities/Timer.hpp"
 #include "IO/app_loggers.h"
 
-#include <vector>
-
-#include "nda/nda.hpp"
-
-#include "AFQMC/Utilities/test_utils.hpp"
+#include "test_utils.hpp"
 #include "AFQMC/Wavefunctions/detail/phmsd_impl.hpp"
 
 namespace sfqmc
@@ -36,7 +30,7 @@ namespace sfqmc
 using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
-void test_ph_excited_energy_real_dense_cholesky() {
+void phmsd_components_ph_excited_energy_real_dense_cholesky() {
   
 
   int ndet = 50;
@@ -122,20 +116,18 @@ void test_ph_excited_energy_real_dense_cholesky() {
     timer.reset();
     
 
-    arch::synchronize();
-    
     app_log(1, "{{{:15}, {:15}}}", nda::to_host(EX)[0], nda::to_host(EJ)[0]);
     
-    utils::ARRAY_EQUAL(nda::to_host(EX), nda::vector{{EXJ_ref(nex-1, 0)}});
-    utils::ARRAY_EQUAL(nda::to_host(EJ), nda::vector{{EXJ_ref(nex-1, 1)}});
+    CHECK_THAT(nda::to_host(EX)(0), utils::Approx(EXJ_ref(nex-1, 0)));
+    CHECK_THAT(nda::to_host(EJ)(0), utils::Approx(EXJ_ref(nex-1, 1)));
     //    std::cout<<"    " <<tcpu1 <<" " <<tcpu2 <<std::endl;
   }  
 }
 
-TEST_CASE("test_ph_excited_energy_real_dense_cholesky", "[Numerics][misc_kernels]") {
-  test_ph_excited_energy_real_dense_cholesky<HOST_MEMORY>();
+TEST_CASE("phmsd_components: ph excited energy (real dense cholesky)", "[phmsd_components]") {
+  phmsd_components_ph_excited_energy_real_dense_cholesky<HOST_MEMORY>();
 #if defined(ENABLE_DEVICE)
-  test_ph_excited_energy_real_dense_cholesky<DEVICE_MEMORY>();
+  phmsd_components_ph_excited_energy_real_dense_cholesky<DEVICE_MEMORY>();
 #endif
 }
 

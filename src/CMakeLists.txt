@@ -11,6 +11,11 @@ add_library(safire_lib STATIC)
 add_subdirectory(IO)
 add_subdirectory(arch)
 add_subdirectory(utilities)
+
+if(BUILD_UNIT_TESTS)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/tests ${PROJECT_BINARY_DIR}/tests)
+endif()
+
 add_subdirectory(numerics)
 
 add_subdirectory(AFQMC)
@@ -20,7 +25,7 @@ target_include_directories(safire_lib PUBLIC
   ${PROJECT_BINARY_DIR}/src/
 )
 
-target_link_libraries(safire_lib PUBLIC nda::nda_c mpi3 Boost::headers cpptrace::cpptrace cxxopts::cxxopts safire_warnings)
+target_link_libraries(safire_lib PUBLIC nda::nda_c mpi3 Boost::headers cxxopts::cxxopts safire_warnings)
 
 if(ENABLE_CUDA)
   target_link_libraries(safire_lib PRIVATE CUDA::curand CUDA::cudart CCCL::CCCL)
