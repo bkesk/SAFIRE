@@ -183,10 +183,16 @@ public:
     if(mpi->comm.root()) {
       assert(group);
       h5::group parent_group = group->create_group("SpinSpin");
+      h5::group parent_group = ( group->has_key("SpinSpin") ? 
+                                 group->open_group("SpinSpin") : 
+                                 group->create_group("SpinSpin") );
       std::string padded_iblock = std::format("{:09}", iblock);
       for (int i = 0; i < dm_average.shape(0); ++i)
       {
-        h5::group obs_group = parent_group.create_group(std::format("Average_{}", i));
+        std::string avg_name = std::format("Average_{}", i);
+        h5::group obs_group = ( parent_group.has_key(avg_name) ? 
+                                parent_group.open_group(avg_name) :
+                                parent_group.create_group(avg_name) );
         h5::write(obs_group, "spinspin_" + padded_iblock, nda::flatten(dm_average(i, nda::ellipsis{})));
         h5::write(obs_group, "denominator_" + padded_iblock,Wsum[i]);
       }
