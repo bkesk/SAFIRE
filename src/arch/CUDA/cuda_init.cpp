@@ -79,6 +79,8 @@ void init()
   cuda_check(cudaGetDevice(&devn), "cudaGetDevice()");
   app_debug(3,"MPI world rank: {}, node rank: {}, cuda device number: {}",
 	    world.rank(),node.rank(),devn);
+
+  check_probe_kernel();
 }
 
 void check_device_configuration()
