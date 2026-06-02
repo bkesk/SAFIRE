@@ -33,28 +33,30 @@
 #include "mpi3/communicator.hpp"
 #include "mpi3/shared_communicator.hpp"
 #include "utilities/check.hpp"
+#include "numerics/device_kernels/cuda/probe.cuh"
 
 
 namespace sfqmc {
 namespace cuda
 {
 
-void cuda_check(cudaError_t sucess, std::string message)
+
+void cuda_check(cudaError_t success, std::string message)
 {
-  if (sucess != cudaSuccess) {
-   app_error(" Cuda runtime error: {}",std::to_string(sucess));
+  if (success != cudaSuccess) {
+   app_error(" Cuda runtime error: {}",std::to_string(success));
    if(message != "")
      app_error(" message: {}",message);
-   app_error(" cudaGetErrorName: {}",std::string(cudaGetErrorName(sucess)));
-   app_error(" cudaGetErrorString: {}",std::string(cudaGetErrorString(sucess)));
+   app_error(" cudaGetErrorName: {}",std::string(cudaGetErrorName(success)));
+   app_error(" cudaGetErrorString: {}",std::string(cudaGetErrorString(success)));
    APP_ABORT(" Cuda runtime error"); 
   }
 }
 
-void curand_check(curandStatus_t sucess, std::string message)
+void curand_check(curandStatus_t success, std::string message)
 {
-  if (sucess != CURAND_STATUS_SUCCESS) {
-   app_error(" Curand runtime error: {}",std::to_string(sucess));
+  if (success != CURAND_STATUS_SUCCESS) {
+   app_error(" Curand runtime error: {}",std::to_string(success));
    if(message != "")
      app_error(" message: {}",message);
    APP_ABORT(" Curand runtime error");
