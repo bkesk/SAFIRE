@@ -7,6 +7,29 @@
 namespace math
 {
 
+
+// hermitization of A along the last two dimensions
+void hermitize(nda::Array auto&& A) {
+  constexpr int rank = nda::get_rank<decltype(A)>;
+  static_assert(rank > 2, "A needs at least rank 2");
+
+  int n = A.size() / (A.extent(rank-2) * A.extent(rank-1));
+  auto A3 = reshape(A, n, A.extent(rank-2), A.extent(rank-1));
+
+  for(int k = 0; k < A3.extent(0); k++) {
+    for(int i = 0; i < A3.extent(1); i++) {
+      for(int j = i; j < A3.extent(2); j++) {
+        if(i == j) {
+          A3(k, i, i) = nda::real(A3(k, i, i));
+        } else {
+          A3(k, i, j) = 0.5 * A3(k, i, j) + 0.5* nda::conj(A3(k, j, i));
+          A3(k, j, i) = nda::conj(A3(k, i, j));
+        }
+      }
+    }
+  }
+}
+
 // B(...) = T(A(...)), where T = nda::get_value_t<decltype(B)>
 template<nda::MemoryArray A_t, nda::MemoryArray B_t>
 requires( nda::get_rank<A_t> == nda::get_rank<B_t> ) 

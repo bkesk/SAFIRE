@@ -26,6 +26,7 @@
 #include "utilities/check_strides.hpp"
 #include "numerics/shared_array/shared_array.hpp"
 #include "numerics/nda_functions.hpp"
+#include "detail/one_body.hpp"
 
 namespace sfqmc
 {
@@ -142,66 +143,23 @@ public:
     auto all = range::all;
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(2)/nbnd;
+    int nspin_in_H = hij.extent(0);
+    int npol_in_H = hij.extent(2)/nbnd;
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
     H1() = ComplexType(0.0);
 
-    // v[nstot][nwalk=1][nptot*NMO][NMO]
-    nda::array<ComplexType, 4> v;
-    {
-      memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
-      vMF_2d(0,all) = vMF();
-      v = std::move(nda::to_host(vHS(vMF_2d, dt)));
-      utils::check(v.shape() == std::array<long,4>{nstot,1,npol*NMO,NMO}, "Size mismatch");
-    }
+    memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
+    vMF_2d(0,all) = vMF();
+    
+    auto meanfield_shift{nda::to_host(vHS(vMF_2d, dt))};
 
-    //
-    for (int is = 0; is < nspin; is++) {
-      int is_ = is%nstot;
-      for (int p1 = 0; p1 < npol; p1++) {
-        int p1_ = p1%nptot;
-        // vHS finite 'q' contributions (full NMO*NMO) 
-        for (int I = 0; I < NMO; I++) 
-          for (int J = 0 ; J < NMO; J++) 
-              H1(is,p1*NMO+I,p1*NMO+J) += v(is_,0,p1_*NMO+I,J); 
+    memory::buffered_array<HOST_MEMORY,ComplexType,7> hij_plus_v(nspin_in_H, npol_in_H, nkpts, nbnd, npol_in_H, nkpts, nbnd);
+    kpoint_add_one_body_shifts(dt, hij(), meanfield_shift(), vexx(), hij_plus_v());
+    broadcast_one_body(
+        nda::reshape(hij_plus_v, nspin_in_H, npol_in_H, NMO, npol_in_H, NMO),
+        nda::reshape(H1, nspin, npol, NMO, npol, NMO));
 
-        // hij and vexx only have q=0 contributions  
-        for (int p2 = 0; p2 < npol; p2++) {
-          int p2_ = p2%nptot;
-          for(int ik=0, i0=0; ik<nkpts; ik++, i0+=nbnd) {
-            for (int i = 0; i < nbnd; i++) {
-              for (int j = 0 ; j < nbnd; j++) {
-                if(p1==p2) {
-                  H1(is,p1*NMO+i0+i,p2*NMO+i0+j) +=  
-                     dt * (hij()(is_,ik,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*nptot+p1_,ik,i,j));
-                } else {
-                  // only spin-orbit terms here coming from hij
-                  H1(is,p1*NMO+i0+i,p2*NMO+i0+j) += dt * hij()(is_,ik,p1_*NMO+i,p2_*NMO+j); 
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // now hermitize and check
-    long cnt = 0;
-    for (int is = 0; is < nspin; is++) {
-      for (int i = 0; i < npol*NMO; i++) {
-        for (int j = i+1 ; j < npol*NMO; j++)
-        {
-          if(cnt <= 10 and (std::abs(H1(is,i,j) - std::conj(H1(is,j,i))) > 1e-5 )) {
-            app_warning(" WARNING in getOneBodyPropagatorMatrix. H1 is not hermitian: ispin:{},i:{},j:{},H1(is,i,j):{},H1(is,j,i):{} ",is,i,j,H1(is,i,j),H1(is,j,i));
-            if(cnt==10) app_warning("Suppressing further warnings!");
-          }
-          H1(is,i,j) = 0.5 * (H1(is,i,j) + std::conj(H1(is,j,i))); 
-          H1(is,j,i) = std::conj(H1(is,i,j));
-        }
-      }
-    }
     return H1;
   }
 

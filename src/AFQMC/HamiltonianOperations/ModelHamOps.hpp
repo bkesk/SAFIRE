@@ -131,22 +131,6 @@ public:
     for(int i=0; i<Hams.size(); i++) 
       Hams[i].addOneBodyPropagatorMatrix(H1,dt, vMF(field_ranges[i]), n2IJ);
 
-    // symmetrize
-    for (int is = 0; is < nspin; is++) {
-      for (int I = 0; I < npol * NMO; I++) {
-        for (int J = I + 1; J < npol * NMO; J++) {
-          // This is really cutoff dependent!!!
-          if (std::abs(H1(is,I,J) - std::conj(H1(is,J,I))) * 2.0 > 1e-5)
-          {
-            app_warning(" WARNING in getOneBodyPropagatorMatrix. H1 is not hermitian. ");
-            app_warning(" I:{}, J:{}, H[I,J]:{}, H[J,I]:{} ",I,J,H1(is,I,J),H1(is,J,I));
-          }
-          H1(is,I,J) = 0.5 * (H1(is,I,J) + std::conj(H1(is,J,I)));
-          H1(is,J,I) = std::conj(H1(is,I,J));
-        }
-      }
-    }
-
     return H1;
   }
 

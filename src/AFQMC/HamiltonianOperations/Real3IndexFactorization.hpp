@@ -28,6 +28,7 @@
 #include "utilities/check_strides.hpp"
 #include "numerics/shared_array/shared_array.hpp"
 #include "numerics/nda_functions.hpp"
+#include "detail/one_body.hpp"
 
 #include "AFQMC/Wavefunctions/detail/phmsd_impl.hpp"
 
@@ -111,69 +112,26 @@ public:
   nda::array<ComplexType,3> getOneBodyPropagatorMatrix(double dt,
                                                        nda::MemoryVector auto const& vMF)
   {
+    auto all = nda::range::all;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
-    int nstot = hij.extent(0);
-    int nptot = hij.extent(1)/NMO;
-    int npol_H2  = (walker_type == NONCOLLINEAR) ? Likn.extent(0) : 1;
-    int nspin_H2  = (walker_type == COLLINEAR) ? Likn.extent(0) : 1;
+    int nspin_in_H = hij.extent(0);
+    int npol_in_H = hij.extent(1)/NMO;
     utils::check(vMF.extent(0) == number_of_cholesky_vectors(), "Size mismatch");
-    utils::check( nstot <= nspin and nptot <= npol, "Invalid nstot:{}, nptot:{}",nstot,nptot);
-    utils::check( nspin_H2 <= nspin and npol_H2 <= npol, "Invalid nspin_H2:{}, npol_H2:{}",nspin_H2,npol_H2);
 
-    // v[nstot][nwalk=1][nptot*NMO][NMO]
-    nda::array<ComplexType, 4> v;
-    {
-      memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.extent(0));
-      vMF_2d(0,nda::range::all) = vMF();
-      v = std::move(vHS(vMF_2d, dt));
-      utils::check(v.shape() == std::array<long,4>{nspin_H2,1,npol_H2*NMO,NMO}, "Size mismatch");
-    }
+    memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
+    vMF_2d(0,all) = vMF();
+
+    auto meanfield_shift{nda::to_host(vHS(vMF_2d, dt))};
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
     H1() = ComplexType(0.0);
 
-    // add hij(nstot,nptot*NMO,nptot*NMO) + vexx(nstot_H2*nptot_H2,NMO,NMO) and symmetrize
-    //
-    for (int is = 0; is < nspin; is++) {
-      int is_1 = is%nstot;
-      int is_2 = is%nspin_H2;
-      for (int p1 = 0; p1 < npol; p1++) {
-        int p1_1 = p1%nptot;
-        int p1_2 = p1%npol_H2;
-        for (int p2 = 0; p2 < npol; p2++) {
-          int p2_1 = p2%nptot;
-          for (int i = 0; i < NMO; i++) {
-            for (int j = 0 ; j < NMO; j++)
-            {
-              if(p1==p2) {
-                H1(is,p1*NMO+i,p2*NMO+j) = v(is_2,0,p1_2*NMO+i,j) +
-                  dt * (hij()(is_1,p1_1*NMO+i,p2_1*NMO+j) + vexx()(is_2*npol_H2+p1_2,i,j));
-              } else {
-                // only spin-orbit terms here coming from hij
-                H1(is,p1*NMO+i,p2*NMO+j) = dt * hij()(is_1,p1_1*NMO+i,p2_1*NMO+j);
-              }
-            }
-          }
-        }
-      }
-    }
 
-    // now hermitize and check
-    long cnt = 0;
-    for (int is = 0; is < nspin; is++) {
-      for (int i = 0; i < npol*NMO; i++) {
-        for (int j = i+1 ; j < npol*NMO; j++)
-        {
-          if(cnt <= 10 and (std::abs(H1(is,i,j) - std::conj(H1(is,j,i))) > 1e-5 )) {
-            app_warning(" WARNING in getOneBodyPropagatorMatrix. H1 is not hermitian: ispin:{},i:{},j:{},H1(is,i,j):{},H1(is,j,i):{} ",is,i,j,H1(is,i,j),H1(is,j,i));
-            if(cnt==10) app_warning("Suppressing further warnings!");
-          }
-          H1(is,i,j) = 0.5 * (H1(is,i,j) + std::conj(H1(is,j,i)));
-          H1(is,j,i) = std::conj(H1(is,i,j));
-        }
-      }
-    }
+    memory::buffered_array<HOST_MEMORY,ComplexType,5> hij_plus_v(nspin_in_H, npol_in_H, NMO, npol_in_H, NMO);
+    add_one_body_shifts(dt, hij(), meanfield_shift(), vexx(), hij_plus_v());
+    broadcast_one_body(hij_plus_v,
+                       nda::reshape(H1, nspin, npol, NMO, npol, NMO));
 
     return H1;
   }
