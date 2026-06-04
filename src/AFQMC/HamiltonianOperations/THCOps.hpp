@@ -707,7 +707,7 @@ protected:
       for( int ip=0; ip<npol; ip++ ) {
         
         auto Xiu = Xsiu(is%nspin_in_H,range(ip%npol_in_H*NMO,(ip%npol_in_H+1)*NMO),all);
-        auto Yau = Ysau(is%nspin_in_H,ip%npol_in_H,range(nelec[is]),all);
+        auto Yau = Ysau(is,ip,range(nelec[is]),all);
 
         if constexpr (MEM==HOST_MEMORY) {
           memory::buffered_array<MEM,ComplexType,2> Tau(nelec[is],nu);    
