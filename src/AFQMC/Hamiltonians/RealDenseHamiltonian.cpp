@@ -117,10 +117,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       } else {
         utils::check(false, base_error + "Invalid hcore rank:{}",l.rank());
       }
-      utils::check(nspin_in_H1 == 1 or nspin_in_H1 == nspin, 
-                   base_error +  "Invalid nspin_in_H1:{}",nspin_in_H1);
-      utils::check(npol_in_H1 == 1 or npol_in_H1 == npol, 
-                   base_error +  "Invalid npol_in_H1:{}",npol_in_H1);
+      utils::check(walkerDimsAreConvertible(nspin_in_H1, npol_in_H1, nspin, npol), "Hamiltonian with nspin: {}, npol: {} cannot be broadcasted to {}", nspin_in_H1, npol_in_H1, walkerTypeToString(type));
     }
     {
       // cholesky tensor

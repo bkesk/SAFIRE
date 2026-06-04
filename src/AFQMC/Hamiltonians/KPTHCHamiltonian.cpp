@@ -142,10 +142,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       // read npol_in_file
 //      h5::h5_read_attribute(bz,"number_of_polarizations",n);
 //      npol_in_file=long(n);
-      utils::check((nspin_in_file==1) or (nspin_in_file==nspin), 
-                   base_error + " Incompatible nspin:{} in h5 file.",nspin_in_file);
-//      utils::check((npol_in_file==1) or (npol_in_file==npol), 
-//                   base_error + " Incompatible npol:{} in h5 file.",npol_in_file);
+      utils::check(walkerDimsAreConvertible(nspin_in_file, npol_in_file, nspin, npol), "Hamiltonian with nspin: {}, npol: {} cannot be broadcasted to {}", nspin_in_file, npol_in_file, walkerTypeToString(type));
       minusq.resize(nkpts);
       nda::h5_read(bz,"qminus",minusq);
       qk_to_k2.resize(nkpts,nkpts);
