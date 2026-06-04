@@ -77,6 +77,34 @@ inline WALKER_TYPES initWALKER_TYPES(int i)
     return UNDEFINED_WALKER_TYPE;
 }
 
+inline auto walkerTypeToDims(WALKER_TYPES type) {
+  int nspin = type == COLLINEAR ? 2 : 1;
+  int npol = type == NONCOLLINEAR ? 2 : 1;
+  return std::make_tuple(nspin, npol);
+}
+
+inline bool walkerTypeIsConvertible(WALKER_TYPES from, WALKER_TYPES to) {
+  if(from < CLOSED || from > NONCOLLINEAR || to < CLOSED || to > NONCOLLINEAR) {
+    // hopefully we can get rid of FULLYPOLARIZED and use a smarter scheme to work with FT
+    return false;
+  }
+  return from <= to;
+}
+
+inline WALKER_TYPES walkerTypeFromDims(int nspin, int npol) {
+  if(nspin == 1 && npol == 1) {
+    return CLOSED;
+  }
+  if(nspin > 1 && npol == 1) {
+    return COLLINEAR;
+  }
+  if(nspin == 1 && npol > 1) {
+    return NONCOLLINEAR;
+  }
+  utils::check(false, "There is no walker type that has nspin = {}, npol = {}", nspin, npol); 
+  return UNDEFINED_WALKER_TYPE;
+}
+
 inline std::string walkerTypeToString(WALKER_TYPES type)
 {
   if (type == UNDEFINED_WALKER_TYPE) return "undefined";
