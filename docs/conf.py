@@ -31,7 +31,7 @@ project = 'SAFIRE'
 
 # The full version, including alpha/beta/rc tags
 version = '0.1.0'
-release = '0.1.0-alpha'
+release = '0.1.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -54,6 +54,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'numpydoc',
+    'notebook_header',
     ]
 bibtex_bibfiles = ['bibs/afqmc.bib']
 
@@ -112,6 +113,11 @@ mathjax3_config = {
 #
 #html_theme = 'sphinx_rtd_theme'
 html_theme = 'pydata_sphinx_theme' # possible theme - images need be compatible with dark and light modes
+
+# Base URL of the published docs. Used by Sphinx for canonical links and by the
+# notebook_header extension to rewrite {doc} cross-references into absolute links
+# in the downloadable .ipynb notebooks.
+html_baseurl = 'https://safire.flatironinstitute.org/docs/dev/'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
