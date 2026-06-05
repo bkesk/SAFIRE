@@ -21,6 +21,7 @@ add_executable(test_afqmc
   test_propagator_factory.cpp
   test_sdet_ops.cpp
   test_sharedwset.cpp
+  test_tensor_ops.cpp
   test_wfn_factory.cpp
 )
 set_target_properties(test_afqmc PROPERTIES
