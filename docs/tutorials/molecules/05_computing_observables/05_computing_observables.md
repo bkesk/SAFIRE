@@ -759,7 +759,7 @@ Since BP involves an additional projection, the measurement interval controls th
 Just as in the execute block or a mixed estimator block, the input file includes a measurement interval "multiplier", and the actual measurement interval, $m$, is determined as:
 
 $$
-m = (\textrm{measure\_interval\_multiplier}) \times (\textrm{population\_control\_interval})
+m = (\text{measure\_interval\_multiplier}) \times (\text{population\_control\_interval})
 $$
 
 ### Multiple BP Lengths
