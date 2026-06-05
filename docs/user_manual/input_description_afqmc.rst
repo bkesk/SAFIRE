@@ -27,11 +27,11 @@ Currently, "afqmc" is the only supported option.
 .. raw:: html
 
    <div class="theme-adaptive-image">
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_01_all.png" 
+     <img src="../_static/shared/02_input_file/input_file_01_all.png" 
           class="light-mode-img" 
           width="800" 
           alt="Input file structure diagram" />
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_01_all_dark.png" 
+     <img src="../_static/shared/02_input_file/input_file_01_all_dark.png" 
           class="dark-mode-img" 
           width="800" 
           alt="Input file structure diagram" />
@@ -155,11 +155,11 @@ which are used in AFQMC such as the Hamiltonian and the trial wavefunction.
 .. raw:: html
 
    <div class="theme-adaptive-image">
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_02_execute.png" 
+     <img src="../_static/shared/02_input_file/input_file_02_execute.png" 
           class="light-mode-img" 
           width="800" 
           alt="Execute block structure diagram" />
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_02_execute_dark.png" 
+     <img src="../_static/shared/02_input_file/input_file_02_execute_dark.png" 
           class="dark-mode-img" 
           width="800" 
           alt="Execute block structure diagram" />
@@ -300,11 +300,11 @@ listings below.
 .. raw:: html
 
    <div class="theme-adaptive-image">
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_03_wavefunction.png" 
+     <img src="../_static/shared/02_input_file/input_file_03_wavefunction.png" 
           class="light-mode-img" 
           width="800" 
           alt="Wavefunction block structure diagram" />
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_03_wavefunction_dark.png" 
+     <img src="../_static/shared/02_input_file/input_file_03_wavefunction_dark.png" 
           class="dark-mode-img" 
           width="800" 
           alt="Wavefunction block structure diagram" />
@@ -389,11 +389,11 @@ the AFQMC code.
 .. raw:: html
 
    <div class="theme-adaptive-image">
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_04_walker.png" 
+     <img src="../_static/shared/02_input_file/input_file_04_walker.png" 
           class="light-mode-img" 
           width="800" 
           alt="Walker set block structure diagram" />
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_04_walker_dark.png" 
+     <img src="../_static/shared/02_input_file/input_file_04_walker_dark.png" 
           class="dark-mode-img" 
           width="800" 
           alt="Walker set block structure diagram" />
@@ -462,11 +462,11 @@ The main purpose of the block is to tell the AFQMC code which file to find the H
 .. raw:: html
 
    <div class="theme-adaptive-image">
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_05_hamiltonian.png" 
+     <img src="../_static/shared/02_input_file/input_file_05_hamiltonian.png" 
           class="light-mode-img" 
           width="800" 
           alt="Hamiltonian block structure diagram" />
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_05_hamiltonian_dark.png" 
+     <img src="../_static/shared/02_input_file/input_file_05_hamiltonian_dark.png" 
           class="dark-mode-img" 
           width="800" 
           alt="Hamiltonian block structure diagram" />
@@ -515,11 +515,11 @@ Specific observables to be measured are chosen within each estimator block.
 .. raw:: html
 
    <div class="theme-adaptive-image">
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_07_estimator.png" 
+     <img src="../_static/shared/02_input_file/input_file_07_estimator.png" 
           class="light-mode-img" 
           width="800" 
           alt="Estimator block structure diagram" />
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_07_estimator_dark.png" 
+     <img src="../_static/shared/02_input_file/input_file_07_estimator_dark.png" 
           class="dark-mode-img" 
           width="800" 
           alt="Estimator block structure diagram" />
@@ -551,11 +551,11 @@ A typical user will not need to interact with this input block
 .. raw:: html
 
    <div class="theme-adaptive-image">
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_06_propagator.png" 
+     <img src="../_static/shared/02_input_file/input_file_06_propagator.png" 
           class="light-mode-img" 
           width="800" 
           alt="Projector block structure diagram" />
-     <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_06_propagator_dark.png" 
+     <img src="../_static/shared/02_input_file/input_file_06_propagator_dark.png" 
           class="dark-mode-img" 
           width="800" 
           alt="Projector block structure diagram" />

@@ -66,7 +66,7 @@ scratch_dir.mkdir(parents=True, exist_ok=True)
 In the paper _Stripes and spin-density waves in the doped two-dimensional Hubbard model: Ground state phase diagram_ [1] we see that for the nearest-neighbor square Hubbard model, the ground state may have a stable staggered stripe ground state order
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/ex02_stripes/fig9.png" width="500 px"/>
+<img src="/_static/examples/models/02_stripes/fig9.png" width="500 px">
 </div>
 
 We'll explore how to see this with AFQMC and the role of the trial wave function
@@ -565,7 +565,7 @@ In our original study, we found the optimal $U_{eff} \approx 2.77$
 +++ {"editable": true, "id": "0ac955ea-ab2d-49fb-b9dd-9a0fafdaf159"}
 
 <div>
-    <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/ex02_stripes/fig1.png" width="300px" />
+    <img src="/_static/examples/models/02_stripes/fig1.png" width="300px">
 </div>
 
 +++ {"editable": true, "id": "27958cd8-4035-4720-82b8-c163b1a89e99"}

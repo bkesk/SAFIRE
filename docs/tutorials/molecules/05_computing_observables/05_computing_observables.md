@@ -107,7 +107,7 @@ The code block below will:
 These were all covered in previous tutorials.
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/NitrogenDimer.png" width="300">
+<img src="/_static/tutorials/molecules/05_computing_observables/NitrogenDimer.png" width="300">
 </div>
 
 ### ▶️ Run the code block below to perform all of the steps above

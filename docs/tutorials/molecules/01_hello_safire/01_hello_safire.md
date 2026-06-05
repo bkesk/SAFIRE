@@ -42,7 +42,7 @@ saved in HDF5 files, as input along with AFQMC algorithmic parameters in a json-
 Below is a schematic of the inputs and outputs of SAFIRE.
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_all.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_all.png" width="800">
 </div>
 
 We will learn more about the details of all of these files in future tutorials. For this tutorial, pregenerated input files are provided in the "/molecules/files" directory relative to the root directory of the tutorials.
@@ -67,7 +67,7 @@ To perform a calculation, SAFIRE requires a Hamiltonian and a trial wave functio
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_hamil.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_hamil.png" width="800">
 </div>
 
 This HDF5 file contains the second-quantized Hamiltonian $\hat{H}$.
@@ -83,7 +83,7 @@ in "hamil.h5".
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/HyrdogenMolecule_v2.png" width="300">
+<img src="/_static/tutorials/molecules/01_hello_safire/HyrdogenMolecule_v2.png" width="300">
 </div>
 
 For technical details on the Hamiltonian HDF5 format, see [the User Guide](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/afqmc.html#dense-cholesky).
@@ -100,7 +100,7 @@ For technical details on the Hamiltonian HDF5 format, see [the User Guide](https
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
 </div>
 
 This HDF5 file contains the trial wavefunction, $| \Psi_\mathrm{T} \rangle$.
@@ -126,7 +126,7 @@ For technical details on the wavefunction HDF5 format, see [the User Guide](http
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_json.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_json.png" width="800">
 </div>
 
 The JSON input file sets AFQMC run parameters and references the locations of the Hamiltonian and trial wavefunction files. It is organized into a hierarchy of input blocks which each control specific
@@ -227,7 +227,7 @@ We will explore the output further in later tutorials.
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_scalar.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_scalar.png" width="800">
 </div>
 
 A text-based file containing stochastic samples of scalar data, such as the energy.
@@ -250,7 +250,7 @@ The name of this file is derived from the `id` (string) and `series` (integer) p
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_hdf5.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_hdf5.png" width="800">
 </div>
 
 An HDF5 file where stochastic samples of non-scalar data, such as the one-body reduced density matrix, are printed by SAFIRE
@@ -473,7 +473,7 @@ will generate the plot,
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/HelloAuxyFields_equil.png" width="800">
+<img src="/_static/tutorials/molecules/01_hello_safire/HelloAuxyFields_equil.png" width="800">
 </div>
 
 One should check the equilibration curve to ensure that the equilibration
