@@ -259,7 +259,7 @@ td, th {
 | <b>walker_ortho_interval</b> | 10  |  Interval to stabilize walkers at via a modified Gram-Schmidt procedure in units of steps |
 
 $$
-measure\_interval = measure\_interval\_multiplier \times population\_control\_interval
+\text{measure\_interval} = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}
 $$
 
 ### Less Common Settings
