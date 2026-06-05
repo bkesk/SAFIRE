@@ -147,9 +147,11 @@ public:
       for(int i=0; i<nsymQ; ++i) {
         int nc = Lbnk(i).extent(4); 
         (*Lbkn)(i) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
-        if(writer) 
+        mpi->node_comm.barrier();
+        if(writer)
           nda::tensor::add(ComplexType(1.0),Lbnk(i)()(0,nda::ellipsis{}),"skanj",
                            ComplexType(0.0),(*Lbkn)(i)(),"skajn");
+        mpi->node_comm.barrier();
       }
     }
   }
