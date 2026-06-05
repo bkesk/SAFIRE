@@ -48,7 +48,7 @@ We will explore the most common settings in each input block as well.
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_01_all.png" width="800">
+<img src="/_static/shared/02_input_file/input_file_01_all.png" width="800">
 </div>
 
 The name of the highest level block tells SAFIRE which "driver" to run.
@@ -206,7 +206,7 @@ td, th {
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_02_execute.png" width="800">
+<img src="/_static/shared/02_input_file/input_file_02_execute.png" width="800">
 </div>
 
 The execute block is used to define an AFQMC calculation.
@@ -288,7 +288,7 @@ td, th {
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_03_wavefunction.png" width="800">
+<img src="/_static/shared/02_input_file/input_file_03_wavefunction.png" width="800">
 </div>
 
 The wavefunction block is the only of the 5 low-level blocks
@@ -333,7 +333,7 @@ td, th {
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_04_walker.png" width="800">
+<img src="/_static/shared/02_input_file/input_file_04_walker.png" width="800">
 </div>
 
 The walker_set block is used to set general properties of the random walkers.
@@ -433,7 +433,7 @@ td, th {
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_05_hamiltonian.png" width="800">
+<img src="/_static/shared/02_input_file/input_file_05_hamiltonian.png" width="800">
 </div>
 
 The hamiltonian block is used to provide settings related to the Hamiltonian.
@@ -474,7 +474,7 @@ td, th {
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_06_propagator.png" width="800">
+<img src="/_static/shared/02_input_file/input_file_06_propagator.png" width="800">
 </div>
 
 The projector block is used to set properties of the AFQMC projector.
@@ -494,7 +494,7 @@ See the [input file description](https://users.flatironinstitute.org/~beskridge/
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_07_estimator.png" width="800">
+<img src="/_static/shared/02_input_file/input_file_07_estimator.png" width="800">
 </div>
 
 The estimator block is used to specify which

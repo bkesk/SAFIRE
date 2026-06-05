@@ -75,7 +75,7 @@ a second-quantized Hamiltonian from an electronic structure calculation.
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/TopLevelFlowChart_v3.png" width="1000">
+<img src="/_static/shared/00_top_level/TopLevelFlowChart_v3.png" width="1000">
 </div>
 
 In this tutorial,
@@ -89,7 +89,7 @@ the minimal basis hydrogen dimer with a bondlength of 1.4 Bohr radii.
 --->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/solids/Si_primitive.png" width="500">
+<img src="/_static/shared/solids/Si_primitive.png" width="500">
 </div>
 
 In this tutorial, we will generate the Hamiltonian and trial wavefunction for

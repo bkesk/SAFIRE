@@ -52,7 +52,7 @@ Below is a schematic of the inputs and outputs of SAFIRE.
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_all.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_all.png" width="800">
 </div>
 
 **We will learn more about the details of all of these files in future tutorials.**
@@ -78,7 +78,7 @@ without going into the details.
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_hamil.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_hamil.png" width="800">
 </div>
 
 An HDF5 file containing the second-quantized Hamiltonian $\hat{H}$. As we will see later, the json input file is used to select a Hamiltonian in a calculation.
@@ -89,7 +89,7 @@ corresponding to the Hubbard model on a 4x4 lattice with periodic boundary condi
 and $U/t = 4$ in "hamil.h5".
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/Hubbard_4x4_tutorial.png" width="500">
+<img src="/_static/shared/models/Hubbard_4x4_tutorial.png" width="500">
 </div>
 
 For technical details on the hamiltonian HDF5 format, see [the User Guide](https://users.flatironinstitute.org/~beskridge/safire/user_manual/hamiltonians.html#lattice-model-hamiltonian).
@@ -106,7 +106,7 @@ For technical details on the hamiltonian HDF5 format, see [the User Guide](https
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
 </div>
 
 An HDF5 file containing the trial wavefunction, $| \Psi_\mathrm{T} \rangle$. As we will see later, the json input file is used to select a trial wavefunction in a calculation.
@@ -133,7 +133,7 @@ For technical details on the wavefunction HDF5 format, see [the User Guide](http
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_json.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_json.png" width="800">
 </div>
 
 **We will learn about the input file in more detail in the next tutorial,
@@ -237,7 +237,7 @@ We will explore the output further in later tutorials.
 -->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_scalar.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_scalar.png" width="800">
 </div>
 
 A text-based file where stochastic samples of scalar data, such as the energy are printed by SAFIRE.
@@ -257,7 +257,7 @@ output file collisions.
 ---
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/inputs_and_outputs_hdf5.png" width="800">
+<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_hdf5.png" width="800">
 </div>
 
 An HDF5 file where stochastic samples of non-scalar data, such as the one-body reduced density matrix, are printed by SAFIRE
@@ -484,7 +484,7 @@ $ energy_stats qmc.s000.scalar.dat -x time -e 2.0 -t
 will generate the plot,
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/Equil_hubbard_4x4_U4_hello_safire.png" width="800">
+<img src="/_static/tutorials/models/01_hello_safire/Equil_hubbard_4x4_U4_hello_safire.png" width="800">
 </div>
 
 One should check the equilibration curve to ensure that the equilibration
