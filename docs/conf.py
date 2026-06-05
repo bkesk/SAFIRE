@@ -137,6 +137,13 @@ html_theme_options = {
     "show_nav_level": 2,
     # Maximum depth rendered in the left nav (default: 4)
     "navigation_depth": 3,
+    # Remove the light/dark theme switcher (default: ["theme-switcher", "navbar-icon-links"])
+    "navbar_end": ["navbar-icon-links"],
+}
+
+# Force light mode (disables dark mode / the auto switcher default).
+html_context = {
+    "default_mode": "light",
 }
 
 ## -- options for MyST-NB (rendering jupyter notebooks) ----------------------
