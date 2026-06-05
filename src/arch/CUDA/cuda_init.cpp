@@ -70,11 +70,11 @@ void init()
 
   int num_devices = 0;
   cudaGetDeviceCount(&num_devices);
-  app_log(1, " Running in node with {} GPUs. ", num_devices);
+  app_log(1, "\nRunning in node with {} GPUs. ", num_devices);
   cudaDeviceProp dev;
   cuda_check(cudaGetDeviceProperties(&dev, 0), "cudaGetDeviceProperties");
-  app_log(1, " CUDA compute capability: {}.{} \n ", dev.major, dev.minor);
-  app_log(1, " Device Name: {} ", dev.name);
+  app_log(1, "CUDA compute capability: {}.{} \n ", dev.major, dev.minor);
+  app_log(1, "Device Name: {} ", dev.name);
 
   cuda_check(cudaSetDevice(node.rank()%num_devices), "cudaSetDevice()");
   int devn = 0;
@@ -96,7 +96,7 @@ void check_device_configuration()
   cuda_check(cudaGetDeviceProperties(&dev, 0), "cudaGetDeviceProperties");
   if (dev.major <= 6 and world.root())
   {
-    app_warning(" Warning CUDA major compute capability < 6.0");
+    app_warning("Warning CUDA major compute capability < 6.0");
   }
   if (num_devices > node.size() and world.root())
   {
