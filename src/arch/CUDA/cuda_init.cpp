@@ -110,9 +110,9 @@ void check_device_configuration()
 curandGenerator_t make_device_rng(unsigned long long int iseed)
 {
   curandGenerator_t rng;
-  utils::check( CURAND_STATUS_SUCCESS == curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_MT19937),
+  curand_check(curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_MT19937),
                 "Error code returned by curandCreateGenerator.");
-  utils::check( CURAND_STATUS_SUCCESS == curandSetPseudoRandomGeneratorSeed(rng, iseed),
+  curand_check(curandSetPseudoRandomGeneratorSeed(rng, iseed),
                 "Error code returned by curandSetPseudoRandomGeneratorSeed.");
   return rng;
 }
