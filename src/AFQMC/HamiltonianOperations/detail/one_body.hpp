@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AFQMC/config.h"
+#include "utilities/check_shape.hpp"
 
 namespace sfqmc::afqmc {
 

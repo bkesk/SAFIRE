@@ -23,6 +23,7 @@
 
 #include "config.h"
 #include "utilities/check.hpp"
+#include "utilities/check_shape.hpp"
 #include "utilities/h5_utils.hpp"
 #include "numerics/nda_functions.hpp"
 #include "AFQMC/config.h"
@@ -77,9 +78,9 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
               (type == CLOSED ? nel_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
   for(int i=0; i<ndet; ++i) 
     for(int ip=0; ip<npol; ++ip) {
-      utils::check(PsiT(i,0).shape() == std::array<long,2>{nel_up,NMO},"PsiT shape mismatch.");
+      utils::check_shape(PsiT(i,0), "PsiT", nel_up, NMO);
       if(type == COLLINEAR)
-        utils::check(PsiT(i,nspin_in_PsiT-1).shape() == std::array<long,2>{nel_dn,NMO},"PsiT shape mismatch.");
+        utils::check_shape(PsiT(i,nspin_in_PsiT-1), "PsiT", nel_dn, NMO);
     }
   utils::check(nel_up >= nel_dn, base_error + "nel_up:{} < nel_dn:{} not allowed.",nel_up,nel_dn);
 
@@ -191,31 +192,24 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       // now read dimensions
       auto lX = h5::array_interface::get_dataset_info(igrp,"collocation_matrix");
       nu = lX.lengths[3];
-      utils::check((lX.lengths[0]==nspin_in_file) and (lX.lengths[1]==nkpts) and 
-                   (lX.lengths[2]==nbnd),
-                   base_error + "Incompatible dimensions of collocation_matrix.");
+      utils::check_shape(lX, "collocation_matrix", nspin_in_file, nkpts, nbnd, nu);
       auto lL = h5::array_interface::get_dataset_info(igrp,"factorized_coulomb_matrix");
       nv = lL.lengths[2];
-      utils::check((lL.lengths[0]==nqpts_ibz) and (lL.lengths[1]==nu), 
-                   base_error + "Incompatible dimensions of factorized_coulomb_matrix.");
+      utils::check_shape(lL, "factorized_coulomb_matrix", nqpts_ibz, nu, nv);
       if(igrp.has_key("collocation_matrix_half_rotated")) {
         have_rot_coul = 1;
         auto lXr = h5::array_interface::get_dataset_info(igrp,"collocation_matrix_half_rotated");
-        utils::check((lXr.lengths[0]==nspin_in_file) and (lXr.lengths[1]==nkpts) and 
-                     (lXr.lengths[2]==nbnd),
-                      base_error + "Incompatible dimensions of collocation_matrix_half_rotated.");
         nu_rot = lXr.lengths[3];
+        utils::check_shape(lXr, "collocation_matrix_half_rotated", nspin_in_file, nkpts, nbnd, nu_rot);
         auto lZr = h5::array_interface::get_dataset_info(igrp,"half_rotated_coulomb_matrix");
         nv_rot = lZr.lengths[2];
-        utils::check((lZr.lengths[0]==nqpts_ibz) and (lZr.lengths[1]==nu_rot),
-                     base_error + "Incompatible dimensions of half_rotated_coulomb_matrix.");
+        utils::check_shape(lZr, "half_rotated_coulomb_matrix", nqpts_ibz, nu_rot, nv_rot);
       } else {
         have_rot_coul = 0;
         nu_rot = nu;
         nv_rot = nv;
         auto lZ = h5::array_interface::get_dataset_info(igrp,"coulomb_matrix");
-        utils::check((lZ.lengths[0]==nqpts_ibz) and (lZ.lengths[1]==nu) and (lZ.lengths[2]==nu), 
-                     base_error + "Incompatible dimensions of coulomb_matrix.");
+        utils::check_shape(lZ, "coulomb_matrix", nqpts_ibz, nu, nu);
         
       }
     }

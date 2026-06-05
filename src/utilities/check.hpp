@@ -49,40 +49,6 @@ struct check
 template <typename... Args>
 check(bool, const std::string_view, Args&&...) -> check<Args...>;
 
-/**
- * Checks whether `a` has the shape given by `shape...`, and aborts otherwise
- * with the message "array <name> has unexpected shape <actual> != <expected>".
- *
- * Modeled on check: a struct template plus a deduction guide, so that the
- * trailing defaulted std::source_location follows the variadic extents and is
- * still captured at the call site.
- *
- * @tparam A      - nda array type (rank must equal the number of extents)
- * @tparam Longs  - integral extents
- * @param a       - array to check
- * @param name    - name of the array, used in the abort message
- * @param shape   - expected extents (one per dimension)
- */
-template<class A, class... Longs>
-struct check_shape
-{
-  check_shape(A const& a, std::string_view name, Longs... shape,
-              const std::source_location& loc = std::source_location::current())
-  {
-    static_assert(nda::ArrayOfRank<A, sizeof...(Longs)>,
-                  "check_shape: argument must be an nda array whose rank equals the number of extents");
-    static_assert((std::is_integral_v<Longs> && ...),
-                  "check_shape: extents must be integral");
-    std::array<long, sizeof...(Longs)> expected{ static_cast<long>(shape)... };
-    if(a.shape() != expected)
-      APP_ABORT_with_source(loc, "array {} has unexpected shape {} != {}",
-                            name, a.shape(), expected);
-  }
-};
-
-template<class A, class... Longs>
-check_shape(A const&, std::string_view, Longs...) -> check_shape<A, Longs...>;
-
 } // namespace utils
 } // namespace sfqmc
 
