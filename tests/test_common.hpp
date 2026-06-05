@@ -265,8 +265,8 @@ inline void run_test_with_files(F func, std::string hamil_file, std::string wfn_
   } else {
     auto [std_hamil_file, std_wfn_file, walker_type] = GENERATE_COPY(from_range(get_unit_tests_files(flags)));
 
-    app_log(0, "Running test with files: {}\n --hamil {} \\\n --wfn {}", 
-      name, hamil_file, wfn_file
+    app_log(0, "Running test with files: \"{}\"\n --hamil {} \\\n --wfn {}", 
+      name, std_hamil_file, std_wfn_file
     );
   
     run(std_hamil_file, std_wfn_file, walker_type);

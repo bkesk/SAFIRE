@@ -2,18 +2,27 @@ FROM docker.io/nvidia/cuda:12.8.1-devel-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y openssh-client git \
+RUN apt-get update && apt-get install -y \
+   openssh-client \
+   git \
    gcc \
    g++ \
    cmake \
+   ninja-build \
    openmpi-bin \
    openmpi-common \
    libopenmpi-dev \
    libopenblas-dev \
-   libhdf5-openmpi-dev \
+   libcutensor2 \
+   libcutensor-dev \
+   libhdf5-dev \
    python3 \
    python3-pip \
    libboost-dev \
    python3-mpi4py \
-   python3-h5py-mpi \
+   python3-h5py \
    python3-venv
+
+# necessary for building BLIS within TBLIS
+ENV CC=/usr/bin/gcc
+ENV CXX=/usr/bin/g++

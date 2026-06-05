@@ -164,6 +164,12 @@ include(CMakePrintHelpers)
 cmake_print_properties(TARGETS MPI::MPI_CXX PROPERTIES INTERFACE_LINK_LIBRARIES INTERFACE_INCLUDE_DIRECTORIES)
 
 ######################################################################
+# HDF5
+# we still use some of the raw HDF5 API. Remove once we no longer do.
+######################################################################
+find_package(HDF5 REQUIRED C HL)
+
+######################################################################
 # nda: a C++ library providing multi-dimensional array classes
 ######################################################################
 if(DEFINED NDA)
@@ -195,7 +201,7 @@ if(ENABLE_CUDA AND FETCH_CCCL)
         cccl
         GIT_REPOSITORY "https://github.com/NVIDIA/cccl.git"
         GIT_TAG        v3.3.3
-        SYSTEM
+        # do not add SYSTEM here because then the CUDA-included headers may have precedence
   )
   FetchContent_MakeAvailable(cccl)
 endif()
