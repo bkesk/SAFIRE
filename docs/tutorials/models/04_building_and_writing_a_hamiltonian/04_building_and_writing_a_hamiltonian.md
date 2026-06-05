@@ -65,7 +65,7 @@ more detail.
 It is recommended to use the Director whenever possible.
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/00_overview/HamilDirectorSystem.png" width="1000">
+<img src="/_static/shared/models/00_overview/HamilDirectorSystem.png" width="1000">
 </div>
 
 <b>In this tutorial, we focus on building Hamiltonian terms via the Hamiltonian "Director".</b>

@@ -67,7 +67,7 @@ from reference [1].
 --->
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/984d8f6514d4af38baf14fd45a2d29c0b42cf95c8335c9a92c7cefb169a830b7/ReferenceFigure.png">
+<img src="/_static/examples/molecules/03_n2-phmsd/ReferenceFigure.png">
 </div>
 
 We have include both the quantum chemistry "gold standard" CCSD(T) results, in orange, as well as CCSDT for reference.
@@ -537,7 +537,7 @@ plt.show()
 
 Compare this with the PEC generated using the data from the original paper.
 
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/984d8f6514d4af38baf14fd45a2d29c0b42cf95c8335c9a92c7cefb169a830b7/NitrogenPecAbs.png">
+<img src="/_static/examples/molecules/03_n2-phmsd/NitrogenPecAbs.png">
 
 +++ {"id": "89Ml1OB9E6lx"}
 

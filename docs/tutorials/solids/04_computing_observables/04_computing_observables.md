@@ -109,7 +109,7 @@ We will again use Si in its primitive cell at equilibrium represent in a basis o
 concrete calculations on.
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/solids/Si_primitive.png" width="600">
+<img src="/_static/shared/solids/Si_primitive.png" width="600">
 </div>
 
 The trial wavefunction is also derived from the DFT solution.
