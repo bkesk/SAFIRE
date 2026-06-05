@@ -164,7 +164,7 @@ private:
           }
         }
       } else {
-        utils::check(false, "walker_type {} not implemented", walker_type);
+        utils::check(false, "walker_type {} not implemented", walkerTypeToString(walker_type));
       }    
       assert(idx == result.shape(1));
     }

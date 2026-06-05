@@ -61,7 +61,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   int npol = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
   // FIX : add check for finite-T
   utils::check((walker_type != NONCOLLINEAR) or (ndown == 0),
-    " Error in Wavefunctions/WavefunctionFactory::fromHDF5: noncollinear && ndown!=0. \n\n\n ");
+    " Error in Wavefunctions/WavefunctionFactory::fromHDF5: noncollinear && ndown!=0. ndown: {}\n\n\n ", ndown);
 
   WAVEFUNCTION_TYPES wfn_type; 
   if(mpi->comm.root()) { 
@@ -93,7 +93,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       
       // validation blocks
       utils::check(input_wtype != NONCOLLINEAR or walker_type == NONCOLLINEAR,
-          "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers.");
+          "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers. walker_type: {}", walkerTypeToString(walker_type));
       
       NCE = h.getNuclearCoulombEnergy();
 
@@ -161,7 +161,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       
       // validation blocks
       utils::check(input_wtype != NONCOLLINEAR_FT or walker_type == NONCOLLINEAR_FT,
-          "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers.");
+          "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers. walker_type: {}", walkerTypeToString(walker_type));
       
       NCE = h.getNuclearCoulombEnergy();
 
@@ -452,7 +452,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   }
   else
   {
-    utils::check(false," Error: Unknown wave-function wfn_type: {}", int(wfn_type));
+    utils::check(false," Error: Unknown wave-function wfn_type: {}", wfn_type);
     return Wavefunction<MEM>{};
   }
   return Wavefunction<MEM>{};
