@@ -128,7 +128,7 @@ void read_ph_wavefunction_hdf(h5::group& grp,
 
   // limiting to this for now, kind of irrelevant until we find a FCI code that works in
   // a UHF basis
-  utils::check(wtype == walker_type, " walker_type ({}) in wavefunction file differs from input file ({}).", wtype, walkerTypeToString(wtype), walkerTypeToString(walker_type));
+  utils::check(wtype == walker_type, " walker_type ({}) in wavefunction file differs from input file ({}).", walkerTypeToString(wtype), walkerTypeToString(walker_type));
 
   int type_;
   h5::h5_read(grp,"type",type_);
@@ -156,8 +156,8 @@ void read_ph_wavefunction_hdf(h5::group& grp,
     }
     if (type_ == 2)
     {
-      utils::check(walker_type == COLLINEAR, 
-                   "Inconsistent walker_type and wfn type.");
+      utils::check(walker_type == COLLINEAR,
+                   "walker_type must be COLLINEAR, got {}", walkerTypeToString(walker_type));
       h5::group g = grp.open_group("PsiT_"+ std::to_string(1));
       PsiT(1) = std::move(math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(g));
       utils::check(PsiT(1).extent(1) == npol*NMO, 

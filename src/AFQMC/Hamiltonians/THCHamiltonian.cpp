@@ -23,6 +23,7 @@
 
 #include "config.h"
 #include "utilities/check.hpp"
+#include "utilities/check_shape.hpp"
 #include "utilities/h5_utils.hpp"
 #include "numerics/nda_functions.hpp"
 #include "numerics/operations/tensor.hpp"
@@ -78,9 +79,9 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
               (type == CLOSED ? nup : PsiT(0,1).extent(0) ) );
   for(int i=0; i<ndet; ++i) 
     for(int ip=0; ip<npol; ++ip) {
-      utils::check(PsiT(i,0).shape() == std::array<long,2>{nup,npol*NMO},"PsiT shape mismatch.");
+      utils::check_shape(PsiT(i,0), "PsiT", nup, npol*NMO);
       if(type == COLLINEAR)
-        utils::check(PsiT(i,1).shape() == std::array<long,2>{ndn,NMO},"PsiT shape mismatch.");
+        utils::check_shape(PsiT(i,1), "PsiT", ndn, NMO);
     }
   utils::check(nup >= ndn, base_error + "nup:{} < ndn:{} not allowed.",nup,ndn);
 
@@ -119,10 +120,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       // read npol_in_file
       // h5::h5_read_attribute(bz,"number_of_polarizations",n);
       // npol_in_file=long(n);
-      utils::check((nspin_in_file==1) or (nspin_in_file==nspin), 
-                   base_error + " nspin from hamiltonian file ({}) and input file ({}) are incompatible.",nspin_in_file, nspin);
-//      utils::check((npol_in_file==1) or (npol_in_file==npol), 
-//                   base_error + " Incompatible npol:{} in h5 file.",npol_in_file);
+      utils::check(walkerDimsAreConvertible(nspin_in_file, npol_in_file, nspin, npol), "Hamiltonian with nspin: {}, npol: {} cannot be broadcasted to {}", nspin_in_file, npol_in_file, walkerTypeToString(type));
     }
     // read from /Interaction 
     {
@@ -151,31 +149,24 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
 // MAM: right now only correct for Real==false, dimensions are assumed different for real case
       auto lX = h5::array_interface::get_dataset_info(igrp,"collocation_matrix");
       nu = lX.lengths[3];
-      utils::check((lX.lengths[0]==nspin_in_file) and (lX.lengths[1]==1) and 
-                   (lX.lengths[2]==NMO),
-                   base_error + "Incompatible dimensions of collocation_matrix.");
+      utils::check_shape(lX, "collocation_matrix", nspin_in_file, 1, NMO, nu);
       auto lL = h5::array_interface::get_dataset_info(igrp,"factorized_coulomb_matrix");
       nv = lL.lengths[2];
-      utils::check((lL.lengths[0]==1) and (lL.lengths[1]==nu), 
-                   base_error + "Incompatible dimensions of factorized_coulomb_matrix.");
+      utils::check_shape(lL, "factorized_coulomb_matrix", 1, nu, nv);
       if(igrp.has_key("collocation_matrix_half_rotated")) {
         have_rot_coul = true;
         auto lXr = h5::array_interface::get_dataset_info(igrp,"collocation_matrix_half_rotated");
-        utils::check((lXr.lengths[0]==nspin_in_file) and (lXr.lengths[1]==1) and 
-                     (lXr.lengths[2]==NMO),
-                      base_error + "Incompatible dimensions of collocation_matrix_half_rotated.");
         nu_rot = lXr.lengths[3];
+        utils::check_shape(lXr, "collocation_matrix_half_rotated", nspin_in_file, 1, NMO, nu_rot);
         auto lZr = h5::array_interface::get_dataset_info(igrp,"half_rotated_coulomb_matrix");
         nv_rot = lZr.lengths[2];
-        utils::check((lZr.lengths[0]==1) and (lZr.lengths[1]==nu_rot),
-                     base_error + "Incompatible dimensions of half_rotated_coulomb_matrix.");
+        utils::check_shape(lZr, "half_rotated_coulomb_matrix", 1, nu_rot, nv_rot);
       } else {
         have_rot_coul = false;
         nu_rot = nu;
         nv_rot = nv;
         auto lZ = h5::array_interface::get_dataset_info(igrp,"coulomb_matrix");
-        utils::check((lZ.lengths[0]==1) and (lZ.lengths[1]==nu) and (lZ.lengths[2]==nu), 
-                     base_error + "Incompatible dimensions of coulomb_matrix.");
+        utils::check_shape(lZ, "coulomb_matrix", 1, nu, nu);
         
       }
     }

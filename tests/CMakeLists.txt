@@ -16,11 +16,13 @@ add_executable(test_afqmc
   test_hamiltonian_factory.cpp
   test_hamiltonian_operations.cpp
   test_observables_reference.cpp
+  test_one_body.cpp
   test_phmsd.cpp
   test_phmsd_components.cpp
   test_propagator_factory.cpp
   test_sdet_ops.cpp
   test_sharedwset.cpp
+  test_tensor_ops.cpp
   test_wfn_factory.cpp
 )
 set_target_properties(test_afqmc PROPERTIES

@@ -24,6 +24,7 @@
 #include "utilities/check_strides.hpp"
 #include "numerics/shared_array/shared_array.hpp"
 #include "numerics/nda_functions.hpp"
+#include "detail/one_body.hpp"
 
 namespace sfqmc
 {
@@ -130,59 +131,18 @@ public:
     int npol_in_H = hij.extent(1)/NMO;
     utils::check(vMF.size() == number_of_cholesky_vectors(), "Size mismatch");
 
-    // v[nspin_in_H][nwalk=1][npol_in_H*NMO][NMO]
-    nda::array<ComplexType, 4> v;
-    {
-      memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
-      vMF_2d(0,all) = vMF();
-      v = std::move(vHS(vMF_2d, dt));
-      auto expected_shape = std::to_array<long>({nspin_in_H,1,npol_in_H*NMO,NMO});
-      utils::check(v.shape() == expected_shape, "Size mismatch {} != {}", v.shape(), expected_shape);
-    }
+    memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
+    vMF_2d(0,all) = vMF();
+    
+    auto meanfield_shift{nda::to_host(vHS(vMF_2d, dt))};
 
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
-    H1() = ComplexType(0.0);
     
-    // add hij(nspin_in_H,npol_in_H*NMO,npol_in_H*NMO) + vexx(nspin_in_H*npol_in_H,NMO,NMO) and symmetrize
-    //
-    for (int is = 0; is < nspin; is++) {
-      int is_ = is%nspin_in_H;
-      for (int p1 = 0; p1 < npol; p1++) {
-        int p1_ = p1%npol_in_H;
-        for (int p2 = 0; p2 < npol; p2++) {
-          int p2_ = p2%npol_in_H;
-          for (int i = 0; i < NMO; i++) {
-            for (int j = 0 ; j < NMO; j++)
-            {
-              if(p1==p2) {
-                H1(is,p1*NMO+i,p2*NMO+j) = v(is_,0,p1_*NMO+i,j) + 
-                                           dt * (hij()(is_,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*npol_in_H+p1_,i,j));
-              } else {
-                // only spin-orbit terms here coming from hij
-                H1(is,p1*NMO+i,p2*NMO+j) = dt * hij()(is_,p1_*NMO+i,p2_*NMO+j); 
-              }
-            }
-          }
-        }
-      }
-    }
+    memory::buffered_array<HOST_MEMORY,ComplexType,5> hij_plus_v(nspin_in_H, npol_in_H, NMO, npol_in_H, NMO);
+    add_one_body_shifts(dt, hij(), meanfield_shift(), vexx(), hij_plus_v());
+    broadcast_one_body(hij_plus_v,
+                       nda::reshape(H1, nspin, npol, NMO, npol, NMO));
 
-    // now hermitize and check
-    long cnt = 0;
-    for (int is = 0; is < nspin; is++) {
-      for (int i = 0; i < npol*NMO; i++) {
-        for (int j = i+1 ; j < npol*NMO; j++)
-        {
-          if(cnt <= 10 and (std::abs(H1(is,i,j) - std::conj(H1(is,j,i))) > 1e-5 )) {
-            app_warning(" WARNING in getOneBodyPropagatorMatrix. H1 is not hermitian: ispin:{},i:{},j:{},H1(is,i,j):{},H1(is,j,i):{} ",is,i,j,H1(is,i,j),H1(is,j,i));
-            if(cnt==10) app_warning("Suppressing further warnings!");
-          }
-          H1(is,i,j) = 0.5 * (H1(is,i,j) + std::conj(H1(is,j,i))); 
-          H1(is,j,i) = std::conj(H1(is,i,j));
-        }
-      }
-    }
-      
     return H1;
   }
 
@@ -707,7 +667,7 @@ protected:
       for( int ip=0; ip<npol; ip++ ) {
         
         auto Xiu = Xsiu(is%nspin_in_H,range(ip%npol_in_H*NMO,(ip%npol_in_H+1)*NMO),all);
-        auto Yau = Ysau(is%nspin_in_H,ip%npol_in_H,range(nelec[is]),all);
+        auto Yau = Ysau(is,ip,range(nelec[is]),all);
 
         if constexpr (MEM==HOST_MEMORY) {
           memory::buffered_array<MEM,ComplexType,2> Tau(nelec[is],nu);    

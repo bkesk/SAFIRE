@@ -13,10 +13,10 @@
 
 #include <iostream>
 #include <vector>
-#include <stdexcept>
-#include <stack>
-#include "cxxopts.hpp"
-#include "IO/ptree/InputParser.hpp"
+#include <cxxopts.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/xml_parser.hpp>
+
 #include "IO/app_loggers.h"
 #include "IO/AppAbort.hpp"
 
@@ -29,6 +29,21 @@
 #include "utilities/app_version.h"
 
 #include "AFQMC/AFQMCFactory.h"
+
+ptree parse_input(std::string filename) {
+  std::filesystem::path p{filename};
+
+  ptree pt;
+  if(p.extension() == ".json") {
+      boost::property_tree::read_json(filename, pt);
+  } else if(p.extension() == ".xml") {
+      boost::property_tree::read_xml(filename, pt);
+  } else {
+    throw std::runtime_error{std::format("Unknown file extension '{}' for input file '{}'", p.extension().string(), filename)};
+  }
+
+  return pt;
+}
 
 /*
  * *** execution blocks are processed sequentially, so order is important.
@@ -120,26 +135,27 @@ int main_impl(int argc, char** argv)
     inputs = args["filenames"].as<std::vector<std::string>>();
   }
 
-  // setup output loggers
-  sfqmc::arch::init(root,output_level,debug_level);
 
   app_log(1, welcome);      
 
   if(root)
     print_version();
 
+  // setup output loggers
+  sfqmc::arch::init(root,output_level,debug_level);
+
   // !!!! assume a single input for now
   std::string myinput = inputs[0];
-  InputParser parser;
+  ptree pt;
   try {
-    parser.read(myinput);
+    pt = parse_input(myinput);
   } catch (std::exception const& e) {
-    throw AppAbortException("Error parsing input file. Check format.");
+    throw AppAbortException(fmt::format("Could not parse input file: {}", e.what()));
   }
 
   auto mpi = std::make_shared<utils::mpi_context_t<boost::mpi3::communicator>>(utils::make_mpi_context(world));
 
-  for(auto const& it : parser.get_root())
+  for(auto const& it : pt)
   { // go through all simulation requests
     std::string cname = it.first;
     if (cname == "afqmc") {
@@ -176,7 +192,7 @@ int main(int argc, char** argv) {
     return main_impl(argc, argv);
   } catch (const sfqmc::AppAbortException& e) {
     if(env.world().root()) {
-      std::cerr << fmt::format("Error: {}\n", e.what());
+      std::cerr << fmt::format("\nError: {}\n", e.what());
     }
     env.world().abort(1);
     return 1;

@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include "utilities/check.hpp"
+#include "utilities/check_shape.hpp"
 
 #include "AFQMC/config.h"
 #include "numerics/sparse/sparse.hpp"
@@ -40,8 +41,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
 {
   std::string base_error("Error in ModelHamOpsGenerator::spin_to_walker_type(...): ");
   if(stype == "closed") {
-    utils::check(hij.shape() == std::array<long,2>{NMO,NMO}, 
-                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
+    utils::check_shape(hij, "one_body::tij", NMO, NMO);
     if(type == CLOSED) {
       utils::check(false," Error: Model Hamiltonians not allowed with CLOSED walkers. ");
     } else if(type == COLLINEAR) {
@@ -52,8 +52,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
       utils::check(false,base_error + " Bad Walker Type!");
     }
   } else if(stype == "collinear") {
-    utils::check(hij.shape() == std::array<long,2>{2*NMO,NMO}, 
-                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
+    utils::check_shape(hij, "one_body::tij", 2*NMO, NMO);
     if(type == CLOSED) {
       utils::check(false," Error: Model Hamiltonians not allowed with CLOSED walkers. ");
     } else if(type == COLLINEAR or type == COLLINEAR_FT) {
@@ -64,8 +63,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
       utils::check(false,base_error + " Bad Walker Type!");
     }
   } else if(stype == "noncollinear") {
-    utils::check(hij.shape() == std::array<long,2>{2*NMO,2*NMO}, 
-                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
+    utils::check_shape(hij, "one_body::tij", 2*NMO, 2*NMO);
     if(type == NONCOLLINEAR or type == NONCOLLINEAR_FT) {
       return hij;
     } else { 
@@ -109,10 +107,10 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   auto PsiC = memory::make_shared_array<MEM,ComplexType,4>(mpi,std::array<long,4>{ndet,nspin,npol*NMO,nel_up}); 
   if(mpi->node_comm.root()) {
     for(int id=0; id<ndet; id++) {
-      utils::check(PsiT(id,0).shape() == std::array<long,2>{nel_up,npol*NMO}, "Size mismatch");
-      PsiC()(id,0,all,all) = math::sparse::to_array<'T'>(PsiT(id,0)); 
+      utils::check_shape(PsiT(id,0), "PsiT", nel_up, npol*NMO);
+      PsiC()(id,0,all,all) = math::sparse::to_array<'T'>(PsiT(id,0));
       if(type == COLLINEAR or type == COLLINEAR_FT) {
-        utils::check(PsiT(id,nspin_in_PsiT-1).shape() == std::array<long,2>{nel_dn,npol*NMO}, "Size mismatch");
+        utils::check_shape(PsiT(id,nspin_in_PsiT-1), "PsiT", nel_dn, npol*NMO);
         PsiC()(id,1,all,range(nel_dn)) = math::sparse::to_array<'T'>(PsiT(id,nspin_in_PsiT-1));
      }  
     }
@@ -250,8 +248,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
       h5::group dn = gn.open_group("Jij");
       csrMat Jij =  math::sparse::HDF2CSR<ValueType,HOST_MEMORY,int,int>(dn);
       
-      utils::check(Jij.extent(0) == NMO and Jij.extent(1) == NMO, 
-                   base_error + " Found Hubbard_J model with inconsistent dimensions. ");
+      utils::check_shape(Jij, "Jij", NMO, NMO);
       // for safety
       utils::check(Jij.nnz() != 0, base_error + " Found empty Hubbard_U model. ");
 

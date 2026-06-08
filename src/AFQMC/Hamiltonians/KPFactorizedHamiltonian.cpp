@@ -24,6 +24,7 @@
 
 #include "config.h"
 #include "utilities/check.hpp"
+#include "utilities/check_shape.hpp"
 #include "utilities/h5_utils.hpp"
 #include "numerics/nda_functions.hpp"
 #include "AFQMC/config.h"
@@ -68,9 +69,9 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
               (type == CLOSED ? nel_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
   for(int i=0; i<ndet; ++i) {
     for(int ip=0; ip<npol; ++ip) {
-      utils::check(PsiT(i,0).shape() == std::array<long,2>{nel_up,npol*NMO}, "PsiT shape mismatch.");
+      utils::check_shape(PsiT(i,0), "PsiT", nel_up, npol*NMO);
       if(type == COLLINEAR)
-        utils::check(PsiT(i,nspin_in_PsiT-1).shape() == std::array<long,2>{nel_dn,NMO},"PsiT shape mismatch.");
+        utils::check_shape(PsiT(i,nspin_in_PsiT-1), "PsiT", nel_dn, NMO);
     }
   }
   utils::check(nel_up >= nel_dn, base_error + "nel_up:{} < nel_dn:{} not allowed.",nel_up,nel_dn);
@@ -128,10 +129,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         // TODO: does this format even support polarizations?
         npol_in_file = 1;
 
-        utils::check((nspin_in_file==1) or (nspin_in_file==nspin),
-                     base_error + " Incompatible nspin:{} in h5 file.",nspin_in_file);
-//        utils::check((npol_in_file==1) or (npol_in_file==npol), 
-//                     base_error + " Incompatible npol:{} in h5 file.",npol_in_file);
+        utils::check(walkerDimsAreConvertible(nspin_in_file, npol_in_file, nspin, npol), "Hamiltonian with nspin: {}, npol: {} cannot be broadcasted to {}", nspin_in_file, npol_in_file, walkerTypeToString(type));
         minusq.resize(nkpts);
         nda::h5_read(bz,"qminus",minusq);
         qk_to_k2.resize(nkpts,nkpts);
@@ -333,7 +331,7 @@ KPFactorizedHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
           // too much memory???
           nda::array<ComplexType,5> L(nchol(Q),nspin_in_file*npol_in_file,nkpts,nbnd,nbnd);
           utils::h5_read(igrp,"Vq"+std::to_string(Q),L);
-          utils::check(L.shape() == std::array<long,5>{nchol(Q),nspin_in_file*npol_in_file,nkpts,nbnd,nbnd}, "Size mismatch from h5 dataset.");
+          utils::check_shape(L, "Vq", nchol(Q), nspin_in_file*npol_in_file, nkpts, nbnd, nbnd);
           auto L2d = nda::reshape(L,std::array<long,2>{nchol(Q),nspin_in_file*npol_in_file*nkpts*nbnd*nbnd});
           if constexpr (MEM==HOST_MEMORY) {
             auto LQ2d = nda::reshape(LQ(Q)(),std::array<long,2>{nspin_in_file*npol_in_file*nkpts*nbnd*nbnd,nchol(Q)});

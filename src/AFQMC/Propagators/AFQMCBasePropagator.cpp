@@ -158,6 +158,16 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
     utils::check(H1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO}, "Shape mismatch.");
     if(external_H1) nda::tensor::add(ComplexType(1.0),H1ext(),"sij",ComplexType(1.0),H1(),"sij");
 
+    memory::buffered_array<HOST_MEMORY, ComplexType, 3> H1tmp{H1};
+
+    math::hermitize(H1);
+
+    nda::tensor::add(1, H1, -1, H1tmp);
+    if(nda::norm(nda::flatten(H1tmp())) > 1e-5) {
+      app_warning("H1 is not hermitian!");
+    }
+    
+
     nda::tensor::scale(ComplexType(-0.5),H1);
     for(int i=0; i<nspin; ++i) 
       P1d()(i,all,all) = math::exp_hermitian(H1(i,all,all), printP1eV);

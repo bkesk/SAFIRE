@@ -29,6 +29,7 @@
 #include "config.h"
 #include "AFQMC/config.h"
 #include "utilities/check.hpp"
+#include "utilities/check_shape.hpp"
 #include "utilities/h5_utils.hpp"
 #include "numerics/nda_functions.hpp"
 
@@ -117,10 +118,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       } else {
         utils::check(false, base_error + "Invalid hcore rank:{}",l.rank());
       }
-      utils::check(nspin_in_H1 == 1 or nspin_in_H1 == nspin, 
-                   base_error +  "Invalid nspin_in_H1:{}",nspin_in_H1);
-      utils::check(npol_in_H1 == 1 or npol_in_H1 == npol, 
-                   base_error +  "Invalid npol_in_H1:{}",npol_in_H1);
+      utils::check(walkerDimsAreConvertible(nspin_in_H1, npol_in_H1, nspin, npol), "Hamiltonian with nspin: {}, npol: {} cannot be broadcasted to {}", nspin_in_H1, npol_in_H1, walkerTypeToString(type));
     }
     {
       // cholesky tensor
@@ -173,24 +171,15 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       h5::group vgrp = g.open_group("DenseFactorized"); 
       auto l = h5::array_interface::get_dataset_info(vgrp,"L");
       if(l.rank()==2) {
-        //[nspin_in_H2*npol_in_H2*NMO*NMO]][ncv]
-        utils::check( l.lengths[0] == nspin_in_H2*npol_in_H2*NMO*NMO  and
-                      l.lengths[1] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}). Incompatible with nspin_in_H2:{}, npol_in_H2:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],nspin_in_H2,npol_in_H2,NMO);
+        utils::check_shape(l, "DenseFactorized/L", nspin_in_H2*npol_in_H2*NMO*NMO, ncv);
         auto L_ = nda::reshape(Likn(),std::array<long,2>{nspin_in_H2*npol_in_H2*NMO*NMO,ncv});
         utils::h5_read(vgrp,"L",L_);
       } else if(l.rank()==3) {
-        //[nspin_in_H2*npol_in_H2][NMO*NMO]][ncv]
-        utils::check( l.lengths[0] == nspin_in_H2*npol_in_H2  and
-                      l.lengths[1] == NMO*NMO  and
-                      l.lengths[2] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}, {}). Incompatible with nspin_in_H2:{}, npol_in_H2:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],l.lengths[2],nspin_in_H2,npol_in_H2,NMO);
+        utils::check_shape(l, "DenseFactorized/L", nspin_in_H2*npol_in_H2, NMO*NMO, ncv);
         auto L_ = nda::reshape(Likn(),std::array<long,3>{nspin_in_H2*npol_in_H2,NMO*NMO,ncv});
         utils::h5_read(vgrp,"L",L_);
       } else if(l.rank()==4) {
-        //[nspin_in_H2*npol_in_H2][NMO][NMO]][ncv]
-        utils::check( l.lengths[0] == nspin_in_H2*npol_in_H2  and
-                      l.lengths[1] == NMO  and
-                      l.lengths[2] == NMO  and
-                      l.lengths[3] == ncv, base_error +  "Inconsistent size of DenseFactorized/L:({}, {}, {}, {}). Incompatible with nspin_in_H2:{}, npol_in_H2:{}, NMO:{} found in hcore",l.lengths[0],l.lengths[1],l.lengths[2],l.lengths[3],nspin_in_H2,npol_in_H2,NMO);
+        utils::check_shape(l, "DenseFactorized/L", nspin_in_H2*npol_in_H2, NMO, NMO, ncv);
         auto L_ = nda::reshape(Likn(),std::array<long,4>{nspin_in_H2*npol_in_H2,NMO,NMO,ncv});
         utils::h5_read(vgrp,"L",L_);
       } else {

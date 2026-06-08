@@ -85,7 +85,7 @@ public:
      * or e.g. Perfect Pairing.
      */
     if (walker_type == CLOSED)
-      APP_ABORT("Error: PHMSD requires walker_type != CLOSED.");
+      APP_ABORT("Error: PHMSD requires walker_type != CLOSED. walker_type: {}", walkerTypeToString(walker_type));
 
     // FINISH!!!
     if (walker_type == NONCOLLINEAR)

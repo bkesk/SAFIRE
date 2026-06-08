@@ -15,7 +15,12 @@
 
 #include <iostream>
 #include<string>
+#include <array>
+#include <string_view>
+#include <source_location>
+#include <type_traits>
 #include "IO/AppAbort.hpp"
+#include "nda/nda.hpp"
 
 namespace sfqmc {
 namespace utils
@@ -45,5 +50,5 @@ template <typename... Args>
 check(bool, const std::string_view, Args&&...) -> check<Args...>;
 
 } // namespace utils
-} // namespace sfqmc 
+} // namespace sfqmc
 

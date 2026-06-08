@@ -96,7 +96,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
       } 
     }
   } else if(wfn_type == COLLINEAR) { 
-    utils::check(walker_type == NONCOLLINEAR, "walker_type==COLLINEAR incompatible with wfn_type:{}",int(wfn_type));
+    utils::check(walker_type == NONCOLLINEAR, "walker_type=={} incompatible with wfn_type:{}", walkerTypeToString(walker_type), walkerTypeToString(wfn_type));
     // upgrade from COLLINEAR to NONCOLLINEAR
     for(int id=0; id<ndets; ++id) {
       h5::group ugrp = grp.open_group("PsiT_"+std::to_string(2*id));
