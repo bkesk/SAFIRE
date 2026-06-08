@@ -325,9 +325,9 @@ plt.show()
 
 The idea behind self-consistent AFQMC is to have the trial wave function match as much as possible the output of AFQMC.
 
-For this model, we can do this by introducing an effective Hubbard model, where $U$ is replaced with $U_{eff}$. By solving Hartree-Fock (mean field theory) for this effective model and using the result as a trial wave function, we can scan through different $U_{eff}$ to find the one that matches the best.
+For this model, we can do this by introducing an effective Hubbard model, where $U$ is replaced with $U_\text{eff}$. By solving Hartree-Fock (mean field theory) for this effective model and using the result as a trial wave function, we can scan through different $U_\text{eff}$ to find the one that matches the best.
 
-We'll use AutoHF to explore creating a trial wave function for AFQMC. Let's do a few between $U_{eff}=1$ and $U_{eff}=4$
+We'll use AutoHF to explore creating a trial wave function for AFQMC. Let's do a few between $U_\text{eff}=1$ and $U_\text{eff}=4$
 
 _Note:_ The Hartree-Fock code is faster if you use a GPU
 
@@ -548,11 +548,11 @@ plt.show()
 
 +++ {"id": "9e472093-a34e-4083-bb1a-3e04e07f19d2"}
 
-So we can see that somewhere around $U_{eff}\approx 3$
+So we can see that somewhere around $U_\text{eff}\approx 3$
 would have the lowest error for self consistency.
-Despite the difference between DMRG and AFQMC being on average 0.01, there is a clear optimal trial wave function to use. For fine tuning between $U_{eff}\in [2,4]$, we'll need more sophisticated methods than presented here.
+Despite the difference between DMRG and AFQMC being on average 0.01, there is a clear optimal trial wave function to use. For fine tuning between $U_\text{eff}\in [2,4]$, we'll need more sophisticated methods than presented here.
 
-In our original study, we found the optimal $U_{eff} \approx 2.77$
+In our original study, we found the optimal $U_\text{eff} \approx 2.77$
 
 +++ {"id": "672d9ba4-f659-466d-be57-8fa082fcfb0e"}
 
@@ -578,7 +578,7 @@ Let's recreate figure 1 from Xu et al, by changing
 
 Lets use this as a test bed to explore how AFQMC responds to different settings. Some questions to consider
 
-- Use $U_{eff} = U$ or the "bare U" Hartree-Fock trial. How does the quality of the results change?
+- Use $U_\text{eff} = U$ or the "bare U" Hartree-Fock trial. How does the quality of the results change?
 - We compared spin densities, what about hole density? This is the effectively the same as comparing charge density.
 - Use a trial with a small number of steps so that the solver doesn't converge. How do the results change? How could you tell this trial isn't good?
 - The free electron trial isn't a valid RHF state (why?). What would be the corresponding RHF solution? What does that output look like?
