@@ -97,7 +97,7 @@ In this tutorial, we will use afqmctools to generate a Hamiltonian and AutoHF to
 We will again use the Hubbard model with $U/t = 4$ on a 4x4 lattice with periodic boundary conditions and $n_\uparrow = n_\downarrow = 5$ to perform concrete calculations on.
 
 <div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/Hubbard_4x4_tutorial.png" width="500">
+<img src="/_static/shared/models/Hubbard_4x4_tutorial.png" width="500">
 </div>
 
 All of the code in the code block below should look familiar after go through the earlier tutorials.
