@@ -1,3 +1,8 @@
+html[data-theme="light"] {
+    --pst-color-primary: #0218d1;
+    --pst-color-secondary: #0c56ff;
+}
+
 div.math {
     position: relative;
     padding: 0.7em;
