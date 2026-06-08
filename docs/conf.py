@@ -129,16 +129,21 @@ html_css_files = [
 ]
 
 html_theme_options = {
+    "logo": {
+        "image_light": "images/logo.svg"
+    },
     "globaltoc_maxdepth": 3,        # -1 for unlimited
     "globaltoc_collapse": False,    # expand whole tree or not
     "globaltoc_includehidden": False, # show :hidden: entries
-    "navigation_depth": 4,
+    "navigation_depth": 3,
+    "header_links_before_dropdown": 6,
     # Show this many levels expanded on page load (default: 1)
     "show_nav_level": 2,
     # Maximum depth rendered in the left nav (default: 4)
-    "navigation_depth": 3,
     # Remove the light/dark theme switcher (default: ["theme-switcher", "navbar-icon-links"])
     "navbar_end": ["navbar-icon-links"],
+    "navbar_align": "left",
+    "secondary_sidebar_items": ["page-toc"],
 }
 
 # Force light mode (disables dark mode / the auto switcher default).
