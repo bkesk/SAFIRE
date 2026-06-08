@@ -27,7 +27,7 @@ CPU Build
 
 The build system will fetch the following dependencies automatically if they are not installed
 
-- [nda](https://github.com/TRIQS/nda) (tensor branch)
+- `nda <https://github.com/TRIQS/nda>`_ (tensor branch)
 - cxxopts
 - spdlog
 - cpptrace
@@ -93,7 +93,7 @@ If you are rusty or sitting at an SCC-managed workstation, a suitable build scri
     mkdir build
     cd build
     cmake .. \
-            -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_BUILD_TYPE=Release
 
     make -j 10
 
