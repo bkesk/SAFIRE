@@ -3,7 +3,7 @@
 SAFIRE for lattice models
 ==========================
 
-.. image:: /_static/shared/00_top_level/lattice_model.png
+.. image:: /images/shared/00_top_level/lattice_model.png
    :width: 500
 
 |
@@ -63,7 +63,7 @@ use the Hamiltonian *Builder*. See the `Hamiltonian Builder <05_hamiltonian_buil
 more detail.
 It is recommended to use the Director whenever possible.
 
-.. image:: /_static/shared/models/00_overview/HamilDirectorSystem.png
+.. image:: /images/shared/models/00_overview/HamilDirectorSystem.png
    :width: 1000
 
 

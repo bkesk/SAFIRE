@@ -96,9 +96,7 @@ scratch_dir.mkdir(parents=True, exist_ok=True)
 In this tutorial, we will use afqmctools to generate a Hamiltonian and AutoHF to generate a trial wavefunction.
 We will again use the Hubbard model with $U/t = 4$ on a 4x4 lattice with periodic boundary conditions and $n_\uparrow = n_\downarrow = 5$ to perform concrete calculations on.
 
-<div>
-<img src="/_static/shared/models/Hubbard_4x4_tutorial.png" width="500">
-</div>
+![](files/Hubbard_4x4_tutorial.png)
 
 All of the code in the code block below should look familiar after go through the earlier tutorials.
 The code block below will:

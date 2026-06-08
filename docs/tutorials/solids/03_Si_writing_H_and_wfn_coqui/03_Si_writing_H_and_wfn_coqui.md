@@ -74,9 +74,7 @@ a second-quantized Hamiltonian from an electronic structure calculation.
 </div>
 -->
 
-<div>
-<img src="/_static/shared/00_top_level/TopLevelFlowChart_v3.png" width="1000">
-</div>
+![](files/TopLevelFlowChart_v3.png)
 
 In this tutorial,
 we will compute the ground state energy of
@@ -88,9 +86,7 @@ the minimal basis hydrogen dimer with a bondlength of 1.4 Bohr radii.
 </div>
 --->
 
-<div>
-<img src="/_static/shared/solids/Si_primitive.png" width="500">
-</div>
+![](files/Si_primitive.png)
 
 In this tutorial, we will generate the Hamiltonian and trial wavefunction for
 Si in the primitive cell.

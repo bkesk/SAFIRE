@@ -41,9 +41,7 @@ In order to take advantage of this flexibility, SAFIRE accepts a generic second 
 saved in HDF5 files, as input along with AFQMC algorithmic parameters in a json-based input file.
 Below is a schematic of the inputs and outputs of SAFIRE.
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_all.png" width="800">
-</div>
+![](files/inputs_and_outputs_all.png)
 
 We will learn more about the details of all of these files in future tutorials. For this tutorial, pregenerated input files are provided in the "/molecules/files" directory relative to the root directory of the tutorials.
 
@@ -66,9 +64,7 @@ To perform a calculation, SAFIRE requires a Hamiltonian and a trial wave functio
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_hamil.png" width="800">
-</div>
+![](files/inputs_and_outputs_hamil.png)
 
 This HDF5 file contains the second-quantized Hamiltonian $\hat{H}$.
 
@@ -82,9 +78,7 @@ in "hamil.h5".
 </div>
 -->
 
-<div>
-<img src="/_static/tutorials/molecules/01_hello_safire/HyrdogenMolecule_v2.png" width="300">
-</div>
+![](files/HyrdogenMolecule_v2.png)
 
 For technical details on the Hamiltonian HDF5 format, see [the User Guide](https://users.flatironinstitute.org/~beskridge/auxiliary_fields/afqmc.html#dense-cholesky).
 
@@ -99,9 +93,7 @@ For technical details on the Hamiltonian HDF5 format, see [the User Guide](https
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
-</div>
+![](files/inputs_and_outputs_wfn.png)
 
 This HDF5 file contains the trial wavefunction, $| \Psi_\mathrm{T} \rangle$.
 
@@ -125,9 +117,7 @@ For technical details on the wavefunction HDF5 format, see [the User Guide](http
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_json.png" width="800">
-</div>
+![](files/inputs_and_outputs_json.png)
 
 The JSON input file sets AFQMC run parameters and references the locations of the Hamiltonian and trial wavefunction files. It is organized into a hierarchy of input blocks which each control specific
 details of the calculation. Understanding the details of the input file is the goal of the next tutorial, {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.
@@ -226,9 +216,7 @@ We will explore the output further in later tutorials.
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_scalar.png" width="800">
-</div>
+![](files/inputs_and_outputs_scalar.png)
 
 A text-based file containing stochastic samples of scalar data, such as the energy.
 
@@ -249,9 +237,7 @@ The name of this file is derived from the `id` (string) and `series` (integer) p
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_hdf5.png" width="800">
-</div>
+![](files/inputs_and_outputs_hdf5.png)
 
 An HDF5 file where stochastic samples of non-scalar data, such as the one-body reduced density matrix, are printed by SAFIRE
 when requested.
@@ -472,9 +458,7 @@ will generate the plot,
 </div>
 -->
 
-<div>
-<img src="/_static/tutorials/molecules/01_hello_safire/HelloAuxyFields_equil.png" width="800">
-</div>
+![](files/HelloAuxyFields_equil.png)
 
 One should check the equilibration curve to ensure that the equilibration
 time, `-s time -e 2.0`, is large enough to discard the samples where AFQMC is not sampling from the target many-body wavefunction yet.

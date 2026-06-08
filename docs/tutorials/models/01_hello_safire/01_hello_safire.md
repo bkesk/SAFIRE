@@ -51,9 +51,7 @@ Below is a schematic of the inputs and outputs of SAFIRE.
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_all.png" width="800">
-</div>
+![](files/inputs_and_outputs_all.png)
 
 **We will learn more about the details of all of these files in future tutorials.**
 For now, we will explain the purpose of each of these files at a high level
@@ -77,9 +75,7 @@ without going into the details.
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_hamil.png" width="800">
-</div>
+![](files/inputs_and_outputs_hamil.png)
 
 An HDF5 file containing the second-quantized Hamiltonian $\hat{H}$. As we will see later, the json input file is used to select a Hamiltonian in a calculation.
 
@@ -88,9 +84,7 @@ For this tutorial, we have supplied an HDF5 file containing the Hamiltonian
 corresponding to the Hubbard model on a 4x4 lattice with periodic boundary conditions,
 and $U/t = 4$ in "hamil.h5".
 
-<div>
-<img src="/_static/shared/models/Hubbard_4x4_tutorial.png" width="500">
-</div>
+![](files/Hubbard_4x4_tutorial.png)
 
 For technical details on the hamiltonian HDF5 format, see [the User Guide](https://users.flatironinstitute.org/~beskridge/safire/user_manual/hamiltonians.html#lattice-model-hamiltonian).
 
@@ -105,9 +99,7 @@ For technical details on the hamiltonian HDF5 format, see [the User Guide](https
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_wfn.png" width="800">
-</div>
+![](files/inputs_and_outputs_wfn.png)
 
 An HDF5 file containing the trial wavefunction, $| \Psi_\mathrm{T} \rangle$. As we will see later, the json input file is used to select a trial wavefunction in a calculation.
 
@@ -132,9 +124,7 @@ For technical details on the wavefunction HDF5 format, see [the User Guide](http
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_json.png" width="800">
-</div>
+![](files/inputs_and_outputs_json.png)
 
 **We will learn about the input file in more detail in the next tutorial,
 {doc}`../02_understanding_the_input_file/02_understanding_the_input_file`.**
@@ -236,9 +226,7 @@ We will explore the output further in later tutorials.
 </div>
 -->
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_scalar.png" width="800">
-</div>
+![](files/inputs_and_outputs_scalar.png)
 
 A text-based file where stochastic samples of scalar data, such as the energy are printed by SAFIRE.
 
@@ -256,9 +244,7 @@ output file collisions.
 
 ---
 
-<div>
-<img src="/_static/shared/01_hello_auxiliary_fields/inputs_and_outputs_hdf5.png" width="800">
-</div>
+![](files/inputs_and_outputs_hdf5.png)
 
 An HDF5 file where stochastic samples of non-scalar data, such as the one-body reduced density matrix, are printed by SAFIRE
 when requested.
@@ -483,9 +469,7 @@ $ energy_stats qmc.s000.scalar.dat -x time -e 2.0 -t
 
 will generate the plot,
 
-<div>
-<img src="/_static/tutorials/models/01_hello_safire/Equil_hubbard_4x4_U4_hello_safire.png" width="800">
-</div>
+![](files/Equil_hubbard_4x4_U4_hello_safire.png)
 
 One should check the equilibration curve to ensure that the equilibration
 time, `-x time -e 2.0` is large enough to discard the samples where AFQMC is not
