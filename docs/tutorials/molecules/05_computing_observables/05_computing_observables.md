@@ -106,9 +106,7 @@ The code block below will:
 
 These were all covered in previous tutorials.
 
-<div>
-<img src="/_static/tutorials/molecules/05_computing_observables/NitrogenDimer.png" width="300">
-</div>
+![](files/NitrogenDimer.png)
 
 ### ▶️ Run the code block below to perform all of the steps above
 
