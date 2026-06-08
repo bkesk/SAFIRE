@@ -7,7 +7,7 @@ SAFIRE for Quantum Chemistry
    .. image:: ../top_level_figs/molecule.png
       :width: 500
 
-.. image:: /_static/shared/00_top_level/molecule.png
+.. image:: /images/shared/00_top_level/molecule.png
    :width: 500
 
 This document is the entry point for learning how to use SAFIRE for quantum chemistry calculations. We will first go over the basics of setting up a calculation before branching out to more specific applications at the end.
@@ -118,7 +118,7 @@ Typical Workflow
    .. image:: ./figs/QChemWorkflow_v3.png
       :width: 900
 
-.. image:: /_static/shared/00a_molecules_intro/QChemWorkflow_v3.png
+.. image:: /images/shared/00a_molecules_intro/QChemWorkflow_v3.png
    :width: 900
 
 SAFIRE reads :math:`\hat{H}` in generic second-quantized form from an HDF5 file.

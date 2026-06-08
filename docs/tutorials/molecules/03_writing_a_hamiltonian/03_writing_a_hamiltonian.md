@@ -36,9 +36,7 @@ Now, we will learn how to write a Hamiltonian in SAFIRE's HDF5 format.
 </div>
 -->
 
-<div>
-<img src="/_static/shared/00_top_level/TopLevelFlowChart_v3.png" width="1000">
-</div>
+![](files/TopLevelFlowChart_v3.png)
 
 In this tutorial,
 we will compute the ground state energy of
@@ -50,9 +48,7 @@ the minimal basis hydrogen dimer with a bond length of 1.4 Bohr radii.
 </div>
 --->
 
-<div>
-<img src="/_static/tutorials/molecules/03_writing_a_hamiltonian/HyrdogenMolecule.png" width="500">
-</div>
+![](files/HyrdogenMolecule.png)
 
 +++ {"id": "Xg9PlaJByCNd"}
 
@@ -349,9 +345,7 @@ FCIDUMP file to the format used by SAFIRE.
 
 We will continue with the example of a Hydrogen dimer in an STO-3G basis to demonstrate the tooling.
 
-<div>
-<img src="/_static/tutorials/molecules/03_writing_a_hamiltonian/HyrdogenMolecule.png" width="500">
-</div>
+![](files/HyrdogenMolecule.png)
 
 Instructions for generating a FCIDUMP are beyond the scope of this tutorial;
 however, quantum chemistry codes that can easily generate FCIDUMP files are ubiquitous.

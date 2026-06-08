@@ -24,20 +24,12 @@ Some input blocks may have sub-blocks as described below.
 The highest level block determines what kind of calculation to run.
 Currently, "afqmc" is the only supported option.
 
-.. raw:: html
+.. image:: /images/shared/02_input_file/input_file_01_all.png
+   :width: 800px
+   :alt: Input file structure diagram
+   :align: center
 
-   <div class="theme-adaptive-image">
-     <img src="../_static/shared/02_input_file/input_file_01_all.png" 
-          class="light-mode-img" 
-          width="800" 
-          alt="Input file structure diagram" />
-     <img src="../_static/shared/02_input_file/input_file_01_all_dark.png" 
-          class="dark-mode-img" 
-          width="800" 
-          alt="Input file structure diagram" />
-   </div>
-
-   <p><em>Input file structure overview</em></p>
+*Input file structure overview*
 
 .. important::
 
@@ -152,20 +144,12 @@ and several sub-blocks which are each explained below.
 The sub-blocks within the "execute" block represent different mathematical objects 
 which are used in AFQMC such as the Hamiltonian and the trial wavefunction.
 
-.. raw:: html
+.. image:: /images/shared/02_input_file/input_file_02_execute.png
+   :width: 800px
+   :alt: Execute block structure diagram
+   :align: center
 
-   <div class="theme-adaptive-image">
-     <img src="../_static/shared/02_input_file/input_file_02_execute.png" 
-          class="light-mode-img" 
-          width="800" 
-          alt="Execute block structure diagram" />
-     <img src="../_static/shared/02_input_file/input_file_02_execute_dark.png" 
-          class="dark-mode-img" 
-          width="800" 
-          alt="Execute block structure diagram" />
-   </div>
-
-   <p><em>Execute block structure overview</em></p>
+*Execute block structure overview*
 
 
 .. code-block::json
@@ -297,20 +281,12 @@ The wavefunction block must at least specify an HDF5 file containing the trial w
 Some settings are relevant only to specific classes of trial wavefunctions as indicated in the settings
 listings below.
 
-.. raw:: html
+.. image:: /images/shared/02_input_file/input_file_03_wavefunction.png
+   :width: 800px
+   :alt: Wavefunction block structure diagram
+   :align: center
 
-   <div class="theme-adaptive-image">
-     <img src="../_static/shared/02_input_file/input_file_03_wavefunction.png" 
-          class="light-mode-img" 
-          width="800" 
-          alt="Wavefunction block structure diagram" />
-     <img src="../_static/shared/02_input_file/input_file_03_wavefunction_dark.png" 
-          class="dark-mode-img" 
-          width="800" 
-          alt="Wavefunction block structure diagram" />
-   </div>
-
-   <p><em>Wavefunction block structure overview</em></p>
+*Wavefunction block structure overview*
 
 Settings
 ~~~~~~~~
@@ -386,20 +362,12 @@ Walker set block
 The Walker set block contains settings for the Slater determinant random walkers in 
 the AFQMC code.
 
-.. raw:: html
+.. image:: /images/shared/02_input_file/input_file_04_walker.png
+   :width: 800px
+   :alt: Walker set block structure diagram
+   :align: center
 
-   <div class="theme-adaptive-image">
-     <img src="../_static/shared/02_input_file/input_file_04_walker.png" 
-          class="light-mode-img" 
-          width="800" 
-          alt="Walker set block structure diagram" />
-     <img src="../_static/shared/02_input_file/input_file_04_walker_dark.png" 
-          class="dark-mode-img" 
-          width="800" 
-          alt="Walker set block structure diagram" />
-   </div>
-
-   <p><em>Walker set block structure overview</em></p>
+*Walker set block structure overview*
 
 
 See :ref:`Walker-classes` for more detail on the types of Slater determinant random walkers available.
@@ -459,20 +427,12 @@ Hamiltonian block
 The Hamiltonian block contains settings related to the Hamiltonian used in the AFQMC code.
 The main purpose of the block is to tell the AFQMC code which file to find the Hamiltonian in.
 
-.. raw:: html
+.. image:: /images/shared/02_input_file/input_file_05_hamiltonian.png
+   :width: 800px
+   :alt: Hamiltonian block structure diagram
+   :align: center
 
-   <div class="theme-adaptive-image">
-     <img src="../_static/shared/02_input_file/input_file_05_hamiltonian.png" 
-          class="light-mode-img" 
-          width="800" 
-          alt="Hamiltonian block structure diagram" />
-     <img src="../_static/shared/02_input_file/input_file_05_hamiltonian_dark.png" 
-          class="dark-mode-img" 
-          width="800" 
-          alt="Hamiltonian block structure diagram" />
-   </div>
-
-   <p><em>Hamiltonian block structure overview</em></p>
+*Hamiltonian block structure overview*
 
 Settings
 ~~~~~~~~
@@ -512,20 +472,12 @@ Estimator block
 The purpose of the estimator block(s) is to choose and configure estimators to use during AFQMC calculations.
 Specific observables to be measured are chosen within each estimator block.
 
-.. raw:: html
+.. image:: /images/shared/02_input_file/input_file_07_estimator.png
+   :width: 800px
+   :alt: Estimator block structure diagram
+   :align: center
 
-   <div class="theme-adaptive-image">
-     <img src="../_static/shared/02_input_file/input_file_07_estimator.png" 
-          class="light-mode-img" 
-          width="800" 
-          alt="Estimator block structure diagram" />
-     <img src="../_static/shared/02_input_file/input_file_07_estimator_dark.png" 
-          class="dark-mode-img" 
-          width="800" 
-          alt="Estimator block structure diagram" />
-   </div>
-
-   <p><em>Estimator block structure overview</em></p>
+*Estimator block structure overview*
 
 
 Multiple estimator blocks may be specified and configured separately.
@@ -548,20 +500,12 @@ Projector block
 The projector block is used to set properties of the AFQMC projector.
 A typical user will not need to interact with this input block
 
-.. raw:: html
+.. image:: /images/shared/02_input_file/input_file_06_propagator.png
+   :width: 800px
+   :alt: Projector block structure diagram
+   :align: center
 
-   <div class="theme-adaptive-image">
-     <img src="../_static/shared/02_input_file/input_file_06_propagator.png" 
-          class="light-mode-img" 
-          width="800" 
-          alt="Projector block structure diagram" />
-     <img src="../_static/shared/02_input_file/input_file_06_propagator_dark.png" 
-          class="dark-mode-img" 
-          width="800" 
-          alt="Projector block structure diagram" />
-   </div>
-
-   <p><em>Projector block structure overview</em></p>
+*Projector block structure overview*
 
 
 Settings
