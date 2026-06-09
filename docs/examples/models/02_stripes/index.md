@@ -307,7 +307,7 @@ SzDmrg = np.loadtxt("data_10x4_Ne16U6.0_15360.dat",usecols=(1,))
 
 # now we'll average over the columns
 
-avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
+avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1)) / lattice.L[1]
 
 plt.errorbar(np.arange(lattice.L[0]),averageOverCols(Zs,*lattice.L),yerr=avg_delta_Sz,
              fmt='o-',label="AFQMC Free Electron")
@@ -468,7 +468,7 @@ for Ueff in Ueffs:
 for Ueff,rho in zip(Ueffs,rhos):
     Xs,Ys,Zs = spobs.local_spin(np.vstack(rho[0]),"collinear").real
     
-    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
+    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1)) / lattice.L[1]
     if Ueff==0:
         label = "Free Electron"
     else:
@@ -504,7 +504,7 @@ for Ueff,rho_avg,delta_rho,trial_rho in zip(Ueffs,rhos,deltas,trial_rhos):
 
 
     delta_Sz = np.sqrt(delta_rho[0,0].diagonal()**2+delta_rho[0,1].diagonal()**2 )
-    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
+    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1)) / lattice.L[1]
 
     xs.append(Ueff)
     ys.append(np.mean(np.abs(afqmc_sz-dmrg_sz)))
@@ -531,7 +531,7 @@ for Ueff,rho_avg,delta_rho,trial_rho in zip(Ueffs,rhos,deltas,trial_rhos):
 
 
     delta_Sz = np.sqrt(delta_rho[0,0].diagonal()**2+delta_rho[0,1].diagonal()**2 )
-    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
+    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1)) / lattice.L[1]
 
     xs.append(Ueff)
     ys.append(np.mean(np.abs(afqmc_sz-trial_sz)))
