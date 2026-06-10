@@ -297,7 +297,7 @@ public:
       {
         memory::buffered_array<MEM,ComplexType,2> Tuw(nu,nw);
         nda::blas::gemm(nda::transpose(Zuv),Guu,Tuw);
-        nda::tensor::contract(ComplexType(RealType(0.5 * scl * scl)),nda::conj(Guu),"uw",Tuw,"uw",
+        nda::tensor::contract(ComplexType(RealType(0.5 * scl * scl)),Guu,"uw",Tuw,"uw",
                               ComplexType(1.0),E(range(iw, iw + nw), 2),"w"); 
       }
       iw += nw;
@@ -434,7 +434,7 @@ public:
           EJn() = nda::transpose(Tuw());
         else
           nda::tensor::assign(Tuw,"uw",EJn,"wu");
-        nda::tensor::contract(ComplexType(RealType(0.5)),nda::conj(Guu),"uw",EJn,"wu",
+        nda::tensor::contract(ComplexType(RealType(0.5)),Guu,"uw",EJn,"wu",
                               ComplexType(1.0),E(range(iw, iw + nw), 2),"w"); 
       }
       iw += nw;
