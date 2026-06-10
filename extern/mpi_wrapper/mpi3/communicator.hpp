@@ -283,10 +283,11 @@ class communicator : protected detail::basic_communicator {  // in mpich MPI_Com
 
 	~communicator() {
 		if(impl_ != MPI_COMM_WORLD and impl_ != MPI_COMM_NULL and impl_ != MPI_COMM_SELF) {
-			try {
-				MPI_(Comm_disconnect)(&impl_);  //this will wait for communications to finish communications, <s>if it gets to this point is probably an error anyway</s> <-- not true, it is necessary to synchronize the flow
-			//	MPI_Comm_free(&impl_);
-			} catch(std::exception& e) { std::cerr<< e.what() <<std::endl; MPI_Abort(impl_, 666); }
+			// MPI_(Comm_disconnect)(&impl_);  //this will wait for communications to finish communications, <s>if it gets to this point is probably an error anyway</s> <-- not true, it is necessary to synchronize the flow
+			// 
+			// destructors must not have side effects. avoid collective call deconstructors at all cost! The standard explicitly guarantees that pending operations
+			// will complete normally after this.
+			MPI_Comm_free(&impl_);
 		}
 	}
 
