@@ -32,6 +32,8 @@ namespace math {
 
     namespace mpi3 = boost::mpi3;
 
+    // use const_shared array instead!!
+    
     /**
      * A simple wrapper for nda arrays and MPI shared memory (from boost::mpi3)
      * still in design stage...
