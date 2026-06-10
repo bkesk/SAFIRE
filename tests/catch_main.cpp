@@ -44,8 +44,7 @@ public:
     using Catch::EventListenerBase::EventListenerBase;
 
     void testRunStarting(Catch::TestRunInfo const&) override {
-      boost::mpi3::initialize();
-      auto world = boost::mpi3::environment::get_world_instance();
+      auto& world = boost::mpi3::environment::get_world_instance();
 
       int output_level=2, debug_level=2;
       if(const char* env_p = std::getenv("OUTPUT_LEVEL")) {
@@ -61,9 +60,17 @@ public:
       sfqmc::arch::init(world.root(),output_level,debug_level);
     }
 
-    void testRunEnded(Catch::TestRunStats const&) override {
+    void testCaseEnded(Catch::TestCaseStats const& stats) override {
+      // A test case that fails or throws on a subset of ranks desynchronizes
+      // the following MPI collectives, resulting in a deadlock that we prevent here.
+      auto& world = boost::mpi3::environment::get_world_instance();
+      if(world.size() > 1 && (stats.aborting || !stats.totals.assertions.allOk())) {
+        world.abort(1);
+      }
+    }
+
+    void testRunEnded(Catch::TestRunStats const& stats) override {
       sfqmc::utils::detail::__unit_test_mpi_context__.reset();
-      boost::mpi3::finalize();
     }
 };
 
@@ -84,8 +91,16 @@ int main(int argc, char* argv[])
   if( parser_err != 0 ) // Indicates a command line error
       return parser_err;
 
-  int result = session.run();
-
-
-  return result;
+  boost::mpi3::initialize();
+  auto& world = boost::mpi3::environment::get_world_instance();
+  if(world.size() > 1) {
+    // Tests contain collectives, so every rank must run the same tests in the
+    // same order. Pin ordering and RNG seed so they cannot diverge per rank.
+    auto& cfg = session.configData();
+    cfg.runOrder = Catch::TestRunOrder::LexicographicallySorted;
+    cfg.rngSeed = 0xC0FFEE;
+  }
+    
+  session.run();
+  boost::mpi3::finalize();
 }
