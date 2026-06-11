@@ -22,6 +22,7 @@
 #include <tuple>
 
 #include "AFQMC/config.h"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "utilities/check.hpp"
 #include "utilities/check_strides.hpp"
 #include "IO/ptree/ptree_utilities.hpp"

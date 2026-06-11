@@ -1049,26 +1049,12 @@ auto PHMSD<MEM>::G_MF()
   long nact[2] = {OrbMats(0).extent(0),
                  ( walker_type==COLLINEAR ? OrbMats(nspin_in_orbmat-1).extent(0) : 0)};
 
-  auto gMF = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
-                      {nspin,npol*NMO,npol*NMO});
-  if(mpi->node_comm.root()) gMF() = ComplexType(0.0);
-  mpi->node_comm.barrier();
-
   std::vector<int> exct(2 * nup);
   std::vector<int> Iwork(2 * nup);
   nda::array<int,1> confg(nup);
   nda::array<int,1> confgB(nup);
 
-  std::vector<memory::shared_array<M,ComplexType,2>> Orbs;
-  Orbs.reserve(OrbMats.size());
-  for(int i=0; i<OrbMats.size(); ++i)
-    Orbs.emplace_back(memory::make_shared_array<M,ComplexType,2>(mpi,{OrbMats(i).extent(1),OrbMats(i).extent(0)}));
-  mpi->node_comm.barrier();
-  if(mpi->node_comm.root()) {
-    for(int i=0; i<OrbMats.size(); ++i)
-      Orbs[i]() = std::move(math::sparse::to_array<'H'>(OrbMats(i)));
-  }
-  mpi->node_comm.barrier();
+  auto Orbs = dense_orbs();
 
   memory::array<M,ComplexType,3> A(1,npol*NMO,nup);
   auto A2d = nda::reshape(A,std::array<long,2>{npol*NMO,nup});
@@ -1229,24 +1215,26 @@ auto PHMSD<MEM>::G_MF()
 
   mpi->all_reduce(Gfull,std::plus<>{});
   Gfull() *= (1.0/ov);
-  if constexpr (MEM==HOST_MEMORY) {
-    if(mpi->node_comm.root()) {
-      math::sparse::csrmm<'T'>(OrbMats(0),Gfull(range(nact[0]),all),gMF()(0,all,all));
-      if(walker_type==COLLINEAR)
-        math::sparse::csrmm<'T'>(OrbMats(nspin_in_orbmat-1),Gfull(range(nact[0],nact[0]+nact[1]),all),gMF()(1,all,all));
+  return memory::share_from_root(*mpi, [&] {
+    nda::array<ComplexType,3> gMF(nspin,npol*NMO,npol*NMO);
+    gMF() = ComplexType(0.0);
+    if constexpr (MEM==HOST_MEMORY) {
+      math::sparse::csrmm<'T'>(OrbMats(0),Gfull(range(nact[0]),all),gMF(0,all,all));
+      if(walker_type==COLLINEAR) {
+        math::sparse::csrmm<'T'>(OrbMats(nspin_in_orbmat-1),Gfull(range(nact[0],nact[0]+nact[1]),all),gMF(1,all,all));
+      }
+    } else {
+      memory::array<MEM,ComplexType,2> Gdev(Gfull);
+      memory::array<MEM,ComplexType,2> gt(npol*NMO,npol*NMO);
+      math::sparse::csrmm<'T'>(OrbMats(0),Gdev(range(nact[0]),all),gt);
+      gMF(0,all,all) = gt();
+      if(walker_type==COLLINEAR) {
+        math::sparse::csrmm<'T'>(OrbMats(nspin_in_orbmat-1),Gdev(range(nact[0],nact[0]+nact[1]),all),gt);
+        gMF(1,all,all) = gt();
+      }
     }
-  } else {
-    memory::array<MEM,ComplexType,2> Gdev(Gfull);
-    memory::array<MEM,ComplexType,2> gt(npol*NMO,npol*NMO);
-    math::sparse::csrmm<'T'>(OrbMats(0),Gdev(range(nact[0]),all),gt);
-    gMF()(0,all,all) = gt();
-    if(walker_type==COLLINEAR) {
-      math::sparse::csrmm<'T'>(OrbMats(nspin_in_orbmat-1),Gdev(range(nact[0],nact[0]+nact[1]),all),gt);
-       gMF()(1,all,all) = gt();
-    }
-  }
-  mpi->comm.barrier();
-  return gMF;
+    return gMF;
+  });
 }
 
 /*
@@ -1285,16 +1273,7 @@ void PHMSD<MEM>::vMF(nda::MemoryVector  auto&& v, double dt)
   nda::array<int,1> confg(nup);
   nda::array<int,1> confgB(nup);
 
-  std::vector<memory::shared_array<M,ComplexType,2>> Orbs;
-  Orbs.reserve(OrbMats.size());
-  for(int i=0; i<OrbMats.size(); ++i) 
-    Orbs.emplace_back(memory::make_shared_array<M,ComplexType,2>(mpi,{OrbMats(i).extent(1),OrbMats(i).extent(0)}));
-  mpi->node_comm.barrier();
-  if(mpi->node_comm.root()) {
-    for(int i=0; i<OrbMats.size(); ++i) 
-      Orbs[i]() = std::move(math::sparse::to_array<'H'>(OrbMats(i)));
-  }
-  mpi->node_comm.barrier();
+  auto Orbs = dense_orbs();
 
   memory::array<M,ComplexType,3> A(1,npol*NMO,nup);
   auto A2d = nda::reshape(A,std::array<long,2>{npol*NMO,nup});

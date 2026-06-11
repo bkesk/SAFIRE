@@ -121,24 +121,15 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
 
       if (dense_trial)
       {
-        using MType = memory::shared_array<MEM,ComplexType,2>; 
+        using MType = memory::const_shared_array<MEM,ComplexType,2>;
         nda::array<MType,2> PsiT_dense(ndets_to_read,nspin);
-        // insert empty matrices 
-        for(int id=0; id<ndets_to_read; ++id)
-          for(int is=0; is<nspin; ++is)
-            PsiT_dense(id,is) = memory::make_shared_array<MEM,ComplexType,2>(mpi,PsiT(id,is).shape());
-        mpi->comm.barrier();
-        if constexpr (MEM==HOST_MEMORY) {
-          if(mpi->node_comm.root()) 
-            for(int id=0; id<ndets_to_read; ++id)
-              for(int is=0; is<nspin; ++is)
-                PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
-        } else {
-          for(int id=0; id<ndets_to_read; ++id)
-            for(int is=0; is<nspin; ++is)
-              PsiT_dense(id,is)() = math::sparse::to_array<'N'>(PsiT(id,is));
-        } 
-        mpi->comm.barrier();
+        for(int id=0; id<ndets_to_read; ++id) {
+          for(int is=0; is<nspin; ++is) {
+            PsiT_dense(id,is) = memory::share_from_root(*mpi, [&] {
+              return memory::to_memory_space<MEM>(math::sparse::to_array<'N'>(PsiT(id,is)));
+            });
+          }
+        }
         return Wavefunction(NOMSD<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
                                       std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
       }
@@ -196,28 +187,17 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
 
       if (dense_trial)
       {
-        using MType = memory::shared_array<MEM,ComplexType,2>; 
+        using MType = memory::const_shared_array<MEM,ComplexType,2>;
         nda::array<MType,3> PsiT_dense(ndets_to_read,nspin,3);
-        // insert empty matrices 
-        for(int id=0; id<ndets_to_read; ++id)
-          for(int is=0; is<nspin; ++is)
-            for(int m=0; m<3; ++m)
-              PsiT_dense(id,is,m) = memory::make_shared_array<MEM,ComplexType,2>(mpi,PsiT(id,is,m).shape());
-        mpi->comm.barrier();
-        if constexpr (MEM==HOST_MEMORY) {
-          if(mpi->node_comm.root()) 
-            for(int id=0; id<ndets_to_read; ++id)
-              for(int is=0; is<nspin; ++is)
-                for(int m=0; m<3; ++m)
-                  PsiT_dense(id,is,m)() = math::sparse::to_array<'N'>(PsiT(id,is,m));
-        } else {
-          for(int id=0; id<ndets_to_read; ++id)
-            for(int is=0; is<nspin; ++is)
-              for(int m=0; m<3; ++m)
-                PsiT_dense(id,is,m)() = math::sparse::to_array<'N'>(PsiT(id,is,m));
+        for(int id=0; id<ndets_to_read; ++id) {
+          for(int is=0; is<nspin; ++is) {
+            for(int m=0; m<3; ++m) {
+              PsiT_dense(id,is,m) = memory::share_from_root(*mpi, [&] {
+                return memory::to_memory_space<MEM>(math::sparse::to_array<'N'>(PsiT(id,is,m)));
+              });
+            }
+          }
         }
-
-        mpi->comm.barrier();
         return Wavefunction(NOMSD_FT<MEM,MType>(AFinfo, pt, walker_type, mpi, std::move(HOps), 
                                       std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
       }
@@ -475,10 +455,8 @@ void WavefunctionFactory<MEM>::getInitialGuess(h5::group grp,
     auto guess = initial_guess.find(name);
     utils::check(guess == initial_guess.end(), 
                "Error: Problems adding new initial guess, already exists.");
-    auto newg = initial_guess.insert(std::make_pair(name, memory::make_shared_array<HOST_MEMORY,ComplexType, 3>(mpi,{nspin, npol * NMO, nup})));
-    utils::check(newg.second, " Error: Problems adding new initial guess. ");
-    if(mpi->comm.root()) {  
-      auto M = ((newg.first)->second)();
+    auto newg = initial_guess.insert(std::make_pair(name, memory::share_from_root(*mpi, [&] {
+      nda::array<ComplexType,3> M(nspin, npol * NMO, nup);
       M() = ComplexType(0.0, 0.0);
       auto Mup = M(0,nda::ellipsis{});
       utils::h5_read(grp,"Psi0_alpha",Mup);
@@ -497,18 +475,17 @@ void WavefunctionFactory<MEM>::getInitialGuess(h5::group grp,
         else
           utils::check(false," Error: Unknown wtype. ");
       }
-    }
-    mpi->comm.barrier();
+      return M;
+    })));
+    utils::check(newg.second, " Error: Problems adding new initial guess. ");
   }
   else
   {
     auto guess = initial_guess_ft.find(name);
     utils::check(guess == initial_guess_ft.end(), 
                "Error: Problems adding new initial guess, already exists.");
-    auto newg = initial_guess_ft.insert(std::make_pair(name, memory::make_shared_array<HOST_MEMORY,ComplexType, 4>(mpi,{3, nspin, npol * NMO, NMO})));
-    utils::check(newg.second, " Error: Problems adding new initial guess. ");
-    if(mpi->comm.root()) {  
-      auto M = ((newg.first)->second)();
+    auto newg = initial_guess_ft.insert(std::make_pair(name, memory::share_from_root(*mpi, [&] {
+      nda::array<ComplexType,4> M(3, nspin, npol * NMO, NMO);
       M() = ComplexType(0.0, 0.0);
       auto URup = M(0,0,nda::ellipsis{});
       utils::h5_read(grp,"UR_alpha",URup);
@@ -537,8 +514,9 @@ void WavefunctionFactory<MEM>::getInitialGuess(h5::group grp,
         else
           utils::check(false," Error: Unknown wtype. ");
       }
-    }
-    mpi->comm.barrier();
+      return M;
+    })));
+    utils::check(newg.second, " Error: Problems adding new initial guess. ");
   }
 }
 
