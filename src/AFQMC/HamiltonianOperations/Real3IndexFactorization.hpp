@@ -26,7 +26,7 @@
 #include "utilities/freemem.h"
 #include "utilities/mpi_context.h"
 #include "utilities/check_strides.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "numerics/nda_functions.hpp"
 #include "detail/one_body.hpp"
 
@@ -49,11 +49,11 @@ public:
         int NMO_,
         int nup_,
         int ndown_,
-        memory::shared_array<HOST_MEMORY,ComplexType,3>&& hij_,
-        memory::shared_array<MEM,ComplexType,3>&& haj_,
-        memory::shared_array<MEM,RealType,4>&& vik,
-        nda::array<memory::shared_array<MEM,ComplexType,5>,1>&& vnak_,
-        memory::shared_array<HOST_MEMORY,RealType,3>&& v0_,
+        memory::const_shared_array<HOST_MEMORY,ComplexType,3>&& hij_,
+        memory::const_shared_array<MEM,ComplexType,3>&& haj_,
+        memory::const_shared_array<MEM,RealType,4>&& vik,
+        nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>&& vnak_,
+        memory::const_shared_array<HOST_MEMORY,RealType,3>&& v0_,
         ComplexType e0_,
         long maxMem = 2000)
       : mpi(ctxt), 
@@ -115,8 +115,8 @@ public:
     auto all = nda::range::all;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
-    int nspin_in_H = hij.extent(0);
-    int npol_in_H = hij.extent(1)/NMO;
+    int nspin_in_H = hij().extent(0);
+    int npol_in_H = hij().extent(1)/NMO;
     utils::check(vMF.extent(0) == number_of_cholesky_vectors(), "Size mismatch");
 
     memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
@@ -751,20 +751,20 @@ private:
   long max_memory_MB = 2000;
 
   // bare one body hamiltonian
-  memory::shared_array<HOST_MEMORY,ComplexType,3> hij;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,3> hij;
 
   // (potentially half rotated) one body hamiltonian
-  memory::shared_array<MEM,ComplexType,3> haj;
+  memory::const_shared_array<MEM,ComplexType,3> haj;
 
   //Cholesky Tensor Lik(nstot_H2*nptot_H2,NMO,NMO,nCV)
-  memory::shared_array<MEM,RealType,4> Likn;
+  memory::const_shared_array<MEM,RealType,4> Likn;
 
   // half-tranformed Cholesky tensor
   // Lnak(ispin)(idet,ipol,n,a,k)
-  nda::array<memory::shared_array<MEM,ComplexType,5>,1> Lnak;
+  nda::array<memory::const_shared_array<MEM,ComplexType,5>,1> Lnak;
 
   // one-body piece of Hamiltonian factorization
-  memory::shared_array<HOST_MEMORY,RealType,3> vexx;
+  memory::const_shared_array<HOST_MEMORY,RealType,3> vexx;
 
   // used in PH reference/excited energy evaluation
   // Twian = sum_k G_ref[w][i][k] L[a][n][k]

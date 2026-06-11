@@ -23,6 +23,7 @@
 
 #include "AFQMC/config.h"
 #include "numerics/sparse/sparse.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 
 #include "ModelHamOpsGenerator.h"
 //#include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
@@ -104,17 +105,18 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
 
   // generate trial wavefunctions in appropriate form
   // ModelHamOps expects a vector of PsiC(i,a) = (psiT(a,i)) (complex of trial wfn Slater Matrix)
-  auto PsiC = memory::make_shared_array<MEM,ComplexType,4>(mpi,std::array<long,4>{ndet,nspin,npol*NMO,nel_up}); 
-  if(mpi->node_comm.root()) {
-    for(int id=0; id<ndet; id++) {
-      utils::check_shape(PsiT(id,0), "PsiT", nel_up, npol*NMO);
-      PsiC()(id,0,all,all) = math::sparse::to_array<'T'>(PsiT(id,0));
-      if(type == COLLINEAR or type == COLLINEAR_FT) {
-        utils::check_shape(PsiT(id,nspin_in_PsiT-1), "PsiT", nel_dn, npol*NMO);
-        PsiC()(id,1,all,range(nel_dn)) = math::sparse::to_array<'T'>(PsiT(id,nspin_in_PsiT-1));
-     }  
-    }
-  }
+  // PsiT is replicated on every rank, so the determinants can be filled rank-by-rank.
+  auto PsiC = memory::share_from_ranks<MEM,ComplexType,4,1>(*mpi,
+      {ndet,nspin,npol*NMO,nel_up},
+      [&](std::array<long,1> idx, auto&& block) {
+        auto [id] = idx;
+        utils::check_shape(PsiT(id,0), "PsiT", nel_up, npol*NMO);
+        block(0,all,all) = math::sparse::to_array<'T'>(PsiT(id,0));
+        if(type == COLLINEAR or type == COLLINEAR_FT) {
+          utils::check_shape(PsiT(id,nspin_in_PsiT-1), "PsiT", nel_dn, npol*NMO);
+          block(1,all,range(nel_dn)) = math::sparse::to_array<'T'>(PsiT(id,nspin_in_PsiT-1));
+        }
+      });
 
   // everyone reads for simplicity, change to single reader if it becomes a problem
   h5::file file = h5::file(fileName,'r'); 

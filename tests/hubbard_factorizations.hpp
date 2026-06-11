@@ -53,7 +53,7 @@
 #include "nda/blas.hpp"
 #include "nda/lapack.hpp"
 #include "nda/nda.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "numerics/sparse/sparse.hpp"
 #include "utilities/check.hpp"
 #include "utilities/mpi_context.h"
@@ -239,17 +239,13 @@ inline auto psi_block(HubbardSpec const& s, nda::array<RealType, 2> const& Psi, 
 
 namespace detail {
 
-/// Allocate a shared_array matching the host tensor's shape and copy into
-/// it. Done on a single rank, then synced through the comm barrier.
+/// Produce the immutable const_shared_array used by the ported
+/// HamiltonianOperations. src is replicated on every rank, so the root-only
+/// callable just hands over a copy.
 template<MEMORY_SPACE MEM, typename T, int N>
-auto to_shared(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
-               nda::array<T, N> const& src) {
-  auto sa = memory::make_shared_array<MEM, T, N>(mpi, src.shape());
-  if(mpi->node_comm.root()) {
-    sa() = src();
-  }
-  mpi->comm.barrier();
-  return sa;
+auto to_const_shared(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+                     nda::array<T, N> const& src) {
+  return memory::share_from_root(*mpi, [&]() { return memory::to_memory_space<MEM>(src); });
 }
 
 /// Half-rotated one-body matrix haj of shape (1, walker_nel, walker_npol*NMO):
@@ -358,7 +354,7 @@ HamiltonianOperations<MEM> build_real3index(
   }
 
   // Lnak(is)(0, ip, n, a, k) = sqU * Psi_block(is,ip)(n,a) δ_{k,n}.
-  nda::array<memory::shared_array<MEM, ComplexType, 5>, 1> Lnak(wns);
+  nda::array<memory::const_shared_array<MEM, ComplexType, 5>, 1> Lnak(wns);
   for(int is = 0; is < wns; ++is) {
     long n_is = s.nel_for_spin(is);
     nda::array<ComplexType, 5> Lnak_h(1, wnp, nCV, n_is, NMO);
@@ -369,16 +365,16 @@ HamiltonianOperations<MEM> build_real3index(
         nda::diagonal(Lnak_h(0, ip, all, a, all)) = sqU * Pb(all, a);
       }
     }
-    Lnak(is) = detail::to_shared<MEM>(mpi, Lnak_h);
+    Lnak(is) = detail::to_const_shared<MEM>(mpi, Lnak_h);
   }
 
   return HamiltonianOperations<MEM>(Real3IndexFactorization<MEM>(
       mpi, s.walker_type, NMO, s.walker_nup(), s.walker_ndown(),
-      detail::to_shared<HOST_MEMORY>(mpi, hij_h),
-      detail::to_shared<MEM>(mpi, haj_h),
-      detail::to_shared<MEM>(mpi, Likn_h),
+      detail::to_const_shared<HOST_MEMORY>(mpi, hij_h),
+      detail::to_const_shared<MEM>(mpi, haj_h),
+      detail::to_const_shared<MEM>(mpi, Likn_h),
       std::move(Lnak),
-      detail::to_shared<HOST_MEMORY>(mpi, vexx_h),
+      detail::to_const_shared<HOST_MEMORY>(mpi, vexx_h),
       ComplexType(0)));
 }
 
@@ -434,16 +430,16 @@ HamiltonianOperations<MEM> build_thc(
 
   return HamiltonianOperations<MEM>(THCOps<MEM, /*REAL=*/true>(
       mpi, s.walker_type, NMO, s.walker_nup(), s.walker_ndown(),
-      detail::to_shared<HOST_MEMORY>(mpi, hij_h),
-      detail::to_shared<MEM>(mpi, haj_h),
-      detail::to_shared<MEM>(mpi, X_h),
-      detail::to_shared<MEM>(mpi, Y_h),
-      detail::to_shared<MEM>(mpi, L_h),
-      std::optional{detail::to_shared<MEM>(mpi, Z_h)},
+      detail::to_const_shared<HOST_MEMORY>(mpi, hij_h),
+      detail::to_const_shared<MEM>(mpi, haj_h),
+      detail::to_const_shared<MEM>(mpi, X_h),
+      detail::to_const_shared<MEM>(mpi, Y_h),
+      detail::to_const_shared<MEM>(mpi, L_h),
+      std::optional{detail::to_const_shared<MEM>(mpi, Z_h)},
       /*X_rot=*/std::nullopt,
       /*Y_rot=*/std::nullopt,
       /*Z_rot=*/std::nullopt,
-      detail::to_shared<HOST_MEMORY>(mpi, vexx_h),
+      detail::to_const_shared<HOST_MEMORY>(mpi, vexx_h),
       ComplexType(0)));
 }
 
@@ -502,20 +498,20 @@ HamiltonianOperations<MEM> build_kp3index(
   }
   nda::array<ComplexType, 6> Lbnk_h(Lank_h);
 
-  nda::array<memory::shared_array<MEM, ComplexType, 6>, 1> LQ(nkpts);
-  nda::array<memory::shared_array<MEM, ComplexType, 6>, 1> Lank(nkpts);
-  nda::array<memory::shared_array<MEM, ComplexType, 6>, 1> Lbnk(nkpts);
-  LQ(0)   = detail::to_shared<MEM>(mpi, LQ_h);
-  Lank(0) = detail::to_shared<MEM>(mpi, Lank_h);
-  Lbnk(0) = detail::to_shared<MEM>(mpi, Lbnk_h);
+  nda::array<memory::const_shared_array<MEM, ComplexType, 6>, 1> LQ(nkpts);
+  nda::array<memory::const_shared_array<MEM, ComplexType, 6>, 1> Lank(nkpts);
+  nda::array<memory::const_shared_array<MEM, ComplexType, 6>, 1> Lbnk(nkpts);
+  LQ(0)   = detail::to_const_shared<MEM>(mpi, LQ_h);
+  Lank(0) = detail::to_const_shared<MEM>(mpi, Lank_h);
+  Lbnk(0) = detail::to_const_shared<MEM>(mpi, Lbnk_h);
 
   return HamiltonianOperations<MEM>(KP3IndexFactorization<MEM>(
       mpi, s.walker_type, nbnd, q0, std::move(bz.nocc), std::move(bz.minusq),
       std::move(bz.qk_to_k2), std::move(bz.qmap),
-      detail::to_shared<HOST_MEMORY>(mpi, hij_h),
-      detail::to_shared<MEM>(mpi, haj_h),
+      detail::to_const_shared<HOST_MEMORY>(mpi, hij_h),
+      detail::to_const_shared<MEM>(mpi, haj_h),
       std::move(LQ), std::move(Lank), std::move(Lbnk),
-      detail::to_shared<HOST_MEMORY>(mpi, vexx_h),
+      detail::to_const_shared<HOST_MEMORY>(mpi, vexx_h),
       ComplexType(0)));
 }
 
@@ -576,16 +572,16 @@ HamiltonianOperations<MEM> build_kpthc(
   return HamiltonianOperations<MEM>(KPTHCOps<MEM>(
       mpi, s.walker_type, NMO, s.walker_nup(), s.walker_ndown(), nkpts, q0,
       std::move(bz.nocc), std::move(bz.minusq), std::move(bz.qk_to_k2),
-      detail::to_shared<HOST_MEMORY>(mpi, hij_h),
-      detail::to_shared<MEM>(mpi, haj_h),
-      detail::to_shared<MEM>(mpi, X_h),
-      detail::to_shared<MEM>(mpi, Y_h),
-      detail::to_shared<MEM>(mpi, L_h),
-      std::optional{detail::to_shared<MEM>(mpi, Z_h)},
+      detail::to_const_shared<HOST_MEMORY>(mpi, hij_h),
+      detail::to_const_shared<MEM>(mpi, haj_h),
+      detail::to_const_shared<MEM>(mpi, X_h),
+      detail::to_const_shared<MEM>(mpi, Y_h),
+      detail::to_const_shared<MEM>(mpi, L_h),
+      std::optional{detail::to_const_shared<MEM>(mpi, Z_h)},
       /*X_rot=*/std::nullopt,
       /*Y_rot=*/std::nullopt,
       /*Z_rot=*/std::nullopt,
-      detail::to_shared<HOST_MEMORY>(mpi, vexx_h),
+      detail::to_const_shared<HOST_MEMORY>(mpi, vexx_h),
       ComplexType(0)));
 }
 
@@ -751,7 +747,7 @@ HamiltonianOperations<MEM> build_modelhamops(
 
   return HamiltonianOperations<MEM>(ModelHamOps<MEM, /*REAL=*/true>(
       mpi, s.walker_type, s.walker_nup(), s.walker_ndown(),
-      detail::to_shared<MEM>(mpi, PsiC_h),
+      detail::to_const_shared<MEM>(mpi, PsiC_h),
       std::move(ET), std::move(Hams), n2IJ));
 }
 

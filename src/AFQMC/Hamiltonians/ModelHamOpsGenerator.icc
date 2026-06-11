@@ -635,10 +635,9 @@ void ModelHamOpsGenerator::addComponent( WALKER_TYPES wtype, PropagatorTypes pty
   // h0(0, IJ)  ... as a 1-row "linearized" sparse matrix   
   using csrM = math::sparse::csr_matrix<ComplexType, HOST_MEMORY, int, int>;
   csrM VnT({nFields, nIJ}, 4);
-  auto shm_h0 = memory::make_shared_array<HOST_MEMORY,ComplexType,1>(mpi,std::array<long,1>{nIJ});
-  auto h0 = shm_h0();
+  nda::array<ComplexType,1> h0(nIJ, ComplexType(0.0));
   nFields = 0;
-  bool writer = mpi->node_comm.root(); 
+  bool writer = mpi->comm.root();
 
   int npol = (wtype == NONCOLLINEAR or wtype == NONCOLLINEAR_FT ? 2 : 1 );
   long M2 = npol*M;
@@ -739,18 +738,15 @@ void ModelHamOpsGenerator::addComponent( WALKER_TYPES wtype, PropagatorTypes pty
         VnT[nFields++][nji_dn] += sign * sqrtJij;
       }
     }
-  } 
-  mpi->node_comm.barrier();
- 
+  }
+
   // make sparse matrix compact, necessary in some libraries
   VnT.remove_empty_spaces();
 
   nda::array<ComplexType,2> Vn_array = math::sparse::to_array<'T'>(VnT);
   csrM SpVn = math::sparse::to_csr<HOST_MEMORY,int,int>(Vn_array);
 
-  auto h0_dev = memory::make_shared_array<MEM,ComplexType,1>(mpi,std::array<long,1>{nIJ});
-  if(writer) h0_dev() = h0();
-  mpi->comm.barrier();
+  auto h0_dev = memory::share_from_root(*mpi, [&] { return memory::to_memory_space<MEM>(std::move(h0)); });
 
   if(ContinuousPropg)
     Hams.emplace_back( ModelComponent<MEM,REAL>( 

@@ -38,7 +38,7 @@
 #include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
 
 #include "numerics/sparse/sparse.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 
 namespace sfqmc
 {
@@ -111,17 +111,18 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
 
   // only root reads
   h5::file file;
+  std::optional<h5::group> grp, hgrp;
   if (mpi->comm.root())
   {
     file = h5::file(fileName,'r');
-    h5::group grp = h5::group(file);
-    format = get_hamiltonian_format(grp);
+    grp = std::make_optional(h5::group(file));
+    format = get_hamiltonian_format(*grp);
     // open subgroup
     utils::check(format == "coqui", base_error + " Only coqui format is allowed. Format found:{}",format);
-    h5::group hgrp = grp.open_group("System");
+    hgrp = std::make_optional(grp->open_group("System"));
     {
       int n;
-      h5::group bz = hgrp.open_group("BZ");
+      h5::group bz = hgrp->open_group("BZ");
       // read nkpts
       h5::h5_read_attribute(bz,"number_of_kpoints",n);
       nkpts = long(n); 
@@ -132,13 +133,13 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
       h5::h5_read_attribute(bz,"number_of_qpoints_ibz",n);
       nqpts_ibz = long(n); 
       // nbnd
-      h5::h5_read_attribute(hgrp,"number_of_bands",n);  // per kpoint
+      h5::h5_read_attribute(*hgrp,"number_of_bands",n);  // per kpoint
       // check nbnd 
       utils::check(NMO%nkpts==0, base_error + "NMO%nkpts != 0, NMO:{}, nkpts:{}",NMO,nkpts);
       utils::check((NMO/nkpts)==n, base_error + "nbnd:{} differs from file n:{}",nbnd,n);
       nbnd = long(NMO/nkpts);
       // read nspin_in_file
-      h5::h5_read_attribute(hgrp,"number_of_spins",n);
+      h5::h5_read_attribute(*hgrp,"number_of_spins",n);
       nspin_in_file = long(n);
       // read npol_in_file
 //      h5::h5_read_attribute(bz,"number_of_polarizations",n);
@@ -166,9 +167,9 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
         }
       utils::check(Q0_index>=0, "Error: Problems finding Q=0");
     }
-    // read from /Interaction 
+    // read from /Interaction
     {
-      h5::group igrp = grp.open_group("Interaction");
+      h5::group igrp = grp->open_group("Interaction");
       // check consistency
 // MAM: fix this, integer types in h5 file are not consistent!!!
       long n;
@@ -235,74 +236,44 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
 
   utils::check(nqpts_ibz==nkpts, "Error: Symmetry not yet implemented.");
 
-  // allocate and read H1. 
-  // H0: /System/H0:   [nspin][nkpts][npol*nbnd][npol*nbnd]
-  auto H1 = memory::make_shared_array<HOST_MEMORY,ComplexType,4>(mpi,
-                      {nspin_in_file,nkpts,npol_in_file*nbnd,npol_in_file*nbnd});
+  // reads a ComplexType dataset from /Interaction on the root only and shares
+  // the result, in MEM space
+  auto share_read = [&]<std::size_t N>(std::string name, std::array<long,N> shape) {
+    return memory::share_from_root(*mpi, [&]() {
+      nda::array<ComplexType,N> A(shape);
+      h5::group igrp = grp->open_group("Interaction");
+      utils::h5_read(igrp,name,A);
+      return memory::to_memory_space<MEM>(std::move(A));
+    });
+  };
+
+  // read H1.
+  // H0: /System/H0:   [nspin][nkpts][npol*nbnd][npol*nbnd]   Only needed in host memory
+  auto H1 = memory::share_from_root(*mpi, [&]() {
+    nda::array<ComplexType,4> A(nspin_in_file,nkpts,npol_in_file*nbnd,npol_in_file*nbnd);
+    utils::h5_read(*hgrp,"H0",A);
+    return A;
+  });
   // X: /Interaction/collocation_matrix:  [nspins,nkpts,npol*nbnd,Nu]
-  // L: /Interaction/factorized_coulomb_matrix:  [nqpts][Nu][Nv] 
-  // Z: /Interaction/coulomb_matrix:  [Nq][Nu][Nv]  
+  // L: /Interaction/factorized_coulomb_matrix:  [nqpts][Nu][Nv]
+  // Z: /Interaction/coulomb_matrix:  [Nq][Nu][Nv]
   // with half rotation:
   // Xrot: /Interaction/collocation_matrix_half_rotated:  [nspins,nkpts,nbnd,Nu]
   // Zrot: /Interaction/half_rotated_coulomb_matrix:      [Nq][Nu][Nv]
-  auto Xsiu = memory::make_shared_array<MEM,ComplexType,4>(mpi,
-                      {nspin_in_file,nkpts,npol_in_file*nbnd,nu});
-  auto Luv = memory::make_shared_array<MEM,ComplexType,3>(mpi,{nqpts_ibz,nu,nv});
+  auto Xsiu = share_read("collocation_matrix",
+                         std::array<long,4>{nspin_in_file,nkpts,npol_in_file*nbnd,nu});
+  auto Luv = share_read("factorized_coulomb_matrix",std::array<long,3>{nqpts_ibz,nu,nv});
   std::optional<decltype(Luv)> Zuv = std::nullopt;
-  // half-rotated 
+  // half-rotated
   std::optional<decltype(Xsiu)> Xsiu_rot = std::nullopt;
   std::optional<decltype(Luv)> Zuv_rot = std::nullopt;
   if(have_rot_coul) {
-    Xsiu_rot = std::make_optional(memory::make_shared_array<MEM,ComplexType,4>(mpi,
-                      {nspin_in_file,nkpts,npol_in_file*nbnd,nu_rot}));
-    Zuv_rot = std::make_optional(memory::make_shared_array<MEM,ComplexType,3>(mpi,{nqpts_ibz,nu_rot,nu_rot}));
+    Xsiu_rot = share_read("collocation_matrix_half_rotated",
+                          std::array<long,4>{nspin_in_file,nkpts,npol_in_file*nbnd,nu_rot});
+    Zuv_rot = share_read("half_rotated_coulomb_matrix",std::array<long,3>{nqpts_ibz,nu_rot,nu_rot});
   } else {
-    Zuv = std::make_optional(memory::make_shared_array<MEM,ComplexType,3>(mpi,{nqpts_ibz,nu,nu}));
+    Zuv = share_read("coulomb_matrix",std::array<long,3>{nqpts_ibz,nu,nu});
   }
-
-  if (mpi->comm.root())
-  {
-    h5::group grp = h5::group(file);
-    h5::group hgrp = grp.open_group("System");
-    utils::h5_read(hgrp,"H0",H1());
-    {  // Interaction 
-      h5::group igrp = grp.open_group("Interaction");
-      utils::h5_read(igrp,"collocation_matrix",Xsiu());
-      utils::h5_read(igrp,"factorized_coulomb_matrix",Luv());
-      if(have_rot_coul) {
-        utils::h5_read(igrp,"collocation_matrix_half_rotated",(*Xsiu_rot)());
-        utils::h5_read(igrp,"half_rotated_coulomb_matrix",(*Zuv_rot)());
-      } else {
-        utils::h5_read(igrp,"coulomb_matrix",(*Zuv)());
-      }
-    }  // Interaction 
-  }
-
-  // broadcast, careful with shared memory
-  if(mpi->node_comm.root()) 
-    mpi->internode_comm.broadcast_n(H1.data(),H1.size(),0);
-  if constexpr (MEM==HOST_MEMORY) {
-    if(mpi->node_comm.root()) {
-      mpi->internode_comm.broadcast_n(Xsiu.data(),Xsiu.size(),0);
-      mpi->internode_comm.broadcast_n(Luv.data(),Luv.size(),0);
-      if(have_rot_coul) {
-        mpi->internode_comm.broadcast_n(Zuv_rot->data(),Zuv_rot->size(),0);
-        mpi->internode_comm.broadcast_n(Xsiu_rot->data(),Xsiu_rot->size(),0);
-      } else {
-        mpi->internode_comm.broadcast_n(Zuv->data(),Zuv->size(),0);
-      }
-    }
-  } else {
-    mpi->broadcast(Xsiu);
-    mpi->broadcast(Luv);
-    if(have_rot_coul) {
-      mpi->broadcast(*Zuv_rot);
-      mpi->broadcast(*Xsiu_rot);
-    } else {
-      mpi->broadcast(*Zuv);
-    }
-  }
-  mpi->comm.barrier();
   // kpoint dependent occupations
   nda::array<int,2> nocc(nspin,nkpts);
   if(mpi->comm.root())
@@ -313,137 +284,93 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   if(type == COLLINEAR)
     utils::check(nel_dn == nda::sum(nocc(1,all)), "Error: Mismatch in number of electrons: ndown:{} sum(ndown(k)):{}",nel_dn,nda::sum(nocc(1,all)));
 
-  // Y = PsiT*conj(X): (since PsiT is already conjugated/transposed) 
-  auto Ydsau = memory::make_shared_array<MEM,ComplexType,6>(mpi,
-                      {ndet,nspin,npol,nkpts,nocc_max,nu});
-  if constexpr (MEM == HOST_MEMORY) {
-    if(mpi->node_comm.root()) Ydsau() = ComplexType(0.0);
-  } else {
-    Ydsau() = ComplexType(0.0);
-  }
-  std::optional<decltype(Ydsau)> Ydsau_rot = std::nullopt;
-  mpi->comm.barrier();
-  
-  for(long id=0, itot=0; id<ndet; ++id) 
-    for(long is=0; is<nspin; ++is) 
-      for(long ik=0; ik<nkpts; ++ik, ++itot) 
-      {
-        if( itot%mpi->comm.size() != mpi->comm.rank() ) continue;
+  // Y = PsiT*conj(X): (since PsiT is already conjugated/transposed)
+  auto Ydsau = memory::share_from_ranks<MEM,ComplexType,6,4>(*mpi,
+      {ndet,nspin,npol,nkpts,nocc_max,nu},
+      [&](std::array<long,4> idx, auto&& block) {
+        auto [id,is,ip,ik] = idx;
         long is_ = is%nspin_in_file;
+        long ip_ = ip%npol_in_file;
         int n0 = ( ik==0 ? 0 : nda::sum(nocc(is,range(ik))) );
-        int nel = nocc(is,ik); 
-        for(int ip=0; ip<npol; ++ip) { 
-          auto Aai = math::sparse::to_array<'N'>(PsiT(id,is%nspin_in_PsiT),range(n0,n0+nel),range(ip*NMO+ik*nbnd,ip*NMO+(ik+1)*nbnd));
-          auto Yau = Ydsau()(id,is,ip,ik,range(nel),all);
-          long ip_ = ip%npol_in_file;
-          auto Xiu = Xsiu()(is_,ik,range(ip_*nbnd,(ip_+1)*nbnd),all);
-          nda::tensor::contract(Aai,"ai", nda::conj(Xiu),"iu",Yau,"au");
-        }
-      }
-  mpi->comm.barrier();
-  if constexpr (MEM==HOST_MEMORY) {
-    if(mpi->node_comm.root()) 
-      mpi->internode_comm.all_reduce_in_place_n(Ydsau.data(),Ydsau.size(),std::plus<>{});
-  } else {
-    mpi->comm.all_reduce_in_place_n(Ydsau.data(),Ydsau.size(),std::plus<>{});
-  }
-  mpi->comm.barrier();
+        int nel = nocc(is,ik);
+        auto Aai = math::sparse::to_array<'N'>(PsiT(id,is%nspin_in_PsiT),range(n0,n0+nel),range(ip*NMO+ik*nbnd,ip*NMO+(ik+1)*nbnd));
+        auto Yau = block(range(nel),all);
+        auto Xiu = Xsiu()(is_,ik,range(ip_*nbnd,(ip_+1)*nbnd),all);
+        nda::tensor::contract(Aai,"ai", nda::conj(Xiu),"iu",Yau,"au");
+      });
+  std::optional<decltype(Ydsau)> Ydsau_rot = std::nullopt;
   // what to do with Ydsau_rot???
 
   // now calculate v0
-  // Partition work over spin, pol, kpts. 
+  // Partition work over spin, pol, kpts.
   // v0(s,k,i,l) = -0.5*sum_k,q sum_j <i_k,j_k-q|j_k-q,l_k>
   //         = -0.5 sum_kq sum_j,u,v ma::conj(Piu(s,k,i,u)) ma::conj(Piu(s,k-q,j,v)) Mquv Piu(s,k-q,j,u) Piu(s,k,l,v)
-  auto v0 = memory::make_shared_array<HOST_MEMORY,ComplexType,4>(mpi,std::array<long,4>{nspin_in_file*npol_in_file, nkpts, nbnd, nbnd});
-  if(mpi->node_comm.root()) v0() = ComplexType(0.0);
-  mpi->comm.barrier();
   if(have_rot_coul) {
     utils::check(false, "Finish");
-  } else {
-    {
-      memory::buffered_array<MEM,ComplexType,2> Tuv(nu,nu);
-      memory::buffered_array<MEM,ComplexType,2> Wuv(nu,nu);
-      memory::buffered_array<MEM,ComplexType,2> vt(nbnd,nbnd);
-      for(long is=0, isp=0, itot=0; is<nspin_in_file; is++) {
-        for(long ip=0; ip<npol_in_file; ip++, isp++) {
-          for(long ik=0; ik<nkpts; ik++, ++itot) {
-            if( itot%mpi->comm.size() != mpi->comm.rank() ) continue; 
-            // sum over q
-            Tuv() = ComplexType(0.0);
-            Wuv() = ComplexType(0.0);
-            for(long iq=0; iq<nkpts; iq++) {
-              int k2 = 0; // qp_to_k2(ik,iq);  // no symmetry yet!!!
-              auto Xiu_k2 = Xsiu()(is,k2,range(ip*nbnd,(ip+1)*nbnd),all);
-              auto Zu = (*Zuv)()(iq,all,all);
-              nda::tensor::contract(Xiu_k2, "iu", nda::conj(Xiu_k2), "iv", Tuv, "uv");
-              if constexpr (MEM==HOST_MEMORY) 
-                Tuv() = Zu() * Tuv();
-              else
-                nda::tensor::elementwise(ComplexType(1.0), Zu, "uv", 
-                                         ComplexType(1.0), Tuv, "uv", nda::tensor::op::MUL);
-              nda::tensor::add(ComplexType(1.0),Tuv,"uv",ComplexType(1.0),Wuv,"uv"); 
-            } 
-            auto Xiu = Xsiu()(is,ik,range(ip*nbnd,(ip+1)*nbnd),all);
-            auto Tiv = Tuv(range(nbnd),all);
-            nda::tensor::contract(nda::conj(Xiu), "iu", Wuv, "uv", Tiv, "iv");
-            nda::tensor::contract(ComplexType(-0.5),Tiv, "iv", Xiu, "jv", 
-                                  ComplexType(0.0),vt, "ij");
-            v0()(isp,ik,all,all) = vt(); 
-          }
-        }
-      }
-    } 
-    mpi->comm.barrier();
-    if(mpi->node_comm.root()) 
-      mpi->internode_comm.all_reduce_in_place_n(v0.data(),v0.size(),std::plus<>{}); 
   }
-  mpi->comm.barrier();
+  memory::buffered_array<MEM,ComplexType,2> Tuv(nu,nu);
+  memory::buffered_array<MEM,ComplexType,2> Wuv(nu,nu);
+  memory::buffered_array<MEM,ComplexType,2> vt(nbnd,nbnd);
+  auto v0 = memory::share_from_ranks<HOST_MEMORY,ComplexType,4,2>(*mpi,
+      std::array<long,4>{nspin_in_file*npol_in_file, nkpts, nbnd, nbnd},
+      [&](std::array<long,2> idx, auto&& block) {
+        auto [isp,ik] = idx;
+        long is = isp/npol_in_file;
+        long ip = isp%npol_in_file;
+        // sum over q
+        Tuv() = ComplexType(0.0);
+        Wuv() = ComplexType(0.0);
+        for(long iq=0; iq<nkpts; iq++) {
+          int k2 = 0; // qp_to_k2(ik,iq);  // no symmetry yet!!!
+          auto Xiu_k2 = Xsiu()(is,k2,range(ip*nbnd,(ip+1)*nbnd),all);
+          auto Zu = (*Zuv)()(iq,all,all);
+          nda::tensor::contract(Xiu_k2, "iu", nda::conj(Xiu_k2), "iv", Tuv, "uv");
+          if constexpr (MEM==HOST_MEMORY)
+            Tuv() = Zu() * Tuv();
+          else
+            nda::tensor::elementwise(ComplexType(1.0), Zu, "uv",
+                                     ComplexType(1.0), Tuv, "uv", nda::tensor::op::MUL);
+          nda::tensor::add(ComplexType(1.0),Tuv,"uv",ComplexType(1.0),Wuv,"uv");
+        }
+        auto Xiu = Xsiu()(is,ik,range(ip*nbnd,(ip+1)*nbnd),all);
+        auto Tiv = Tuv(range(nbnd),all);
+        nda::tensor::contract(nda::conj(Xiu), "iu", Wuv, "uv", Tiv, "iv");
+        nda::tensor::contract(ComplexType(-0.5),Tiv, "iv", Xiu, "jv",
+                              ComplexType(0.0),vt, "ij");
+        block = nda::to_host(vt)();
+      });
 
   // keep in full basis, better for batched
   // MAM: this uses a lot more memory/compute, but can be batched into a single call (energy eval)
   // time the two versions and change to k-dependent haj if the timing in gpu is not that different
   // You can also write a kernel that dispatches all the gemms from device side using the new library
-  long nel[] = {nel_up, (type == COLLINEAR ? nel_dn : 0l) }; 
-  auto haj = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO});
-  if constexpr (MEM == HOST_MEMORY) {
-    if(mpi->node_comm.root()) haj() = ComplexType(0.0);
-  } else {
-    haj() = ComplexType(0.0);
-  }
-  mpi->node_comm.barrier();
-  {
-    for(long id=0, itot=0; id<ndet; ++id) {
-      for(long is=0; is<nspin; ++is) {
-        for(long ik=0; ik<nkpts; ++ik, ++itot) {
-          if( itot%mpi->comm.size() != mpi->comm.rank() ) continue; 
-          int n0 = ( ik==0 ? 0 : nda::sum(nocc(is,range(ik))) );
-          int nk = nocc(is,ik); 
-          for(long ip1=0; ip1<npol; ++ip1) {
-            int ip1_ = ip1%npol_in_file;
-            auto Aai = math::sparse::to_array<'N'>(PsiT(id,is%nspin_in_PsiT),range(n0,n0+nk),range(ip1*NMO+ik*nbnd,ip1*NMO+(ik+1)*nbnd));
-            for(long ip2=0; ip2<npol; ++ip2) {
-              int ip2_ = ip2%npol_in_file;
-              auto h_ = haj()(id,range(is*nel_up+n0,is*nel_up+n0+nk),nda::range(ip2*NMO+ik*nbnd,ip2*NMO+(ik+1)*nbnd));
-              if constexpr (MEM==HOST_MEMORY) {
-                auto hij = H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd));
-                nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
-              } else {
-                memory::array<MEM,ComplexType,2> hij(H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd)));
-                nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
+  long nel[] = {nel_up, (type == COLLINEAR ? nel_dn : 0l) };
+  auto haj = memory::share_from_ranks<MEM,ComplexType,3,1>(*mpi,
+      std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO},
+      [&](std::array<long,1> idx, auto&& block) {
+        auto [id] = idx;
+        for(long is=0; is<nspin; ++is) {
+          for(long ik=0; ik<nkpts; ++ik) {
+            int n0 = ( ik==0 ? 0 : nda::sum(nocc(is,range(ik))) );
+            int nk = nocc(is,ik);
+            for(long ip1=0; ip1<npol; ++ip1) {
+              int ip1_ = ip1%npol_in_file;
+              auto Aai = math::sparse::to_array<'N'>(PsiT(id,is%nspin_in_PsiT),range(n0,n0+nk),range(ip1*NMO+ik*nbnd,ip1*NMO+(ik+1)*nbnd));
+              for(long ip2=0; ip2<npol; ++ip2) {
+                int ip2_ = ip2%npol_in_file;
+                auto h_ = block(range(is*nel_up+n0,is*nel_up+n0+nk),nda::range(ip2*NMO+ik*nbnd,ip2*NMO+(ik+1)*nbnd));
+                if constexpr (MEM==HOST_MEMORY) {
+                  auto hij = H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd));
+                  nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
+                } else {
+                  memory::array<MEM,ComplexType,2> hij(H1()(is%nspin_in_file,ik,range(ip1_*nbnd,(ip1_+1)*nbnd),range(ip2_*nbnd,(ip2_+1)*nbnd)));
+                  nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
+                }
               }
             }
-          }
-        }
-      }  // is
-    }  // id
-  }
-  mpi->comm.barrier();
-  if constexpr (MEM==HOST_MEMORY) { 
-    if(mpi->node_comm.root()) mpi->internode_comm.all_reduce_in_place_n(haj.data(),haj.size(),std::plus<>{}); 
-  } else {
-    mpi->all_reduce(haj(),std::plus<>{}); 
-  }
-  mpi->comm.barrier();
+          }  // ik
+        }  // is
+      });
 
   ComplexType E0 = NuclearCoulombEnergy + FrozenCoreEnergy;
   return HamiltonianOperations<MEM>(KPTHCOps<MEM>(mpi,type,NMO,nel_up,nel_dn,nkpts,Q0_index,std::move(nocc),
