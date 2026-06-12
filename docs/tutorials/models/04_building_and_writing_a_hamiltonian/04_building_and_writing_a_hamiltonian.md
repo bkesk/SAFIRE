@@ -64,9 +64,7 @@ use the Hamiltonian "Builder". See {doc}`../05_hamiltonian_builder/05_hamiltonia
 more detail.
 It is recommended to use the Director whenever possible.
 
-<div>
-<img src="/_static/shared/models/00_overview/HamilDirectorSystem.png" width="1000">
-</div>
+![](files/HamilDirectorSystem.png)
 
 <b>In this tutorial, we focus on building Hamiltonian terms via the Hamiltonian "Director".</b>
 We will explore the possible input parameters and their respective meanings/conventions.

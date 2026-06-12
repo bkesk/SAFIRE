@@ -66,9 +66,7 @@ from reference [1].
 </div>
 --->
 
-<div>
-<img src="/_static/examples/molecules/03_n2-phmsd/ReferenceFigure.png">
-</div>
+![](files/ReferenceFigure.png)
 
 We have include both the quantum chemistry "gold standard" CCSD(T) results, in orange, as well as CCSDT for reference.
 There are two AFQMC curves, one using a UHF trial wavefunction (in pink), and
@@ -537,7 +535,7 @@ plt.show()
 
 Compare this with the PEC generated using the data from the original paper.
 
-<img src="/_static/examples/molecules/03_n2-phmsd/NitrogenPecAbs.png">
+![](files/NitrogenPecAbs.png)
 
 +++ {"id": "89Ml1OB9E6lx"}
 

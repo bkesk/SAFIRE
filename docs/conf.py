@@ -31,7 +31,7 @@ project = 'SAFIRE'
 
 # The full version, including alpha/beta/rc tags
 version = '0.1.0'
-release = '0.1.0-alpha'
+release = '0.1.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -54,6 +54,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'numpydoc',
+    'notebook_header',
     ]
 bibtex_bibfiles = ['bibs/afqmc.bib']
 
@@ -113,6 +114,11 @@ mathjax3_config = {
 #html_theme = 'sphinx_rtd_theme'
 html_theme = 'pydata_sphinx_theme' # possible theme - images need be compatible with dark and light modes
 
+# Base URL of the published docs. Used by Sphinx for canonical links and by the
+# notebook_header extension to rewrite {doc} cross-references into absolute links
+# in the downloadable .ipynb notebooks.
+html_baseurl = 'https://safire.flatironinstitute.org/docs/dev/'
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
@@ -123,14 +129,26 @@ html_css_files = [
 ]
 
 html_theme_options = {
+    "logo": {
+        "image_light": "images/logo.svg"
+    },
     "globaltoc_maxdepth": 3,        # -1 for unlimited
     "globaltoc_collapse": False,    # expand whole tree or not
     "globaltoc_includehidden": False, # show :hidden: entries
-    "navigation_depth": 4,
+    "navigation_depth": 3,
+    "header_links_before_dropdown": 6,
     # Show this many levels expanded on page load (default: 1)
     "show_nav_level": 2,
     # Maximum depth rendered in the left nav (default: 4)
-    "navigation_depth": 3,
+    # Remove the light/dark theme switcher (default: ["theme-switcher", "navbar-icon-links"])
+    "navbar_end": ["navbar-icon-links"],
+    "navbar_align": "left",
+    "secondary_sidebar_items": ["page-toc"],
+}
+
+# Force light mode (disables dark mode / the auto switcher default).
+html_context = {
+    "default_mode": "light",
 }
 
 ## -- options for MyST-NB (rendering jupyter notebooks) ----------------------
