@@ -190,11 +190,12 @@ int main(int argc, char** argv) {
   mpi3::environment env(argc, argv);
   try {
     return main_impl(argc, argv);
-  } catch (const sfqmc::AppAbortException& e) {
-    if(env.world().root()) {
+  } catch (const std::exception& e) {
+    // avoid collective calls here!
+    if(env.get_world_instance().root()) {
       std::cerr << fmt::format("\nError: {}\n", e.what());
     }
-    env.world().abort(1);
+    env.get_world_instance().abort(1);
     return 1;
   } 
   // destructor of env calls MPI finalize
