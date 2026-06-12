@@ -183,6 +183,11 @@ int main_impl(int argc, char** argv)
       throw sfqmc::AppAbortException("APP_ABORT triggered");
     }
   } // simulations end
+
+  mpi->shared_windows.collective_free_unused();
+  if(!mpi->shared_windows.isempty()) {
+    app_warning("MPI shared windows were still in use when the simulation is already over. This is probably a bug.");
+  }
   return 0;
 }
 
