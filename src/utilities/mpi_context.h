@@ -19,6 +19,7 @@
 #include "mpi3/communicator.hpp"
 #include "mpi3/shared_communicator.hpp"
 #include "nda/nda.hpp"
+#include "utilities/mpi_shared_window.hpp"
 
 namespace mpi3 = boost::mpi3;
 namespace sfqmc::utils {
@@ -30,13 +31,15 @@ struct mpi_context_t {
   shm_comm_t node_comm;
   comm_t internode_comm;
 
+  shared_window_registry shared_windows;
+
   mpi_context_t() = delete;
   mpi_context_t(comm_t const& c_, shm_comm_t const& s_, comm_t const& ic_)
-    : comm(c_),node_comm(s_),internode_comm(ic_)
+    : comm(c_),node_comm(s_),internode_comm(ic_), shared_windows{node_comm}
   {}
 
   mpi_context_t(comm_t && c_, shm_comm_t && s_, comm_t && ic_)
-    : comm(std::move(c_)),node_comm(std::move(s_)),internode_comm(std::move(ic_))
+    : comm(std::move(c_)),node_comm(std::move(s_)),internode_comm(std::move(ic_)), shared_windows{node_comm}
   {}
 
   mpi_context_t(mpi_context_t const&) = default;

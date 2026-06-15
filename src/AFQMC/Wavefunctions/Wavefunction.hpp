@@ -19,6 +19,7 @@
 #include <variant>
 #include "AFQMC/config.h"
 
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "AFQMC/Wavefunctions/NOMSD.hpp"
 #include "AFQMC/Wavefunctions/PHMSD.hpp"
 #include "AFQMC/Wavefunctions/NOMSD_FT.hpp"
@@ -37,8 +38,8 @@ public:
   explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>> const& other) : var(other) {} 
 
-  explicit Wavefunction(NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>> const& other) : var(other) {}  
+  explicit Wavefunction(NOMSD<MEM,memory::const_shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD<MEM,memory::const_shared_array<MEM,ComplexType,2>> const& other) : var(other) {}  
 
   explicit Wavefunction(PHMSD<MEM>&& other) : var(std::move(other)) {}
   explicit Wavefunction(PHMSD<MEM> const& other) : var(other) {} 
@@ -47,8 +48,8 @@ public:
   explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>> const& other) = delete;
 
-  explicit Wavefunction(NOMSD_FT<MEM,memory::shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD_FT<MEM,memory::shared_array<MEM,ComplexType,2>> const& other) = delete; 
+  explicit Wavefunction(NOMSD_FT<MEM,memory::const_shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
+  explicit Wavefunction(NOMSD_FT<MEM,memory::const_shared_array<MEM,ComplexType,2>> const& other) = delete; 
 
 
   Wavefunction(Wavefunction const& other) = delete;
@@ -210,9 +211,9 @@ public:
 
 
   std::variant<NOMSD<MEM,PsiT_Matrix<MEM>>,
-               NOMSD<MEM,memory::shared_array<MEM,ComplexType,2>>,
+               NOMSD<MEM,memory::const_shared_array<MEM,ComplexType,2>>,
                NOMSD_FT<MEM,PsiT_Matrix<MEM>>,
-               NOMSD_FT<MEM,memory::shared_array<MEM,ComplexType,2>>,
+               NOMSD_FT<MEM,memory::const_shared_array<MEM,ComplexType,2>>,
                PHMSD<MEM>
               > var;
 

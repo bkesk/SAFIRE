@@ -24,7 +24,7 @@
 #include "utilities/check.hpp"
 #include "utilities/mpi_context.h"
 #include "utilities/check_strides.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "numerics/nda_functions.hpp"
 #include "numerics/operations/tensor.hpp"
 #include "detail/one_body.hpp"
@@ -53,12 +53,12 @@ public:
           nda::array<int,1>&& minusq_,
           nda::array<int,2>&& qk_to_k2_,
           nda::array<int,1>&& qmap_,
-          memory::shared_array<HOST_MEMORY,ComplexType,4>&& hij_,
-          memory::shared_array<MEM,ComplexType,3>&& haj_,
-          nda::array<memory::shared_array<MEM,ComplexType,6>,1>&& lq_,
-          nda::array<memory::shared_array<MEM,ComplexType,6>,1>&& la_,
-          nda::array<memory::shared_array<MEM,ComplexType,6>,1>&& lb_,
-          memory::shared_array<HOST_MEMORY,ComplexType,4>&& vexx_,
+          memory::const_shared_array<HOST_MEMORY,ComplexType,4>&& hij_,
+          memory::const_shared_array<MEM,ComplexType,3>&& haj_,
+          nda::array<memory::const_shared_array<MEM,ComplexType,6>,1>&& lq_,
+          nda::array<memory::const_shared_array<MEM,ComplexType,6>,1>&& la_,
+          nda::array<memory::const_shared_array<MEM,ComplexType,6>,1>&& lb_,
+          memory::const_shared_array<HOST_MEMORY,ComplexType,4>&& vexx_,
           ComplexType e0_,
           int bf_size = 4096)
       : mpi(_mpi),
@@ -131,27 +131,28 @@ public:
 
     // setup Lakn if needed
     if(ndet == 1) {
-      bool writer = (MEM==HOST_MEMORY?mpi->node_comm.root():true);
-      Lakn = std::make_optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>>(nkpts);
+      Lakn = std::make_optional<nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>>(nkpts);
       for(int iq=0; iq<nkpts; ++iq) {
-        int nc = Lank(iq).extent(4); 
-        (*Lakn)(iq) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
-        mpi->node_comm.barrier();
-        if(writer) 
-          nda::tensor::add(ComplexType(1.0),Lank(iq)()(0,nda::ellipsis{}),"skanj",
-                           ComplexType(0.0),(*Lakn)(iq)(),"skajn");
-        mpi->node_comm.barrier();
+        int nc = Lank(iq).extent(4);
+        (*Lakn)(iq) = memory::share_from_ranks<MEM,ComplexType,5,2>(*mpi,
+            {nspin,nkpts,nocc_max,npol*nbnd,nc},
+            [&](std::array<long,2> idx, auto&& block) {
+          auto [is,ik] = idx;
+          nda::tensor::add(ComplexType(1.0),Lank(iq)()(0,is,ik,nda::ellipsis{}),"anj",
+                           ComplexType(0.0),block,"ajn");
+        });
       }
-      int nsymQ = Lbnk.extent(0); 
-      Lbkn = std::make_optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>>(nsymQ);
+      int nsymQ = Lbnk.extent(0);
+      Lbkn = std::make_optional<nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>>(nsymQ);
       for(int i=0; i<nsymQ; ++i) {
-        int nc = Lbnk(i).extent(4); 
-        (*Lbkn)(i) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
-        mpi->node_comm.barrier();
-        if(writer)
-          nda::tensor::add(ComplexType(1.0),Lbnk(i)()(0,nda::ellipsis{}),"skanj",
-                           ComplexType(0.0),(*Lbkn)(i)(),"skajn");
-        mpi->node_comm.barrier();
+        int nc = Lbnk(i).extent(4);
+        (*Lbkn)(i) = memory::share_from_ranks<MEM,ComplexType,5,2>(*mpi,
+            {nspin,nkpts,nocc_max,npol*nbnd,nc},
+            [&](std::array<long,2> idx, auto&& block) {
+          auto [is,ik] = idx;
+          nda::tensor::add(ComplexType(1.0),Lbnk(i)()(0,is,ik,nda::ellipsis{}),"anj",
+                           ComplexType(0.0),block,"ajn");
+        });
       }
     }
   }
@@ -926,26 +927,26 @@ protected:
   int Q0_index = 0;
 
   // H1[nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<HOST_MEMORY,ComplexType,4> hij;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,4> hij;
 
   // half rotated one body hamiltonian: [ndet][nup+ndn][npol*NMO]. Kept in full basis
-  memory::shared_array<MEM,ComplexType,3> haj;
+  memory::const_shared_array<MEM,ComplexType,3> haj;
 
-  // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
-  nda::array<memory::shared_array<MEM,ComplexType,6>,1> LQ; 
+  // LQ(Q)(ispin, ipol, ik, i, j, nchol)
+  nda::array<memory::const_shared_array<MEM,ComplexType,6>,1> LQ;
 
-  // Lank(Q)(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd) 
-  nda::array<memory::shared_array<MEM,ComplexType,6>,1> Lank; 
+  // Lank(Q)(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd)
+  nda::array<memory::const_shared_array<MEM,ComplexType,6>,1> Lank;
 
   // if ndet==1, this is used for faster evaluation of vbias
-  std::optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>> Lakn;    
-  std::optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>> Lbkn;    
+  std::optional<nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>> Lakn;
+  std::optional<nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>> Lbkn;
 
-  // Lbnk(Qmap(Q))(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd), only for q==minusq(q) 
-  nda::array<memory::shared_array<MEM,ComplexType,6>,1> Lbnk; 
+  // Lbnk(Qmap(Q))(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd), only for q==minusq(q)
+  nda::array<memory::const_shared_array<MEM,ComplexType,6>,1> Lbnk;
 
   // vexx(i,l) = -0.5 * sum_j <ij|jl> : [nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<HOST_MEMORY,ComplexType,4> vexx;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,4> vexx;
 
   int default_buffer_size_in_MB=2000;
 

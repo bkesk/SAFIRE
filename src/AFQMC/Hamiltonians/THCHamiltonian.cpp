@@ -38,7 +38,7 @@
 #include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
 
 #include "numerics/sparse/sparse.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 
 namespace sfqmc
 {
@@ -206,126 +206,79 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
     }
   };
 
-  // allocate and read H1. 
+  // reads a ValueType dataset from /Interaction on the root only and shares the
+  // result, in MEM space
+  auto share_read = [&]<std::size_t N>(int reshape_type, std::string name, std::array<long,N> shape) {
+    return memory::share_from_root(*mpi, [&]() {
+      nda::array<ValueType,N> A(shape);
+      h5::group igrp = grp->open_group("Interaction");
+      read_helper(reshape_type,igrp,name,A);
+      return memory::to_memory_space<MEM>(std::move(A));
+    });
+  };
+
+  // read H1.
   // H0: /System/H0:   [nspin][npol*nbnd][npol*nbnd]   Only needed in host memory
-  auto H1 = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
-                      {nspin_in_file,npol_in_file*NMO,npol_in_file*NMO});
+  auto H1 = memory::share_from_root(*mpi, [&]() {
+    nda::array<ComplexType,3> A(nspin_in_file,npol_in_file*NMO,npol_in_file*NMO);
+    read_helper(1,*hgrp,"H0",A);
+    return A;
+  });
   // X: /Interaction/collocation_matrix:  [nspins,npol*nbnd,Nu]
-  // L: /Interaction/factorized_coulomb_matrix:  [Nu][Nv] 
-  // Z: /Interaction/coulomb_matrix:  [Nq][Nu][Nv]  
+  // L: /Interaction/factorized_coulomb_matrix:  [Nu][Nv]
+  // Z: /Interaction/coulomb_matrix:  [Nq][Nu][Nv]
   // with half rotation:
   // Xrot: /Interaction/collocation_matrix_half_rotated:  [nspins,nbnd,Nu]
   // Zrot: /Interaction/half_rotated_coulomb_matrix:      [Nq][Nu][Nv]
-  auto Xsiu = memory::make_shared_array<MEM,ValueType,3>(mpi,
-                      {nspin_in_file,npol_in_file*NMO,nu});
-  auto Luv = memory::make_shared_array<MEM,ValueType,2>(mpi,{nu,nv});
+// MAM: right now only correct for Real==false, dimensions are assumed different for real case
+  auto Xsiu = share_read(1,"collocation_matrix",
+                         std::array<long,3>{nspin_in_file,npol_in_file*NMO,nu});
+  auto Luv = share_read(2,"factorized_coulomb_matrix",std::array<long,2>{nu,nv});
   std::optional<decltype(Luv)> Zuv = std::nullopt;
-  // half-rotated 
+  // half-rotated
   std::optional<decltype(Xsiu)> Xsiu_rot = std::nullopt;
   std::optional<decltype(Luv)> Zuv_rot = std::nullopt;
   if(have_rot_coul) {
-    Xsiu_rot = std::make_optional(memory::make_shared_array<MEM,ValueType,3>(mpi,
-                      {nspin_in_file,npol_in_file*NMO,nu_rot}));
-    Zuv_rot = std::make_optional(memory::make_shared_array<MEM,ValueType,2>(mpi,{nu_rot,nu_rot}));
+    Zuv_rot = share_read(2,"half_rotated_coulomb_matrix",std::array<long,2>{nu_rot,nu_rot});
+    Xsiu_rot = share_read(1,"collocation_matrix_half_rotated",
+                          std::array<long,3>{nspin_in_file,npol_in_file*NMO,nu_rot});
   } else {
-    Zuv = std::make_optional(memory::make_shared_array<MEM,ValueType,2>(mpi,{nu,nu}));
-  }
-  if (mpi->comm.root())
-  {
-    read_helper(1,*hgrp,"H0",H1());
-    {  // Interaction 
-// MAM: right now only correct for Real==false, dimensions are assumed different for real case
-      h5::group igrp = grp->open_group("Interaction");
-      read_helper(1,igrp,"collocation_matrix",Xsiu());
-      read_helper(2,igrp,"factorized_coulomb_matrix",Luv());
-      if(have_rot_coul) {
-        read_helper(2,igrp,"half_rotated_coulomb_matrix",(*Zuv_rot)());
-        read_helper(1,igrp,"collocation_matrix_half_rotated",(*Xsiu_rot)());
-      } else {
-        read_helper(2,igrp,"coulomb_matrix",(*Zuv)());
-      }
-    }  // Interaction 
+    Zuv = share_read(2,"coulomb_matrix",std::array<long,2>{nu,nu});
   }
 
-  // broadcast, careful with shared memory
-  if(mpi->node_comm.root()) {
-    mpi->internode_comm.broadcast_n(H1.data(),H1.size(),0);
-  }
-  if constexpr (MEM==HOST_MEMORY) {
-    if(mpi->node_comm.root()) {
-      mpi->internode_comm.broadcast_n(Xsiu.data(),Xsiu.size(),0);
-      mpi->internode_comm.broadcast_n(Luv.data(),Luv.size(),0);
-      if(have_rot_coul) {
-        mpi->internode_comm.broadcast_n(Zuv_rot->data(),Zuv_rot->size(),0);
-        mpi->internode_comm.broadcast_n(Xsiu_rot->data(),Xsiu_rot->size(),0);
-      } else {
-        mpi->internode_comm.broadcast_n(Zuv->data(),Zuv->size(),0);
-      }
-    }
-  } else {
-    mpi->broadcast(Xsiu);
-    mpi->broadcast(Luv);
-    if(have_rot_coul) {
-      mpi->broadcast(*Zuv_rot);
-      mpi->broadcast(*Xsiu_rot);
-    } else {
-      mpi->broadcast(*Zuv);
-    }
-  }
-  mpi->comm.barrier();
-
-  // Y = PsiT*conj(X): (since PsiT is already conjugated/transposed) 
-  auto Ydsau = memory::make_shared_array<MEM,ComplexType,5>(mpi,
-                      {ndet,nspin,npol,nup,nu});
-  if constexpr (MEM == HOST_MEMORY) {
-    if(mpi->node_comm.root()) Ydsau() = ComplexType(0.0);
-  } else {
-    Ydsau() = ComplexType(0.0);
-  }
+  // Y = PsiT*conj(X): (since PsiT is already conjugated/transposed)
+  auto Ydsau = memory::share_from_ranks<MEM,ComplexType,5,2>(*mpi,
+      {ndet,nspin,npol,nup,nu},
+      [&](std::array<long,2> idx, auto&& block) {
+        using matrix_t = memory::buffered_array<MEM,ComplexType,2>;
+        auto [id, is] = idx;
+        long is_ = is%nspin_in_file;
+        long nel = (is==0 ? nup : ndn);
+        auto Aai = math::sparse::to_array<'N'>(PsiT(id,is));
+        // need to loop over npol since npol_in_file might be != than npol
+        if constexpr (REAL) {
+          auto Yau = matrix_t(nel,nu);
+          auto Xiu = matrix_t(NMO,nu);
+          for(long ip=0; ip<npol; ++ip) {
+            long ip_ = ip%npol_in_file;
+            math::copy(Xsiu()(is_,range(ip_*NMO,(ip_+1)*NMO),all),Xiu);
+            // for simplicity, make calculations with copies at full precision
+            nda::tensor::contract(Aai(all,range(ip*NMO,(ip+1)*NMO)),"ai",
+                            nda::conj(Xiu),"iu",Yau,"au");
+            // now copy result
+            math::copy(Yau,block(ip,range(nel),all));
+          }
+        } else {
+          for(long ip=0; ip<npol; ++ip) {
+            auto Yau = block(ip,range(nel),all);
+            long ip_ = ip%npol_in_file;
+            auto Xiu = Xsiu()(is_,range(ip_*NMO,(ip_+1)*NMO),all);
+            nda::tensor::contract(Aai(all,range(ip*NMO,(ip+1)*NMO)),"ai",
+                            nda::conj(Xiu),"iu",Yau,"au");
+          }
+        }
+      });
   std::optional<decltype(Ydsau)> Ydsau_rot = std::nullopt;
-  mpi->comm.barrier();
-  
-  for(long id=0, itot=0; id<ndet; ++id) 
-    for(long is=0; is<nspin; ++is, ++itot) 
-    { 
-      using matrix_t = memory::buffered_array<MEM,ComplexType,2>;
-      if( itot%mpi->comm.size() != mpi->comm.rank() ) continue; 
-      long is_ = is%nspin_in_file;
-      long nel = (is==0 ? nup : ndn);
-      auto Aai = math::sparse::to_array<'N'>(PsiT(id,is));
-      // need to loop over npol since npol_in_file might be != than npol 
-      if constexpr (REAL) {
-        auto Yau = matrix_t(nel,nu);
-        auto Xiu = matrix_t(NMO,nu);
-        for(long ip=0; ip<npol; ++ip) 
-        {
-          long ip_ = ip%npol_in_file;
-          math::copy(Xsiu()(is_,range(ip_*NMO,(ip_+1)*NMO),all),Xiu);
-          // for simplicity, make calculations with copies at full precision 
-          nda::tensor::contract(Aai(all,range(ip*NMO,(ip+1)*NMO)),"ai",
-                          nda::conj(Xiu),"iu",Yau,"au");
-          // now copy result
-          math::copy(Yau,Ydsau()(id,is,ip,range(nel),all));
-        }
-      } else {
-        for(long ip=0; ip<npol; ++ip) 
-        {
-          auto Yau = Ydsau()(id,is,ip,range(nel),all);
-          long ip_ = ip%npol_in_file;
-          auto Xiu = Xsiu()(is_,range(ip_*NMO,(ip_+1)*NMO),all);
-          nda::tensor::contract(Aai(all,range(ip*NMO,(ip+1)*NMO)),"ai",
-                          nda::conj(Xiu),"iu",Yau,"au");
-        }
-      }
-    }
-  mpi->comm.barrier();
-  if constexpr (MEM==HOST_MEMORY) {
-    if(mpi->node_comm.root()) 
-      mpi->internode_comm.all_reduce_in_place_n(Ydsau.data(),Ydsau.size(),std::plus<>{});
-  } else {
-    mpi->comm.all_reduce_in_place_n(Ydsau.data(),Ydsau.size(),std::plus<>{});
-  }
-  mpi->comm.barrier();
   // what to do with Ydsau_rot???
 
   // now calculate v0
@@ -334,89 +287,61 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   //         = -0.5 sum_j,u,v ma::conj(Piu(s,i,u)) ma::conj(Piu(s,j,v)) Muv Piu(s,j,u) Piu(s,l,v)
   //         = -0.5 sum_u,v ma::conj(Piu(s,i,u)) W(s,u,v) Piu(s,l,v), where
   // W(s,u,v) = Muv(u,v) * sum_j Piu(s,j,u) ma::conj(Piu(s,j,v))
-  auto v0 = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,std::array<long,3>{nspin_in_file*npol_in_file, NMO, NMO});
-  auto [u0, u1] = itertools::chunk_range(0, nu, mpi->comm.size(), mpi->comm.rank());
   // Note: If this uses too much memory, distribute "u" axis over nodes, then construct
-  // W(s,u,v) on shared memory and distribute calculation of v0 over node on a single array. 
+  // W(s,u,v) on shared memory and distribute calculation of v0 over node on a single array.
   if(have_rot_coul) {
     utils::check(false, "Finish");
-  } else {
-    memory::buffered_array<MEM,ValueType,3> vt(v0.shape());
-    vt() = ValueType(0.0);
-    {
-      memory::buffered_array<MEM,ValueType,2> Wuv((u1-u0),nu);
-      memory::buffered_array<MEM,ValueType,2> Tiv(NMO,nu);
-      Wuv() = ValueType(0.0);
-      Tiv() = ValueType(0.0);
-      for(long is=0, isp=0; is<nspin_in_file; is++) {
-        for(long ip=0; ip<npol_in_file; ip++, isp++) {
-          if(u0==u1) continue;
-          auto Xiu = Xsiu()(is,range(ip*NMO,(ip+1)*NMO),range(u0,u1));
-          auto Xiv = Xsiu()(is,range(ip*NMO,(ip+1)*NMO),all);
-          auto Zu = (*Zuv)()(range(u0,u1),all);
-          nda::tensor::contract(Xiu, "iu", nda::conj(Xiv), "iv", Wuv, "uv");
-          if constexpr (MEM==HOST_MEMORY) 
-            Wuv() = Zu() * Wuv();
-          else
-            nda::tensor::elementwise(Zu, "uv", Wuv, "uv", nda::tensor::op::MUL);
-          nda::tensor::contract(nda::conj(Xiu), "iu", Wuv, "uv", Tiv, "iv");
-          nda::tensor::contract(ValueType(-0.5),Tiv, "iv", Xiv, "jv", 
-                                ValueType(0.0),vt(isp,all,all), "ij");
-        }
-      }
-    } 
-    mpi->all_reduce(vt,std::plus<>{});
-    if constexpr (MEM==HOST_MEMORY) {
-      if(mpi->node_comm.root()) {
-        auto v_h = nda::to_host(vt);
-        v0() = v_h();
-      }
-    } else {
-      auto v_h = nda::to_host(vt);
-      v0() = v_h();
-    }
   }
-  mpi->comm.barrier();
+  auto v0 = memory::share_reduced<HOST_MEMORY,ComplexType,3>(*mpi,
+      std::array<long,3>{nspin_in_file*npol_in_file, NMO, NMO},
+      [&](auto&& partial) {
+        auto [u0, u1] = itertools::chunk_range(0, nu, mpi->comm.size(), mpi->comm.rank());
+        memory::buffered_array<MEM,ValueType,3> vt(partial.shape());
+        vt() = ValueType(0.0);
+        {
+          memory::buffered_array<MEM,ValueType,2> Wuv((u1-u0),nu);
+          memory::buffered_array<MEM,ValueType,2> Tiv(NMO,nu);
+          Wuv() = ValueType(0.0);
+          Tiv() = ValueType(0.0);
+          for(long is=0, isp=0; is<nspin_in_file; is++) {
+            for(long ip=0; ip<npol_in_file; ip++, isp++) {
+              if(u0==u1) { continue; }
+              auto Xiu = Xsiu()(is,range(ip*NMO,(ip+1)*NMO),range(u0,u1));
+              auto Xiv = Xsiu()(is,range(ip*NMO,(ip+1)*NMO),all);
+              auto Zu = (*Zuv)()(range(u0,u1),all);
+              nda::tensor::contract(Xiu, "iu", nda::conj(Xiv), "iv", Wuv, "uv");
+              nda::tensor::elementwise(Zu, "uv", Wuv, "uv", nda::tensor::op::MUL);
+              nda::tensor::contract(nda::conj(Xiu), "iu", Wuv, "uv", Tiv, "iv");
+              nda::tensor::contract(ValueType(-0.5),Tiv, "iv", Xiv, "jv",
+                                    ValueType(0.0),vt(isp,all,all), "ij");
+            }
+          }
+        }
+        partial = nda::to_host(vt);
+      });
 
   // haj(idet,a_is,j_ip2) = sum_i PsiT(idet,is)(a_is,ip1*NMO+i) H1(is,ip1*NMO+i,ip2*NMO+j)
   long nel[] = {nup, (type == COLLINEAR ? ndn : 0l) };
-  auto haj = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{ndet, nel[0]+nel[1], npol*NMO});
-  if constexpr (MEM == HOST_MEMORY) {
-    if(mpi->node_comm.root()) haj() = ComplexType(0.0);
-  } else {
-    haj() = ComplexType(0.0);
-  }
-  mpi->node_comm.barrier();
-
-  for(long id=0, itot=0; id<ndet; ++id) {
-    for(long is=0; is<nspin; ++is, ++itot) {
-      if( itot%mpi->comm.size() != mpi->comm.rank() ) continue;
-      long nelec_is = (is == 0 ? nup : ndn);
-      for(long ip1=0; ip1<npol; ++ip1) {
-        int ip1_ = ip1%npol_in_file;
-        auto Aai = math::sparse::to_array<'N'>(PsiT(id,is),range(0,nelec_is),range(ip1*NMO,(ip1+1)*NMO));
-        // haj = PsiT * H1
-        for(long ip2=0; ip2<npol; ++ip2) {
-          int ip2_ = ip2%npol_in_file;
-          auto h_ = haj()(id,range(is*nup,is*nup+nelec_is),range(ip2*NMO,(ip2+1)*NMO));
-          if constexpr (MEM==HOST_MEMORY) {
-            auto hij = H1()(is%nspin_in_file,range(ip1_*NMO,(ip1_+1)*NMO),range(ip2_*NMO,(ip2_+1)*NMO));
-            nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
-          } else {
-            memory::array<MEM,ComplexType,2> hij(H1()(is%nspin_in_file,range(ip1_*NMO,(ip1_+1)*NMO),range(ip2_*NMO,(ip2_+1)*NMO)));
-            nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
-          }
-        } // ip2
-      } // ip1
-    }  // is
-  }  // id
-  mpi->comm.barrier();
-  if constexpr (MEM==HOST_MEMORY) {
-    if(mpi->node_comm.root()) mpi->internode_comm.all_reduce_in_place_n(haj.data(),haj.size(),std::plus<>{});
-  } else {
-    mpi->all_reduce(haj(),std::plus<>{});
-  }
-  mpi->comm.barrier();
+  auto haj = memory::share_from_ranks<MEM,ComplexType,3,1>(*mpi,
+      {ndet, nel[0]+nel[1], npol*NMO},
+      [&](std::array<long,1> idx, auto&& block) {
+        auto [id] = idx;
+        for(long is=0; is<nspin; ++is) {
+          long nelec_is = (is == 0 ? nup : ndn);
+          for(long ip1=0; ip1<npol; ++ip1) {
+            int ip1_ = ip1%npol_in_file;
+            auto Aai = math::sparse::to_array<'N'>(PsiT(id,is),range(0,nelec_is),range(ip1*NMO,(ip1+1)*NMO));
+            // haj = PsiT * H1
+            for(long ip2=0; ip2<npol; ++ip2) {
+              int ip2_ = ip2%npol_in_file;
+              auto h_ = block(range(is*nup,is*nup+nelec_is),range(ip2*NMO,(ip2+1)*NMO));
+              auto hij = memory::to_memory_space<MEM>(
+                  H1()(is%nspin_in_file,range(ip1_*NMO,(ip1_+1)*NMO),range(ip2_*NMO,(ip2_+1)*NMO)));
+              nda::blas::gemm(ComplexType(1.0),Aai,hij,ComplexType(1.0),h_);
+            } // ip2
+          } // ip1
+        }  // is
+      });
 
   ComplexType E0 = NuclearCoulombEnergy + FrozenCoreEnergy;
   return HamiltonianOperations<MEM>(THCOps<MEM, REAL>(mpi,type,NMO,nup,ndn,

@@ -26,9 +26,8 @@
 #include "utilities/mpi_context.h"
 #include "utilities/check_strides.hpp"
 #include "utilities/memory_utils.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "numerics/nda_functions.hpp"
-#include "numerics/shared_array/shared_array.hpp"
 
 #include "AFQMC/HamiltonianOperations/ModelComponents/SparseEnergy.hpp"
 #include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
@@ -54,7 +53,7 @@ public:
   ModelHamOps(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
               WALKER_TYPES type,
               int nel_up, int nel_dn,
-              memory::shared_array<MEM,ComplexType,4>&& psi_,
+              memory::const_shared_array<MEM,ComplexType,4>&& psi_,
               SparseEnergy<MEM,REAL>&& et_,
               std::vector<ModelComponent<MEM,REAL>>&& h_,
               nda::MemoryVector auto&& n2ij_
@@ -423,7 +422,7 @@ private:
   // (conjugated) orbital Matrix
   // This should be in node memory
   // PsiC(ndets,npin,i,a) = std::conj( PsiTrial(ndets,npin,i,a) )  
-  memory::shared_array<MEM,ComplexType,4> PsiC;
+  memory::const_shared_array<MEM,ComplexType,4> PsiC;
 
   // One body Hamiltonian
   SparseEnergy<MEM,REAL> ET; 

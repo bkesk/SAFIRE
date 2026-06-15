@@ -95,9 +95,6 @@ void thc_vs_chol_energy_agreement(
   nda::array<ComplexType, 2> G(1, nel * npol * NMO);
   sfqmc::utils::fillRandomArray(G);
 
-  // hermitize for sane 1-rdm
-  G() = 0.5*(G + nda::conj(nda::transpose(G)));
-
   auto eval_energy = [&](auto& H) -> nda::array<ComplexType, 2> {
     nda::array<ComplexType, 2> E(1, 3);
     H.energy(E, G, 0, true, true, true);

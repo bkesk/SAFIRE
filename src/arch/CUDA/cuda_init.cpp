@@ -24,6 +24,11 @@
 
 #include <cstdlib>
 
+#include <mpi.h>
+#if defined(OPEN_MPI)
+#include <mpi-ext.h>
+#endif
+
 #include "IO/app_loggers.h"
 #include "cuda_runtime.h" 
 #include "curand.h"
@@ -40,6 +45,17 @@ namespace sfqmc {
 namespace cuda
 {
 
+namespace {
+bool mpi_is_cuda_aware() {
+#if defined(MPIX_CUDA_AWARE_SUPPORT) // Open MPI family
+  return MPIX_Query_cuda_support() == 1;
+#elif defined(MPICH_NUMVERSION) && MPICH_NUMVERSION >= 40000000 // MPICH family
+  return MPIX_Query_cuda_support() == 1;
+#else
+  return false; // unknown/old: assume not
+#endif
+}
+}
 
 void cuda_check(cudaError_t success, std::string message)
 {
@@ -83,6 +99,10 @@ void init()
 	    world.rank(),node.rank(),devn);
 
   check_probe_kernel();
+  
+  if(world.size() > 1 && !mpi_is_cuda_aware()) {
+    utils::check(false, "Attempted to run GPU build on multiple ranks, but built with CUDA-unaware MPI!");
+  }    
 }
 
 void check_device_configuration()

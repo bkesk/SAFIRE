@@ -26,6 +26,7 @@
 #include "nda/tensor.hpp"
 
 #include "AFQMC/Walkers/WalkerSet.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 
 namespace sfqmc
 {
@@ -49,9 +50,9 @@ public:
         mpi(_mpi),
         walker_type(wlk),
         apply_rotation(false),
-        XRot(memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{1,1,1})),
+        XRot{},
         print_from_list(false),
-        index_list(memory::make_shared_array<HOST_MEMORY,int,2>(mpi,{1,1})),
+        index_list{},
         DMAverage(0, 0)
   {
     app_log(1,"  --  Adding Full 1RDM (OneRDM) estimator. -- ");
@@ -62,6 +63,9 @@ public:
     int nspin = ( walker_type == COLLINEAR ? 2 : 1 );
     int npol = ( walker_type == NONCOLLINEAR ? 2 : 1 );
 
+    std::optional<nda::array<ComplexType,3>> R;
+    std::optional<nda::array<int,2>> I;
+    
     if (rot_file != "")
     {
       {
@@ -69,56 +73,34 @@ public:
         utils::check(f.good()," Error: File with rotation matrix does not exist: {}",rot_file);
       }
       apply_rotation  = true;
-      int dim[2];
 
       if (mpi->comm.root())
       {
+        R.emplace();
         h5::file file(rot_file,'r');
         h5::group grp_(file);
         utils::check(grp_.has_key(h5_path), "Missing h5 dataset:{}",h5_path);
         h5::group grp = grp_.open_group(h5_path);
-        nda::array<ComplexType,3> R;
-        nda::h5_read(grp,"RotationMatrix",R);
-        utils::check(R.extent(0) == nspin, "Error Wrong dimensions in RotationMatrix.");
-        utils::check(R.extent(2) == npol*NMO, "Error Wrong dimensions in RotationMatrix.");
-        dim[0] = R.extent(1);
-        dim[1] = 0;
+        nda::h5_read(grp,"RotationMatrix",*R);
+        utils::check(R->extent(0) == nspin, "Error Wrong dimensions in RotationMatrix.");
+        utils::check(R->extent(2) == npol*NMO, "Error Wrong dimensions in RotationMatrix.");
         // conjugate rotation matrix
-        R() = nda::conj(R());
-        nda::array<int,2> I;
-        if (print_from_list)
-        {
-          nda::h5_read(grp,"Indices",I);
-          utils::check(I.extent(1) == 2, "Error Wrong dimensions in Indices.");
-          dim[1] = I.extent(0);
-        }
-        mpi->comm.broadcast_n(dim, 2, 0);
-        XRot = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{nspin,dim[0],npol*NMO}); 
-        XRot() = R();
-        if (mpi->node_comm.root())
-          mpi->internode_comm.broadcast_n(XRot.data(),XRot.size(),0);
-        if (print_from_list)
-        {
-          index_list = memory::make_shared_array<HOST_MEMORY,int,2>(mpi,{dim[1],2}); 
-          index_list() = I();
-          if (mpi->node_comm.root())
-            mpi->internode_comm.broadcast_n(index_list.data(),index_list.size(),0);
+        (*R)() = nda::conj((*R)());
+        if (print_from_list) {
+          I.emplace();
+          nda::h5_read(grp,"Indices",*I);
+          utils::check(I->extent(1) == 2, "Error Wrong dimensions in Indices.");
         }
       }
-      else
-      {
-        mpi->comm.broadcast_n(dim, 2, 0);
-        XRot = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{nspin,dim[0],npol*NMO});
-        if (mpi->node_comm.root())
-          mpi->internode_comm.broadcast_n(XRot.data(),XRot.size(),0);
-        if (print_from_list)
-        { 
-          index_list = memory::make_shared_array<HOST_MEMORY,int,2>(mpi,{dim[1],2});
-          if (mpi->node_comm.root())
-            mpi->internode_comm.broadcast_n(index_list.data(),index_list.size(),0);
-        }
+      XRot = memory::share_from_root(*mpi, [&]() {
+        return R.value()();
+      });
+      
+      if (print_from_list) {
+        index_list = memory::share_from_root(*mpi, [&]() {
+          return I.value()();
+        });
       }
-      mpi->comm.barrier();
 
       if (print_from_list)
         dm_size = index_list.extent(0);
@@ -248,11 +230,11 @@ private:
   bool apply_rotation;
 
   // currently spin/polarization independent rotation. Can generalize if needed
-  memory::shared_array<HOST_MEMORY,ComplexType,3> XRot;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,3> XRot;
 
   bool print_from_list;
 
-  memory::shared_array<HOST_MEMORY,int,2> index_list;
+  memory::const_shared_array<HOST_MEMORY,int,2> index_list;
 
   // DMAverage (nave, nspin*npol*NMO*npol*NMO), x=(1:CLOSED/COLLINEAR, 2:NONCOLLINEAR)
   nda::array<ComplexType,2> DMAverage;

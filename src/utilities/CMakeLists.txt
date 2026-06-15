@@ -31,6 +31,7 @@ target_sources(safire_lib
   PRIVATE
     app_version.cpp
     mpi_context.cpp
+    mpi_shared_window.cpp
     parser.cpp
     freemem.cpp
     threading.cpp

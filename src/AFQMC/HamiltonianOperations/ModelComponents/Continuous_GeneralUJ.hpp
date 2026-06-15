@@ -21,7 +21,7 @@
 #include "utilities/mpi_context.h"
 
 #include "numerics/sparse/sparse.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 
 namespace sfqmc
 {
@@ -43,7 +43,7 @@ public:
   Continuous_GeneralUJ(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
                        WALKER_TYPES type,
                        PropagatorTypes ptype,  
-                       memory::shared_array<MEM,ComplexType,1>&& h0_,
+                       memory::const_shared_array<MEM,ComplexType,1>&& h0_,
                        math::sparse::CSRMatrix auto&& vn_,
                        math::sparse::CSRMatrix auto&& vnT_,
                        bool shift_ = false,  
@@ -190,7 +190,7 @@ private:
 
   // constant one-body term associated with the 
   // interacting term.
-  memory::shared_array<MEM,ComplexType,1> h0;  
+  memory::const_shared_array<MEM,ComplexType,1> h0;
 
   // HS operator 
   csrMat<ComplexType> SpVn;

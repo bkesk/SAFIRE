@@ -26,6 +26,7 @@
 #include "AFQMC/Propagators/AFQMCBasePropagator.h"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 #include "numerics/nda_functions.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "numerics/operations/exp.hpp"
 #include "numerics/operations/tensor.hpp"
 
@@ -62,8 +63,10 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
       break;
     }
   }
+  long nCV = wfn->number_of_cholesky_vectors();
+
   // discrete propagators setup their own vMF
-  memory::buffered_array<MEM,ComplexType,1> vMF_discrete(vMF.extent(0)); 
+  memory::buffered_array<MEM,ComplexType,1> vMF_discrete(nCV);
   if(discrete_propg) {
     int npol         = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
     nda::array<ComplexType,1> nMF(2*NMO, ComplexType(0.0));
@@ -81,43 +84,32 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
     wfn->update_potentials(dt,nMF,vMF_discrete,natural_shift);
   }
 
-  bool head_shared = ( MEM==HOST_MEMORY ? mpi->node_comm.root() : true ); 
-  if(head_shared) vMF() = ComplexType(0.0);
-  mpi->comm.barrier();
-
   // calculate vMF for the current time step
+  memory::buffered_array<MEM,ComplexType,1> vt(nCV);
+  vt() = ComplexType(0.0);
   if (substractMF)
-  { 
-    {
-     auto hamtype(wfn->getHamType());
-      memory::buffered_array<MEM,ComplexType,1> vt(vMF.shape());
-      // collective call
-      wfn->vMF(vt, dt);
-      if(hamtype == ModelHamiltonian) { 
-        // depending on charge/spin, you should also set imag/real parts to zero
-        // overwrite vMF if needed
-        if(discrete_propg) {
-          for ( int i=0; i<FieldTypes.size(); i++ ) {
-            int v(FieldTypes(i));
-            if( (PropagatorTypes(v) == DiscreteChargePropagator) or
-                (PropagatorTypes(v) == DiscreteSpinPropagator) ) {
-              vt(nda::range(i,i+1)) = vMF_discrete(nda::range(i,i+1));
-            }
+  {
+    auto hamtype(wfn->getHamType());
+    // collective call
+    wfn->vMF(vt, dt);
+    if(hamtype == ModelHamiltonian) {
+      // depending on charge/spin, you should also set imag/real parts to zero
+      // overwrite vMF if needed
+      if(discrete_propg) {
+        for ( int i=0; i<FieldTypes.size(); i++ ) {
+          int v(FieldTypes(i));
+          if( (PropagatorTypes(v) == DiscreteChargePropagator) or
+              (PropagatorTypes(v) == DiscreteSpinPropagator) ) {
+            vt(nda::range(i,i+1)) = vMF_discrete(nda::range(i,i+1));
           }
         }
-      } else {
-        // continuous propagator, charge decomposition. vt should be real
-        math::zero_imag(vt);
       }
-      if(head_shared) vMF() = vt(); 
-    }
-    if constexpr (MEM==HOST_MEMORY) { 
-      if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(vMF.data(),vMF.size(),0);
     } else {
-      mpi->broadcast(vMF());
+      // continuous propagator, charge decomposition. vt should be real
+      math::zero_imag(vt);
     }
   }
-  mpi->comm.barrier();
+  vMF = memory::share_from_root(*mpi, [&] { return memory::array<MEM,ComplexType,1>(vt()); });
 
   if(mpi->comm.root()) {
     auto v_h = nda::to_host(vMF());
@@ -135,25 +127,14 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
 
   // assemble H1(i,j) = dt * (h(i,j) + vn0(i,j) + sum_n vMF[n]*vn(i,j,n))
   // H1 should have the same spin structure as walker_type
-  // everypne computes until I write a csr_matrix in shared memory
   int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT ? 2 : 1);
   int npol  = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT ? 2 : 1);
 
-  // resize if needed
-  if(P1d.shape() != std::array<long,3>{nspin,npol*NMO,npol*NMO}) {
-    mpi->comm.barrier();
-    P1d = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{nspin,npol*NMO,npol*NMO});
-  }
-  if(build_inv and (P1d_inv.shape() != std::array<long,3>{nspin,npol*NMO,npol*NMO})) {
-    mpi->comm.barrier();
-    P1d_inv = memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{nspin,npol*NMO,npol*NMO});
-  } 
-  mpi->comm.barrier();
-
   // H1 is in host
-  if(head_shared) {
+  nda::array<ComplexType,3> H1;
+  if(mpi->comm.root()) {
     auto vMF_h = nda::to_host(vMF());
-    auto H1 = wfn->getOneBodyPropagatorMatrix(dt, vMF_h);
+    H1 = wfn->getOneBodyPropagatorMatrix(dt, vMF_h);
 
     utils::check(H1.shape() == std::array<long,3>{nspin,npol*NMO,npol*NMO}, "Shape mismatch.");
     if(external_H1) nda::tensor::add(ComplexType(1.0),H1ext(),"sij",ComplexType(1.0),H1(),"sij");
@@ -166,18 +147,23 @@ void AFQMCBasePropagator<MEM>::generateP1(double dt, WALKER_TYPES walker_type, b
     if(nda::norm(nda::flatten(H1tmp())) > 1e-5) {
       app_warning("H1 is not hermitian!");
     }
-    
 
     nda::tensor::scale(ComplexType(-0.5),H1);
-    for(int i=0; i<nspin; ++i) 
-      P1d()(i,all,all) = math::exp_hermitian(H1(i,all,all), printP1eV);
-    if(build_inv) {
-      nda::tensor::scale(ComplexType(-1.0),H1);
-      for(int i=0; i<nspin; ++i) 
-        P1d_inv()(i,all,all) = math::exp_hermitian(H1(i,all,all), printP1eV);
-    }
   }
-  mpi->comm.barrier();
+  auto exp_H1 = [&] {
+    nda::array<ComplexType,3> P(nspin,npol*NMO,npol*NMO);
+    for(int i=0; i<nspin; ++i) {
+      P(i,all,all) = math::exp_hermitian(H1(i,all,all), printP1eV);
+    }
+    return memory::to_memory_space<MEM>(std::move(P));
+  };
+  P1d = memory::share_from_root(*mpi, exp_H1);
+  if(build_inv) {
+    if(mpi->comm.root()) {
+      nda::tensor::scale(ComplexType(-1.0),H1);
+    }
+    P1d_inv = memory::share_from_root(*mpi, exp_H1);
+  }
 
   if(P1s.size() != nspin) P1s.resize(nspin); 
   for(int i=0; i<nspin; i++) 

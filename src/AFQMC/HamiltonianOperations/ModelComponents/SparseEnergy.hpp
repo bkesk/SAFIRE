@@ -22,7 +22,6 @@
 #include "utilities/mpi_context.h"
   
 #include "numerics/sparse/sparse.hpp"
-#include "numerics/shared_array/shared_array.hpp"
 
 namespace sfqmc
 {

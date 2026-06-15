@@ -253,9 +253,9 @@ protected:
 
   std::map<std::string, Wavefunction<MEM>> wavefunctions;
 
-  std::map<std::string, memory::shared_array<HOST_MEMORY, ComplexType, 3>> initial_guess;
+  std::map<std::string, memory::const_shared_array<HOST_MEMORY, ComplexType, 3>> initial_guess;
 
-  std::map<std::string, memory::shared_array<HOST_MEMORY, ComplexType, 4>> initial_guess_ft;
+  std::map<std::string, memory::const_shared_array<HOST_MEMORY, ComplexType, 4>> initial_guess_ft;
 };
 } // namespace afqmc
 } // namespace sfqmc

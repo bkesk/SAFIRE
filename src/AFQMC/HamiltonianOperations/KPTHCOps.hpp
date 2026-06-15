@@ -24,7 +24,7 @@
 #include "utilities/check.hpp"
 #include "utilities/mpi_context.h"
 #include "utilities/check_strides.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "numerics/nda_functions.hpp"
 #include "detail/one_body.hpp"
 
@@ -65,16 +65,16 @@ public:
          nda::array<int,2>&& nocc_per_kp_,
          nda::array<int,1>&& minusq_,
          nda::array<int,2>&& qk_to_k2_,
-         memory::shared_array<HOST_MEMORY,ComplexType,4>&& hij_,
-         memory::shared_array<MEM,ComplexType,3>&& haj_,
-         memory::shared_array<MEM,ComplexType,4>&& x_,
-         memory::shared_array<MEM,ComplexType,6>&& y_,
-         memory::shared_array<MEM,ComplexType,3>&& l_,
-         std::optional<memory::shared_array<MEM,ComplexType,3>>&& z_,
-         std::optional<memory::shared_array<MEM,ComplexType,4>>&& x_rot_,
-         std::optional<memory::shared_array<MEM,ComplexType,6>>&& y_rot_,
-         std::optional<memory::shared_array<MEM,ComplexType,3>>&& z_rot_,
-         memory::shared_array<HOST_MEMORY,ComplexType,4>&& v0_,
+         memory::const_shared_array<HOST_MEMORY,ComplexType,4>&& hij_,
+         memory::const_shared_array<MEM,ComplexType,3>&& haj_,
+         memory::const_shared_array<MEM,ComplexType,4>&& x_,
+         memory::const_shared_array<MEM,ComplexType,6>&& y_,
+         memory::const_shared_array<MEM,ComplexType,3>&& l_,
+         std::optional<memory::const_shared_array<MEM,ComplexType,3>>&& z_,
+         std::optional<memory::const_shared_array<MEM,ComplexType,4>>&& x_rot_,
+         std::optional<memory::const_shared_array<MEM,ComplexType,6>>&& y_rot_,
+         std::optional<memory::const_shared_array<MEM,ComplexType,3>>&& z_rot_,
+         memory::const_shared_array<HOST_MEMORY,ComplexType,4>&& v0_,
          ComplexType e0_)
       : mpi(ctxt), 
         walker_type(type),
@@ -942,19 +942,19 @@ protected:
   int Q0_index = 0;
 
   // H1[nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<HOST_MEMORY,ComplexType,4> hij;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,4> hij;
 
   // half rotated one body hamiltonian: [ndet][nup+ndn][npol*NMO]. Kept in full basis
-  memory::shared_array<MEM,ComplexType,3> haj;
+  memory::const_shared_array<MEM,ComplexType,3> haj;
 
   // Xsiu[nspin][nk][npol*nbnd][nu]
-  memory::shared_array<MEM,ComplexType,4> _Xsiu_;
+  memory::const_shared_array<MEM,ComplexType,4> _Xsiu_;
 
   // Ydsau[ndet][nspin][ipol][nk][nocc_max][nu]
-  memory::shared_array<MEM,ComplexType,6> _Ydsau_;
+  memory::const_shared_array<MEM,ComplexType,6> _Ydsau_;
 
   // Luv[nu][nv]
-  memory::shared_array<MEM,ComplexType,3> _Luv_;
+  memory::const_shared_array<MEM,ComplexType,3> _Luv_;
 
   // Zuv[nu][nv]
   std::optional<decltype(_Luv_)> _Zuv_;
@@ -969,7 +969,7 @@ protected:
   std::optional<decltype(_Luv_)> _Zuv_rot_; 
 
   // vexx(i,l) = -0.5 * sum_j <ij|jl> : [nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<HOST_MEMORY,ComplexType,4> vexx;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,4> vexx;
 
   ComplexType E0;
 

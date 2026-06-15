@@ -351,6 +351,9 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
 
   AFQMCDriver<MEM> driver(mpi, AFinfo, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0, estim0);
 
+  // free any shared windows that were abandoned during initialization
+  mpi->shared_windows.collective_free_unused();
+
   if (!driver.run(wset))
   {
     app_error(" Problems with AFQMCDriver::run().");

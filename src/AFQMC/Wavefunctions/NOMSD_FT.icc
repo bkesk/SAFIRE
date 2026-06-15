@@ -98,7 +98,7 @@ template<MEMORY_SPACE MEM, class devPsiT>
 template<class WlkSet, nda::MemoryMatrix RMat, nda::MemoryMatrix MatG, nda::MemoryVector TVec>
 void NOMSD_FT<MEM,devPsiT>::DensityMatrix(const WlkSet& wset, RMat&& Ref, MatG&& G, TVec&& Ov, int nt)
 {
-  // RVec is a vector of shared_array or CSRMatrix
+  // RVec is a vector of const_shared_array or CSRMatrix
   auto all = nda::range::all;
   memory::check_memory_space<MEM>(G,Ov);
   const int nw   = wset.size();
@@ -829,14 +829,11 @@ auto NOMSD_FT<MEM,devPsiT>::G_MF()
   int npol  = (walker_type==NONCOLLINEAR_FT ? 2 : 1);
   int ndet  = ci.size();
 
-  auto gMF = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
-                      {nspin,npol*NMO,npol*NMO});
-
   if (ndet == 1)
   {
-    if(mpi->comm.root()) {
-      memory::buffered_array<MEM,ComplexType,1> Ov(1); 
-      //auto G3d = nda::reshape(gMF(),std::array<long,3>{1,nspin*npol*NMO,npol*NMO});
+    return memory::share_from_root(*mpi, [&] {
+      nda::array<ComplexType,3> gMF(nspin,npol*NMO,npol*NMO);
+      memory::buffered_array<MEM,ComplexType,1> Ov(1);
       gMF() = ComplexType(0.0);
 
       //memory::buffered_array<MEM,ComplexType,3> PsiT(1,npol*NMO,nup);
@@ -861,30 +858,29 @@ auto NOMSD_FT<MEM,devPsiT>::G_MF()
       IVec2D(0,all) = ComplexType(1.0);
 
       if constexpr (MEM==HOST_MEMORY){
-        auto G3d = nda::reshape(gMF(),std::array<long,3>{1,nspin*npol*NMO,npol*NMO});
-        det_ops::MixedDensityMatrix(ULup, DLup(0,all), VLup, IMat3D, IVec2D, 
+        auto G3d = nda::reshape(gMF,std::array<long,3>{1,nspin*npol*NMO,npol*NMO});
+        det_ops::MixedDensityMatrix(ULup, DLup(0,all), VLup, IMat3D, IVec2D,
             IMat3D, G3d(all,range(npol*NMO),all), Ov, sclL, sclR, true, true);
-        if( walker_type == COLLINEAR_FT ) { 
-          det_ops::MixedDensityMatrix(ULdn, DLdn(0,all), VLdn, IMat3D, IVec2D, 
+        if( walker_type == COLLINEAR_FT ) {
+          det_ops::MixedDensityMatrix(ULdn, DLdn(0,all), VLdn, IMat3D, IVec2D,
                IMat3D, G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all), Ov, sclL, sclR, true, true);
         }
       } else {
         memory::array<MEM,ComplexType,3> gt(1,npol*NMO,npol*NMO);
-        det_ops::MixedDensityMatrix(ULup, DLup(0,all), VLup, IMat3D, IVec2D, 
+        det_ops::MixedDensityMatrix(ULup, DLup(0,all), VLup, IMat3D, IVec2D,
                 IMat3D, gt, Ov, sclL, sclR, true, true);
-        gMF()(0,all,all) = gt(0,all,all);
-        if( walker_type == COLLINEAR_FT ) { 
-          det_ops::MixedDensityMatrix(ULdn, DLdn(0,all), VLdn, IMat3D, IVec2D, 
+        gMF(0,all,all) = gt(0,all,all);
+        if( walker_type == COLLINEAR_FT ) {
+          det_ops::MixedDensityMatrix(ULdn, DLdn(0,all), VLdn, IMat3D, IVec2D,
                 IMat3D, gt, Ov, sclL, sclR, true, true);
-          gMF()(1,all,all) = gt(0,all,all);
+          gMF(1,all,all) = gt(0,all,all);
         }
       }
 
-    }
-    if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(gMF.data(),gMF.size(),0);
-    mpi->comm.barrier();
+      return gMF;
+    });
 
-  } 
+  }
   else {
 
     utils::check(false, "finish multi-determinant G_MF implementation for finite-T");
@@ -940,11 +936,11 @@ auto NOMSD_FT<MEM,devPsiT>::G_MF()
     mpi->comm.all_reduce_in_place_n(&Osum,1,std::plus<>{});
     nda::tensor::scale(ComplexType(1.0/Osum),Gsum); 
     auto Gv = nda::reshape(Gsum,std::array<long,3>{nspin,npol*NMO,npol*NMO});
-    if(mpi->node_comm.root()) gMF() = Gv(); 
+    if(mpi->node_comm.root()) gMF() = Gv();
     mpi->comm.barrier();
     */
+    return memory::host_const_shared_array<ComplexType,3>{};
   }
-  return gMF;
 }
 
 /*
