@@ -446,36 +446,53 @@ void WavefunctionFactory<MEM>::getInitialGuess(h5::group grp,
          std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
          std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type)
 {
+  using nda::range;
+  auto all = range::all;
   int nspin = (walker_type == COLLINEAR or walker_type == COLLINEAR_FT) ? 2 : 1;
   int npol = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2 : 1;
   nda::array<int,1> dims(5);
   nda::h5_read(grp,"dims",dims);
+  
+  auto nel_in_guess = std::to_array({dims[1],dims[2]});
+
   WALKER_TYPES wtype(initWALKER_TYPES(dims[3]));
+  utils::check(walkerTypeIsConvertible(wtype, walker_type), "Initial guess ({}) not convertible to walker_type {}", walkerTypeToString(wtype), walkerTypeToString(walker_type));
   if(walker_type != COLLINEAR_FT and walker_type != NONCOLLINEAR_FT){
     auto guess = initial_guess.find(name);
     utils::check(guess == initial_guess.end(), 
                "Error: Problems adding new initial guess, already exists.");
     auto newg = initial_guess.insert(std::make_pair(name, memory::share_from_root(*mpi, [&] {
-      nda::array<ComplexType,3> M(nspin, npol * NMO, nup);
-      M() = ComplexType(0.0, 0.0);
-      auto Mup = M(0,nda::ellipsis{});
-      utils::h5_read(grp,"Psi0_alpha",Mup);
-      if (walker_type == COLLINEAR)
-      {
-        if (wtype == COLLINEAR)
-        {
-          auto Mdn = M(1,nda::range::all,nda::range(ndown));
-          utils::h5_read(grp,"Psi0_beta",Mdn);
-        }
-        else if (wtype == CLOSED)
-        {
-          utils::check(nup == ndown, "Error: wfn_type:Closed with nup != ndown.");
-          M(1,nda::ellipsis{}) = Mup();
-        }
-        else
-          utils::check(false," Error: Unknown wtype. ");
+      auto [nspin_in_guess, npol_in_guess] = walkerTypeToDims(wtype);
+      nda::array<ComplexType,3> M(nspin_in_guess, npol_in_guess * NMO, nup);
+      M() = 0;
+
+      std::array<std::string,2> dataset_names{{"Psi0_alpha", "Psi0_beta"}};
+
+      for(int is = 0; is < nspin_in_guess; is++) {
+        auto Mspin = M(is, all, range(nel_in_guess[is]));
+        utils::h5_read(grp, dataset_names[is], Mspin);
       }
-      return M;
+
+      if(walker_type == wtype) {
+        return M;
+      } else if(walker_type == NONCOLLINEAR) {
+        nda::array<ComplexType,3> Mfull(nspin, npol * NMO, std::accumulate(nel_in_guess.begin(), nel_in_guess.end(), 0));
+        Mfull() = 0;
+        auto Mfull4d = reshape(Mfull, nspin, npol, NMO, Mfull.extent(2));
+        int offset = 0;
+        for(int ip = 0; ip < npol; ip++) {
+          Mfull4d(0, ip, all, range(offset, offset + nel_in_guess[ip])) = M(ip % nspin_in_guess, all, all); 
+          offset += nel_in_guess[ip];
+        }
+        return Mfull;
+      } else { // CLOSED -> COLLINEAR
+        nda::array<ComplexType,3> Mfull(nspin, npol * NMO, *std::ranges::max_element(nel_in_guess));
+        Mfull() = 0;
+        for(int is = 0; is < nspin; is++) {
+          Mfull(is, all, all) = M(is % nspin_in_guess, all, all); 
+        }
+        return Mfull;
+      }
     })));
     utils::check(newg.second, " Error: Problems adding new initial guess. ");
   }

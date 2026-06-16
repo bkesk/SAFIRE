@@ -27,6 +27,7 @@
 
 #include "nda/h5.hpp"
 #include "utilities/h5_utils.hpp"
+#include "utilities/check_shape.hpp"
 #include "numerics/sparse/sparse.hpp"
 #include "AFQMC/Wavefunctions/Excitations.hpp"
 
@@ -104,9 +105,8 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
       auto up = math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(ugrp);
       h5::group dgrp = grp.open_group("PsiT_"+std::to_string(2*id+1));
       auto dn = math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(dgrp);
-      utils::check(up.extent(1) == NMO, "Shape mismatch");
-      utils::check(dn.extent(1) == NMO, "Shape mismatch");
-      utils::check(up.extent(0) + dn.extent(0) == nel[0], "Shape mismatch");
+      utils::check_shape(up, "up", nel[0], NMO);
+      utils::check_shape(dn, "dn", nel[1], NMO);
       // combining, shift dn by NMO 
       psi(id,0) = math::sparse::combine_csr(up,dn,NMO);
     }
@@ -119,7 +119,7 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
       for(int id=0; id<ndets; ++id) {
         h5::group pgrp = grp.open_group("PsiT_"+std::to_string(id));
         psi(id,0) = std::move(math::sparse::HDF2CSR<ComplexType,MEM,int,int>(pgrp));
-        utils::check(psi(id,0).shape() == std::array<long,2>{nel[0],NMO}, "Shape mismatch");
+        utils::check_shape(psi(id,0), "psi", nel[0], NMO);
         psi(id,1) = psi(id,0);
       }
     } else {

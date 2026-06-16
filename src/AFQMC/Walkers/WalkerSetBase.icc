@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include "utilities/check_shape.hpp"
 
 namespace sfqmc
 {
@@ -461,7 +462,7 @@ void WalkerSetBase<_M_>::popControl(std::vector<ComplexType>& curData, bool skip
  * Adds/removes the number of walkers in the set to match the requested value.
  * Walkers are removed from the end of the set 
  *      and buffer capacity remains unchanged in this case.
- * New walkers are initialized from the supplied matrix. 
+ * New walkers are initialized from the supplied array A. 
  * Capacity is increased if necessary.
  * Target Populations are set to n.
 */
@@ -470,7 +471,7 @@ void WalkerSetBase<_M_>::resize(int n, nda::MemoryArrayOfRank<3> auto const& A)
 { 
   auto all = nda::range::all;
   int nspin = (walkerType == COLLINEAR ? 2 : 1);
-  utils::check(A.shape() == std::array<long,3>{nspin,wlk_desc[0],wlk_desc[1]} , "Size mismatch.");
+  utils::check_shape(A, "A", nspin, wlk_desc[0], wlk_desc[1]);
   reserve(n);
   if (n > tot_num_walkers)
   { 
