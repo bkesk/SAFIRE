@@ -49,8 +49,6 @@ namespace sfqmc
 namespace afqmc
 {
 
-// NOTE: remove AFQMCInfo object from Hamiltonian generators, NMO/nup/ndown should be provided by calling routine
-
 template<MEMORY_SPACE MEM> HamiltonianOperations<MEM> 
 RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
                  std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
@@ -68,7 +66,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   int nspin_in_H1 = 1, npol_in_H1 = 1; // read/broadcast below
   int nspin_in_H2 = 1, npol_in_H2 = 1; // read/broadcast below
   utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.size(1)%npol != 0");
-  utils::check(nspin_in_PsiT == nspin, base_error + "Size mismatch PsiT");
+  utils::check(nspin_in_PsiT == nspin, base_error + "nspin mismatch in PsiT {} != {} expected", nspin_in_PsiT, nspin);
   utils::check(nspin==1 or npol==1, base_error + "Both nspin and npol can not be >1 simultaneously."); 
 
   // MAM: should this be zero with CLOSED shell???
