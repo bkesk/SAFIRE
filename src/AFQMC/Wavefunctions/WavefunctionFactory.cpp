@@ -415,16 +415,25 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     det_coupling_matrix(0) = unsorted_det_coupling[0];
     det_coupling_matrix(1) = unsorted_det_coupling[1];
 
-    // move to 2d version just for getHamiltonianOperations
-    nda::array<PsiT_Matrix<MEM>, 2> PsiT_2d(1,PsiT_MO.extent(0));
-    for(int i=0; i<PsiT_MO.extent(0); i++)
-      PsiT_2d(0,i) = std::move(PsiT_MO(i));
+    // PsiT carries n_ref reference(s): 1 for RHF/GHF (combined), 2 for UHF.
+    // The Hamiltonian expects one entry per spin channel (nspin), so for a single
+    // combined reference under COLLINEAR we duplicate it across both spins -- the
+    // same walker-type conversion every other wavefunction path performs on read.
+    int const n_ref = PsiT_MO.extent(0);
+    int const nspin = (walker_type == COLLINEAR ? 2 : 1);
+
+    // 2d version just for getHamiltonianOperations (copy, so PsiT_MO survives)
+    nda::array<PsiT_Matrix<MEM>, 2> PsiT_2d(1, nspin);
+    for(int i=0; i<nspin; i++) {
+      PsiT_2d(0,i) = PsiT_MO(i % n_ref);
+    }
     auto HOps = h.getHamiltonianOperations<MEM>(walker_type, mpi, PsiT_2d);
 
-    // move to 1-d array for PHMSD
-    nda::array<PsiT_Matrix<MEM>, 1> PsiT_1d(PsiT_2d.extent(1));
-    for(int i=0; i<PsiT_2d.extent(1); i++)
-      PsiT_1d(i) = std::move(PsiT_2d(0,i));
+    // 1-d array for PHMSD keeps the original reference count (1 or 2)
+    nda::array<PsiT_Matrix<MEM>, 1> PsiT_1d(n_ref);
+    for(int i=0; i<n_ref; i++) {
+      PsiT_1d(i) = std::move(PsiT_MO(i));
+    }
 
     return Wavefunction<MEM>(PHMSD<MEM>(AFinfo, pt, walker_type, mpi, std::move(HOps),
                     std::move(abij), std::move(det_coupling_matrix),
