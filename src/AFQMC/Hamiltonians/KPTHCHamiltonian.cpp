@@ -75,8 +75,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.size(1)%npol != 0");
   utils::check(nspin_in_PsiT==nspin, "Size mismatch");
   utils::check(ndet==1, "Error: ndet > 1 not yet implemented in KPTHCHamiltonian::getHamiltonianOperations.");
-  long nel_dn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
-              (type == CLOSED ? nel_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
+  long nel_dn = (type == COLLINEAR ? PsiT(0,1).extent(0) : 0l);
   for(int i=0; i<ndet; ++i) 
     for(int ip=0; ip<npol; ++ip) {
       utils::check_shape(PsiT(i,0), "PsiT", nel_up, NMO);

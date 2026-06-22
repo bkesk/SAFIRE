@@ -75,9 +75,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
   utils::check(PsiT(0,0).extent(1)%npol==0, base_error + "Psi.size(1)%npol != 0");
   utils::check(PsiT.extent(1) == nspin, "Size mismatch");
   utils::check(ndet==1, "Error: ndet > 1 not yet implemented in THCHamiltonian::getHamiltonianOperations.");
-  // MAM: should this be zero with CLOSED shell???
-  long ndn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
-              (type == CLOSED ? nup : PsiT(0,1).extent(0) ) );
+  long ndn = (type == COLLINEAR ? PsiT(0,1).extent(0) : 0l);
   for(int i=0; i<ndet; ++i) 
     for(int ip=0; ip<npol; ++ip) {
       utils::check_shape(PsiT(i,0), "PsiT", nup, npol*NMO);
@@ -116,7 +114,7 @@ THCHamiltonian::getHamiltonianOperations_impl(WALKER_TYPES type,
       h5::h5_read_attribute(bz,"number_of_kpoints",n);
       utils::check(n==1, base_error + "nkpts:1 differs from number_of_kpoints:{} in file",n);
       // read nspin_in_H1
-      h5::h5_read_attribute(*hgrp,"number_of_spins",nspin_in_H1);
+      nspin_in_H1 = h5::h5_read_attribute<int>(*hgrp,"number_of_spins");
       // read npol_in_H1
       // h5::h5_read_attribute(bz,"number_of_polarizations",n);
       // npol_in_H1=long(n);

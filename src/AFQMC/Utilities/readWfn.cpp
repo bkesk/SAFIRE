@@ -120,7 +120,7 @@ void read_ph_wavefunction_hdf(h5::group& grp,
    *   - 1: excitations out of a UHF reference (not yet working)
    */
   WALKER_TYPES wtype;
-  getCommonInput(grp, NMO, nup, ndown, ndets, ci_coeff, wtype);
+  getCommonInput(grp, ndets, ci_coeff, wtype);
   // make first coefficient positive (or maybe largest???)
   ci_coeff() *= ( std::real(ci_coeff(0)) < 0.0 ? -1.0 : 1.0 );  
   utils::check(wtype != CLOSED, " walker_type==CLOSED not yet implemented for PHMSD Trial wavefunctions.");

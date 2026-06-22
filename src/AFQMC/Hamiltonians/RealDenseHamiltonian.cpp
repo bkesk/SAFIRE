@@ -70,8 +70,7 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   utils::check(nspin==1 or npol==1, base_error + "Both nspin and npol can not be >1 simultaneously."); 
 
   // MAM: should this be zero with CLOSED shell???
-  int nact_dn = ( type == FULLYPOLARIZED or type == NONCOLLINEAR ? 0l :
-              (type == CLOSED ? nact_up : PsiT(0,nspin_in_PsiT-1).extent(0) ) );
+  int nact_dn = (type == COLLINEAR ? PsiT(0,1).extent(0) : 0l);
 
   std::vector<long> Idata(8);
   ComplexType E0;
