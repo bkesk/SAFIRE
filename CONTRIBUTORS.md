@@ -11,11 +11,12 @@ We consider "Core Developers" and "Contributors" to be mutually-exclusive catego
 
 - **Miguel Morales** 
 - **(Brandon) Kyle Eskridge**
-- **Ryan Levy**
-- **Paul Yang**
+- **Lukas Weber**
 
 ### Alumni
 
+- **Ryan Levy**
+- **Paul Yang**
 
 
 ### Additional Contributors to the Initial Version
