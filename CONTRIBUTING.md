@@ -1,7 +1,5 @@
 # Contributing Guide
 
-TODO: add in references to the name(s) of the code.
-
 We are excited that you are interested in contributing.
 The goals of this guide are to:
 
@@ -12,7 +10,7 @@ The goals of this guide are to:
 ## How to Contribute
 
 Unless otherwise stated, contributions should be made via a pull request (PR) to
-the `unstable` branch on GitHub.
+the `develop` branch on GitHub.
 We encourage opening a PR early in the contribution process so that we can provide guidance.
 
 ### Some Preliminaries
@@ -41,48 +39,18 @@ We have the following preliminary expectations from contributors.
 
 ## Ensuring CI will pass
 
-We have CI enabled and it will automatically reject PRs which do not pass the actions list below.
-We highly recommend ensuring that your local changes will pass the following before pushing changes.
+Before a PR is merged, it has to pass our CI pipeline. The CI will run the unit tests of the C++ and Python parts of the project. You can run those tests locally as follows.
 
-1. C++: (triggered if a PR makes any changes to the C++ code; note a draft PR will NOT trigger tests until marked as "ready for review")
-   - unit tests via ctest
-   - linting via clang-tidy
+### Running C++ tests
 
-2. Python
-(triggered if a PR makes any changes to the Python code; note a draft PR will NOT trigger tests until marked as "ready for review")
-   - unit tests via pytest
-   - linting via ruff
+```sh
+make test
+```
 
-### Running `clang-tidy` Locally
-
-TODO: See if Thomas could help you set this up and add instructions. Start with looking at TRIQS.
-
-### Running `ruff`
-
-To run the `ruff` linter, follow these steps:
-
-1. **Install `ruff`:**
-   Ensure you have `ruff` installed. You can install it via `pip`:
-   
-   ```sh
-   $ pip install ruff
-   ```
-
-2. **Run Ruff:**
-
-   You can run ruff from within the `utils/` directory to check the codebase
-   against our code standard.
-   We have already configured Ruff at the the project level; changing the configuration
-   is not recommended and may result in your PRs being rejected if they do not pass
-   linting based on our configuration.
-
-   ```sh
-   $ ruff check
-   ```
-
-### Running C++ unit tests
-
-
+To run the test suite in parallel, use
+```sh
+CTEST_PARALLEL_LEVEL=0 make test
+```
 
 ### Running Python unit tests
 
@@ -157,7 +125,7 @@ Please report bugs by opening an issue on GitHub.
 At a minimum, a bug report issue should include:
 1. What you did.
 2. What you expected to happen.
-3. What actually happened
+3. What actually happened.
 
 To help with identifying the cause of the bug, please include as much of the following information as possible:
 
@@ -345,8 +313,4 @@ They should be concise and to the point, providing just enough context to unders
 5. **Review and Test:** Test the example to ensure that it works as expected. Have someone else review the example for clarity and completeness.
 
 6. **Submission:** Submit the example as a Python script in the docs/examples directory to the relevant subdirectory. Ensure that the file name is descriptive of the example's content.
-
-### Benchmarking
-
-TODO: Outline the process for contributing benchmarking tests and results, including the tools and metrics used to evaluate performance.
 

@@ -11,9 +11,6 @@
 import warnings
 from pathlib import Path
 
-import json
-import yaml
-# for Python 3.11+, migrate to tomllib
 import toml
 
 import numpy as np
@@ -26,7 +23,7 @@ from afqmctools.hamiltonian.model.ham_class import SpinSymm,Hamiltonian,get_spin
 spin_type = {
     SpinSymm.CLOSED : 'closed',
     SpinSymm.COLLINEAR : 'collinear',
-    SpinSymm.NONCOLLINEAR : 'noncollinear' 
+    SpinSymm.NONCOLLINEAR : 'noncollinear'
 }
 
 inv_spin_type = {
@@ -77,7 +74,7 @@ def add_dataset(fh5:h5.File, name, value):
         Value to write to dataset.
     """
     if name in fh5:
-        fh5[name] == value
+        fh5[name] = value
     else:
         fh5.create_dataset(name,data=value)
 
@@ -102,69 +99,6 @@ def add_group(fh5:h5.File, name):
     if name in fh5:
         del fh5[name]
     return fh5.create_group(name)
-
-
-def read_csrm(grp):
-  """Read CSR matrix from hdf5 group
-
-  Parameters
-  ----------
-  grp: h5py.Group 
-    h5py hd5f group
-  
-  Returns
-  -------
-  csra: scipy.sparse.csr_array
-
-  Example:
-    >>> fp = h5py.File('mat.h5', 'r')
-    >>> g = fp['sparse_matrix']
-    >>> mat = read_csrm(g)
-  """
-  warnings.warn("'read_csrm' is deprecated and will be removed")
-  # data could be real or complex
-  darr = grp['data_'][()]
-  dshape = darr.shape
-  if len(dshape) == 1:
-    data = darr
-  elif (len(dshape) == 2):
-    data = from_complex(darr)
-  else:
-    msg = 'read_csrm cannot handle data shape %s' % dshape
-    raise RuntimeError(msg)
-  # matrix indices
-  indices = grp['jdata_'][()]
-  lastptr = [grp['pointers_end_'][-1]]
-  indptr = np.concatenate([grp['pointers_begin_'][()], lastptr])
-  shape = grp['dims'][:2]
-  mat = sps.csr_array((data, indices, indptr), shape=shape)
-  return mat
-
-
-def write_csrm(grp, mat):
-  """Write CSR matrix to hdf5 group
-
-  Parameters
-  ----------
-    grp : h5py.Group
-        h5py hdf group to write to
-    mat : scipy.sparse.csr_array
-        sparse matrix to write
-
-  Example:
-    >>> fp = h5py.File('mat.h5', 'w')
-    >>> g = fp.create_group('sparse_matrix')
-    >>> write_csrm(g, mat)
-  """
-  warnings.warn("'write_csrm' is deprecated and will be removed")
-  dims = (mat.shape[1], mat.shape[0], mat.nnz)
-  grp['data_'] = to_complex(mat.data)
-  grp['jdata_'] = mat.indices
-  grp['pointers_begin_'] = mat.indptr[:-1]
-  grp['pointers_end_'] = mat.indptr[1:]
-  grp['dims'] = dims
-
-
 
 def read_one_body(fname,format:str='csr'):
     """
@@ -236,11 +170,10 @@ def _read_one_body_csr(fname:str|Path):
         print("Unique vals:")
         for c in comps:
             print(np.unique(c.data))
-                
     return sum(comps)
 
 
-def get_hamiltonain_spin_symm(fname):
+def get_hamiltonian_spin_symm(fname):
     """
     Get the spin symmetry of the Hamiltonian from a Hamiltonian HDF5 file.
 
@@ -267,33 +200,23 @@ def read_nmo(fname):
 
 def _format_dtype(array):
     if array.dtype == 'complex128':
-        shape = array.shape
-        afqmc_array = array.view(np.float64).reshape(shape+(2,))
-        if hasattr(afqmc_array, "asarray"):  
-            afqmc_array = afqmc_array.asarray()
-        return afqmc_array
+        return to_complex(array)
     else:
       return array
 
-
-def write_csr(f,csr_array:sps.csr_array,prefix,use_complex=False):
+def write_csr(f,csr_array:sps.csr_array,prefix):
     """
     Write CSR matrix to HDF5.
 
     Parameters
     ----------
-    f : h5py.File
-        File object to write to.
+    f : h5py.File or h5py.Group
+        HDF5 object to write to.
     csr_array : sps.csr_array
         CSR matrix to write.
     prefix : str
         Prefix to write to.
-    use_complex : bool
-        Use complex-values in HDF5
     """
-    # forces a complex-valued array
-    if use_complex:
-        csr_array = csr_array.astype(np.complex128)
 
     dims = [
         csr_array.shape[0],
@@ -400,13 +323,14 @@ def write_model_hamiltonian(
     with h5.File(fname,'w') as f:
 
         f.create_dataset(
-            'Hamiltonian/dims', 
+            'Hamiltonian/dims',
             data = np.array([0, 0, 0, hamiltonian.nsites*hamiltonian.nbands , nup, ndn, 0, 0])
         )
         # write Energies!
         f.create_dataset(
             'Hamiltonian/Energies',
-            data = np.array([0., 0.], dtype=np.float64),
+            data = np.array([0., 0.]),
+            dtype=np.float64
         )
 
         f.create_dataset(
@@ -440,12 +364,15 @@ def write_model_hamiltonian(
                             name=component_prefix+metakey,
                             data=value
                         )
+                if real_valued:
+                    csr_array = component.csr_array
+                else:
+                    csr_array = component.csr_array.astype(np.complex128)
 
                 write_csr(
                     f=f,
-                    csr_array=component.csr_array,
+                    csr_array=csr_array,
                     prefix=component_prefix + key,
-                    use_complex=not real_valued
                     )
                 component_num+=1
 
@@ -459,8 +386,9 @@ def write_pair_correlators(fname:str=None, pairs_dict=None):
     """
     Write pair correlators to an HDF5 file.
 
-    .. warning:: This is an experimental feature and is not officially supported. Use at your own risk.
-    
+    .. warning:: This is an experimental feature and is not officially supported.
+                 Use at your own risk.
+
     Parameters
     ----------
     fname : str
@@ -468,61 +396,29 @@ def write_pair_correlators(fname:str=None, pairs_dict=None):
     pairs_dict : dict
         Dictionary of pair correlators to write.
     """
+    warnings.warn("Pair correlators are an experimental feature")
+
     max_num_pairs = max( [ len(pair_list) for pair_list in pairs_dict.values() ] ) # this is for c++ memory allocation
     num_correlators = len(pairs_dict.keys())
 
     with h5.File(fname,"a") as f:
-        g = f.create_group("PairCorrelator/orbital_map")
+        group_name = "PairCorrelator/orbital_map"
+        if group_name in f:
+            del f[group_name]
+        g = f.create_group(group_name)
         g.create_dataset("num_pair",data=max_num_pairs)
         g.create_dataset("num_corr",data=num_correlators)
         for direction,pair in pairs_dict.items():
             g.create_dataset(direction,data=np.array([pair]).T)
 
 
-def _write_param_json(fname:str=None,params=None):
-    warnings.warn(
-        "Saving lattice model parameters in JSON is deprecated and will be removed. "
-        "Use TOML instead."
-    )
-    assert fname.endswith('.json')
-    with open(fname,"w") as f:
-        json.dump(
-            params,
-            fp=f
-        )
-
-def _write_param_toml(fname:str=None,params=None):
-    assert fname.endswith('.toml')
-    with open(fname,"w") as f:
-        toml.dump(
-            params,
-            f=f
-        )
-
-def _write_param_yaml(fname:str=None,params=None):
-    warnings.warn(
-        "Saving lattice model parameters in YAML is deprecated and will be removed. "
-        "Use TOML instead."
-    )
-    assert fname.endswith('.yaml')
-    with open(fname,"w") as f:
-        yaml.dump(
-            params,
-            stream=f
-        )
-
-
-def write_model_params(fname="model_ham_param.json",params=None):
+def write_model_params(fname,params=None):
     """
-    Write Model Hamiltonian parameters to a human-readable file.
+    Write Model Hamiltonian parameters to a human-readable TOML file.
 
-    Output format is inferred from the file extension in `fname`.
-        Supported formats are .json, .toml, .yaml. The files produced
-        can be used in the future as an input file via the 
+    The files produced by this function can be used as an input files via the 
         `read_input_params(fname)` function.
 
-    .. warning:: JSON, and YAML formats are deprecated and will be removed in the future. Use TOML instead.
-    
     Parameters
     ----------
     fname : str
@@ -531,59 +427,14 @@ def write_model_params(fname="model_ham_param.json",params=None):
         Dictionary of model parameters to write. This dictionary has the same conventions as the model
         Hamiltonian builder. See the User Guide for more information.
     """
-    if fname.endswith(".json"):
-        _write_param_json(fname,params)
-    elif fname.endswith(".toml"):
-        _write_param_toml(fname,params)
-    elif fname.endswith(".yaml"):
-        _write_param_yaml(fname,params)
-    else:
-        raise ValueError("Unknown output file type. Only *.json, *.yaml, *.toml are supported")
+    with open(fname,"w") as f:
+        toml.dump(params, f)
 
-
-def _read_json(infile):
-    warnings.warn(
-        "Reading lattice model parameters from JSON is deprecated and will be removed. "
-        "Use TOML instead."
-    )
-    with open(infile,'r') as f:
-        params = json.loads(f.read())
-    return params
-
-
-def _read_yaml(infile):
-    warnings.warn(
-        "Reading lattice model parameters from YAML is deprecated and will be removed. "
-        "Use TOML instead."
-    )
-    with open(infile,'r') as f:
-        params = yaml.load(
-            f.read(),
-            Loader=yaml.SafeLoader
-        )
-    return params
-
-
-def _read_toml(infile):
+def read_input_params(infile:str=None) -> dict:
+    """Read parameters from a human-readable TOML input file and return them in a dictionary."""
     with open(infile,'r') as f:
         params = toml.loads(f.read())
     return params
-
-
-def read_input_params(infile:str=None):
-    """
-    Read parameters from a human-readable input file. 
-        Returns a Dictionary containing the parameters. 
-        Supported formats include, .json, .toml, .yaml.
-    """
-    if infile.endswith(".json"):
-        return _read_json(infile)
-    elif infile.endswith(".toml"):
-        return _read_toml(infile)
-    elif infile.endswith(".yaml"):
-        return _read_yaml(infile)
-    else:
-        raise ValueError("Unknown input file type. Only *.json, *.yaml, *.toml are supported")
 
 
 def h5_as_dict(fname):

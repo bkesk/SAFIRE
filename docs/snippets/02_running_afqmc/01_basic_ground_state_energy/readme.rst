@@ -1,7 +1,7 @@
 .. _run_afqmc_ex_1:
 
-01 Basic Ground State Energy with CPU build
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Basic Ground State Energy with CPU build
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example covers running AFQMC for a generic input
 Hamiltonian to obtain the ground state energy.
@@ -38,7 +38,7 @@ A CPU-only build of SAFIRE can be invoked on rusty using the following runscript
     source $AFQMC_PATH/env.bash
 
     # Launch MPI code...
-    srun --cpu-bind=cores $AFQMC_PATH/bin/qmcapp --filenames afqmc.json &> afqmc.out
+    srun --cpu-bind=cores $AFQMC_PATH/bin/safire --filenames afqmc.json &> afqmc.out
 
 If the Hamiltonian and trial wavefunction file from :ref:`setup_ex_1` (called "afqmc.h5") is used with the input file above, then we will see output similar to this (perhaps with differences in the timing)
 

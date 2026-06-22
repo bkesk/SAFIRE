@@ -200,9 +200,13 @@ class Results:
             )
             results.weight = np.array([weight, dweight])
 
-            # LogOvlpFactor
+            # Log Overlap: old name: LogOvlpFactor new name: LogOvlp, supporting both for now
+            column_name = (
+                "LogOvlpFactor" if "LogOvlpFactor" in open(scalar_file).read()
+                else "LogOvlp"
+            )
             log_ovlp, dlog_ovlp = analyze_scalar_data(
-                dict(fname=scalar_file, xaxis="time", nequil=nequil, column="LogOvlpFactor")
+                dict(fname=scalar_file, xaxis="time", nequil=nequil, column=column_name)
             )
             results.log_ovlp_factor = np.array([log_ovlp, dlog_ovlp])
 

@@ -9,7 +9,7 @@
 #      http://www.apache.org/licenses/LICENSE-2.0
 
 from afqmctools.wavefunction.mol import write_wfn
-from afqmctools.utils.io import read_one_body,get_hamiltonain_spin_symm,read_nmo
+from afqmctools.utils.io import read_one_body,get_hamiltonian_spin_symm,read_nmo
 from afqmctools.hamiltonian.model.ham_class import SpinSymm,get_spin_symm_enum
 
 
@@ -41,7 +41,7 @@ def make_free_elec(hamiltonian_fname,nelec,spin_symm=None):
     Hfree = read_one_body(fname=hamiltonian_fname)
 
     if spin_symm is None:
-        spin_symm = get_hamiltonain_spin_symm(
+        spin_symm = get_hamiltonian_spin_symm(
             fname=hamiltonian_fname
         )
     else:

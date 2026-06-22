@@ -13,12 +13,8 @@
 import argparse
 import sys
 import numpy
-from afqmctools.hamiltonian.mol import (
-        write_sparse,write_dense
-        )
-from afqmctools.wavefunction.mol import (
-        write_wfn
-        )
+from afqmctools.hamiltonian.mol import write_dense
+from afqmctools.wavefunction.common import write_wfn
 from afqmctools.hamiltonian.converter import read_fcidump
 from afqmctools.utils.linalg import modified_cholesky_direct
 
@@ -52,9 +48,6 @@ def parse_args():
     parser.add_argument('-s', '--symmetry', dest='symm',
                         type=int, default=8,
                         help='Symmetry of integral file (1,4,8).')
-    parser.add_argument('--sparse', dest='sparse',
-                        action='store_true', default=False,
-                        help='Write sparse Hamiltonian.')
     parser.add_argument('--add_wfn', dest='add_wfn',
                         action='store_true', default=False,
                         help='Add single determinant wavefunction to file.')
@@ -100,17 +93,11 @@ def main():
                                     options.thresh, options.verbose,
                                     cmax=20).T.copy()
     cplx_chol = options.write_complex or numpy.any(abs(eri.imag)>1e-14)
-    if options.sparse:
-      write_sparse(hcore, chol, nelec, norb, e0=ecore,
-                           real_chol=(not cplx_chol),
-                           filename=options.output_file,verbose=options.verbose)
-    else:
-      write_dense(hcore, chol, nelec, norb, enuc=ecore,
-                          filename=options.output_file,
-                          real_chol=(not cplx_chol),verbose=options.verbose)
+    write_dense(hcore, chol, nelec, norb, enuc=ecore,
+                      filename=options.output_file,
+                      real_chol=(not cplx_chol),verbose=options.verbose)
 
     if options.add_wfn:
-
       nalpha, nbeta = nelec
       if nalpha != nbeta:
         rohf=True
@@ -118,8 +105,6 @@ def main():
         rohf = options.rohf
       # For RHF only nalpha entries will be filled.
       wfn = numpy.zeros((1,norb,nalpha+nbeta), dtype=numpy.complex128)
-      wfn_type = 'NOMSD'
-      coeffs = numpy.array([1.0+0j])
       # Assuming we are working in MO basis, only works for RHF, ROHF trials.
       I = numpy.identity(norb, dtype=numpy.float64)
       occs = numpy.zeros(nalpha+nbeta,dtype=int)
@@ -136,9 +121,9 @@ def main():
       wfn[0,:,:nalpha] = I[:,occs[:nalpha]]
       if rohf:
         wfn[0,:,nalpha:] = I[:,occs[nalpha:]]
-      write_wfn(options.output_file, (numpy.array([1.0+0j]),wfn), 
+      write_wfn(options.output_file, (numpy.array([1.0+0j]),wfn),
                 ('rhf' if not rohf else 'rohf'),
-                nelec, norb, verbose=options.verbose, init=(wfn[0],wfn[0]))
+                nelec, norb, verbose=options.verbose)
 
 if __name__ == '__main__':
     main()

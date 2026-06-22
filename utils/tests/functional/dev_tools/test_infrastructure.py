@@ -177,16 +177,20 @@ class TestRule:
 def _wfn_is_implemented(case: AFQMCInputSet) -> bool:
     """
     Check if the wavefunction type is implemented.
-    
+
     Currently, only collinear PHMSD wavefunctions are implemented.
     NOMSD wavefunctions are implemented for all spin symmetries.
     """
+    if (
+        case.wavefunction.type == WavefunctionClass.PHMSD
+        and case.walker.spin_symm == SpinSymm.CLOSED
+    ):
+        # this was intentionally not implemented since it would require special handling
+        #     - i.e. perfect pairing
+        return False
     if case.wavefunction.type == WavefunctionClass.PHMSD:
         # currently, only collinear PHMSD wavefunctions are implemented
         return case.wavefunction.spin_symm == SpinSymm.COLLINEAR
-    if case.wavefunction.type == WavefunctionClass.PHMSD and case.walker.spin_symm == SpinSymm.CLOSED:
-        # this was intentionally not implemented since it would require special handling - i.e. perfect pairing
-        return False
     elif case.wavefunction.type == WavefunctionClass.NOMSD:
         return True
     else:
@@ -196,7 +200,7 @@ def _wfn_is_implemented(case: AFQMCInputSet) -> bool:
 def _not_closed_thc_with_noncollinear_wfn(case: AFQMCInputSet) -> bool:
     """
     Filter out closed THC Hamiltonians with non-collinear wavefunctions.
-    
+
     This combination is known to be not implemented.
     """
     if case.hamiltonian.type == HamiltonianClass.THC and \
@@ -224,19 +228,6 @@ def _compatible_spin_H_walker(case: AFQMCInputSet) -> bool:
     (Higher enum value means less spin symmetry)
     """
     return case.walker.spin_symm >= case.hamiltonian.spin_symm
-
-
-def _noncollinear_walker_wfn_must_match(case: AFQMCInputSet) -> bool:
-    """
-    Ensure that non-collinear walkers are only used with non-collinear wavefunctions,
-    and vice versa.
-
-    Note: This is not desirable behavior, but it is how SAFIRE is currently implemented.
-    Future versions may relax this restriction.
-    """
-    noncollinear_walker = case.walker.spin_symm == SpinSymm.NONCOLLINEAR
-    noncollinear_wfn = case.wavefunction.spin_symm == SpinSymm.NONCOLLINEAR
-    return noncollinear_walker == noncollinear_wfn
 
 # Define all rules with human-readable descriptions
 WFN_IS_IMPLEMENTED = TestRule(
@@ -277,6 +268,13 @@ COMPATIBLE_SPIN_H_WALKER = TestRule(
     check_func=_compatible_spin_H_walker
 )
 
+COMPATIBLE_SPIN_WALKER_WFN = TestRule(
+    name="Walker-Wavefunction Spin Compatibility",
+    description="Ensures the walker spin symmetry is compatible with the wavefunction. "
+                "The walker must have equal or less spin symmetry.",
+    check_func=lambda case: case.walker.spin_symm >= case.wavefunction.spin_symm
+)
+
 COMPATIBLE_FULLYPOLARIZED_WFN = TestRule(
     name="Fully Polarized Wavefunction Compatibility",
     description="Ensures that fully polarized wavefunctions and walkers are only used together. "
@@ -287,12 +285,6 @@ COMPATIBLE_FULLYPOLARIZED_WFN = TestRule(
         (case.wavefunction.spin_symm != SpinSymm.FULLYPOLARIZED and
          case.walker.spin_symm != SpinSymm.FULLYPOLARIZED)
     )
-)
-
-NONCOLLINEAR_WALKER_WFN_MUST_MATCH = TestRule(
-    name="Non-collinear Walker-Wavefunction Symmetry Match",
-    description="Ensures that non-collinear walkers are only used with non-collinear wavefunctions, and vice versa.",
-    check_func=_noncollinear_walker_wfn_must_match
 )
 
 def get_all_rules() -> List[TestRule]:
@@ -311,7 +303,7 @@ def get_all_rules() -> List[TestRule]:
         NOT_CLOSED_THC_WITH_NONCOLLINEAR_WFN,
         NOT_CLOSED_FOR_LATTICE_HAMILTONIANS,
         COMPATIBLE_FULLYPOLARIZED_WFN,
-        NONCOLLINEAR_WALKER_WFN_MUST_MATCH,
+        COMPATIBLE_SPIN_WALKER_WFN,
     ]
 
 
@@ -319,7 +311,7 @@ def check_rules(case: AFQMCInputSet, rules: List[TestRule],
                 verbose: bool = False) -> bool:
     """
     Check if a test case passes all provided rules.
-    
+
     Parameters
     ----------
     case : AFQMCInputSet
@@ -328,19 +320,19 @@ def check_rules(case: AFQMCInputSet, rules: List[TestRule],
         Rules to apply
     verbose : bool, optional
         If True, print detailed information about failed rules
-        
+
     Returns
     -------
     bool
         True if the case passes all rules, False otherwise
     """
     if verbose:
-        print(f"\n=== Checking rules for test case ===")
+        print("\n=== Checking rules for test case ===")
         print(f"Hamiltonian: {case.hamiltonian.type.name}, spin={case.hamiltonian.spin_symm.name}")
         print(f"Wavefunction: {case.wavefunction.type.name}, spin={case.wavefunction.spin_symm.name}")
         print(f"Walker: {case.walker.name}, spin={case.walker.spin_symm.name}")
         print()
-    
+
     passed = True
     for rule in rules:
         result = rule(case)
@@ -351,11 +343,11 @@ def check_rules(case: AFQMCInputSet, rules: List[TestRule],
                 print(f"         {rule.description}")
         if not result:
             passed = False
-    
+
     if verbose:
         print(f"\nOverall: {'PASS' if passed else 'FAIL'}")
         print("=" * 40)
-    
+
     return passed
 
 

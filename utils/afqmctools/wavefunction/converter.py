@@ -97,7 +97,7 @@ def read_phmsd_hdf5(wgroup):
         columns are spin-up orbitals, and the last nb columns are spin-down
         orbitals.
     (na:int,nb:int)
-        a touple containing the number of up (na) and down (nb) electrons.
+        a tuple containing the number of up (na) and down (nb) electrons.
 
     """
     dims = wgroup['dims']
@@ -272,11 +272,11 @@ def read_dice_ascii_wavefunction(input_file:str, ndets:int, state:int):
         `nup` is the number of up electrons, `ndn` is the number of 
         down electrons, and `walker_type` is an int encoding the 
         type of walker (0 : CLOSED, 1: COLLINEAR, 2: NONCOLLINEAR
-        4: FULLYSPINPOLARIZED). `wfn` is a touple containing:
+        4: FULLYSPINPOLARIZED). `wfn` is a tuple containing:
         (coeffs:numpy.array, occa:numpy.array, occb:numpy.array)
         where 'coeffs' are the CI coefficients of the wavefunction,
         occa are the spin-up occupancies, and occb are the 
-        spin-down occupancies. All three arrays are the same lenght.
+        spin-down occupancies. All three arrays are the same length.
         
     Raises
     ------

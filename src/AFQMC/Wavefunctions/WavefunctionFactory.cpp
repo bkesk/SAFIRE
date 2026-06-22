@@ -95,6 +95,9 @@ Wavefunction WavefunctionFactory::fromHDF5(TaskGroup_& TGprop,
     WALKER_TYPES input_wtype;
     getCommonInput(dump, NMO, NAEA, NAEB, ndets_to_read, ci, input_wtype, TGwfn.Global().root());
     
+    if (walker_type < input_wtype)
+      APP_ABORT("Error: Requested walker_type {}, but walker must be at least as less general as the wavefunction spin symmetry {}. ", WALKER_TYPES_name(walker_type), WALKER_TYPES_name(input_wtype));
+
     // validation blocks
     if (input_wtype == NONCOLLINEAR and walker_type != NONCOLLINEAR)
       APP_ABORT("Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers.");

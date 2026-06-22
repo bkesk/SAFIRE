@@ -89,6 +89,23 @@ inline WALKER_TYPES initWALKER_TYPES(int i)
   return UNDEFINED_WALKER_TYPE;
 }
 
+inline const char* WALKER_TYPES_name(WALKER_TYPES wt)
+{
+  switch (wt)
+  {
+  case CLOSED:
+    return "CLOSED";
+  case COLLINEAR:
+    return "COLLINEAR";
+  case NONCOLLINEAR:
+    return "NONCOLLINEAR";
+  case FULLYPOLARIZED:
+    return "FULLYPOLARIZED";
+  default:
+    return "UNDEFINED_WALKER_TYPE";
+  }
+}
+
 enum INTEGRAL_TYPES
 {
   UNDEFINED_INTEGRAL_TYPE,

@@ -39,7 +39,6 @@ def main():
         scf_data=scf_data,
         hamil_file=fout, 
         chol_cut=chol_tol, 
-        dense=True,
         real_chol=True, 
         verbose=True
     )

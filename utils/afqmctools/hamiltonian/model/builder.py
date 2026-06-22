@@ -31,7 +31,7 @@ def skip_empty_params(func):
     Notes
     -----
     This decorator is useful for functions that would attempt to build
-       an empty Hamiltonian component if the parameters are all zero. None is interpreted as zero.
+    an empty Hamiltonian component if the parameters are all zero. None is interpreted as zero.
     This decorator preserves the original docstring of the decorated function.
     """
 
@@ -66,9 +66,10 @@ def skip_empty_params(func):
 def iterate_nth_order(start_n=1):
     """
     Decorator to iterate over a list of parameters, calling the method of the object, `obj`,
-        with each parameter in `params`.
+    with each parameter in `params`.
     
-    decorates functions with the signature:
+    decorates functions with the signature: ::
+    
         func(self,params,nth_neighbor=n,*args,**kwargs)
 
     where `params` is an iterable of parameters to iterate over or a single parameter,
@@ -126,54 +127,13 @@ class HamiltonianBuilder:
         a reference to the Lattice instance which the Hamiltonian is defined on
     hamiltonian : afqmctools.hamiltonian.model.ham_class.Hamiltonian
         the Hamiltonian which is built.
-    
-    Methods
-    -------
-    nth_neighbor_hopping(t=1.0,n:int=1)
-        adds an nth-order neighbor hopping term to the Hamiltonian
-    afm_pinning(h_afm_pin)
-        adds edge antiferromagnetic (AFM) pinning to the Hamiltonian
-        with strength h_afm_pin
-    fm_pinning(h_fm_pin)
-        adds edge ferromagnetic (FM) pinning to the Hamiltonian
-        with strength h_fm_pin
-    charge_pinning(h_charge_pin)
-        adds edge charge pinning to the Hamiltonian with
-        strength h_charge_pin
-    edge_pinning(pinning_func,h_pin,...)
-        adds edge pinning based on general pinning function
-        with strength h_pins
-    onsite_hubbard(U)
-        adds onsite Hubbard U to the Hamiltonian with 
-        possibly band-dependent amplitude U
-    hubbard_U1_density_density(U1)
-        adds U1 density-denisty term to the Hamiltonian with 
-        possibly band-dependent amplitude U1
-    hubbard_U2_spin_spin(U2)
-        adds U2 spin-spin term to the Hamiltonian with 
-        possibly band-dependent amplitude U2
-    hubbard_Jij(J)
-        adds Hund's J term to the Hamiltonian with 
-        possibly band-dependent amplitude J
-    heisenberg_J(J)
-        adds an isotropic Heisenberg J term to the 
-        Hamiltonian.
-    nth_order_hubbard_Vij(V,n=1)
-        adds nth-order neighbor extended Hubbard interactions
-        to the Hamiltonian with possible band-dependent V
-    print_components()
-        print the components (i.e. terms) currently in the 
-        Hamiltonian
-    finalize()
-        will combine terms whereever possible, keeping terms
-        with different `hst_type` separate.
-        
+
     Raises
     ------
     ValueError
         raised when any build step is invoked using an invalid amplitude
     ValueError
-        raised when no hst_type can be unambiguously infered
+        raised when no hst_type can be unambiguously inferred
         
     Notes
     -----
@@ -402,7 +362,7 @@ class HamiltonianBuilder:
         Raises
         ------
         ValueError
-            when the hopping matrxi can't be constructed for the combination of `t` and `nth_neighbor`
+            when the hopping matrix can't be constructed for the combination of `t` and `nth_neighbor`
 
         Examples
         --------
@@ -646,7 +606,7 @@ class HamiltonianBuilder:
                                     (\vec{\sigma} \times \hat{r}_{ij})^{\sigma\sigma'}_z 
                                     \hat{c}^\dagger_{i\sigma} \hat{c}_{j\sigma'}
         
-        where :math:`\vec{\sigma}` is the vecotr of Pauli matricies, and :math:`\vec{r}_{ij}`
+        where :math:`\vec{\sigma}` is the vector of Pauli matrices, and :math:`\vec{r}_{ij}`
         is the relative position between sites i and j.
         """
         if not rashba_lambda:
@@ -880,7 +840,7 @@ class HamiltonianBuilder:
             the amplitude of the pinning field
         same_sign : bool
             if True, spin up and spin down sectors have the same sign.
-            if Falsw, spin up and spin down sectors have opposite signs.
+            if False, spin up and spin down sectors have opposite signs.
         axis : int, optional, default = 0
             the axis to apply pinning along
         spin_symm : afqmctools.hamiltonian.model.ham_class.SpinSymm, optional
@@ -1730,7 +1690,7 @@ class HamiltonianBuilder:
                     print("csr matrix: ", component.csr_array)
 
     def finalize(self,verbose=False):
-        """Combine Hamiltonian terms whereever possible, keeping terms
+        """Combine Hamiltonian terms wherever possible, keeping terms
         with different `hst_type` separate.
 
         Parameters

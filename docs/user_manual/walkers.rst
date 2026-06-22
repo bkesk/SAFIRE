@@ -8,7 +8,7 @@ based on how spin-symmetry is handled.
 Each type is described below.
 The following list includes all walker types.
 
-#. :ref:`RHF/Closed Wallkers <closed_walker>`
+#. :ref:`RHF/Closed Walkers <closed_walker>`
 #. :ref:`UHF/Collinear Walkers <collinear_walker>`
 #. :ref:`GHF/Noncollinear Walkers <noncollinear_walker>`
 #. :ref:`Fully Spin-polarized Walkers <fullypolarized_walker>`

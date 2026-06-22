@@ -25,10 +25,8 @@ dependencies = [
     "matplotlib",
     "numba",
     "pytest",
-    "pyyaml",
     "toml",
     "tables",
-    "dataclasses"
 ]
 
 # domain-specific dependencies are considered optional!
@@ -46,6 +44,7 @@ DOCS = [
     "sphinx-autodoc-typehints",
     "numpydoc",
     "myst-nb",
+    "jupytext",
     "pydata-sphinx-theme"
 ]
 
@@ -70,9 +69,7 @@ packages = [
 afqmc_to_fcidump = "cli.afqmc_to_fcidump:main"
 dice_to_hdf5 = "cli.dice_to_hdf5:main"
 fcidump_to_afqmc = "cli.fcidump_to_afqmc:main"
-kp_to_sparse = "cli.kp_to_sparse:main"
 pyscf_to_afqmc = "cli.pyscf_to_afqmc:main"
-sparse_to_dense = "cli.sparse_to_dense:main"
 test_afqmc_input = "cli.test_afqmc_input:main"
 wfn_to_hdf5 = "cli.wfn_to_hdf5:main"
 write_afqmc_json = "cli.write_afqmc_json:main"

@@ -63,14 +63,16 @@ class BasisBlock():
         ----------
         x : array 
             Parameters of the basis set in linearized array. 
-            The expected order is:
-            [ exp1, c11, c12, ..., exp2, c21, c22, ..., exp3, c31, ...] 
+            The expected order is: ::
+
+                [ exp1, c11, c12, ..., exp2, c21, c22, ..., exp3, c31, ...]
+
             where expn is the exponent of the nth basis function and
             cni is the nth contraction coefficient of the ith basis. 
 
         Returns
         -------
-        string ::
+        string :
             Basis block. 
         """
         assert( len(x) == self.num_params )
@@ -92,12 +94,15 @@ class BasisBlock():
                     gto_basis += "  {}  ".format(x[n]) 
                     n+=1
                 gto_basis += "\n"
+
 # Simple class 
 class EvenTemperedBasisBlock():
     """Objects of this class hold a list of exponents and contraction coefficients
     defining a block of a set angular momentum in the basis set. 
-    Exponents are generated from even tempered set.
-      expo[i] = alpha*beta**(i-1.0) 
+    Exponents are generated from even tempered set::
+
+      expo[i] = alpha * beta ** (i - 1.0)
+
     For now, only beta and contraction coefficients are mutable. 
     """
 
@@ -146,14 +151,16 @@ class EvenTemperedBasisBlock():
         ----------
         x : array 
             Parameters of the basis set in linearized array. 
-            The expected order is:
-            [ exp1, c11, c12, ..., exp2, c21, c22, ..., exp3, c31, ...] 
+            The expected order is: ::
+
+                [ exp1, c11, c12, ..., exp2, c21, c22, ..., exp3, c31, ...]
+
             where expn is the exponent of the nth basis function and
             cni is the nth contraction coefficient of the ith basis. 
 
         Returns
         -------
-        string ::
+        string :
             Basis block. 
         """
         assert( len(x) == self.num_params )
@@ -382,7 +389,7 @@ class OptimizableBasisSet():
 
 def default_basis_set(Lmax,atoms):
     """Generates a OptimizableBasisSet object with default parameters.
-        A single uncontacted gaussian per angular momentum will be used.
+        A single uncontracted gaussian per angular momentum will be used.
         
     Parameters
     ----------

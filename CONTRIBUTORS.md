@@ -11,11 +11,12 @@ We consider "Core Developers" and "Contributors" to be mutually-exclusive catego
 
 - **Miguel Morales** 
 - **(Brandon) Kyle Eskridge**
-- **Ryan Levy**
-- **Paul Yang**
+- **Lukas Weber**
 
 ### Alumni
 
+- **Ryan Levy**
+- **Paul Yang**
 
 
 ### Additional Contributors to the Initial Version
@@ -25,24 +26,7 @@ We consider "Core Developers" and "Contributors" to be mutually-exclusive catego
 
 ## Contributors
 
-TODO: decide on categorizing or not
-
-### Bug Reports
-
-### Bug and Issues Fixes
-
-### New Features
-
-### External Code Interfaces
-
-### Documentation
-
 - **Thomas Hahn**
-
-### Tutorials and Examples
-
-### Benchmarking
-
 - **Zhou-Quan Wan**
 - **Chunhan Feng**
 - **Yiqi Yang**

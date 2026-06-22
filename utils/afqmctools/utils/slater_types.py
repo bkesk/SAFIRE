@@ -139,29 +139,11 @@ class ParticleHoleMSD(MultiSlater):
         pass
 
 
-def _is_collinear(phi,nelec=None,M=None):
+def _is_collinear(phi,nelec):
     """
     Determine if the Slater matrix is collinear-like
     (i.e. UHF or ROHF-like) based on the shape of the
     Slater matrix and the number of electrons.
-
-    Parameters
-    ----------
-    phi : np.ndarray
-        the Slater matrix of the wavefunction with shape (Nmo,Nelec)
-    nelec : tuple, optional
-        the number of electrons in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
-    M : int, optional
-        the number of spatial orbitals in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
-    
-    Returns
-    -------
-    bool
-        True if the Slater matrix is collinear-like, False otherwise.
     """
 
     # UHF-like
@@ -175,85 +157,19 @@ def _is_collinear(phi,nelec=None,M=None):
     else:
         return False
 
-def _is_closed(phi,nelec=None,M=None):
-    """
-    Determine if the Slater matrix is closed-shell
-    based on the shape of the Slater matrix and the number of electrons.
-
-    Parameters
-    ----------
-    phi : np.ndarray
-        the Slater matrix of the wavefunction with shape (Nmo,Nelec)
-    nelec : tuple, optional
-        the number of electrons in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
-    M : int, optional
-        the number of spatial orbitals in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
-
-    Returns
-    -------
-    bool
-        True if the Slater matrix is closed-shell, False otherwise.
-    """
-
+def _is_closed(phi,nelec):
     if len(phi.shape) == 2 and nelec[0] == nelec[1]:
         return True
     else:
         return False
 
-def _is_noncollinear(phi,nelec=None,M=None):
-    """
-    Determine if the Slater matrix is noncollinear
-    based on the shape of the Slater matrix and the number of electrons.
-
-    Parameters
-    ----------
-    phi : np.ndarray
-        the Slater matrix of the wavefunction with shape (Nmo,Nelec)
-    nelec : tuple, optional
-        the number of electrons in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
-    M : int, optional
-        the number of spatial orbitals in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
-    
-    Returns
-    -------
-    bool
-        True if the Slater matrix is noncollinear, False otherwise.
-    """
-
+def _is_noncollinear(phi,M):
     if len(phi.shape) == 2 and phi.shape[0] == 2*M:
         return True
     else:
         return False
 
 def _is_fully_polarized(phi,nelec=None):
-    """
-    Determine if the Slater matrix is fully polarized
-    based on the shape of the Slater matrix and the number of electrons.
-    
-    Parameters
-    ----------
-    phi : np.ndarray
-        the Slater matrix of the wavefunction with shape (Nmo,Nelec)
-    nelec : tuple, optional
-        the number of electrons in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
-    
-    Returns
-    -------
-    bool
-        True if the Slater matrix is fully polarized, False otherwise.
-    """
-
-
     if nelec[1] != 0:
         return False
     # UHF-like - this case should probably never be reached? keep for safety
@@ -265,7 +181,7 @@ def _is_fully_polarized(phi,nelec=None):
     else:
         return False
 
-def _get_slater_type(phi,nelec=None,M=None):
+def _get_slater_type(phi,nelec,M):
     """
     Determine the Slater determinant type based
       on the given Slater matrix dimensions, and 
@@ -275,14 +191,10 @@ def _get_slater_type(phi,nelec=None,M=None):
     ----------
     phi : np.ndarray
         the Slater matrix of the wavefunction with shape (Nmo,Nelec)
-    nelec : tuple, optional
-        the number of electrons in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
-    M : int, optional
-        the number of spatial orbitals in the system. If not provided,
-        the function will attempt to determine the type based on
-        the shape of phi.
+    nelec : tuple
+        the number of electrons in the system.
+    M : int
+        the number of spatial orbitals in the system.
         
     Notes
     -----
@@ -290,21 +202,15 @@ def _get_slater_type(phi,nelec=None,M=None):
       by the shape of phi since it is the only Slater matrix with 3 dimensions.
 
     For Closed / Noncollinear determinants, we can't distinguish between the two without
-       using nelec. We will raise a ValueError if we reach these cases.
+       using nelec.
 
     There is no way to distinguish between ROHF-like Collinear and Noncollinear without
        also using M (i.e. the number of spatial orbitals!)
     
     """
-    if nelec is None or M is None:
-        raise ValueError(
-            "Can't unambigiously determine Slater determinant type: "
-            "must either provide `nelec` and `M` or explicitly specify the "
-            " Slater determimant type"
-            )
 
     # NOTE: the order of checks is important!
-    if _is_noncollinear(phi,nelec=nelec,M=M):
+    if _is_noncollinear(phi,M=M):
         return _SlaterType.NONCOLLINEAR
     elif _is_closed(phi,nelec=nelec):
         return _SlaterType.CLOSED

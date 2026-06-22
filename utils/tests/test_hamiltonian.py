@@ -39,22 +39,22 @@ from afqmctools.hamiltonian.converter import (
         )
 import afqmctools.hamiltonian.mol as mol
 from afqmctools.utils.linalg import modified_cholesky_direct
-from afqmctools.hamiltonian.io import write_sparse
+from afqmctools.hamiltonian.io import write_dense
 import afqmctools.hamiltonian.kpoint as kp
 import afqmctools.hamiltonian.supercell as sc
 from afqmctools.utils.linalg import get_ortho_ao
+from afqmctools.utils.slater_types import _SlaterType
+from afqmctools.utils.linalg import get_ortho_ao_mol
+from afqmctools.utils.pyscf_utils import load_from_pyscf_chk_mol
 
 
 class TestConverter:
-
-
     def test_convert_real(self,tmp_path,random_real_hamiltonian):
         nmo = 17
         nelec = (3,3)
-        print(random_real_hamiltonian)
         h1e, chol, enuc, _ = random_real_hamiltonian
-        write_sparse(h1e, chol.reshape((-1,nmo*nmo)).T.copy(),
-                             nelec, nmo, e0=enuc, real_chol=True, filename=tmp_path/'hamiltonian.h5')
+        write_dense(h1e, chol.reshape((-1,nmo*nmo)).T.copy(),
+                             nelec, nmo, enuc=enuc, real_chol=True, filename=tmp_path/'hamiltonian.h5')
         hamil = read_hamiltonian(tmp_path/'hamiltonian.h5')
         write_fcidump(tmp_path/'FCIDUMP', hamil['hcore'], hamil['chol'], hamil['enuc'],
                       hamil['nmo'], hamil['nelec'], sym=8, cplx=False)
@@ -90,8 +90,8 @@ class TestConverter:
         nmo = 17
         nelec = (3,3)
         h1e, chol, enuc, _ = random_cplx_hamiltonian
-        write_sparse(h1e, chol.reshape((-1,nmo*nmo)).T.copy(),
-                             nelec, nmo, e0=enuc, real_chol=False, filename=tmp_path/'hamiltonian.h5')
+        write_dense(h1e, chol.reshape((-1,nmo*nmo)).T.copy(),
+                             nelec, nmo, enuc=enuc, real_chol=False, filename=tmp_path/'hamiltonian.h5')
         hamil = read_hamiltonian(tmp_path/'hamiltonian.h5')
         write_fcidump(tmp_path/'FCIDUMP', hamil['hcore'], hamil['chol'], hamil['enuc'],
                       hamil['nmo'], hamil['nelec'], sym=4, cplx=True)
@@ -124,7 +124,6 @@ class TestConverter:
             "test_input,expected",
                 [
                     ['Hamiltonian/DenseFactorized/L','dense'],
-                    ['Hamiltonian/Factorized/vals_0','sparse'],
                     ['Hamiltonian/KPFactorized/L0','kpoint'],
                     ['Hamiltonian/THC/Luv','thc'],
                     ['RandomName',None]
@@ -163,23 +162,23 @@ class TestMol:
         assert np.allclose(eri, eri_loc, atol=1e-5, rtol=1e-3)
 
 
-    def test_ao2mo_chol(self,neon_atom,neon_rhf,neon_eri):
+    def test_transform_cholesky(self,neon_atom,neon_rhf,neon_eri):
         eri = neon_eri 
         mf, energy = neon_rhf
         assert np.isclose(energy, -126.60452499805)
         assert eri.shape == (5,5,5,5)
         eri = eri.reshape(25,25)
         chol = mol.chunked_cholesky(neon_atom, max_error=1e-5)
-        mol.ao2mo_chol(chol, mf.mo_coeff)
+        mol.transform_cholesky(chol, mf.mo_coeff)
         assert np.isclose(np.linalg.norm(chol), 3.52947146946)
 
 
-    def test_ao2mo_chol_rect(self,random_real_hamiltonian):
+    def test_transform_cholesky_rect(self,random_real_hamiltonian):
         np.random.seed(7)
         _,chol,_,_ = random_real_hamiltonian
         X = np.random.random((17,15))
         nchol = chol.shape[0]
-        chol_ = mol.ao2mo_chol(chol, X)
+        chol_ = mol.transform_cholesky(chol, X)
         assert chol_.shape == (nchol, 15*15)
 
 
@@ -187,7 +186,7 @@ class TestMol:
         mf,_ = neon_rhf
         C = mf.mo_coeff
         chol = mol.chunked_cholesky(neon_atom, max_error=1e-5)
-        mol.ao2mo_chol(chol, C)
+        mol.transform_cholesky(chol, C)
         hcore = mf.get_hcore()
         h1e = np.dot(C.T, np.dot(hcore, C))
         h1e, chol, efzc = mol.freeze_core(h1e, chol, 0, 1, 4, verbose=False)
@@ -203,14 +202,7 @@ class TestMol:
 
     def test_write_hamil_mol(self,tmp_path,neon_atom,neon_rhf):
         mf,_ = neon_rhf
-        C = mf.mo_coeff
-        scf_data = {
-            'mo_coeff': C, 
-            'mol': neon_atom, 
-            'hcore': mf.get_hcore(),
-            'isUHF': False,
-            'walker_type' : 'closed'
-            }
+        scf_data = load_from_pyscf_chk_mol(mf.chkfile)
         h1e,chol,_,enuc,_ = mol.generate_hamiltonian(scf_data,walker_type='closed')
 
         mol.write_hamil_mol(scf_data, tmp_path/'ham.h5', 1e-5, verbose=False)
@@ -219,6 +211,43 @@ class TestMol:
         assert np.allclose(hamil['hcore'], h1e, atol=1e-12, rtol=1e-8)
         assert np.allclose(np.array(hamil['chol']).real.T, chol, atol=1e-12, rtol=1e-8)
         assert np.isclose(enuc, hamil['enuc'])
+
+    @pytest.mark.parametrize(
+        "soc_type",
+        [None, "sfx2c", "x2c"],
+    )
+    def test_ortho_ao(self, neon_hf, soc_type):
+        self._run_ortho_ao(neon_hf, soc_type)
+
+    def test_ecp(self, carbon_ghf):
+        self._run_ortho_ao(carbon_ghf, "ecp")
+    
+    def _run_ortho_ao(self, hf, soc_type):
+        mf, _ = hf
+
+        scf_data = load_from_pyscf_chk_mol(mf.chkfile, soc_type=soc_type)
+        C = scf_data["mo_coeff"]
+        walker_type = scf_data["walker_type"]
+
+        if len(C.shape) > 2 or C.shape[0] == scf_data['norb'] * 2:
+            with pytest.raises(ValueError):
+                mol.generate_hamiltonian(scf_data, walker_type=walker_type)
+            mol.generate_hamiltonian(scf_data, walker_type=walker_type, ortho_ao=True)
+        else:
+            Cinv = np.linalg.inv(C)
+            X = scf_data["X"]
+
+            h1e, chol, _, enuc, _ = mol.generate_hamiltonian(scf_data, walker_type=walker_type)
+            h1e_ao, chol_ao, _, enuc_ao, _ = mol.generate_hamiltonian(
+                scf_data, walker_type=walker_type, ortho_ao=True
+            )
+
+            assert np.isclose(enuc_ao, enuc)
+            assert np.allclose(chol_ao, mol.transform_cholesky(chol, Cinv @ X))
+            if walker_type == _SlaterType.NONCOLLINEAR:
+                X = np.kron(np.eye(2), X)
+                Cinv = np.kron(np.eye(2), Cinv)
+            assert np.allclose(h1e_ao, X.T @ Cinv.T @ h1e @ Cinv @ X)
 
 
 @pytest.mark.pyscf

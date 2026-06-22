@@ -1,5 +1,4 @@
 # Tests
--------
 
 The tests defined here fall into one of two categories.
 
@@ -8,21 +7,18 @@ The tests defined here fall into one of two categories.
 
 
 ## Unit Tests
--------------
 
 These are run as usual via pytest: `$ pytest` (from the `utils` directory).
 See the `pyproject.toml` file for default configuration.
 
 
 ## Functional Tests
--------------------
 
 The functional tests are also invoked via `pytest`; however, the default settings
 defined in the `pyrpoject.toml` file will not  run the functional tests by default.
 You must explicitly request them using pytest marks.
 
 ### Sample Functional Test Slurm script
----------------------------------------
 
 A sample script to run the "weekly" functional tests is as follows.
 
@@ -69,7 +65,6 @@ date
 > These are a very useful place to debug problems in the test.
 
 ### Local Runs
---------------
 
 ```bash
  NUM_MPI_TASKS=64 python -m pytest --basetemp= \
@@ -80,7 +75,6 @@ date
 ```
 
 ### Adding new cases
---------------------
 
 A collection of developer tools related to the functional tests is provide in `utils/tests/functional/dev_tools`.
 It has it's own Readme.md file which explains the functional testing infrastructure.

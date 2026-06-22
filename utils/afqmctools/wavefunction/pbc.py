@@ -37,13 +37,13 @@ def write_wfn_pbc_old(scf_data, ortho_ao, filename, rediag=True,
         HDF5 file path to store wavefunction to.
     rediag : bool
         Whether to rediagonalise Fock matrix to compute MO coeffs in
-        orthoagonlised AO basis. Default: True.
+        orthogonalised AO basis. Default: True.
     verbose : bool
         Print additional information. Default: False.
 
     Returns
     -------
-    wfn : :class:`np.ndarray'
+    wfn : :class:`np.ndarray`
         Wavefunction as numpy array. Format depends on wavefunction.
     """
     # Single determinant for the moment.
@@ -58,7 +58,7 @@ def write_wfn_pbc_old(scf_data, ortho_ao, filename, rediag=True,
     nmo_tot = np.sum(nmo_pk)
     kpts = scf_data['kpts']
     nkpts = len(kpts)
-    uhf = scf_data['isUHF']
+    uhf = scf_data['walker_type'] == _SlaterType.COLLINEAR
     
     if len(fock.shape) == 3:
         fock = fock.reshape((1,)+fock.shape)
@@ -148,13 +148,13 @@ def write_wfn_pbc(
         HDF5 file path to store wavefunction to.
     rediag : bool
         Whether to rediagonalise Fock matrix to compute MO coeffs in
-        orthoagonlised AO basis. Default: True.
+        orthogonalised AO basis. Default: True.
     verbose : bool
         Print additional information. Default: False.
 
     Returns
     -------
-    wfn : :class:`np.ndarray'
+    wfn : :class:`np.ndarray`
         Wavefunction as numpy array. Format depends on wavefunction.
     """
     # Single determinant for the moment.
@@ -165,7 +165,6 @@ def write_wfn_pbc(
     mo_energy = scf_data['mo_energy']
     nmo_tot = np.sum(nmo_pk)
     kpts = scf_data['kpts']
-    #uhf = scf_data['isUHF']
 
     # TODO: make this independent of the trial type!
     walker_type = _slater_enum_map(
@@ -251,24 +250,26 @@ def slater_gto2mo(
     """
     convert Slater determinant from gto basis to molecular orbital basis
     
-    inputs:
+    Parameters
+    ----------
+
     phi (np.ndarray) : a numpy ndarray which represents the Slater determinant
-                        in the underlying gto basis
+        in the underlying gto basis
     *optional* nelec (iterable of length 2) : (nalpha, nbeta) where nalpha and nbeta are the
-                        number of up(alpha) and down(beta) electrons expressed as ints. If provided,
-                        nelec is used to help distinguish between a Closed (i.e. RHF-like) determinant
-                        and a Noncollinear (i.e. GHF-like) determinant
+        number of up(alpha) and down(beta) electrons expressed as ints. If provided,
+        nelec is used to help distinguish between a Closed (i.e. RHF-like) determinant
+        and a Noncollinear (i.e. GHF-like) determinant
     *optional* slater_type ( a _SlaterType instance or an int ) : the type of Slater determinant
-                       provided. If provided, this will override the automatic detection of
-                       the Slater determinant type
+       provided. If provided, this will override the automatic detection of
+       the Slater determinant type
     *optional* 'transform_mat' (np.ndarray) : specifies a custom transformation matrix to use
     **kwargs: (*all optional*) key-word arguments are ignored except for:
         - 'orthAO' : presence of keyword will force the use of an orthogonalized AO basis,
-                        as opposed to a molecule orbital basis.
+            as opposed to a molecule orbital basis.
         - 'basis' (np.ndarray) : specifies an orbital basis to use - is ignored if orthAO is set (to anything!) 
         - 'overlap' (np.ndarray) : specifies the GTO-basis overlap matrix.
         - 'mol' (pyscf.gto.Mole) : a Mole object that describes the system (used to compute the overlap matrix
-                                    if it was not provided)
+            if it was not provided)
     """
 
     if 'overlap' in kwargs:
@@ -292,7 +293,7 @@ def slater_gto2mo(
     nmo = transform_matrix.shape[0]
 
     if slater_type is None:
-        slater_type = _get_slater_type(phi,nelec)
+        slater_type = _get_slater_type(phi,nelec,nmo)
         
     na,nb = nelec
 
@@ -471,16 +472,16 @@ def rediag_fock(fock, X):
 
     Parameters
     ----------
-    fock : :class:`np.ndarray'
+    fock : :class:`np.ndarray`
         Fock matrix for given kpoint.
-    X : :class:`np.ndarray'
+    X : :class:`np.ndarray`
         Transformation matrix.
 
     Returns
     -------
-    eigs : :class:`np.array'
+    eigs : :class:`np.array`
         MO eigenvalues.
-    eigv : :class:`np.ndarray'
+    eigv : :class:`np.ndarray`
         Eigenvectors.
     """
     fock_oao = np.dot(X.conj().T, np.dot(fock, X))

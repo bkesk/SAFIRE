@@ -22,11 +22,6 @@ from afqmctools.utils.io import (
         to_complex,
         from_complex
         )
-from afqmctools.hamiltonian.io import (
-        write_sparse_basic,
-        write_sparse_chol_chunk
-        )
-
 
 def fcidump_header(nel:int, norb:int, spin:int) -> str:
     """
@@ -41,7 +36,7 @@ def fcidump_header(nel:int, norb:int, spin:int) -> str:
     spin : int
         Spin of the system.
 
-    returns
+    Returns
     -------
     header : string
         Header for FCIDUMP file.
@@ -235,12 +230,8 @@ def read_hamil_type(filename:str) -> str:
     with h5.File(filename,'r') as fh5:
         if 'Hamiltonian/DenseFactorized/L' in fh5:
             return 'dense'
-        elif 'Hamiltonian/Factorized/vals_0' in fh5:
-            return 'sparse'
         elif 'Hamiltonian/KPFactorized/L0' in fh5:
             return 'kpoint'
-        elif '/Interaction/Vq0' in fh5:
-            return 'coqui_kpoint'
         elif 'Interaction/Vq0' in fh5:
             return 'kpoint_coqui'
         elif 'Hamiltonian/THC/Luv' in fh5:
@@ -295,17 +286,6 @@ def read_hamiltonian(filename, get_chol=True, walker_type=1):
             'minus_k': minus_k,
             'qk_k2': qkk2
             }
-    elif ham_type == 'sparse':
-        hc, chol, enuc, nmo, nelec = read_sparse(filename,
-                                                         get_chol=get_chol)
-        hamil = {
-            'hcore': hc,
-            'chol': chol,
-            'enuc': enuc,
-            'nmo': nmo,
-            'nelec': nelec
-            }
-        return hamil
     elif ham_type == 'dense':
         hcore, chol, enuc, nelec = read_dense(filename)
         hamil = {
@@ -323,7 +303,7 @@ def read_hamiltonian(filename, get_chol=True, walker_type=1):
         hamil = read_model(filename)
     else:
         hamil = None
-        raise TypeError("Unknown Hamiltonian type.")
+        raise TypeError(f"Unknown Hamiltonian type '{ham_type}'.")
     return hamil
 
 
@@ -332,127 +312,6 @@ def read_model(filename):
     Read model Hamiltonian from hdf5 file `fname`
     """
     raise NotImplementedError("[for devlopers] implement model H reader")
-
-
-def read_sparse(filename, get_chol=True):
-    r"""Read in sparse integrals from hdf5.
-
-    Parameters
-    ----------
-    filename : string
-        File containing integrals in internal format (\*.h5).
-
-    Returns
-    -------
-    hcore : :class:`np.ndarray`
-        One-body part of the Hamiltonian.
-    chol_vecs : :class:`scipy.sparse.csr_array`
-        Two-electron integrals. Shape: [nmo*nmo, nchol]
-    ecore : float
-        Core contribution to the total energy.
-    nmo : int
-        Number of orbitals.
-    nelec : tuple
-        Number of electrons.
-    """
-    warn("Sparse Hamiltonian format is deprecated. Use dense format and GPU acceleration instead.",DeprecationWarning)
-    enuc, dims, hcore, real_ints = read_common_input(filename)
-    chunks = dims[2]
-    nmo = dims[3]
-    nalpha = dims[4]
-    nbeta = dims[5]
-    nchol = dims[7]
-    if get_chol:
-        chol_vecs = read_cholesky(filename, real_ints=real_ints)
-    else:
-        chol_vecs = None
-    return (hcore, chol_vecs, enuc, int(nmo), (int(nalpha), int(nbeta)))
-
-def read_cholesky(filename:str, full=True, ichunk=None, real_ints=False):
-    r"""
-    Read in Cholesky integrals from internal HDF5 format.
-
-    Parameters
-    ----------
-    filename : str
-        File containing integrals in internal format (HDF5, \*.h5).
-    full : bool
-        If True, return full Cholesky matrix. Optional. Default: True.
-    ichunk : int
-        Index of Cholesky chunk to read. Optional. Default: None.
-    real_ints : bool
-        If True, read real integrals. Optional. Default: False.
-
-    Returns
-    -------
-    chol_vecs : :class:`scipy.sparse.csr_array`
-        Cholesky vectors.
-    """
-    with h5.File(filename, 'r') as fh5:
-        if 'Hamiltonian/Factorized/block_sizes' not in fh5:
-            raise RuntimeError(f"  no dataset called 'Hamiltonian/Factorized/block_sizes' in {filename}")
-        block_sizes = fh5['Hamiltonian/Factorized/block_sizes'][...]
-        nval = sum(block_sizes)
-        s = 0
-        dims = fh5['Hamiltonian/dims'][:]
-        nmo = dims[3]
-        nchol = dims[-1]
-        if full:
-            if real_ints:
-                vals = np.zeros(nval, dtype=np.float64)
-            else:
-                vals = np.zeros(nval, dtype=np.complex128)
-            row_ix = np.zeros(nval, dtype=np.int32)
-            col_ix = np.zeros(nval, dtype=np.int32)
-            for ic, bs in enumerate(block_sizes):
-                ixs, vchunk = get_chunk(fh5, ic, real_ints)
-                row_ix[s:s+bs] = ixs[::2]
-                col_ix[s:s+bs] = ixs[1::2]
-                vals[s:s+bs] = vchunk
-                s += bs
-            chol_vecs = scipy.sparse.csr_array((vals, (row_ix, col_ix)),
-                                                shape=(nmo*nmo,nchol))
-            return chol_vecs
-        else:
-            return get_chunk(fh5, ichunk, real_ints)
-
-
-def get_chunk(fh5, ichunk, real_ints):
-    """
-    Get Cholesky chunk from hdf5 file.
-
-    Parameters
-    ----------
-    fh5 : :class:`h5py.File`
-        HDF5 file handle containing Cholesky vectors.
-    ichunk : int
-        Index of Cholesky chunk to read.
-    real_ints : bool
-        If True, read real integrals.
-
-    Returns
-    -------
-    ixs : :class:`np.ndarray`
-        Indices of Cholesky vectors.
-    vals : :class:`np.ndarray`
-        Cholesky vectors.
-    
-    Raises
-    ------
-    RuntimeError : if Cholesky chunk does not exist in file.
-    """
-    ixs = fh5['Hamiltonian/Factorized/index_%i'%ichunk][:]
-    dset_name =  f'Hamiltonian/Factorized/vals_{ichunk}'
-    if dset_name in fh5:
-        vals = fh5[dset_name][...]
-        if real_ints:
-            vals = vals.ravel()
-        else:
-            vals = vals.view(np.complex128).ravel()
-        return ixs, vals
-    else:
-        raise RuntimeError(f"  no dataset called '{dset_name}' in HDF5 file")
-        
 
 def check_sym(ikjl, nmo, sym):
     """Check permutational symmetry of integral
@@ -582,7 +441,7 @@ def fmt_integral(intg, i, k, j, l, cplx, paren=False):
     cplx : bool
         If True, then integrals are printed as complex-valued
     paren : bool
-        If True, complex-valued integrals are printed in paranthesis
+        If True, complex-valued integrals are printed in parenthesis
     """
     if cplx:
         if paren:
@@ -626,7 +485,7 @@ def write_fcidump(filename, hcore, chol, enuc, nmo, nelec, tol=1e-8, ctol=1e-12,
     chol_is_eri: bool
         Write chemist's ERI directly instead of using its Cholesky factorization
     use_spinor: bool
-        Convret to a spinor basis before writting FCIDUMP
+        Convert to a spinor basis before writing FCIDUMP
     """
 
     if use_spinor and cplx == False:
@@ -866,8 +725,8 @@ def read_cholesky_kpoint(filename, get_chol=True):
     Reads datasets from the `Hamiltonian` group in the internal format and
     returns the one-body matrices and (optionally) per-Q Cholesky vectors.
 
-    Reads
-    -----
+    The following format is expected:
+
     - `Hamiltonian/dims` (array, len=8): overall dimensions. Used entries:
       - `dims[2] = nkp`: number of k-points.
       - `dims[3] = nmo_tot`: total orbitals across all k-points.
@@ -998,132 +857,6 @@ def get_kpoint_chol(filename, nchol_pk, minus_k, i, qk_k2, nmo_pk):
               Lk1[k1] = cmat.transpose(1, 0, 2).conj().ravel()
             Lk = Lk1
     return Lk
-
-
-def read_cholesky_kpoint_coqui(filename, get_chol=True):
-    r"""Read in integrals from internal hdf5 format. kpoint dependent case.
-
-    Parameters
-    ----------
-    filename : str
-        Path to the internal-format HDF5 file.
-    get_chol : bool, optional
-        If True, read and return per-Q Cholesky vectors (default True).
-
-    Returns
-    -------
-    hcore : list[np.ndarray]
-        List of one-body Hamiltonians per k-point; each `(nmo_k, nmo_k)` complex.
-    chol_vecs : list[np.ndarray] or None
-        If `get_chol` is True, list over Q of arrays with shape
-        `(nkp, nmo_k*nmo_k*nchol_Q)` containing flattened `L[K][i,k,n]` per K.
-        Otherwise `None`.
-    enuc : float
-        Core (nuclear) energy contribution read from `Hamiltonian/Energies`.
-    nmo_tot : int
-        Total number of orbitals across all k-points.
-    nelec : tuple[int, int]
-        `(nalpha, nbeta)` electron counts.
-    nmo_pk : np.ndarray
-        Orbitals per k-point; shape `(nkp,)`.
-    qk_k2 : np.ndarray
-        Momentum mapping `(Q, K) -> K'`; shape `(nkp, nkp)`.
-    nchol_pk : np.ndarray
-        Number of Cholesky vectors per Q; shape `(nkp,)`, after time-reversal tie-in.
-    minus_k : np.ndarray
-        Time-reversal partner map `Q -> -Q`; shape `(nkp,)`.
-    """
-    enuc, dims, hcore, real_ints = read_common_input(filename, get_hcore=False)
-    with h5.File(filename, 'r') as fh5:
-        nmo_pk = fh5['Hamiltonian/NMOPerKP'][:]
-        nchol_pk = fh5['Hamiltonian/NCholPerKP'][:]
-        qk_k2 = fh5['Hamiltonian/QKTok2'][:]
-        minus_k = fh5['Hamiltonian/MinusK'][:]
-        hcore = []
-        nkp = dims[2]
-        nmo_tot = dims[3]
-        nalpha = dims[4]
-        nbeta = dims[5]
-        if nmo_pk is None:
-            raise KeyError("Could not read NMOPerKP dataset.")
-        for i in range(0, nkp):
-            hk = fh5['Hamiltonian/H1_kp{}'.format(i)][:]
-            if hk is None:
-                raise KeyError("Could not read one-body hamiltonian.")
-            nmo = nmo_pk[i]
-            hcore.append(hk.view(np.complex128).reshape(nmo,nmo))
-        chol_vecs = []
-        if nmo_pk is None:
-            raise KeyError("Error nmo_pk dataset does not exist.")
-        nmo_max = max(nmo_pk)
-    if minus_k is None:
-        raise KeyError("Error MinusK dataset does not exist.")
-    if nchol_pk is None:
-        raise KeyError("Error NCholPerKP dataset does not exist.")
-    # unpack chol
-    for i, nc in enumerate(nchol_pk):
-      j = minus_k[i]
-      if j<i:  # apply (Q, -Q) trick
-        nchol_pk[i] = nchol_pk[j]
-    if get_chol:
-        for i in range(0, nkp):
-            chol_vecs.append(get_kpoint_chol(filename, nchol_pk, minus_k, i, qk_k2, nmo_pk))
-    else:
-        chol_vecs = None
-
-    return (hcore, chol_vecs, enuc, int(nmo_tot), (int(nalpha), int(nbeta)),
-            nmo_pk, qk_k2, nchol_pk, minus_k)
-
-
-def get_kpoint_chol_coqui(filename, nchol_pk, minus_k, i, qk_k2, nmo_pk):
-    r"""
-    Read standard-format Cholesky vectors for Q = i with time-reversal handling.
-
-    Loads `Hamiltonian/KPFactorized/L{min(i, -i)}` and returns per-k-point
-    Cholesky factors in a flattened `(nkp, nmo_i*nmo_i*nchol)` layout. If `-i < i`
-    (time-reversal pairing), applies the `(Q, -Q)` trick: remap `K' = qk_k2[i, K]`
-    and conjugate-transpose from the stored partner to obtain the `Q` data.
-
-    Parameters
-    ----------
-    filename : str
-        Path to the internal-format HDF5 file.
-    nchol_pk : np.ndarray
-        Number of Cholesky vectors per Q; shape `(nkp,)`.
-    minus_k : np.ndarray
-        Time-reversal partner map; shape `(nkp,)`.
-    i : int
-        Q-vector index to read.
-    qk_k2 : np.ndarray
-        Momentum mapping `(Q, K) -> K'`; shape `(nkp, nkp)`.
-    nmo_pk : np.ndarray
-        Orbitals per k-point; shape `(nkp,)`.
-
-    Returns
-    -------
-    Lk : np.ndarray
-        Cholesky vectors for Q `i`, shape `(nkp, nmo_i*nmo_i*nchol)`, complex128.
-    """
-    with h5.File(filename, 'r') as fh5:
-        j = minus_k[i]
-        Lk = fh5['Hamiltonian/KPFactorized/L{}'.format(min(i, j))][:]
-        if Lk is None:
-            msg = "Could not read Cholesky kpoint %d, with -Q %d." % (i, j)
-            raise TypeError(msg)
-        Lk = Lk.view(np.complex128)[:,:,0]
-        if j<i:  # apply (Q, -Q) trick
-            nchol = nchol_pk[j]
-            # remap k-Q, then conjugate-transpose
-            nmo = nmo_pk[i]
-            assert nmo_pk[j] == nmo
-            Lk1 = Lk.copy()
-            for k1, k2 in enumerate(qk_k2[i]):
-              cmat = Lk[k2].reshape(nmo, nmo, nchol)
-              Lk1[k1] = cmat.transpose(1, 0, 2).conj().ravel()
-            Lk = Lk1
-    return Lk
-
-
 
 def read_dense(filename,walker_type=None):
     r"""Read in integrals from internal hdf5 format.
@@ -1285,7 +1018,7 @@ def write_fcidump_kpoint(filename, hcore, chol, enuc, nmo_tot, nelec,
     paren : bool
         Write complex numbers in parenthesis.
     use_spinor: bool
-        Convret to a spinor basis before writting FCIDUMP
+        Convert to a spinor basis before writing FCIDUMP
     """
     if use_spinor:
         raise NotImplementedError(
@@ -1351,119 +1084,3 @@ def write_fcidump_kpoint(filename, hcore, chol, enuc, nmo_tot, nelec,
 
         out = fmt_integral(enuc+0j, -1, -1, -1, -1, cplx, paren=paren)
         f.write(out)
-
-def sparse_to_dense(sparse_file, dense_file, real_chol=False):
-    """
-    Convert sparse Hamiltonian to dense format.
-
-    Parameters
-    ----------
-    sparse_file : string
-        File containing sparse Hamiltonian.
-    dense_file : string
-        File to write dense Hamiltonian to.
-    real_chol : bool
-        If True, write real Cholesky vectors. Optional. Default: False.
-    """
-    hcore, chol, enuc, nmo, nelec = read_sparse(sparse_file,
-                                                        get_chol=False)
-    with h5.File(dense_file, 'w') as fh5:
-        fh5['Hamiltonian/Energies'] = np.array([enuc,0])
-        with h5.File(sparse_file, 'r') as sph5:
-            block_sizes = sph5['Hamiltonian/Factorized/block_sizes'][:]
-            dims = sph5['Hamiltonian/dims'][:]
-            nchol = dims[-1]
-            if real_chol:
-                fh5['Hamiltonian/hcore'] = hcore.real
-                shape = (nmo*nmo,nchol)
-            else:
-                fh5['Hamiltonian/hcore'] = to_complex(hcore.astype(np.complex128))
-                shape = (nmo*nmo,nchol,2)
-            fh5['Hamiltonian/dims'] = dims
-            chol_dset = fh5.create_dataset('Hamiltonian/DenseFactorized/L',
-                                           shape,
-                                           dtype=np.float64)
-            s = 0
-            for ic, bs in enumerate(block_sizes):
-                ixs, vchunk = get_chunk(sph5, ic, real_chol)
-                row_ix, col_ix = ixs[::2], ixs[1::2]
-                sort = np.argsort(row_ix)
-                row_ix = row_ix[sort]
-                col_ix = col_ix[sort]
-                vchunk = vchunk[sort]
-                rows = np.unique(row_ix)
-                for r in rows:
-                    # H5PY array slicing is restrictive.
-                    # index has to be in increasing order
-                    rix = row_ix == r
-                    cr = col_ix[rix]
-                    vr = vchunk[rix]
-                    sort = np.argsort(cr)
-                    if real_chol:
-                        chol_dset[r,cr[sort]] = np.real(vr[sort])
-                    else:
-                        chol_dset[r,cr[sort]] = to_complex(vr[sort])
-
-def kpoint_to_sparse(kp_file, sp_file, real_chol=False,
-                     thresh=1e-8):
-    """
-    Convert k-point Hamiltonian to sparse format.
-
-    Parameters
-    ----------
-    kp_file : string
-        File containing k-point Hamiltonian.
-    sp_file : string
-        File to write sparse Hamiltonian to.
-    real_chol : bool
-        If True, write real Cholesky vectors. Optional. Default: False.
-    thresh : float
-        Threshold for sparse integral values. Intagrals with absolute value less then 
-        thresh are considered 0.0 Optional. Default: 1e-8.
-    """
-    warn("Sparse format is deprecated. Use k-point factorized Hamiltonian format instead.", DeprecationWarning)
-    hamil = read_hamiltonian(kp_file, get_chol=False)
-    hcore = hamil['hcore']
-    enuc = hamil['enuc']
-    nelec = hamil['nelec']
-    nmo = hamil['nmo']
-    nmo_pk = hamil['nmo_pk']
-    minus_k = hamil['minus_k']
-    qk_k2 = hamil['qk_k2']
-    nkp = len(hcore)
-    # 1. Extend hcore to block diagonal.
-    hcore = scipy.linalg.block_diag(*hcore)
-    nchol_pk = hamil['nchol_pk']
-    nchol = sum(nchol_pk)
-    orb_offset = np.zeros(nkp, dtype=np.int32)
-    chol_offset = np.zeros(nkp, dtype=np.int32)
-    write_sparse_basic(sp_file, hcore, enuc, nelec, real_chol=real_chol)
-    for i in range(1, nkp):
-        orb_offset[i] = orb_offset[i-1] + nmo_pk[i-1]
-        chol_offset[i] = chol_offset[i-1] + nchol_pk[i-1]
-    block_sizes = []
-    for iq in range(nkp):
-        s = chol_offset[iq]
-        e = s + nchol_pk[iq]
-        lq = get_kpoint_chol(kp_file, nchol_pk, minus_k, iq, qk_k2, nmo_pk)
-        vals = []
-        ixs = []
-        for ki in range(nkp):
-            for i in range(0, nmo_pk[ki]):
-                kk = qk_k2[iq,ki]
-                I = i + orb_offset[ki]
-                for k in range(0, nmo_pk[kk]):
-                    K = k + orb_offset[kk]
-                    for nc in range(0,nchol_pk[iq]):
-                        ll = lq[ki,(i*nmo_pk[ki]+k)*nchol_pk[iq]+nc]
-                        if abs(ll) > thresh:
-                            vals.append(ll)
-                            ixs.append([I*nmo+K,s+nc])
-        block_sizes.append(len(vals))
-        write_sparse_chol_chunk(np.array(ixs).ravel(), vals, iq, filename=sp_file)
-
-    with h5.File(sp_file, 'a') as fh5:
-        fh5['Hamiltonian/Factorized/block_sizes'] = block_sizes
-        fh5['Hamiltonian/dims'] = np.array([0, sum(block_sizes),
-                                               nkp, nmo, nelec[0], nelec[1], 0,
-                                               nchol])

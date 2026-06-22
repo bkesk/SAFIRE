@@ -15,7 +15,7 @@ import warnings
 import h5py
 import numpy as np
 from scipy.sparse import csr_array
-from afqmctools.utils.io import write_csrm
+from afqmctools.utils.io import write_csr
 
 warnings.warn("Deprecation Warning: The afqmctools.hamiltonian.hubbard submodule will be removed")
 
@@ -46,7 +46,7 @@ def write_one_body(grp, h1, spin_type):
   g['spin_type'] = spin_type
   slab = g.create_group('tij')
   mat = csr_array(h1.astype(np.complex128))
-  write_csrm(slab, mat)
+  write_csr(slab, mat)
 
 def write_two_body(grp, Uij, hst_type):
   warnings.warn("Deprecation Warning: The afqmctools.hamiltonian.hubbard.write_two_body function will be removed")
