@@ -18,7 +18,7 @@ Getting Started with SAFIRE
 
 .. _anatomy_of_safire:
 
-(S)tochastic (A)uxiliary-(F)ields for (I)nte(R)acting (E)lectrons (SAFIRE)
+**\ S**\ tochastic **A**\ uxiliary-\ **F**\ ields for \ **I**\ nte\ **R**\ acting **E**\ lectrons (SAFIRE)
 is a flexible, high-performance implementation of the Auxiliary Field Quantum Monte Carlo (AFQMC) method. 
 SAFIRE is organized into two basic components.
 The first is the SAFIRE executable which is a high-performance code
