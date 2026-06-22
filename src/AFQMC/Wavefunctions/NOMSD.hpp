@@ -44,7 +44,7 @@ namespace afqmc
  * For particle-hole orthogonal MSD wfns, use FastMSD.
  */
 template<MEMORY_SPACE MEM, class devPsiT>
-class NOMSD : public AFQMCInfo
+class NOMSD
 {
 
 public:
@@ -53,8 +53,8 @@ public:
     utils::check(false,"Default constructor for NOMSD disabled.");
   }
 
-  NOMSD(AFQMCInfo& info,
-        ptree pt_in,
+  NOMSD(ptree pt_in,
+        int NMO_, int nup_, int ndown_,
         WALKER_TYPES wlk,
         std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
         HamiltonianOperations<MEM>&& hop_,
@@ -62,9 +62,9 @@ public:
         nda::array<devPsiT,2>&& orbs_,
         ComplexType nce,
         [[maybe_unused]] int targetNW = 1)
-      : AFQMCInfo(info),
-        mpi(_mpi),
+      : mpi(_mpi),
         walker_type(wlk),
+        NMO{NMO_}, nup{nup_}, ndown{ndown_},
         HamOp(std::move(hop_)),
         ci(std::move(ci_)),
         OrbMats(std::move(orbs_)),
@@ -103,13 +103,6 @@ public:
     io::compare_known_keys("Non-orthogonal multi-Slater det. (NOMSD) Wavefunction",pt1, pt0,pass_through_keys);
     return pt1;
   }
-
-  ~NOMSD() = default; 
-
-  NOMSD(NOMSD const& other) = delete;
-  NOMSD& operator=(NOMSD const& other) = delete;
-  NOMSD(NOMSD&& other)                 = default;
-  NOMSD& operator=(NOMSD&& other) = delete;
 
   int number_of_cholesky_vectors() const { return HamOp.number_of_cholesky_vectors(); }
 
@@ -359,6 +352,10 @@ protected:
 
   // type of walker/wfn
   WALKER_TYPES walker_type;
+
+  int NMO{};
+  int nup{};
+  int ndown{};
 
   HamiltonianOperations<MEM> HamOp;
 

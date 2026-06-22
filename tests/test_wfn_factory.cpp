@@ -61,7 +61,8 @@ using namespace afqmc;
 
 template<MEMORY_SPACE MEM>
 void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
-             std::string hamil_file, std::string wfn_file, bool dense_trial, bool write_reference)
+             std::string hamil_file, std::string wfn_file, WALKER_TYPES type,
+             bool dense_trial, bool write_reference)
 {
   using nda::range;
   auto all = range::all;
@@ -114,7 +115,7 @@ void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("dense_trial",dense_trial);
 
-  WavefunctionFactory<MEM> WfnFac(InfoMap);
+  WavefunctionFactory<MEM> WfnFac{};
   WfnFac.push("wfn0", wfn_pt);
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, &ham, nwalk);
 

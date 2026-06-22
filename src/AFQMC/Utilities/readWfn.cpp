@@ -297,25 +297,21 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
 }
 
 
-void checkCommonDims(std::vector<int> const& dims, int NMO, int nup, int ndown, int& ndets_to_read) {
-  utils::check(NMO==dims[0], "Inconsistent NMO: given {} != {} in file", NMO, dims[0]);
-  std::array nels = {nup, ndown};
-  utils::check(nels == std::array{dims[1],dims[2]}, "Inconsistent (nup,ndown): given {} != {} in file", nels, std::array{dims[1], dims[2]});
-
-  if(ndets_to_read < 1) ndets_to_read = dims[4];
-  if(ndets_to_read > dims[4]) {
-    app_warning("Found less determinants than requested, adjusting request: requested {} > {} in file.", ndets_to_read, dims[4]);
-    ndets_to_read = dims[4];
+int get_number_of_determinants(std::vector<int> const& dims, int requested) {
+  if(requested < 1) {
+    return dims[4];
   }
+  if(requested > dims[4]) {
+    app_warning("Found less determinants than requested, adjusting request: requested {} > {} in file.", requested, dims[4]);
+    return dims[4];
+  }
+  return requested;
 }
 
 /*
  * Read trial wavefunction information from file.
  */
 void getCommonInput(h5::group& grp,
-                    int NMO,
-                    int nup,
-                    int ndown,
                     int& ndets_to_read,
                     nda::array<ComplexType,1>& ci,
                     WALKER_TYPES& walker_type)
@@ -323,7 +319,7 @@ void getCommonInput(h5::group& grp,
   // check for consistency in parameters
   std::vector<int> dims(5);
   h5::read(grp,"dims",dims);
-  checkCommonDims(dims, NMO, nup, ndown, ndets_to_read);
+  ndets_to_read = get_number_of_determinants(dims, ndets_to_read);
   app_log(1," - Number of determinants in trial wavefunction: {} ", ndets_to_read);
   ci.resize(ndets_to_read);
   nda::array<ComplexType,1> ci_t(dims[4]);

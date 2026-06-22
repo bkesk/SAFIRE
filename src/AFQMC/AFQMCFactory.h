@@ -74,7 +74,7 @@ public:
        InfoMap(),
        HamFac(InfoMap),
        WSetFac(InfoMap),
-       WfnFac(InfoMap),
+       WfnFac{},
        PropFac(InfoMap),
        DriverFac(mpi, InfoMap, WSetFac, PropFac, WfnFac, HamFac) 
   {
