@@ -256,11 +256,39 @@ def error_messages(text: str) -> set:
             and not re.match(r"APPLICATION ABORT: Fatal Error\.", m)}
 
 
+def warning_messages(text: str) -> set:
+    if not raised_warning(text):
+        return set()
+    text = _ANSI.sub("", text)
+    return {m.lstrip().rstrip() for m in re.findall(r"\[warning\] (.+)", text)}
+
+
+def _write_message_group(f: h5.File, name: str, messages: set):
+    g = f.create_group(name)
+    g.create_dataset("num_messages", data=len(messages))
+    prefix = name.split("_")[0]  # error_messages -> error, warning_messages -> warning
+    for i, m in enumerate(messages):
+        g.create_dataset(f"{prefix}_{i}", data=str(m))
+
+
+def _scalar_column(scalar_file: str, column: Optional[str], label: str):
+    """Average a scalar.dat column, returning [value, stoch_error] or None."""
+    try:
+        params = dict(fname=scalar_file, xaxis="time", nequil=5.0, verbose=False)
+        if column is not None:
+            params["column"] = column
+        v, dv = analyze_scalar_data(params)
+        return np.array([v, dv])
+    except Exception as e:  # noqa: BLE001
+        print(f"  [warn] could not analyze {label}: {e}")
+        return None
+
+
 def record_results(out_dir: Path, return_code: int, run_time: float, run_bp: bool):
-    """Extract a minimal results summary and write results.h5 (schema-compatible
-    with the reference files written by the pytest suite)."""
+    """Extract a results summary and write results.h5 (schema-compatible with the
+    reference files written by the pytest suite: includes energy, weight,
+    LogOvlpFactor and the error/warning message groups)."""
     out_text = (out_dir / "afqmc.out").read_text()
-    errors = error_messages(out_text)
     with h5.File(out_dir / "results.h5", "w") as f:
         f.create_dataset("return_code", data=return_code)
         f.create_dataset("run_time_seconds", data=run_time)
@@ -268,19 +296,25 @@ def record_results(out_dir: Path, return_code: int, run_time: float, run_bp: boo
         f.create_dataset("afqmc_raised_error", data=raised_error(out_text))
         f.create_dataset("afqmc_raised_warning", data=raised_warning(out_text))
         f.create_dataset("input_file", data=(out_dir / "afqmc.json").read_text())
-        if errors:
-            g = f.create_group("error_messages")
-            g.create_dataset("num_messages", data=len(errors))
-            for i, m in enumerate(errors):
-                g.create_dataset(f"error_{i}", data=str(m))
+        _write_message_group(f, "error_messages", error_messages(out_text))
+        _write_message_group(f, "warning_messages", warning_messages(out_text))
         if return_code == 0:
+            scalar_file = str(out_dir / "qmc.s000.scalar.dat")
+            energy = _scalar_column(scalar_file, None, "energy")
+            if energy is not None:
+                f.create_dataset("energy", data=energy)
+            weight = _scalar_column(scalar_file, "weight", "weight")
+            if weight is not None:
+                f.create_dataset("weight", data=weight)
+            # Log overlap: old name LogOvlpFactor, new name LogOvlp; support both.
             try:
-                E, dE = analyze_scalar_data(
-                    dict(fname=str(out_dir / "qmc.s000.scalar.dat"),
-                         xaxis="time", nequil=5.0, verbose=False))
-                f.create_dataset("energy", data=np.array([E, dE]))
-            except Exception as e:  # noqa: BLE001
-                print(f"  [warn] could not analyze energy: {e}")
+                ovlp_col = ("LogOvlpFactor" if "LogOvlpFactor" in open(scalar_file).read()
+                            else "LogOvlp")
+            except OSError:
+                ovlp_col = "LogOvlpFactor"
+            log_ovlp = _scalar_column(scalar_file, ovlp_col, "LogOvlpFactor")
+            if log_ovlp is not None:
+                f.create_dataset("LogOvlpFactor", data=log_ovlp)
             if run_bp:
                 try:
                     rho, drho = average_afqmc_rdm(str(out_dir / "qmc.s000.stat.h5"))
@@ -291,7 +325,7 @@ def record_results(out_dir: Path, return_code: int, run_time: float, run_bp: boo
 
 
 # ============================================================================
-# Co
+# Comparisons
 # ============================================================================
 
 def _rc_class(code) -> int:
@@ -366,6 +400,10 @@ def compare(test_h5: Path, ref_h5: Path, expect_success: bool, check_bp: bool = 
             ok = _compare_energy(ft, fr)
             if check_bp:
                 ok = _compare_1rdm(ft, fr) and ok
+            for name in ("weight", "LogOvlpFactor"):
+                if name in ft and name in fr:
+                    print(f"  [compare] {name} (print-only): "
+                          f"test={ft[name][:]} ref={fr[name][:]}")
             return ok
 
         # expected failure: both must have exited with a SAFIRE error.
@@ -381,23 +419,10 @@ def compare(test_h5: Path, ref_h5: Path, expect_success: bool, check_bp: bool = 
 # Run loop
 # ============================================================================
 
-# A one-line probe launched under the chosen launcher. Each rank that starts
-# prints one tagged line, so counting the lines yields the true number of ranks
-# even when no -n/-np appears on the command line (e.g. plain `srun`, which gets
-# its rank count from the SLURM environment).
-_RANK_PROBE = "import sys; sys.stdout.write('RANKPROBE\\n')"
-
-# Standard MPI/SLURM world-size variables, used only as a fallback if the probe's
-# output cannot be counted.
-_SIZE_ENV_VARS = ("OMPI_COMM_WORLD_SIZE", "PMI_SIZE", "SLURM_NTASKS", "SLURM_NPROCS")
-
-
 def detect_ranks(mpiexec: str) -> int:
     """Determine how many MPI ranks `mpiexec` will actually launch by running a
-    trivial probe under it and counting the processes that start. Falls back to
-    the world size in the standard MPI/SLURM environment variables if the probe
-    output cannot be counted."""
-    cmd = shlex.split(mpiexec) + [sys.executable, "-c", _RANK_PROBE]
+    trivial probe under it and counting the processes that start."""
+    cmd = shlex.split(mpiexec) + [sys.executable, "-c", "print('RANKPROBE')"]
     try:
         proc = sp.run(cmd, stdout=sp.PIPE, stderr=sp.DEVNULL,
                       env=os.environ, text=True, timeout=120)
@@ -405,28 +430,21 @@ def detect_ranks(mpiexec: str) -> int:
         print(f"  [warn] could not probe MPI ranks ({e}); assuming 1")
         return 1
     count = proc.stdout.count("RANKPROBE")
-    if count > 0:
-        return count
-    for var in _SIZE_ENV_VARS:
-        size = os.environ.get(var, "")
-        if size.isdigit() and int(size) > 0:
-            print(f"  [warn] could not count probe processes; using {var}={size}")
-            return int(size)
-    print("  [warn] could not determine MPI rank count; assuming 1")
-    return 1
+    if count == 0:
+        print("  [warn] could not determine MPI rank count; assuming 1")
+        return 1
+    return count
 
 
 def run_case(system: System, case: Case, out_root: Path, mpiexec: str,
              afqmc_exec: str, compute: str, ranks: int, timeout: Optional[float],
              expect_success: bool) -> bool:
+    """Run one case's AFQMC subprocess, then record and compare its results."""
     out_dir = (out_root / case.out_subdir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     hamil_file = system.inputs_dir / case.hamiltonian.file
     wfn_file = system.inputs_dir / case.wavefunction.file
 
-    max_ranks = case.runparams.get("max_num_mpi_ranks")
-    if max_ranks is not None and ranks > max_ranks:
-        print(f"  [warning] using more ranks ({ranks}) than the case wants ({max_ranks}) ")
     total_walkers = case.runparams.get("total_walkers", 1600)
     n_walkers = total_walkers // max(1, ranks)
 
@@ -448,16 +466,18 @@ def run_case(system: System, case: Case, out_root: Path, mpiexec: str,
     with open(out_dir / "afqmc.out", "w") as fout:
         t0 = perf_counter()
         try:
+            # timeout is in minutes; subprocess.run wants seconds.
             proc = sp.run(run_cmd, stdout=fout, stderr=fout, cwd=out_dir,
-                          env=os.environ, timeout=timeout)
+                          env=os.environ,
+                          timeout=timeout * 60 if timeout is not None else None)
             return_code = proc.returncode
         except sp.TimeoutExpired:
             fout.write("\n[error] run timed out\n")
-            print(f"  [timeout] run timed out after {timeout} s")
-            return_code = 124
+            print(f"  [timeout] run timed out after {timeout} min")
+            return False
         run_time = perf_counter() - t0
-    record_results(out_dir, return_code, run_time, run_bp=case.bp)
 
+    record_results(out_dir, return_code, run_time, run_bp=case.bp)
     return compare(out_dir / "results.h5", case.reference, expect_success,
                    check_bp=case.bp)
 
@@ -477,7 +497,7 @@ def main(argv=None) -> int:
     p.add_argument("--compute", choices=["cpu", "gpu"], default="cpu",
                    help="compute device passed to AFQMC via --compute")
     p.add_argument("--timeout", type=float, default=None,
-                   help="per-run timeout in seconds")
+                   help="per-run timeout in minutes")
     p.add_argument("--dry-run", action="store_true",
                    help="list planned cases without running AFQMC")
     p.add_argument("--list", action="store_true", help="list available systems and exit")
@@ -519,8 +539,8 @@ def main(argv=None) -> int:
         all_cases = generate(system)
         success = [c for c in all_cases if passes_all_rules(c)]
         fail = [c for c in all_cases if not passes_all_rules(c)]
-        # Back-propagation cases mirror the suite's test_success_weekly_bp: a
-        # cherry-picked subset of the success cases, only for systems that have them.
+        # Back-propagation cases are a cherry-picked subset of the success cases,
+        # only for systems that have them.
         bp = bp_cases(success) if system.bp else []
         print(f"=== {name}: {len(success)} expected-success, "
               f"{len(fail)} expected-fail, {len(bp)} back-propagation ===")
