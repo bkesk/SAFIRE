@@ -51,7 +51,8 @@ public:
         prop0(prpg_),
         estim0(estim_),
         weight_reset_period(0.0),
-        Eshift(eshft_)
+        Eshift(eshft_),
+        Eshift0(eshft_)
   {
     name = "FTAFQMCDriver";
     // convert user input to verbose input
@@ -70,6 +71,7 @@ public:
     weight_reset_period = pt.get<double>("weight_reset"); // in units of time
     dt = pt.get<double>("timestep");
     dShift = pt.get<double>("dshift");  // Etrial shift scale
+    print_sweep_step = pt.get<bool>("print_sweep_step"); 
 
     // KE: to make sure that all Estimators are measured at their own desired intervals
     _measure_interval = estim0.get_max_common_interval();
@@ -86,6 +88,7 @@ public:
     std::string hdf_write_file;
     int steps, sweeps, measure_interval, measure_interval_multiplier, nPopulation, ortho, checkpoint;
     double weight_reset, timestep, dshift;
+    bool print_info;
     hdf_write_file = pt0.get<std::string>("hdf_write_file", "");
     steps         = pt0.get<int>("steps", 1);
     sweeps        = pt0.get<int>("sweeps", 1);
@@ -97,6 +100,7 @@ public:
     weight_reset = pt0.get<double>("weight_reset", 0.0);
     timestep     = pt0.get<double>("timestep", DEFAULT_TIME_STEP);
     dshift       = pt0.get<double>("dshift", 1.0);
+    print_info   = pt0.get<bool>("print_sweep_step", false);
 
     measure_interval = measure_interval_multiplier * nPopulation;
     // if steps and measure_interval are not commensurate, add steps so that
@@ -124,6 +128,7 @@ public:
     pt1.put("weight_reset", weight_reset);
     pt1.put("timestep", timestep);
     pt1.put("dshift", dshift);
+    pt1.put("print_sweep_step",print_info);
     // check for unknown input keys
     std::unordered_set<std::string> pass_through_keys = {
       "walker_set",
@@ -185,9 +190,10 @@ protected:
 
   RealType dShift;
   RealType Eshift;
+  RealType Eshift0;
   RealType Etav;
 
-  //ComplexType LogPT0;
+  bool print_sweep_step;
 };
 
 } // namespace afqmc

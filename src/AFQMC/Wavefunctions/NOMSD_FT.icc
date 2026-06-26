@@ -36,7 +36,8 @@ void NOMSD_FT<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int 
   const int ndet = ci.size();
   const int nw   = wset.size();
   const int nspin = (walker_type==COLLINEAR_FT ? 2 : 1 ); 
-  const int npol = (walker_type==NONCOLLINEAR_FT ? 2 : 1 ); 
+  const int npol = (walker_type==NONCOLLINEAR_FT ? 2 : 1 );
+  nt = nt < 0 ? wset.getTauStep() : nt; // if time-slice is (default nt = -1) not given, use current time-slice 
   utils::check(Ov.size() == nw, "Size mismatch");
   utils::check(E.shape() == std::array<long,2>{nw,3}, "Size mismatch");
   // Log_Overlap accumulates!!!
@@ -256,6 +257,7 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
   memory::check_memory_space<MEM>(Ov);
   const int ndet = ci.size();
   const int nw   = wset.size();
+  nt = nt < 0 ? wset.getTauStep() : nt; // if time-slice is not given (default nt = -1), use current time-slice
   utils::check(Ov.size() == nw, "Size mismatch");
   // Log_Overlap accumulates!!!
   Ov() = ComplexType(0.0);
@@ -359,7 +361,7 @@ template<class WlkSet, class Observable>
 void NOMSD_FT<MEM,devPsiT>::accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
       std::vector<Observable>& properties_1body, std::vector<Observable>& properties,
       nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
-      nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling, int nt)
+      nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling)
 {
   using nda::range;
   auto all = range::all;
@@ -370,7 +372,7 @@ void NOMSD_FT<MEM,devPsiT>::accumulate_estimators(int iav, WlkSet& wset, nda::Me
   const int nspin  = (walker_type==COLLINEAR_FT ? 2 : 1 );
   const int npol   = (walker_type==NONCOLLINEAR_FT ? 2 : 1 );
 
-  nt = wset.getTauStep();
+  int nt = wset.getTauStep();
   // this is wrong without importanceSampling!!!
   utils::check(importanceSampling, "Finish");
 

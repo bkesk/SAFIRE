@@ -470,7 +470,7 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, p
   // walker set and type
   auto& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
   WALKER_TYPES walker_type = wset.getWalkerType();
-
+  wset.setTauStep(0); // time-slice initialized to 0
   if (not WfnFac.is_constructed(wfn_name))
   {
     // hamiltonian
@@ -492,8 +492,7 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, p
     h5::file file(hdf_read_restart,'r');
     restartFromHDF5(wset, nWalkers, file, set_nWalker_target);
     // perform runtime optimization
-    wfn0.runtime_optimization(wset);
-    // ntau implicitly set to 0 here   
+    wfn0.runtime_optimization(wset);  
     wfn0.Energy(wset);
   }
   else

@@ -47,6 +47,8 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
   int nwalk_ini = wset.GlobalPopulation();
   int nwalk_ini_per_mpi = nwalk_ini/mpi->comm.size();
 
+  int print_interval = nStep / 20;
+
   app_log(1, "Initial weight and number of walkers: {}, {}", w0 ,nwalk_ini);
   app_log(1, "Initial Eshift: {} ", Eshift);
 
@@ -60,11 +62,12 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
 
   for(int iSweep = 0; iSweep < nSweep; ++iSweep) {
     AFQMCTimer.start(block_timer);
-
+    Eshift = Eshift0; // Eshift set to same value at the beginning of each sweep
     total_time = 0.0;
     for (int iStep = 0; iStep < nStep; ++iStep)
     {
-      //app_log(1, "sweep {}, step {} ", iSweep, iStep);
+      if(iStep % print_interval == 0 and print_sweep_step)
+        app_log(1, "sweep {}, step {} ", iSweep, iStep);
       // reset wset log(ovlp), read initial value
       // from memory after sweep 1, rather than re-computing
       if(iStep==0 and iSweep>0){
@@ -86,19 +89,35 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
         AFQMCTimer.stop(ortho_timer);
       }
 
-      if (total_time < weight_reset_period && !prop0.free_propagation())
+      if (total_time < weight_reset_period && !prop0.free_propagation()){
         wset.resetWeights();
+      }
+
+      if (total_time < 1.0) 
+      {
+        wset.processWalkerData(curData);
+        estim0.accumulate_step(total_time, wset, curData);
+      } 
 
       // KE: should there be a check for population control interval here?
-      if (total_time < 1.0 || (iStep + 1) % nPopulation == 0 || iStep == 0 || iStep == nStep-1)
+      if ((iStep + 1) % nPopulation == 0 || iStep == 0 || iStep == nStep-1)
       {
         AFQMCTimer.start(popcont_timer);
         wset.processWalkerData(curData);
         wset.popControl();
         AFQMCTimer.stop(popcont_timer);
+        estim0.accumulate_step(total_time,wset,curData);
       }
 
-      estim0.accumulate_step(total_time,wset,curData);
+      //estim0.accumulate_step(total_time,wset,curData);
+
+      if (total_time < 1.0)
+      {
+        Eshift = estim0.getEloc_step();
+      }
+      else if ((iStep + 1) % nAccumulate == 0)
+        Eshift += dShift * (estim0.getEloc_step() - Eshift);
+
       //estim0.print_walker_info(iSweep+1, total_time);
 
       // resize stack pointers to match maximum buffer use
@@ -109,7 +128,8 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
     AFQMCTimer.stop(block_timer);
     
     // accumulate measurements
-    estim0.accumulate_step(total_time,wset,curData);
+    // for measurement we need nt = nStep
+    //wset.advanceTauStep();
     estim0.accumulate_block(double(nStep), wset);
     estim0.print(iSweep + 1, total_time, Eshift, wset);
     

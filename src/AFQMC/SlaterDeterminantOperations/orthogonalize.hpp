@@ -485,7 +485,7 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
         wset.setProperty(LOGSCL_DN, scl_dn);
       }
     } else {
-      double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
+      //double scl = ( walker_type == CLOSED ? 2.0 : 1.0 );
       orthogonalize_wQR(wset.UMatrices(Alpha), wset.DMatrices(Alpha), wset.VMatrices(Alpha), scl_up);
       wset.setProperty(LOGSCL_UP, scl_up);
       if(walker_type == COLLINEAR_FT){
@@ -494,13 +494,13 @@ void orthogonalize(WlkSet &wset, Vec && ldet, bool importance_sampling = true)
         orthogonalize_wQR(wset.UMatrices(Beta), wset.DMatrices(Beta), wset.VMatrices(Beta), scl_dn);
         wset.setProperty(LOGSCL_DN, scl_dn);
       }
-      memory::buffered_array<MEM,ComplexType,1> wgt(nwalk);
-      wset.getProperty(WEIGHT, wgt);
-      auto wgt_h = nda::to_host(wgt);
-      auto ldet_h = nda::to_host(ldet);
-      wgt_h() *= nda::exp(scl*ldet_h());
-      wgt() = wgt_h();
-      wset.setProperty(WEIGHT, wgt);
+      //memory::buffered_array<MEM,ComplexType,1> wgt(nwalk);
+      //wset.getProperty(WEIGHT, wgt);
+      //auto wgt_h = nda::to_host(wgt);
+      //auto ldet_h = nda::to_host(ldet);
+      //wgt_h() *= nda::exp(scl*ldet_h());
+      //wgt() = wgt_h();
+      //wset.setProperty(WEIGHT, wgt);
     }
   }
 }

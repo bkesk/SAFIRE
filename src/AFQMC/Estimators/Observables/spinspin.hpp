@@ -182,7 +182,6 @@ public:
     mpi->reduce(dm_average, std::plus<>(), 0);
     if(mpi->comm.root()) {
       assert(group);
-      h5::group parent_group = group->create_group("SpinSpin");
       h5::group parent_group = ( group->has_key("SpinSpin") ? 
                                  group->open_group("SpinSpin") : 
                                  group->create_group("SpinSpin") );

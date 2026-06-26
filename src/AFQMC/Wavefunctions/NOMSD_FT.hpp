@@ -190,13 +190,14 @@ public:
    */
   
   template<class WlkSet>
-  void vbias(WlkSet& wset, nda::MemoryMatrix auto && v, double dt, int nt = 0)
+  void vbias(WlkSet& wset, nda::MemoryMatrix auto && v, double dt, int nt = -1)
   {
     memory::check_memory_space<MEM>(v);
     AFQMCTimer.start(G_for_vbias_timer);
     int nspin = (walker_type==COLLINEAR_FT ? 2 : 1);
     int npol  = (walker_type==NONCOLLINEAR_FT ? 2 : 1);
     int nw = wset.size();
+    nt = nt < 0? wset.getTauStep() : nt; // if time-slice is not given, use current time-slice
     int nc = nspin*npol*NMO*npol*NMO;
     utils::check(v.shape() == std::array<long,2>{nw,HamOp.number_of_cholesky_vectors()}, 
                  "Shape mismatch");
@@ -230,7 +231,7 @@ public:
    * them in the wset data
    */
   template<class WlkSet>
-  void Energy(WlkSet& wset, int nt = 0)
+  void Energy(WlkSet& wset, int nt = -1)
   {
     auto all = nda::range::all;
     int nw = wset.size();
@@ -249,7 +250,7 @@ public:
    * returns them in the appropriate data structures
    */
   template<class WlkSet,  nda::MemoryMatrix TMat, nda::MemoryVector TVec>
-  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt = 0);
+  void Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int nt = -1);
 
   /*
    * Calculates the mixed density matrix for all walkers in the walker set. 
@@ -279,13 +280,13 @@ public:
    * Calculates the overlaps of all walkers in the set. Returns values in arrays. 
    */
   template<class WlkSet, nda::MemoryArrayOfRank<1> TVec>
-  void Log_Overlap(const WlkSet& wset, TVec && Ov, int nt = 0);
+  void Log_Overlap(const WlkSet& wset, TVec && Ov, int nt = -1);
 
   /*
    * Calculates the overlaps of all walkers in the set. Updates values in wset. 
    */
   template<class WlkSet>
-  void Log_Overlap(WlkSet& wset, int nt = 0)
+  void Log_Overlap(WlkSet& wset, int nt = -1)
   {
     int nw = wset.size();
     memory::buffered_array<MEM,ComplexType,1> ovlp(nw,ComplexType(0.0));
@@ -300,7 +301,7 @@ public:
   void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
         std::vector<Observable>& properties_1body, std::vector<Observable>& properties, 
         nda::MemoryArrayOfRank<4> auto* X, nda::MemoryArrayOfRank<4> auto* Yc, 
-        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true, int nt=0);
+        nda::MemoryArrayOfRank<4> auto* M, bool time_evolved, bool importanceSampling=true);
   
   /*
    * Calculates Green functions and calls Observables.
@@ -308,10 +309,10 @@ public:
   template<class WlkSet, class Observable>
   void accumulate_estimators(int iav, WlkSet& wset, nda::MemoryVector auto const& wgt,
         std::vector<Observable>& properties_1body,
-        std::vector<Observable>& properties, bool importanceSampling = true, int nt = 0)
+        std::vector<Observable>& properties, bool importanceSampling = true)
   {
     memory::buffered_array<MEM,ComplexType,4> *X = nullptr;
-    accumulate_estimators(iav,wset,wgt,properties_1body,properties,X,X,X,false,importanceSampling,nt);
+    accumulate_estimators(iav,wset,wgt,properties_1body,properties,X,X,X,false,importanceSampling);//,nt);
   }
 
   /*

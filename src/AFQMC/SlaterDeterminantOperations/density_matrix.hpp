@@ -205,7 +205,7 @@ requires( nda::MemoryMatrix<UL_t> and nda::MemoryVector<DL_t> and nda::MemoryMat
         )
 void log_overlap_impl(UL_t const& UL, DL_t const& DL, VL_t const& VL,
                       UR_t && UR, DR_t && DR, VR_t && VR, SL_t const& sclL, SR_t const& sclR,
-                      O_t && ovlp, T_t && TNN, bool unitaryR, bool unitaryL, bool invert = false)
+                      O_t && ovlp, T_t && TNN, bool unitaryL, bool unitaryR, bool invert = false)
 {
   constexpr MEMORY_SPACE MEM = memory::get_memory_space<UL_t>();
   using Type = nda::get_value_t<UR_t>;
