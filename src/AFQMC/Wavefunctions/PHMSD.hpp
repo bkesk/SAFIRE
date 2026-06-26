@@ -23,6 +23,7 @@
 #include <tuple>
 
 #include "AFQMC/config.h"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "IO/ptree/ptree_utilities.hpp"
 #include "AFQMC/Utilities/readWfn.h"
 #include "AFQMC/Utilities/type_conversion.hpp"
@@ -42,42 +43,41 @@ namespace afqmc
  * by a list of single particle excitations.
  */
 template<MEMORY_SPACE MEM>
-class PHMSD : public AFQMCInfo
+class PHMSD
 {
 
 public:
   // temporary
-  PHMSD(AFQMCInfo& info,
-        ptree pt_in,
+  PHMSD(ptree pt_in,
         WALKER_TYPES wlk,
-        std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
+        int NMO_, int nup_, int ndown_,
+        std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi_,
         HamiltonianOperations<MEM>&& hop_)
-      : AFQMCInfo(info),
-        mpi(_mpi),
+      : mpi(mpi_),
         walker_type(wlk),
+        NMO{NMO_}, nup{nup_}, ndown{ndown_},
         HamOp(std::move(hop_))
   {}
 
   template<class csrM>
-  PHMSD(AFQMCInfo& info,
-        ptree pt_in,
+  PHMSD(ptree pt_in,
         WALKER_TYPES wlk,
-        std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
+        int NMO_, int nup_, int ndown_,
+        std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi_,
         HamiltonianOperations<MEM>&& hop_,
         ph_excitations<int, ComplexType, MEM>&& abij_,
         nda::array<csrM,1>&& op_spin_det_coupling_,
         nda::array<csrM,1>&& orbs_,
         ComplexType nce,
         [[maybe_unused]] int targetNW = 1)
-      : AFQMCInfo(info),
-        mpi(_mpi),
+      : mpi(mpi_),
         walker_type(wlk),
+        NMO{NMO_}, nup{nup_}, ndown{ndown_},
         HamOp(std::move(hop_)),
         abij(std::move(abij_)),
         OpSpinDetCouplings(std::move(op_spin_det_coupling_)),
         OrbMats(std::move(orbs_)),
-        RefOrbMats(memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{0,0,0})),
-        NuclearCoulombEnergy(nce) 
+        NuclearCoulombEnergy(nce)
   {
     /* To me, PHMSD is not compatible with walker_type=CLOSED unless
      * the MSD expansion is symmetric with respect to spin. For this, 
@@ -85,7 +85,7 @@ public:
      * or e.g. Perfect Pairing.
      */
     if (walker_type == CLOSED)
-      APP_ABORT("Error: PHMSD requires walker_type != CLOSED.");
+      APP_ABORT("Error: PHMSD requires walker_type != CLOSED. walker_type: {}", walkerTypeToString(walker_type));
 
     // FINISH!!!
     if (walker_type == NONCOLLINEAR)
@@ -152,13 +152,6 @@ public:
     io::compare_known_keys("particle-hole multi-Slater det. (PHMSD) Wavefunction", pt1, pt0,pass_through_keys);
     return pt1;
   }
-
-  ~PHMSD() = default; 
-
-  PHMSD(PHMSD const& other) = default;
-  PHMSD& operator=(PHMSD const& other) = default;
-  PHMSD(PHMSD&& other)                 = default;
-  PHMSD& operator=(PHMSD&& other) = default;
 
   int number_of_cholesky_vectors() const { return HamOp.number_of_cholesky_vectors(); }
 
@@ -389,10 +382,9 @@ public:
     utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
     if (RefOrbMats.extent(0) < number_of_references)
     {
-      mpi->node_comm.barrier(); // for safety
-      RefOrbMats = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,{number_of_references,npol*NMO,nel}); 
-      if (mpi->node_comm.root())
-      {
+      RefOrbMats = memory::share_from_root(*mpi, [&] {
+        nda::array<ComplexType,3> R(number_of_references,npol*NMO,nel);
+        R() = ComplexType(0.0);
         std::array nels = {nup, ndown};
         std::array spin_offset = {0, nup};
         for(int spin = 0; spin < nspin; spin++) {
@@ -403,13 +395,13 @@ public:
             auto c=abij.configuration(i_det);
             abij.get_configuration(spin, std::get<0>(*c), Ac);
             for (int a = 0; a < nels[spin]; ++a) {
-              RefOrbMats()(i_det,all,spin_offset[spin]+a) = nda::conj(psi(Ac(a),all));
+              R(i_det,all,spin_offset[spin]+a) = nda::conj(psi(Ac(a),all));
             }
           }
         }
-      }
+        return R;
+      });
     }
-    mpi->node_comm.barrier();
     utils::check(RefOrbMats.extent(0) >= number_of_references and
                  RefOrbMats.extent(1) == npol*NMO and RefOrbMats.extent(2) == nel,
                  "Problems with RefOrbMats");
@@ -448,7 +440,10 @@ protected:
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
 
   // type of walker/wfn
-  WALKER_TYPES walker_type;  
+  WALKER_TYPES walker_type{};
+  int NMO{};
+  int nup{};
+  int ndown{};
 
   HamiltonianOperations<MEM> HamOp;
 
@@ -466,9 +461,24 @@ protected:
   nda::array<PsiT_Matrix<MEM>,1> OrbMats;
 
   // store references for back propagation
-  memory::shared_array<HOST_MEMORY,ComplexType,3> RefOrbMats;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,3> RefOrbMats;
 
   ComplexType NuclearCoulombEnergy;
+
+  /*
+   * Node-shared dense (daggered) copies of the orbital matrices.
+   */
+  auto dense_orbs()
+  {
+    std::vector<memory::host_const_shared_array<ComplexType,2>> Orbs;
+    Orbs.reserve(OrbMats.size());
+    for(int i=0; i<OrbMats.size(); ++i) {
+      Orbs.emplace_back(memory::share_from_root(*mpi, [&] {
+        return nda::to_host(math::sparse::to_array<'H'>(OrbMats(i)));
+      }));
+    }
+    return Orbs;
+  }
 
   /* Implementation of various energy evaluation algorithms. */
   template<class WlkSet,  nda::MemoryMatrix Mat, nda::MemoryVector TVec>

@@ -102,7 +102,7 @@ template<class WlkSet, nda::MemoryVector RVec, nda::MemoryMatrix MatG, nda::Memo
 void NOMSD<MEM,devPsiT>::DensityMatrix(const WlkSet& wset, RVec&& Ref, MatG&& G, TVec&& Ov, 
                      bool compact, bool herm)
 {
-  // RVec is a vector of shared_array or CSRMatrix
+  // RVec is a vector of const_shared_array or CSRMatrix
   auto all = nda::range::all;
   memory::check_memory_space<MEM>(G,Ov);
   const int nw   = wset.size();
@@ -112,13 +112,15 @@ void NOMSD<MEM,devPsiT>::DensityMatrix(const WlkSet& wset, RVec&& Ref, MatG&& G,
   utils::check(Ov.size() == nw, "Size mismatch");
   utils::check(Ref.size() == nspin,"Size mismatch");
   if(herm) {
-    utils::check(Ref(0).shape() == std::array<long,2>{nup,npol*NMO}, "Size mismatch");
-    if(nspin>1)
-      utils::check(Ref(1).shape() == std::array<long,2>{ndown,npol*NMO}, "Size mismatch");
+    utils::check_shape(Ref(0), "Ref(0)", nup,npol*NMO);
+    if(nspin>1) {
+      utils::check_shape(Ref(1), "Ref(1)", ndown,npol*NMO);
+    }
   } else {
-    utils::check(Ref(0).shape() == std::array<long,2>{npol*NMO,nup}, "Size mismatch");
-    if(nspin>1)
-      utils::check(Ref(1).shape() == std::array<long,2>{npol*NMO,ndown}, "Size mismatch");
+    utils::check_shape(Ref(0), "Ref(0)", npol*NMO, nup);
+    if(nspin>1) {
+      utils::check_shape(Ref(1), "Ref(1)", npol*NMO, ndown);
+    }
   }
   G() = ComplexType(0.0);
   Ov() = ComplexType(0.0);
@@ -466,37 +468,34 @@ auto NOMSD<MEM,devPsiT>::G_MF()
   int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
   int ndet  = ci.size();
 
-  auto gMF = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,
-                      {nspin,npol*NMO,npol*NMO});
-
   if (ndet == 1)
   {
-    if(mpi->comm.root()) {
-      memory::buffered_array<MEM,ComplexType,1> Ov(1); 
+    return memory::share_from_root(*mpi, [&] {
+      nda::array<ComplexType,3> gMF(nspin,npol*NMO,npol*NMO);
+      memory::buffered_array<MEM,ComplexType,1> Ov(1);
       gMF() = ComplexType(0.0);
 
       memory::buffered_array<MEM,ComplexType,3> PsiT(1,npol*NMO,nup);
       PsiT(0,all,all) = math::sparse::to_array<'H'>(OrbMats(0,0)());
       if constexpr (MEM==HOST_MEMORY) {
-        auto G3d = nda::reshape(gMF(),std::array<long,3>{1,nspin*npol*NMO,npol*NMO});
+        auto G3d = nda::reshape(gMF,std::array<long,3>{1,nspin*npol*NMO,npol*NMO});
         det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,G3d(all,nda::range(npol*NMO),all),Ov,false);
-        if( walker_type == COLLINEAR ) { 
+        if( walker_type == COLLINEAR ) {
           PsiT(0,all,range(ndown)) = math::sparse::to_array<'H'>(OrbMats(0,1)());
           det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),G3d(all,nda::range(npol*NMO,nspin*npol*NMO),all),Ov,false);
         }
       } else {
         memory::array<MEM,ComplexType,3> gt(1,npol*NMO,npol*NMO);
         det_ops::MixedDensityMatrix(OrbMats(0,0)(),PsiT,gt,Ov,false);
-        gMF()(0,all,all) = gt(0,all,all);
+        gMF(0,all,all) = gt(0,all,all);
         if( walker_type == COLLINEAR ) {
           PsiT(0,all,range(ndown)) = math::sparse::to_array<'H'>(OrbMats(0,1)());
           det_ops::MixedDensityMatrix(OrbMats(0,1)(),PsiT(all,all,range(ndown)),gt,Ov,false);
-          gMF()(1,all,all) = gt(0,all,all);
+          gMF(1,all,all) = gt(0,all,all);
         }
       }
-    }
-    if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(gMF.data(),gMF.size(),0);
-    mpi->comm.barrier();
+      return gMF;
+    });
 
   } else {
 
@@ -551,11 +550,12 @@ auto NOMSD<MEM,devPsiT>::G_MF()
     mpi->comm.all_reduce_in_place_n(&Osum,1,std::plus<>{});
     nda::tensor::scale(ComplexType(1.0/Osum),Gsum); 
     auto Gv = nda::reshape(Gsum,std::array<long,3>{nspin,npol*NMO,npol*NMO});
-    if(mpi->node_comm.root()) gMF() = Gv(); 
-    mpi->comm.barrier();
+    return memory::share_from_root(*mpi, [&] {
+      nda::array<ComplexType,3> gMF(nspin,npol*NMO,npol*NMO);
+      gMF() = Gv();
+      return gMF;
+    });
   }
-
-  return gMF;
 }
 
 /*

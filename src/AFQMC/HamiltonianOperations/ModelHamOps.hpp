@@ -26,9 +26,8 @@
 #include "utilities/mpi_context.h"
 #include "utilities/check_strides.hpp"
 #include "utilities/memory_utils.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "numerics/nda_functions.hpp"
-#include "numerics/shared_array/shared_array.hpp"
 
 #include "AFQMC/HamiltonianOperations/ModelComponents/SparseEnergy.hpp"
 #include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
@@ -54,7 +53,7 @@ public:
   ModelHamOps(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
               WALKER_TYPES type,
               int nel_up, int nel_dn,
-              memory::shared_array<MEM,ComplexType,4>&& psi_,
+              memory::const_shared_array<MEM,ComplexType,4>&& psi_,
               SparseEnergy<MEM,REAL>&& et_,
               std::vector<ModelComponent<MEM,REAL>>&& h_,
               nda::MemoryVector auto&& n2ij_
@@ -130,22 +129,6 @@ public:
 
     for(int i=0; i<Hams.size(); i++) 
       Hams[i].addOneBodyPropagatorMatrix(H1,dt, vMF(field_ranges[i]), n2IJ);
-
-    // symmetrize
-    for (int is = 0; is < nspin; is++) {
-      for (int I = 0; I < npol * NMO; I++) {
-        for (int J = I + 1; J < npol * NMO; J++) {
-          // This is really cutoff dependent!!!
-          if (std::abs(H1(is,I,J) - std::conj(H1(is,J,I))) * 2.0 > 1e-5)
-          {
-            app_warning(" WARNING in getOneBodyPropagatorMatrix. H1 is not hermitian. ");
-            app_warning(" I:{}, J:{}, H[I,J]:{}, H[J,I]:{} ",I,J,H1(is,I,J),H1(is,J,I));
-          }
-          H1(is,I,J) = 0.5 * (H1(is,I,J) + std::conj(H1(is,J,I)));
-          H1(is,J,I) = std::conj(H1(is,I,J));
-        }
-      }
-    }
 
     return H1;
   }
@@ -439,7 +422,7 @@ private:
   // (conjugated) orbital Matrix
   // This should be in node memory
   // PsiC(ndets,npin,i,a) = std::conj( PsiTrial(ndets,npin,i,a) )  
-  memory::shared_array<MEM,ComplexType,4> PsiC;
+  memory::const_shared_array<MEM,ComplexType,4> PsiC;
 
   // One body Hamiltonian
   SparseEnergy<MEM,REAL> ET; 

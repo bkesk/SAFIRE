@@ -29,6 +29,7 @@
 
 #include "AFQMC/config.h"
 
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 #include "AFQMC/SlaterDeterminantOperations/propagate.hpp"
 
@@ -57,19 +58,14 @@ public:
       : AFQMCInfo(info),
         mpi(mpi_),
         wfn(std::addressof(wfn_)),
-        H1ext(memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,std::array<long,3>{1,1,1})),
         P1s(0),
-        P1d(memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{1,1,1})),
         P1s_inv(0),
-        P1d_inv(memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{1,1,1})),
-        vMF(memory::make_shared_array<MEM,ComplexType,1>(mpi,std::array<long,1>{wfn->number_of_cholesky_vectors()})),
         rng(r),
         FieldTypes(wfn->getFieldTypes()),
 #if defined(ENABLE_DEVICE)
         FieldTypes_dev(FieldTypes()),
 #endif
-        rng_block_size(wfn->number_of_cholesky_vectors()),
-        excitedOrbMat(memory::make_shared_array<MEM,ComplexType,3>(mpi,std::array<long,3>{1,1,1}))
+        rng_block_size(wfn->number_of_cholesky_vectors())
   {
     utils::check(bool(mpi), "Error: Null mpi_context.");
     std::tie(nspins_in_vHS, npol_in_vHS) = wfn->vHS_dims();
@@ -185,20 +181,19 @@ public:
       int npol  = ( walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT ? 2 : 1 );
       int nspin = ( walker_type == COLLINEAR  or walker_type == COLLINEAR_FT  ? 2 : 1 );
       external_H1 = true;
-      H1ext = memory::make_shared_array<HOST_MEMORY,ComplexType,3>(mpi,std::array<long,3>{nspin,npol*NMO,npol*NMO}); 
-      if (mpi->node_comm.root())
-      {
+      H1ext = memory::share_from_root(*mpi, [&] {
         // use hdf5 format!!!
+        nda::array<ComplexType,3> h1ext(nspin, npol*NMO, npol*NMO);
         std::ifstream in(external_field.c_str());
         for (int is = 0; is < nspin; is++)
           for (int i = 0; i < npol*NMO; i++)
             for (int j = 0; j < npol*NMO; j++) {
-              in >> H1ext()(is,i,j);
+              in >> h1ext(is,i,j);
               utils::check(not in.fail()," Error: Problems with external field.");
             }
-        H1ext() *= external_field_scale;
-      }
-      mpi->comm.barrier();
+        h1ext *= external_field_scale;
+        return h1ext;
+      });
     }
 
   }
@@ -313,7 +308,7 @@ protected:
 
   Wavefunction<MEM>* wfn = nullptr;
 
-  memory::shared_array<HOST_MEMORY,ComplexType,3> H1ext;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,3> H1ext;
 
   // 1Body propagator in sparse and dense forms
   bool denseP1 = false;
@@ -323,13 +318,13 @@ protected:
   // P1s[ispin](npol*NMO,npol*NMO)
   nda::array<PsiT_Matrix<MEM>, 1> P1s;
   // P1d[ispin,npol*NMO,npol*NMO]
-  memory::shared_array<MEM, ComplexType, 3> P1d;
+  memory::const_shared_array<MEM, ComplexType, 3> P1d;
 
-  // used to propagate operator orbitals  
+  // used to propagate operator orbitals
   nda::array<PsiT_Matrix<MEM>, 1> P1s_inv;
-  memory::shared_array<MEM, ComplexType, 3> P1d_inv;
+  memory::const_shared_array<MEM, ComplexType, 3> P1d_inv;
 
-  memory::shared_array<MEM, ComplexType, 1> vMF;
+  memory::const_shared_array<MEM, ComplexType, 1> vMF;
 
   std::shared_ptr<utils::RandomGenerator_t<MEM>> rng;
 
@@ -375,7 +370,7 @@ protected:
   // excited state propagator
   bool excitedState = false;
   std::vector<std::pair<int, int>> excitations;
-  memory::shared_array<MEM, ComplexType, 3> excitedOrbMat;
+  memory::const_shared_array<MEM, ComplexType, 3> excitedOrbMat;
   std::pair<int, int> maxOccupExtendedMat;
   std::pair<int, int> numExcitations;
 

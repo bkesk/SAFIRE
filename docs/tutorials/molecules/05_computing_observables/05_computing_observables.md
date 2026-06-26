@@ -106,9 +106,7 @@ The code block below will:
 
 These were all covered in previous tutorials.
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/01_hello_auxiliary_fields/NitrogenDimer.png" width="300">
-</div>
+![](files/NitrogenDimer.png)
 
 ### ▶️ Run the code block below to perform all of the steps above
 
@@ -759,7 +757,7 @@ Since BP involves an additional projection, the measurement interval controls th
 Just as in the execute block or a mixed estimator block, the input file includes a measurement interval "multiplier", and the actual measurement interval, $m$, is determined as:
 
 $$
-m = (\textrm{measure\_interval\_multiplier}) \times (\textrm{population\_control\_interval})
+m = (\text{measure\_interval\_multiplier}) \times (\text{population\_control\_interval})
 $$
 
 ### Multiple BP Lengths

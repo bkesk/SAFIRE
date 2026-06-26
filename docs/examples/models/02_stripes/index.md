@@ -65,9 +65,7 @@ scratch_dir.mkdir(parents=True, exist_ok=True)
 
 In the paper _Stripes and spin-density waves in the doped two-dimensional Hubbard model: Ground state phase diagram_ [1] we see that for the nearest-neighbor square Hubbard model, the ground state may have a stable staggered stripe ground state order
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/ex02_stripes/fig9.png" width="500 px"/>
-</div>
+![](files/fig9.png)
 
 We'll explore how to see this with AFQMC and the role of the trial wave function
 
@@ -307,7 +305,7 @@ SzDmrg = np.loadtxt("data_10x4_Ne16U6.0_15360.dat",usecols=(1,))
 
 # now we'll average over the columns
 
-avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
+avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1)) / lattice.L[1]
 
 plt.errorbar(np.arange(lattice.L[0]),averageOverCols(Zs,*lattice.L),yerr=avg_delta_Sz,
              fmt='o-',label="AFQMC Free Electron")
@@ -327,9 +325,9 @@ plt.show()
 
 The idea behind self-consistent AFQMC is to have the trial wave function match as much as possible the output of AFQMC.
 
-For this model, we can do this by introducing an effective Hubbard model, where $U$ is replaced with $U_{eff}$. By solving Hartree-Fock (mean field theory) for this effective model and using the result as a trial wave function, we can scan through different $U_{eff}$ to find the one that matches the best.
+For this model, we can do this by introducing an effective Hubbard model, where $U$ is replaced with $U_\text{eff}$. By solving Hartree-Fock (mean field theory) for this effective model and using the result as a trial wave function, we can scan through different $U_\text{eff}$ to find the one that matches the best.
 
-We'll use AutoHF to explore creating a trial wave function for AFQMC. Let's do a few between $U_{eff}=1$ and $U_{eff}=4$
+We'll use AutoHF to explore creating a trial wave function for AFQMC. Let's do a few between $U_\text{eff}=1$ and $U_\text{eff}=4$
 
 _Note:_ The Hartree-Fock code is faster if you use a GPU
 
@@ -468,7 +466,7 @@ for Ueff in Ueffs:
 for Ueff,rho in zip(Ueffs,rhos):
     Xs,Ys,Zs = spobs.local_spin(np.vstack(rho[0]),"collinear").real
     
-    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
+    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1)) / lattice.L[1]
     if Ueff==0:
         label = "Free Electron"
     else:
@@ -504,7 +502,7 @@ for Ueff,rho_avg,delta_rho,trial_rho in zip(Ueffs,rhos,deltas,trial_rhos):
 
 
     delta_Sz = np.sqrt(delta_rho[0,0].diagonal()**2+delta_rho[0,1].diagonal()**2 )
-    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
+    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1)) / lattice.L[1]
 
     xs.append(Ueff)
     ys.append(np.mean(np.abs(afqmc_sz-dmrg_sz)))
@@ -531,7 +529,7 @@ for Ueff,rho_avg,delta_rho,trial_rho in zip(Ueffs,rhos,deltas,trial_rhos):
 
 
     delta_Sz = np.sqrt(delta_rho[0,0].diagonal()**2+delta_rho[0,1].diagonal()**2 )
-    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1))
+    avg_delta_Sz = np.sqrt((delta_Sz.reshape(*lattice.L)**2).sum(1)) / lattice.L[1]
 
     xs.append(Ueff)
     ys.append(np.mean(np.abs(afqmc_sz-trial_sz)))
@@ -550,11 +548,11 @@ plt.show()
 
 +++ {"id": "9e472093-a34e-4083-bb1a-3e04e07f19d2"}
 
-So we can see that somewhere around $U_{eff}\approx 3$
+So we can see that somewhere around $U_\text{eff}\approx 3$
 would have the lowest error for self consistency.
-Despite the difference between DMRG and AFQMC being on average 0.01, there is a clear optimal trial wave function to use. For fine tuning between $U_{eff}\in [2,4]$, we'll need more sophisticated methods than presented here.
+Despite the difference between DMRG and AFQMC being on average 0.01, there is a clear optimal trial wave function to use. For fine tuning between $U_\text{eff}\in [2,4]$, we'll need more sophisticated methods than presented here.
 
-In our original study, we found the optimal $U_{eff} \approx 2.77$
+In our original study, we found the optimal $U_\text{eff} \approx 2.77$
 
 +++ {"id": "672d9ba4-f659-466d-be57-8fa082fcfb0e"}
 
@@ -564,9 +562,7 @@ In our original study, we found the optimal $U_{eff} \approx 2.77$
 
 +++ {"editable": true, "id": "0ac955ea-ab2d-49fb-b9dd-9a0fafdaf159"}
 
-<div>
-    <img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/models/ex02_stripes/fig1.png" width="300px" />
-</div>
+![](files/fig1.png)
 
 +++ {"editable": true, "id": "27958cd8-4035-4720-82b8-c163b1a89e99"}
 
@@ -582,7 +578,7 @@ Let's recreate figure 1 from Xu et al, by changing
 
 Lets use this as a test bed to explore how AFQMC responds to different settings. Some questions to consider
 
-- Use $U_{eff} = U$ or the "bare U" Hartree-Fock trial. How does the quality of the results change?
+- Use $U_\text{eff} = U$ or the "bare U" Hartree-Fock trial. How does the quality of the results change?
 - We compared spin densities, what about hole density? This is the effectively the same as comparing charge density.
 - Use a trial with a small number of steps so that the solver doesn't converge. How do the results change? How could you tell this trial isn't good?
 - The free electron trial isn't a valid RHF state (why?). What would be the corresponding RHF solution? What does that output look like?

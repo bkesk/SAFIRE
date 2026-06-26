@@ -150,7 +150,7 @@ public:
       }
       else
       {
-        APP_ABORT("walker_type not yet implemented");
+        APP_ABORT("walker_type {} not yet implemented", walkerTypeToString(walker_type));
       }
 
       assert(idx == dm_average.shape(2));

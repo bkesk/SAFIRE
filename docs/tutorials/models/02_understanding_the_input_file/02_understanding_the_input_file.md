@@ -47,9 +47,7 @@ We will explore the most common settings in each input block as well.
 </div>
 -->
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_01_all.png" width="800">
-</div>
+![](files/input_file_01_all.png)
 
 The name of the highest level block tells SAFIRE which "driver" to run.
 In this case, we are running with the "afqmc" driver.
@@ -205,9 +203,7 @@ td, th {
 </div>
 -->
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_02_execute.png" width="800">
-</div>
+![](files/input_file_02_execute.png)
 
 The execute block is used to define an AFQMC calculation.
 As described earlier, it needs a wavefunction, walker_set, hamiltonian,
@@ -259,7 +255,7 @@ td, th {
 | <b>walker_ortho_interval</b> | 10  |  Interval to stabilize walkers at via a modified Gram-Schmidt procedure in units of steps |
 
 $$
-measure\_interval = measure\_interval\_multiplier \times population\_control\_interval
+\text{measure\_interval} = \text{measure\_interval\_multiplier} \times \text{population\_control\_interval}
 $$
 
 ### Less Common Settings
@@ -287,9 +283,7 @@ td, th {
 </div>
 -->
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_03_wavefunction.png" width="800">
-</div>
+![](files/input_file_03_wavefunction.png)
 
 The wavefunction block is the only of the 5 low-level blocks
 that must always be specified.
@@ -332,9 +326,7 @@ td, th {
 </div>
 -->
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_04_walker.png" width="800">
-</div>
+![](files/input_file_04_walker.png)
 
 The walker_set block is used to set general properties of the random walkers.
 The most common setting that you will change is the "walker_type" keyword
@@ -432,9 +424,7 @@ td, th {
 </div>
 -->
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_05_hamiltonian.png" width="800">
-</div>
+![](files/input_file_05_hamiltonian.png)
 
 The hamiltonian block is used to provide settings related to the Hamiltonian.
 This mostly entails pointing to the input HDF5 file containing
@@ -473,9 +463,7 @@ td, th {
 </div>
 -->
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_06_propagator.png" width="800">
-</div>
+![](files/input_file_06_propagator.png)
 
 The projector block is used to set properties of the AFQMC projector.
 A typical user will not need to interact with this input block;
@@ -493,9 +481,7 @@ See the [input file description](https://users.flatironinstitute.org/~beskridge/
 </div>
 -->
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/02_input_file/input_file_07_estimator.png" width="800">
-</div>
+![](files/input_file_07_estimator.png)
 
 The estimator block is used to specify which
 estimator type(s) to use during a calculation

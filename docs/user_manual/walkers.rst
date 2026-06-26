@@ -102,8 +102,6 @@ Formally,
    |\Phi_k\rangle = |\Phi_{k \uparrow}\rangle,
 
 where :math:`|\Phi_{k \uparrow}\rangle` is the spin-up channel walker with walker index :math:`k`.
-Both spin channels have independent Slater matrices which are separately updated during
-the random walk.
 
 .. note::
 

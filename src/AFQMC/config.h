@@ -77,6 +77,60 @@ inline WALKER_TYPES initWALKER_TYPES(int i)
     return UNDEFINED_WALKER_TYPE;
 }
 
+inline auto walkerTypeToDims(WALKER_TYPES type) {
+  int nspin = type == COLLINEAR ? 2 : 1;
+  int npol = type == NONCOLLINEAR ? 2 : 1;
+  return std::make_tuple(nspin, npol);
+}
+
+inline WALKER_TYPES walkerTypeFromDims(int nspin, int npol) {
+  if(nspin == 1 && npol == 1) {
+    return CLOSED;
+  }
+  if(nspin > 1 && npol == 1) {
+    return COLLINEAR;
+  }
+  if(nspin == 1 && npol > 1) {
+    return NONCOLLINEAR;
+  }
+  utils::check(false, "There is no walker type that has nspin = {}, npol = {}", nspin, npol); 
+  return UNDEFINED_WALKER_TYPE;
+}
+
+inline bool walkerTypeIsConvertible(WALKER_TYPES from, WALKER_TYPES to) {
+  if(from == to) {
+    return true;
+  }
+  if(from < CLOSED || from > NONCOLLINEAR || to < CLOSED || to > NONCOLLINEAR) {
+    // hopefully we can get rid of FULLYPOLARIZED and use a smarter scheme to work with FT
+    return false;
+  }
+  return from <= to;
+}
+
+// Like walkerTypeIsConvertible but also makes sure the values of nspin and npol are compatible
+// Note that although it is called “walker” it refers to the spin dimensions of any tensor in the code.
+inline bool walkerDimsAreConvertible(int nspin_from, int npol_from, int nspin_to, int npol_to) {
+  utils::check(std::min({nspin_from, npol_from, nspin_to, npol_to}) > 0 &&
+                   // TODO: remove once we do not assume 2 flavors anymore
+                   std::max({nspin_from, npol_from, nspin_to, npol_to}) <= 2,
+               "for now we assume that 0 < nspin, npol <= 2");
+
+  // CLOSED -> X
+  if(nspin_from == 1 && npol_from == 1) {
+    return true;
+  }
+
+  // X -> X
+  if(nspin_from == nspin_to && npol_from == npol_to) {
+    return true;
+  }
+
+  // COLLINEAR -> NONCOLLINEAR
+  return npol_from == 1 && nspin_from == npol_to && nspin_to == 1;
+}
+
+
 inline std::string walkerTypeToString(WALKER_TYPES type)
 {
   if (type == UNDEFINED_WALKER_TYPE) return "undefined";

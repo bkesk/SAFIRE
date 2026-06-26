@@ -379,13 +379,13 @@ back-propagation algorithm.
 
 The "name" parameter tells SAFIRE what kind of estimator to use (`"back_propagation"` in this case).
 The "measure_interval_multiplier" parameter indirectly determines the number of back propagation steps to use.
-The actual number of back propagation steps is determined as $N^{step}_a = measure\_interval\_multiplier[a] \times population\_control\_interval $
+The actual number of back propagation steps is determined as $N^{step}_a = \text{measure\_interval\_multiplier}[a] \times \text{population\_control\_interval} $
 
 To check for convergence in the number of back propagation steps, SAFIRE allows multiple "averages" to be set up which each use a different number of steps.
 This feature is enabled by provided a list of integers for measure_interval_multiplier instead of a single integer.
 The number of steps that will be used in each average is given by,
 $$
-N^{step}_a = measure\_interval\_multiplier[a] \times population\_control\_interval
+N^{step}_a = \text{measure\_interval\_multiplier}[a] \times \text{population\_control\_interval}
 $$
 So, for the example here, if the population control interval is 10 (as set in the main execute block),
 

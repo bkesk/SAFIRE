@@ -24,9 +24,11 @@
 #include "utilities/check.hpp"
 #include "utilities/mpi_context.h"
 #include "utilities/check_strides.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "numerics/nda_functions.hpp"
 #include "numerics/operations/tensor.hpp"
+#include "detail/one_body.hpp"
+#include "AFQMC/Utilities/wfn_utils.hpp"
 
 namespace sfqmc
 {
@@ -48,25 +50,25 @@ public:
           WALKER_TYPES type,
           int nbnd_,
           int q0,
-          nda::array<int,2>&& nocc_,
+          nda::array<nda::array<int,1>,2>&& nocc_,
           nda::array<int,1>&& minusq_,
           nda::array<int,2>&& qk_to_k2_,
           nda::array<int,1>&& qmap_,
-          memory::shared_array<HOST_MEMORY,ComplexType,4>&& hij_,
-          memory::shared_array<MEM,ComplexType,3>&& haj_,
-          nda::array<memory::shared_array<MEM,ComplexType,6>,1>&& lq_,
-          nda::array<memory::shared_array<MEM,ComplexType,6>,1>&& la_,
-          nda::array<memory::shared_array<MEM,ComplexType,6>,1>&& lb_,
-          memory::shared_array<HOST_MEMORY,ComplexType,4>&& vexx_,
+          memory::const_shared_array<HOST_MEMORY,ComplexType,4>&& hij_,
+          memory::const_shared_array<MEM,ComplexType,3>&& haj_,
+          nda::array<memory::const_shared_array<MEM,ComplexType,6>,1>&& lq_,
+          nda::array<memory::const_shared_array<MEM,ComplexType,6>,1>&& la_,
+          nda::array<memory::const_shared_array<MEM,ComplexType,6>,1>&& lb_,
+          memory::const_shared_array<HOST_MEMORY,ComplexType,4>&& vexx_,
           ComplexType e0_,
           int bf_size = 4096)
       : mpi(_mpi),
         walker_type(type),
         nkpts(nocc_.extent(1)),
         nbnd(nbnd_),
-        nup(nda::sum(nocc_(0,nda::range::all))),
-        ndown(walker_type==COLLINEAR ? nda::sum(nocc_(1,nda::range::all)) : 0),
-        nocc_max(nda::max_element(nocc_)),
+        nup(nelec_for_spin(nocc_,0)),
+        ndown(walker_type==COLLINEAR ? nelec_for_spin(nocc_,1) : 0),
+        nocc_max(max_nocc_per_kpoint(nocc_)),
         nchol_max(0),
         nocc(std::move(nocc_)),
         minusq(std::move(minusq_)),
@@ -130,25 +132,28 @@ public:
 
     // setup Lakn if needed
     if(ndet == 1) {
-      bool writer = (MEM==HOST_MEMORY?mpi->node_comm.root():true);
-      Lakn = std::make_optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>>(nkpts);
+      Lakn = std::make_optional<nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>>(nkpts);
       for(int iq=0; iq<nkpts; ++iq) {
-        int nc = Lank(iq).extent(4); 
-        (*Lakn)(iq) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
-        mpi->node_comm.barrier();
-        if(writer) 
-          nda::tensor::add(ComplexType(1.0),Lank(iq)()(0,nda::ellipsis{}),"skanj",
-                           ComplexType(0.0),(*Lakn)(iq)(),"skajn");
-        mpi->node_comm.barrier();
+        int nc = Lank(iq).extent(4);
+        (*Lakn)(iq) = memory::share_from_ranks<MEM,ComplexType,5,2>(*mpi,
+            {nspin,nkpts,nocc_max,npol*nbnd,nc},
+            [&](std::array<long,2> idx, auto&& block) {
+          auto [is,ik] = idx;
+          nda::tensor::add(ComplexType(1.0),Lank(iq)()(0,is,ik,nda::ellipsis{}),"anj",
+                           ComplexType(0.0),block,"ajn");
+        });
       }
-      int nsymQ = Lbnk.extent(0); 
-      Lbkn = std::make_optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>>(nsymQ);
+      int nsymQ = Lbnk.extent(0);
+      Lbkn = std::make_optional<nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>>(nsymQ);
       for(int i=0; i<nsymQ; ++i) {
-        int nc = Lbnk(i).extent(4); 
-        (*Lbkn)(i) = std::move(memory::make_shared_array<MEM,ComplexType,5>(mpi,{nspin,nkpts,nocc_max,npol*nbnd,nc}));
-        if(writer) 
-          nda::tensor::add(ComplexType(1.0),Lbnk(i)()(0,nda::ellipsis{}),"skanj",
-                           ComplexType(0.0),(*Lbkn)(i)(),"skajn");
+        int nc = Lbnk(i).extent(4);
+        (*Lbkn)(i) = memory::share_from_ranks<MEM,ComplexType,5,2>(*mpi,
+            {nspin,nkpts,nocc_max,npol*nbnd,nc},
+            [&](std::array<long,2> idx, auto&& block) {
+          auto [is,ik] = idx;
+          nda::tensor::add(ComplexType(1.0),Lbnk(i)()(0,is,ik,nda::ellipsis{}),"anj",
+                           ComplexType(0.0),block,"ajn");
+        });
       }
     }
   }
@@ -174,60 +179,16 @@ public:
     nda::array<ComplexType, 3> H1(nspin, npol*NMO, npol*NMO);
     H1() = ComplexType(0.0);
 
-    // v[nspin_in_H][nwalk=1][npol_in_H*NMO][NMO]
-    nda::array<ComplexType, 4> v;
-    {
-      memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
-      vMF_2d(0,all) = vMF();
-      v = std::move(nda::to_host(vHS(vMF_2d, dt)));
-      utils::check(v.shape() == std::array<long,4>{nspin_in_H,1,npol_in_H*NMO,NMO}, "Size mismatch");
-    }
+    memory::buffered_array<MEM,ComplexType,2> vMF_2d(1,vMF.size());
+    vMF_2d(0,all) = vMF();
+    auto meanfield_shift{nda::to_host(vHS(vMF_2d, dt))};
 
-    //
-    for (int is = 0; is < nspin; is++) {
-      int is_ = is%nspin_in_H;
-      for (int p1 = 0; p1 < npol; p1++) {
-        int p1_ = p1%npol_in_H;
-        // vHS finite 'q' contributions (full NMO*NMO) 
-        for (int I = 0; I < NMO; I++)
-          for (int J = 0 ; J < NMO; J++)
-              H1(is,p1*NMO+I,p1*NMO+J) += v(is_,0,p1_*NMO+I,J);
+    memory::buffered_array<HOST_MEMORY,ComplexType,7> hij_plus_v(nspin_in_H, npol_in_H, nkpts, nbnd, npol_in_H, nkpts, nbnd);
+    kpoint_add_one_body_shifts(dt, hij(), meanfield_shift(), vexx(), hij_plus_v());
+    broadcast_one_body(
+        nda::reshape(hij_plus_v, nspin_in_H, npol_in_H, NMO, npol_in_H, NMO),
+        nda::reshape(H1, nspin, npol, NMO, npol, NMO));
 
-        // hij and vexx only have q=0 contributions  
-        for (int p2 = 0; p2 < npol; p2++) {
-          int p2_ = p2%npol_in_H;
-          for(int ik=0, i0=0; ik<nkpts; ik++, i0+=nbnd) {
-            for (int i = 0; i < nbnd; i++) {
-              for (int j = 0 ; j < nbnd; j++) {
-                if(p1==p2) {
-                  H1(is,p1*NMO+i0+i,p2*NMO+i0+j) +=
-                     dt * (hij()(is_,ik,p1_*NMO+i,p2_*NMO+j) + vexx()(is_*npol_in_H+p1_,ik,i,j));
-                } else {
-                  // only spin-orbit terms here coming from hij
-                  H1(is,p1*NMO+i0+i,p2*NMO+i0+j) += dt * hij()(is_,ik,p1_*NMO+i,p2_*NMO+j);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // now hermitize and check
-    long cnt = 0;
-    for (int is = 0; is < nspin; is++) {
-      for (int i = 0; i < npol*NMO; i++) {
-        for (int j = i+1 ; j < npol*NMO; j++)
-        {
-          if(cnt <= 10 and (std::abs(H1(is,i,j) - std::conj(H1(is,j,i))) > 1e-5 )) {
-            app_warning(" WARNING in getOneBodyPropagatorMatrix. H1 is not hermitian: ispin:{},i:{},j:{},H1(is,i,j):{},H1(is,j,i):{} ",is,i,j,H1(is,i,j),H1(is,j,i));
-            if(cnt==10) app_warning("Suppressing further warnings!");
-          }
-          H1(is,i,j) = 0.5 * (H1(is,i,j) + std::conj(H1(is,j,i)));
-          H1(is,j,i) = std::conj(H1(is,i,j));
-        }
-      }
-    }
     return H1;
   }
 
@@ -257,9 +218,7 @@ public:
     int nwalk = G.extent(0);
     int nspin  = (walker_type == COLLINEAR) ? 2 : 1;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nup = nda::sum(nocc(0,all));
-    int ndown = (walker_type==COLLINEAR ? nda::sum(nocc(1,all)) : 0);
-    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0 
+    int nel  = (walker_type == COLLINEAR ? nup+ndown : nup); // NONCOLLINEAR has ndown=0
     int nqpts = LQ.extent(0);
     utils::check(E.shape() == std::array<long,2>{nwalk,3}, "Size mismatch.");
     utils::check(G.extent(1) == nel*npol*nkpts*nbnd, "Size mismatch.");
@@ -467,8 +426,6 @@ public:
     int is = (spin_component == Alpha ? 0 : 1);
     int nwalk = G.extent(0);
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nup = nda::sum(nocc(0,all));
-    int ndown = (walker_type==COLLINEAR ? nda::sum(nocc(1,all)) : 0);
     int nel  = (is==0 ? nup : ndown);
     int nqpts = LQ.extent(0);
     utils::check(E.shape() == std::array<long,2>{nwalk,3}, "Size mismatch.");
@@ -957,8 +914,9 @@ protected:
   int nchol_max=0;
   int ncvecs=0;     // total number of cholesky vectors
 
-  nda::array<int,2> nocc;
-         
+  // For each (spin,kpoint): the list of occupied PsiT row indices at that kpoint.
+  nda::array<nda::array<int,1>,2> nocc;
+
   // BZ information
   nda::array<int,1> minusq;
   nda::array<int,2> qk_to_k2;
@@ -967,26 +925,26 @@ protected:
   int Q0_index = 0;
 
   // H1[nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<HOST_MEMORY,ComplexType,4> hij;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,4> hij;
 
   // half rotated one body hamiltonian: [ndet][nup+ndn][npol*NMO]. Kept in full basis
-  memory::shared_array<MEM,ComplexType,3> haj;
+  memory::const_shared_array<MEM,ComplexType,3> haj;
 
-  // LQ(Q)(ispin, ipol, ik, i, j, nchol) 
-  nda::array<memory::shared_array<MEM,ComplexType,6>,1> LQ; 
+  // LQ(Q)(ispin, ipol, ik, i, j, nchol)
+  nda::array<memory::const_shared_array<MEM,ComplexType,6>,1> LQ;
 
-  // Lank(Q)(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd) 
-  nda::array<memory::shared_array<MEM,ComplexType,6>,1> Lank; 
+  // Lank(Q)(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd)
+  nda::array<memory::const_shared_array<MEM,ComplexType,6>,1> Lank;
 
   // if ndet==1, this is used for faster evaluation of vbias
-  std::optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>> Lakn;    
-  std::optional<nda::array<memory::shared_array<MEM,ComplexType,5>,1>> Lbkn;    
+  std::optional<nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>> Lakn;
+  std::optional<nda::array<memory::const_shared_array<MEM,ComplexType,5>,1>> Lbkn;
 
-  // Lbnk(Qmap(Q))(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd), only for q==minusq(q) 
-  nda::array<memory::shared_array<MEM,ComplexType,6>,1> Lbnk; 
+  // Lbnk(Qmap(Q))(ndet, nspin, nkpts, nocc_max, nchol, npol*nbnd), only for q==minusq(q)
+  nda::array<memory::const_shared_array<MEM,ComplexType,6>,1> Lbnk;
 
   // vexx(i,l) = -0.5 * sum_j <ij|jl> : [nspin][nk][npol*nbnd][npol*nbnd]
-  memory::shared_array<HOST_MEMORY,ComplexType,4> vexx;
+  memory::const_shared_array<HOST_MEMORY,ComplexType,4> vexx;
 
   int default_buffer_size_in_MB=2000;
 
@@ -998,35 +956,48 @@ protected:
   // Changes the layout of G:
   //    From: G(nwalk,nel_tot,npol,nkpts,nbnd)
   //    To:   GKK(nkpts,nkpts,nwalk*nocc_max,npol*nbnd)
-  void Gc_to_GKKwaj(int is, int n0, nda::MemoryArrayOfRank<5> auto const& G,
+  // `base` is the offset of spin `is`'s block in the occupied dimension of G; the
+  // occupied orbital `a` of kpoint ik1 lives at G-row base+nocc(is,ik1)(a).
+  void Gc_to_GKKwaj(int is, int base, nda::MemoryArrayOfRank<5> auto const& G,
                         nda::MemoryArrayOfRank<4> auto && GKK)
   {
     using nda::range;
     auto all  = range::all;
     int npol  = (walker_type == NONCOLLINEAR) ? 2 : 1;
-    int nwalk = G.extent(0); 
- 
+    int nwalk = G.extent(0);
+
     auto G6d = nda::reshape(GKK,std::array<long,6>{nkpts,nkpts,nwalk,nocc_max,npol,nbnd});
     GKK() = ComplexType(0.0);
-    if constexpr (MEM==HOST_MEMORY) {
-      for(int ik1=0; ik1<nkpts; ++ik1) 
-      {
-        int nk1 = nocc(is,ik1);
-        for(int ik2=0; ik2<nkpts; ++ik2) 
-        { 
-          for(int ip=0; ip<npol; ++ip) 
-            for(int iw=0; iw<nwalk; ++iw) 
-              G6d(ik1,ik2,iw,range(nk1),ip,all) = G(iw,range(n0,n0+nk1),ip,ik2,all);
-        } 
-        n0 += nk1;
-      }
-    } else {
-      for(int ik1=0; ik1<nkpts; ++ik1) 
-      {
-        int nk1 = nocc(is,ik1);
-        nda::tensor::add(ComplexType(1.0),G(all,range(n0,n0+nk1),all,all,all),"wapkj",
-                         ComplexType(0.0),G6d(ik1,all,all,range(nk1),all,all),"kwapj");
-        n0 += nk1;
+    for(int ik1=0; ik1<nkpts; ++ik1)
+    {
+      auto const& rows = nocc(is,ik1);
+      int nk1 = int(rows.size());
+      if(nk1==0) continue;
+      bool contig = contiguous_rows(rows);
+      if constexpr (MEM==HOST_MEMORY) {
+        for(int ik2=0; ik2<nkpts; ++ik2)
+        {
+          for(int ip=0; ip<npol; ++ip)
+            for(int iw=0; iw<nwalk; ++iw) {
+              if(contig) {
+                int r0 = base + rows(0);
+                G6d(ik1,ik2,iw,range(nk1),ip,all) = G(iw,range(r0,r0+nk1),ip,ik2,all);
+              } else {
+                for(int a=0; a<nk1; ++a)
+                  G6d(ik1,ik2,iw,a,ip,all) = G(iw,base+rows(a),ip,ik2,all);
+              }
+            }
+        }
+      } else {
+        if(contig) {
+          int r0 = base + rows(0);
+          nda::tensor::add(ComplexType(1.0),G(all,range(r0,r0+nk1),all,all,all),"wapkj",
+                           ComplexType(0.0),G6d(ik1,all,all,range(nk1),all,all),"kwapj");
+        } else {
+          for(int a=0; a<nk1; ++a)
+            nda::tensor::add(ComplexType(1.0),G(all,range(base+rows(a),base+rows(a)+1),all,all,all),"wapkj",
+                             ComplexType(0.0),G6d(ik1,all,all,range(a,a+1),all,all),"kwapj");
+        }
       }
     }
   }
@@ -1034,7 +1005,8 @@ protected:
   // Changes the layout of G:
   //    From: G(nwalk,nel_tot,npol,nkpts,nbnd)
   //    To:   GQK(nkpts,nwalk,nkpts,nocc_max,npol*nbnd)
-  void Gc_to_GQKwaj(int is, int n0, int iq, nda::MemoryArrayOfRank<5> auto const& G,
+  // `base` is the offset of spin `is`'s block in the occupied dimension of G.
+  void Gc_to_GQKwaj(int is, int base, int iq, nda::MemoryArrayOfRank<5> auto const& G,
                     nda::MemoryArrayOfRank<4> auto && GQK)
   {
     using nda::range;
@@ -1045,14 +1017,22 @@ protected:
     auto G5d = nda::reshape(GQK,std::array<long,5>{nwalk,nkpts,nocc_max,npol,nbnd});
     GQK() = ComplexType(0.0);
     arch::set_device_synchronization(false);
-    int nk0 = n0;
     for(int ik=0; ik<nkpts; ++ik)
     {
       int k2 = qk_to_k2(iq,ik);
-      int nk = nocc(is,ik);
-      for(int ip=0; ip<npol; ++ip) 
-        math::accumulate(ComplexType(1.0),G(all,range(nk0,nk0+nk),ip,k2,all),G5d(all,ik,range(nk),ip,all));
-      nk0 += nk;
+      auto const& rows = nocc(is,ik);
+      int nk = int(rows.size());
+      if(nk==0) continue;
+      bool contig = contiguous_rows(rows);
+      for(int ip=0; ip<npol; ++ip) {
+        if(contig) {
+          int r0 = base + rows(0);
+          math::accumulate(ComplexType(1.0),G(all,range(r0,r0+nk),ip,k2,all),G5d(all,ik,range(nk),ip,all));
+        } else {
+          for(int a=0; a<nk; ++a)
+            math::accumulate(ComplexType(1.0),G(all,range(base+rows(a),base+rows(a)+1),ip,k2,all),G5d(all,ik,range(a,a+1),ip,all));
+        }
+      }
     }
     arch::set_device_synchronization(true);
   }

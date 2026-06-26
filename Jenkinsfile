@@ -8,48 +8,87 @@ timeout(time: 1, unit: 'HOURS') {
     buildPod(context: 'docker', dockerfile: 'Dockerfile_jenkins') {
       withEnv([
         "SRC=$WORKSPACE",
-        "BUILD=$WORKSPACE/build"
+        "BUILD=$WORKSPACE/build",
+        "BUILD_DEBUG=$WORKSPACE/build-debug"
       ]) {
-        stage('release') {
-          sh 'mkdir $BUILD'
-          sh '''
-            cd $BUILD && cmake $SRC \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_INSTALL_PREFIX="." \
-              -DCOMPILE_NDA_TESTS=OFF \
-              -DENABLE_FFTW=ON \
-              -DENABLE_CPPTRACE=OFF \
-              -DENABLE_SPDLOG=ON \
-              -DCTEST_NPROC=$PARALLEL
-          '''
-          sh 'make -C $BUILD -j $PARALLEL'
-          warnError("Tests failed") {
-            sh 'cd $BUILD && ctest --output-on-failure'
+        parallel python: {
+          stage('build docs') {
+            sh '''
+              python3 -m venv $WORKSPACE/venv
+              cd $SRC/utils
+              . $WORKSPACE/venv/bin/activate
+              pip install .[DOCS]
+              cd $SRC/docs
+              make html
+            '''
           }
-        }
-        stage('asan_and_ubsan') {
-          sh '''
-            cd $BUILD && cmake $SRC \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DCMAKE_INSTALL_PREFIX="." \
-              -DCOMPILE_NDA_TESTS=OFF \
-              -DENABLE_FFTW=ON \
-              -DENABLE_CPPTRACE=OFF \
-              -DENABLE_SPDLOG=ON \
-              -DENABLE_ASAN=ON \
-              -DENABLE_UBSAN=ON \
-              -DCTEST_NPROC=$PARALLEL
-          '''
-          sh 'make -C $BUILD -j $PARALLEL'
-          warnError("Tests on Debug with ASAN and UBSAN failed") {
-            sh 'cd $BUILD && ctest --output-on-failure'
+          if (env.BRANCH_NAME in ['main', 'develop', 'overhaul'] || env.TAG_NAME) {
+            stage('deploy docs') {
+              def scm = scmGit(branches: [[name: 'refs/heads/gh-pages']],
+                userRemoteConfigs: [[credentialsId: 'github-jenkins', url: 'https://github.com/SFQMC/sfqmc.github.io.git']])
+              dir(path: 'sfqmc.github.io') {
+                checkout(changelog: false, poll: false, scm: scm)
+                sh '''#!/bin/bash -e
+                  rm -rf docs/$BRANCH_NAME
+                  mkdir -p docs/$BRANCH_NAME
+                  cp -a $SRC/docs/_build/html/. docs/$BRANCH_NAME
+                  if [ -n "$TAG_NAME" ]; then
+                    LATEST=$(git -C $SRC tag --sort=-v:refname | head -n1)
+                    ln -sfn "$LATEST" docs/stable
+                  fi
+                  git add -A docs
+                  if git diff --cached --quiet; then
+                    echo "No documentation changes to deploy."
+                  else
+                    GIT_COMMITTER_EMAIL="jenkins@flatironinstitute.org" GIT_COMMITTER_NAME="SAFIRE CI" git commit --author='SAFIRE CI <jenkins@flatironinstitute.org>' --allow-empty -m "Update SAFIRE docs from build $BUILD_NUMBER"
+                  fi
+                '''
+                gitPush(gitScm: scm, targetBranch: 'gh-pages', targetRepo: 'origin')
+              }
+            }
+          }
+        },
+        cpp_release: {
+          stage('release') {
+            sh 'mkdir $BUILD'
+            sh '''
+              cd $BUILD && cmake $SRC \
+                -GNinja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX="." \
+                -DCOMPILE_NDA_TESTS=OFF \
+                -DENABLE_CPPTRACE=OFF \
+                -DENABLE_SPDLOG=ON \
+            '''
+            sh 'ninja -C $BUILD -j $PARALLEL'
+            warnError("Tests failed") {
+              sh 'cd $BUILD && ctest --output-on-failure'
+            }
+          }
+        },
+        cpp_debug: {
+          stage('debug') {
+            sh 'mkdir $BUILD_DEBUG'
+            sh '''
+              cd $BUILD_DEBUG && cmake $SRC \
+                -GNinja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_INSTALL_PREFIX="." \
+                -DCOMPILE_NDA_TESTS=OFF \
+                -DENABLE_CPPTRACE=OFF \
+                -DENABLE_SPDLOG=ON \
+            '''
+            sh 'ninja -C $BUILD_DEBUG -j $PARALLEL'
+            warnError("Tests on Debug with UBSAN failed") {
+              sh 'cd $BUILD_DEBUG && ctest --output-on-failure'
+            }
           }
         }
       }
     }
   },
   cuda: {
-    buildPod(context: 'docker', dockerfile: 'Dockerfile_jenkins_cuda', tag: 'cuda', gpus: 1) {
+    buildPod(context: 'docker', dockerfile: 'Dockerfile_jenkins_cuda', tag: 'cuda3', gpus: 1) {
       withEnv([
         "SRC=$WORKSPACE",
         "BUILD=$WORKSPACE/build"
@@ -58,18 +97,18 @@ timeout(time: 1, unit: 'HOURS') {
           sh 'mkdir $BUILD'
           sh '''
             cd $BUILD && cmake $SRC \
+              -GNinja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_INSTALL_PREFIX="." \
               -DCOMPILE_NDA_TESTS=OFF \
-              -DENABLE_FFTW=ON \
               -DENABLE_CPPTRACE=OFF \
               -DENABLE_SPDLOG=ON \
-              -DCTEST_NPROC=4 \
-              -DENABLE_CUDA=ON
+              -DENABLE_CUDA=ON \
+              -DCUDA_ARCH=70
           '''
-          sh 'make -C $BUILD -j $PARALLEL'
+          sh 'ninja -C $BUILD -j $PARALLEL'
           warnError("Tests failed") {
-            sh 'cd $BUILD && ctest --output-on-failure'
+            sh 'cd $BUILD && CUDA_LAUNCH_BLOCKING=1 ctest --output-on-failure'
           }
         }
       }

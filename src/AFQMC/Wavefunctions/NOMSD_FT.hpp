@@ -22,6 +22,7 @@
 #include <tuple>
 
 #include "AFQMC/config.h"
+#include "numerics/shared_array/const_shared_array.hpp"
 #include "utilities/check.hpp"
 #include "utilities/check_strides.hpp"
 #include "IO/ptree/ptree_utilities.hpp"
@@ -43,7 +44,7 @@ namespace afqmc
  * For particle-hole orthogonal MSD wfns, use FastMSD.
  */
 template<MEMORY_SPACE MEM, class devPsiT>
-class NOMSD_FT : public AFQMCInfo
+class NOMSD_FT
 {
 
 public:
@@ -52,18 +53,18 @@ public:
     utils::check(false,"Default constructor for NOMSD disabled.");
   }
 
-  NOMSD_FT(AFQMCInfo& info,
-        ptree pt_in,
+  NOMSD_FT(ptree pt_in,
+        int NMO_, int ntau_,
         WALKER_TYPES wlk,
-        std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
+        std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi_,
         HamiltonianOperations<MEM>&& hop_,
         nda::array<ComplexType,1>&& ci_,
         nda::array<devPsiT,3>&& orbs_,
         ComplexType nce,
         [[maybe_unused]] int targetNW = 1)
-      : AFQMCInfo(info),
-        mpi(_mpi),
+      : mpi(mpi_),
         walker_type(wlk),
+        NMO{NMO_}, ntau{ntau_},
         HamOp(std::move(hop_)),
         ci(std::move(ci_)),
         OrbMats(std::move(orbs_)),
@@ -135,9 +136,8 @@ public:
   void runtime_optimization(WlkSet& wset)
   {
     const int nw   = wset.size();
-    const int nspin = (walker_type==COLLINEAR_FT ? 2 : 1 );
     const int npol = (walker_type==NONCOLLINEAR_FT ? 2 : 1 );
-    memory::array<MEM,ComplexType,2> G(nw,nspin*npol*NMO*npol*NMO);
+    memory::array<MEM,ComplexType,2> G(nw,npol*NMO*npol*NMO);
     // don't use buffered_array!!!
     HamOp.runtime_optimization(G);
   }
@@ -400,6 +400,8 @@ protected:
 
   // type of walker/wfn
   WALKER_TYPES walker_type;
+  int NMO{};
+  int ntau{};
 
   HamiltonianOperations<MEM> HamOp;
 
@@ -409,7 +411,6 @@ protected:
   nda::array<devPsiT,3> OrbMats;
 
   // RefOrbMats[ndet][nspin][nel][NMO]
-  // this should be a shared_array!!!
   memory::array<MEM,ComplexType,4> RefOrbMats;
 
   memory::array<MEM,ComplexType,1> LogPT0;

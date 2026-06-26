@@ -1,9 +1,9 @@
 .. _afqmctools:
 
-afqmctools Python package
-=========================
+afqmctools
+==========
 
-afqmctools provides a set of tools for working with AFQMC calculations, including utilities for 
+afqmctools is a companion Python package that provides a set of tools for working with SAFIRE calculations, including utilities for 
 writing Hamiltonian and trial wavefunction input HDF5 files,
 generating input files, and analyzing output data.
 It supplies both a command line interface (CLI) and a Python library that can be 

@@ -36,7 +36,7 @@ template<MEMORY_SPACE MEM>
 class WavefunctionFactory
 {
 public:
-  WavefunctionFactory(std::map<std::string, AFQMCInfo>& info) : InfoMap(info) 
+  WavefunctionFactory() 
   {
     // initialize in fromHDF5
   }
@@ -78,8 +78,6 @@ public:
     io::compare_known_keys("Wavefunction Factory",pt1, pt0,pass_through_keys);
     return pt1;
   }
-
-  ~WavefunctionFactory() {}
 
   bool is_constructed(const std::string& ID)
   {
@@ -203,9 +201,6 @@ public:
   }
 
 protected:
-  // reference to container of AFQMCInfo objects
-  std::map<std::string, AFQMCInfo>& InfoMap;
-
   // generates a new Wavefunction and returns the pointer to the base class
   Wavefunction<MEM> buildWavefunction(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                                  ptree pt,
@@ -226,7 +221,8 @@ protected:
                         Hamiltonian& h,
                         int targetNW);
 
-  void getInitialGuess(h5::group grp, std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type);
+  void getInitialGuess(h5::group grp, utils::mpi_context_t<boost::mpi3::communicator>& mpi, const std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type);
+  void getInitialGuess_ft(h5::group grp, utils::mpi_context_t<boost::mpi3::communicator>& mpi, const std::string& name, int NMO, WALKER_TYPES walker_type);
 /*
   int getExcitation(nda::MemoryVector& deti,
                     nda::MemoryVector& detj,
@@ -253,9 +249,9 @@ protected:
 
   std::map<std::string, Wavefunction<MEM>> wavefunctions;
 
-  std::map<std::string, memory::shared_array<HOST_MEMORY, ComplexType, 3>> initial_guess;
+  std::map<std::string, memory::const_shared_array<HOST_MEMORY, ComplexType, 3>> initial_guess;
 
-  std::map<std::string, memory::shared_array<HOST_MEMORY, ComplexType, 4>> initial_guess_ft;
+  std::map<std::string, memory::const_shared_array<HOST_MEMORY, ComplexType, 4>> initial_guess_ft;
 };
 } // namespace afqmc
 } // namespace sfqmc

@@ -24,6 +24,11 @@
 
 #include <cstdlib>
 
+#include <mpi.h>
+#if defined(OPEN_MPI)
+#include <mpi-ext.h>
+#endif
+
 #include "IO/app_loggers.h"
 #include "cuda_runtime.h" 
 #include "curand.h"
@@ -33,28 +38,41 @@
 #include "mpi3/communicator.hpp"
 #include "mpi3/shared_communicator.hpp"
 #include "utilities/check.hpp"
+#include "numerics/device_kernels/cuda/probe.cuh"
 
 
 namespace sfqmc {
 namespace cuda
 {
 
-void cuda_check(cudaError_t sucess, std::string message)
+namespace {
+bool mpi_is_cuda_aware() {
+#if defined(MPIX_CUDA_AWARE_SUPPORT) // Open MPI family
+  return MPIX_Query_cuda_support() == 1;
+#elif defined(MPICH_NUMVERSION) && MPICH_NUMVERSION >= 40000000 // MPICH family
+  return MPIX_Query_cuda_support() == 1;
+#else
+  return false; // unknown/old: assume not
+#endif
+}
+}
+
+void cuda_check(cudaError_t success, std::string message)
 {
-  if (sucess != cudaSuccess) {
-   app_error(" Cuda runtime error: {}",std::to_string(sucess));
+  if (success != cudaSuccess) {
+   app_error(" Cuda runtime error: {}",std::to_string(success));
    if(message != "")
      app_error(" message: {}",message);
-   app_error(" cudaGetErrorName: {}",std::string(cudaGetErrorName(sucess)));
-   app_error(" cudaGetErrorString: {}",std::string(cudaGetErrorString(sucess)));
+   app_error(" cudaGetErrorName: {}",std::string(cudaGetErrorName(success)));
+   app_error(" cudaGetErrorString: {}",std::string(cudaGetErrorString(success)));
    APP_ABORT(" Cuda runtime error"); 
   }
 }
 
-void curand_check(curandStatus_t sucess, std::string message)
+void curand_check(curandStatus_t success, std::string message)
 {
-  if (sucess != CURAND_STATUS_SUCCESS) {
-   app_error(" Curand runtime error: {}",std::to_string(sucess));
+  if (success != CURAND_STATUS_SUCCESS) {
+   app_error(" Curand runtime error: {}",std::to_string(success));
    if(message != "")
      app_error(" message: {}",message);
    APP_ABORT(" Curand runtime error");
@@ -68,17 +86,23 @@ void init()
 
   int num_devices = 0;
   cudaGetDeviceCount(&num_devices);
-  app_log(1, " Running in node with {} GPUs. ", num_devices);
+  app_log(1, "\nRunning in node with {} GPUs. ", num_devices);
   cudaDeviceProp dev;
   cuda_check(cudaGetDeviceProperties(&dev, 0), "cudaGetDeviceProperties");
-  app_log(1, " CUDA compute capability: {}.{} \n ", dev.major, dev.minor);
-  app_log(1, " Device Name: {} ", dev.name);
+  app_log(1, "CUDA compute capability: {}.{} \n ", dev.major, dev.minor);
+  app_log(1, "Device Name: {} ", dev.name);
 
   cuda_check(cudaSetDevice(node.rank()%num_devices), "cudaSetDevice()");
   int devn = 0;
   cuda_check(cudaGetDevice(&devn), "cudaGetDevice()");
   app_debug(3,"MPI world rank: {}, node rank: {}, cuda device number: {}",
 	    world.rank(),node.rank(),devn);
+
+  check_probe_kernel();
+  
+  if(world.size() > 1 && !mpi_is_cuda_aware()) {
+    utils::check(false, "Attempted to run GPU build on multiple ranks, but built with CUDA-unaware MPI!");
+  }    
 }
 
 void check_device_configuration()
@@ -92,7 +116,7 @@ void check_device_configuration()
   cuda_check(cudaGetDeviceProperties(&dev, 0), "cudaGetDeviceProperties");
   if (dev.major <= 6 and world.root())
   {
-    app_warning(" Warning CUDA major compute capability < 6.0");
+    app_warning("Warning CUDA major compute capability < 6.0");
   }
   if (num_devices > node.size() and world.root())
   {
@@ -106,9 +130,9 @@ void check_device_configuration()
 curandGenerator_t make_device_rng(unsigned long long int iseed)
 {
   curandGenerator_t rng;
-  utils::check( CURAND_STATUS_SUCCESS == curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_MT19937),
+  curand_check(curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_MT19937),
                 "Error code returned by curandCreateGenerator.");
-  utils::check( CURAND_STATUS_SUCCESS == curandSetPseudoRandomGeneratorSeed(rng, iseed),
+  curand_check(curandSetPseudoRandomGeneratorSeed(rng, iseed),
                 "Error code returned by curandSetPseudoRandomGeneratorSeed.");
   return rng;
 }

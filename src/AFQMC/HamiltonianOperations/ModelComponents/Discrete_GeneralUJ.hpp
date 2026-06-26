@@ -20,10 +20,11 @@
 #include "config.h" 
 #include "AFQMC/config.h"
 #include "utilities/check.hpp"
+#include "utilities/check_shape.hpp"
 #include "utilities/mpi_context.h"
 
 #include "numerics/sparse/sparse.hpp"
-#include "numerics/shared_array/shared_array.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 
 namespace sfqmc
 {
@@ -45,7 +46,7 @@ public:
   Discrete_GeneralUJ(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
                      WALKER_TYPES type,
                      PropagatorTypes ptype,  
-                     memory::shared_array<MEM,ComplexType,1>&& h0_,
+                     memory::const_shared_array<MEM,ComplexType,1>&& h0_,
                      math::sparse::CSRMatrix auto&& vn_,
                      math::sparse::CSRMatrix auto&& vnT_,
                      math::sparse::CSRMatrix auto&& u_,
@@ -60,7 +61,6 @@ public:
         shift_one_body_terms(shift_),
         E0(e0),
         h0(std::move(h0_)),
-        hMF(memory::make_shared_array<MEM,ComplexType,1>(mpi,h0.shape())), 
 	U(std::move(u_)),
         SpVn(std::move(vn_)),
         SpVnT(std::move(vnT_))
@@ -201,10 +201,11 @@ private:
 
   // constant one-body term associated with the 
   // interacting term.
-  memory::shared_array<MEM,ComplexType,1> h0;
+  memory::const_shared_array<MEM,ComplexType,1> h0;
 
   // 1-body part of MF subtraction. Not given by vMF in discrete case!!!
-  memory::shared_array<MEM,ComplexType,1> hMF;
+  // Empty until update() runs; rebuilt wholesale on every update.
+  memory::const_shared_array<MEM,ComplexType,1> hMF;
 
   // need to keep a copy of the U matrix. Keeping on host memory.
   math::sparse::csr_matrix<ValueType,HOST_MEMORY,int,int> U;
@@ -237,8 +238,7 @@ private:
 // not being dynamically added. Add another version of += that works on gpus and that
 // aborts if the term doesn't already exists...
 
-    utils::check(nMF.extent(0) == 2 * NMO, "Size mismatch");
-    utils::check(n2IJ.extent(0) == hMF.extent(0), "Size mismatch");
+    utils::check_shape(nMF, "nMF", 2 * NMO);
 
     int nIJ = n2IJ.extent(0);
     RealType sign = (propg_type == DiscreteChargePropagator) ? RealType(1.0) : RealType(-1.0);
@@ -247,10 +247,11 @@ private:
     int M2 = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? 2*M : M;
     int Madd = (walker_type == NONCOLLINEAR or walker_type == NONCOLLINEAR_FT) ? M : 0;
 
+    nda::array<ComplexType,1> hMF_h(nIJ, ComplexType(0.0));
+
     if(mpi->comm.root()) {
- 
-      nda::array<ComplexType,1> hMF_h(nIJ, ComplexType(0.0));
-      math::sparse::csr_matrix<ComplexType, HOST_MEMORY, int, int> VnT({SpVnT.extent(0),SpVnT.extent(1)},4); 
+
+      math::sparse::csr_matrix<ComplexType, HOST_MEMORY, int, int> VnT({SpVnT.extent(0),SpVnT.extent(1)},4);
       // save parameters to avoid excessive recalculation
       std::vector<std::tuple<RealType,RealType,ComplexType,ComplexType>> params; 
 
@@ -342,20 +343,15 @@ private:
         nda::range rng(Vn.nnz());
         auto col_h = nda::to_host(SpVn.columns());
         utils::check(nda::sum(nda::abs(Vn.columns()(rng)-col_h(rng)))==0, "Error: Contact developers.");
-        SpVn.values() = Vn.values();     
+        SpVn.values() = Vn.values();
       }
-      hMF() = hMF_h();
 
     } // mpi->comm.root()
 
-    mpi->broadcast(vMF); 
-    mpi->broadcast(SpVn.values()); 
-    mpi->broadcast(SpVnT.values()); 
-    if constexpr (MEM==HOST_MEMORY) {
-      if(mpi->node_comm.root()) mpi->internode_comm.broadcast_n(hMF.data(),hMF.extent(0),0);
-    } else {
-      mpi->broadcast(hMF());
-    }
+    mpi->broadcast(vMF);
+    mpi->broadcast(SpVn.values());
+    mpi->broadcast(SpVnT.values());
+    hMF = memory::share_from_root(*mpi, [&] { return memory::to_memory_space<MEM>(std::move(hMF_h)); });
   }
 
   // not sure if these equations hold for complex U (actual non-zero complex part...)

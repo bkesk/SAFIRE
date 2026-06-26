@@ -109,7 +109,7 @@ std::vector<long> find_active_space(WALKER_TYPES walker_type, excitations const&
   if (not single_list)
   {
 // check!!!!!
-    utils::check(walker_type == COLLINEAR, "single_list=false requires collinear.");
+    utils::check(walker_type == COLLINEAR, "single_list=false requires collinear. walker_type: {}", walkerTypeToString(walker_type));
     int ik = 0;
     for (int i = 0; i < NMO; ++i)
       if (count[i] > 0 || count[i + NMO] > 0)

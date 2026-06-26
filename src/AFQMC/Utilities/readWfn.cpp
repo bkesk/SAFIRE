@@ -120,7 +120,7 @@ void read_ph_wavefunction_hdf(h5::group& grp,
    *   - 1: excitations out of a UHF reference (not yet working)
    */
   WALKER_TYPES wtype;
-  getCommonInput(grp, NMO, nup, ndown, ndets, ci_coeff, wtype);
+  getCommonInput(grp, ndets, ci_coeff, wtype);
   // make first coefficient positive (or maybe largest???)
   ci_coeff() *= ( std::real(ci_coeff(0)) < 0.0 ? -1.0 : 1.0 );  
   utils::check(wtype != CLOSED, " walker_type==CLOSED not yet implemented for PHMSD Trial wavefunctions.");
@@ -128,7 +128,7 @@ void read_ph_wavefunction_hdf(h5::group& grp,
 
   // limiting to this for now, kind of irrelevant until we find a FCI code that works in
   // a UHF basis
-  utils::check(wtype == walker_type, " walker_type ({}) in wavefunction file differs from input file ({}).", wtype, walkerTypeToString(wtype), walkerTypeToString(walker_type));
+  utils::check(wtype == walker_type, " walker_type ({}) in wavefunction file differs from input file ({}).", walkerTypeToString(wtype), walkerTypeToString(walker_type));
 
   int type_;
   h5::h5_read(grp,"type",type_);
@@ -156,8 +156,8 @@ void read_ph_wavefunction_hdf(h5::group& grp,
     }
     if (type_ == 2)
     {
-      utils::check(walker_type == COLLINEAR, 
-                   "Inconsistent walker_type and wfn type.");
+      utils::check(walker_type == COLLINEAR,
+                   "walker_type must be COLLINEAR, got {}", walkerTypeToString(walker_type));
       h5::group g = grp.open_group("PsiT_"+ std::to_string(1));
       PsiT(1) = std::move(math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(g));
       utils::check(PsiT(1).extent(1) == npol*NMO, 
@@ -297,25 +297,21 @@ ph_excitations<int, ComplexType, MEM> build_ph_struct(nda::array<ComplexType,1> 
 }
 
 
-void checkCommonDims(std::vector<int> const& dims, int NMO, int nup, int ndown, int& ndets_to_read) {
-  utils::check(NMO==dims[0], "Inconsistent NMO: given {} != {} in file", NMO, dims[0]);
-  std::array nels = {nup, ndown};
-  utils::check(nels == std::array{dims[1],dims[2]}, "Inconsistent (nup,ndown): given {} != {} in file", nels, std::array{dims[1], dims[2]});
-
-  if(ndets_to_read < 1) ndets_to_read = dims[4];
-  if(ndets_to_read > dims[4]) {
-    app_warning("Found less determinants than requested, adjusting request: requested {} > {} in file.", ndets_to_read, dims[4]);
-    ndets_to_read = dims[4];
+int get_number_of_determinants(std::vector<int> const& dims, int requested) {
+  if(requested < 1) {
+    return dims[4];
   }
+  if(requested > dims[4]) {
+    app_warning("Found less determinants than requested, adjusting request: requested {} > {} in file.", requested, dims[4]);
+    return dims[4];
+  }
+  return requested;
 }
 
 /*
  * Read trial wavefunction information from file.
  */
 void getCommonInput(h5::group& grp,
-                    int NMO,
-                    int nup,
-                    int ndown,
                     int& ndets_to_read,
                     nda::array<ComplexType,1>& ci,
                     WALKER_TYPES& walker_type)
@@ -323,7 +319,7 @@ void getCommonInput(h5::group& grp,
   // check for consistency in parameters
   std::vector<int> dims(5);
   h5::read(grp,"dims",dims);
-  checkCommonDims(dims, NMO, nup, ndown, ndets_to_read);
+  ndets_to_read = get_number_of_determinants(dims, ndets_to_read);
   app_log(1," - Number of determinants in trial wavefunction: {} ", ndets_to_read);
   ci.resize(ndets_to_read);
   nda::array<ComplexType,1> ci_t(dims[4]);

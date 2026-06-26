@@ -3,7 +3,7 @@
 SAFIRE for ab initio solids
 ============================
 
-.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/solid.png
+.. image:: /images/shared/00_top_level/solid.png
    :width: 500
 
 

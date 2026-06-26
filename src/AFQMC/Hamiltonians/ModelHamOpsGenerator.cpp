@@ -19,9 +19,11 @@
 
 #include "config.h"
 #include "utilities/check.hpp"
+#include "utilities/check_shape.hpp"
 
 #include "AFQMC/config.h"
 #include "numerics/sparse/sparse.hpp"
+#include "numerics/shared_array/const_shared_array.hpp"
 
 #include "ModelHamOpsGenerator.h"
 //#include "AFQMC/HamiltonianOperations/ModelComponents/ModelComponent.hpp"
@@ -40,8 +42,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
 {
   std::string base_error("Error in ModelHamOpsGenerator::spin_to_walker_type(...): ");
   if(stype == "closed") {
-    utils::check(hij.shape() == std::array<long,2>{NMO,NMO}, 
-                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
+    utils::check_shape(hij, "one_body::tij", NMO, NMO);
     if(type == CLOSED) {
       utils::check(false," Error: Model Hamiltonians not allowed with CLOSED walkers. ");
     } else if(type == COLLINEAR) {
@@ -52,8 +53,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
       utils::check(false,base_error + " Bad Walker Type!");
     }
   } else if(stype == "collinear") {
-    utils::check(hij.shape() == std::array<long,2>{2*NMO,NMO}, 
-                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
+    utils::check_shape(hij, "one_body::tij", 2*NMO, NMO);
     if(type == CLOSED) {
       utils::check(false," Error: Model Hamiltonians not allowed with CLOSED walkers. ");
     } else if(type == COLLINEAR or type == COLLINEAR_FT) {
@@ -64,8 +64,7 @@ csrM spin_to_walker_type(int NMO, WALKER_TYPES type, std::string stype, csrM& hi
       utils::check(false,base_error + " Bad Walker Type!");
     }
   } else if(stype == "noncollinear") {
-    utils::check(hij.shape() == std::array<long,2>{2*NMO,2*NMO}, 
-                 base_error + " Inconsistent matrix dimension in one_body::tij. ");
+    utils::check_shape(hij, "one_body::tij", 2*NMO, 2*NMO);
     if(type == NONCOLLINEAR or type == NONCOLLINEAR_FT) {
       return hij;
     } else { 
@@ -99,6 +98,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
   int ndet   = PsiT.extent(0); 
   int nspin  = ((type == COLLINEAR or type == COLLINEAR_FT) ? 2 : 1);
   int npol   = ((type == NONCOLLINEAR or type == NONCOLLINEAR_FT) ? 2 : 1);
+  int NMO = PsiT(0, 0).extent(1)/npol;
   int nel_up = PsiT(0,0).extent(0); 
   int nel_dn = ( type == COLLINEAR or type == COLLINEAR_FT ? PsiT(0,1).extent(0) : 0 ); 
   int nspin_in_PsiT = PsiT.extent(1);
@@ -106,17 +106,18 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
 
   // generate trial wavefunctions in appropriate form
   // ModelHamOps expects a vector of PsiC(i,a) = (psiT(a,i)) (complex of trial wfn Slater Matrix)
-  auto PsiC = memory::make_shared_array<MEM,ComplexType,4>(mpi,std::array<long,4>{ndet,nspin,npol*NMO,nel_up}); 
-  if(mpi->node_comm.root()) {
-    for(int id=0; id<ndet; id++) {
-      utils::check(PsiT(id,0).shape() == std::array<long,2>{nel_up,npol*NMO}, "Size mismatch");
-      PsiC()(id,0,all,all) = math::sparse::to_array<'T'>(PsiT(id,0)); 
-      if(type == COLLINEAR or type == COLLINEAR_FT) {
-        utils::check(PsiT(id,nspin_in_PsiT-1).shape() == std::array<long,2>{nel_dn,npol*NMO}, "Size mismatch");
-        PsiC()(id,1,all,range(nel_dn)) = math::sparse::to_array<'T'>(PsiT(id,nspin_in_PsiT-1));
-     }  
-    }
-  }
+  // PsiT is replicated on every rank, so the determinants can be filled rank-by-rank.
+  auto PsiC = memory::share_from_ranks<MEM,ComplexType,4,1>(*mpi,
+      {ndet,nspin,npol*NMO,nel_up},
+      [&](std::array<long,1> idx, auto&& block) {
+        auto [id] = idx;
+        utils::check_shape(PsiT(id,0), "PsiT", nel_up, npol*NMO);
+        block(0,all,all) = math::sparse::to_array<'T'>(PsiT(id,0));
+        if(type == COLLINEAR or type == COLLINEAR_FT) {
+          utils::check_shape(PsiT(id,nspin_in_PsiT-1), "PsiT", nel_dn, npol*NMO);
+          block(1,all,range(nel_dn)) = math::sparse::to_array<'T'>(PsiT(id,nspin_in_PsiT-1));
+        }
+      });
 
   // everyone reads for simplicity, change to single reader if it becomes a problem
   h5::file file = h5::file(fileName,'r'); 
@@ -250,8 +251,7 @@ ModelHamOpsGenerator::getHamiltonianOperations_impl(WALKER_TYPES type,
       h5::group dn = gn.open_group("Jij");
       csrMat Jij =  math::sparse::HDF2CSR<ValueType,HOST_MEMORY,int,int>(dn);
       
-      utils::check(Jij.extent(0) == NMO and Jij.extent(1) == NMO, 
-                   base_error + " Found Hubbard_J model with inconsistent dimensions. ");
+      utils::check_shape(Jij, "Jij", NMO, NMO);
       // for safety
       utils::check(Jij.nnz() != 0, base_error + " Found empty Hubbard_U model. ");
 

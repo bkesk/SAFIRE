@@ -108,9 +108,7 @@ _ = shutil.copy("files/wfn.h5", scratch_dir)
 We will again use Si in its primitive cell at equilibrium represent in a basis of Kohn-Sham bands as a toy case to run
 concrete calculations on.
 
-<div>
-<img src="https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/solids/Si_primitive.png" width="600">
-</div>
+![](files/Si_primitive.png)
 
 The trial wavefunction is also derived from the DFT solution.
 We have provided HDF5 files containing the Hamiltonian and trial wavefunctions, respectively.

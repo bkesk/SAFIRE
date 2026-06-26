@@ -14,7 +14,7 @@ Auxiliary-field quantum Monte Carlo (AFQMC) for general interacting electron sys
 
 SAFIRE is a fast, efficient implementation of AFQMC written in C++. It uses a general interacting second-quantized Hamiltonian allowing it to be applied to broad classes of interacting-electron systems.
 
-.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/software_components.png
+.. image:: /images/shared/00_top_level/software_components.png
    :width: 800px
    :align: center
 
@@ -25,7 +25,7 @@ Typical Workflow
 
 A typical calculation using SAFIRE consists of three steps as shown in the flowchart below.
 
-.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/TopLevelFlowChart_v3.png
+.. image:: /images/shared/00_top_level/TopLevelFlowChart_v3.png
    :width: 1000px
    :align: center
 
@@ -43,7 +43,7 @@ Quantum Chemistry
 
 Molecules using standard quantum chemistry basis sets
 
-.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/molecule.png
+.. image:: /images/shared/00_top_level/molecule.png
    :width: 500px
    :align: center
 
@@ -54,7 +54,7 @@ Ab initio solids
 
 Ab initio solids using Kohn-Sham orbital basis sets
 
-.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/solid.png
+.. image:: /images/shared/00_top_level/solid.png
    :width: 500px
    :align: center
 
@@ -65,6 +65,6 @@ Lattice models
 
 Model Hamiltonians defined on a lattice such as the Hubbard model
 
-.. image:: https://users.flatironinstitute.org/~beskridge/tutorial_figs/6784ee4ea455921958ac327234b91ab07702736ab22fa2df804e8dccbc36a404/00_top_level/lattice_model.png
+.. image:: /images/shared/00_top_level/lattice_model.png
    :width: 500px
    :align: center
