@@ -124,8 +124,9 @@ auto read_nomsd_wavefunction(h5::group& grp,int requested_ndets,
       for(int id=0; id<ndets; ++id) {
         h5::group ugrp = grp.open_group("PsiT_"+std::to_string(id));
         auto up = math::sparse::HDF2CSR<ComplexType,HOST_MEMORY,int,int>(ugrp);
-        utils::check(up.extent(1) == NMO, "Shape mismatch");
-        utils::check(2*up.extent(0) == nel[0], "Shape mismatch");
+
+        utils::check(nel[0] % 2 == 0 && nel[1] == 0, "Unexpected nel = {} for closed->noncollinear conversion. Should be {{2*n, 0}}", nel);
+        utils::check_shape(up, "up", nel[0]/2, NMO);
         // combining, shift dn by NMO 
         psi(id,0) = math::sparse::combine_csr(up,up,NMO);
         utils::check_shape(psi(id,0), std::format("psi({},0)",id), nup, npol*NMO);
