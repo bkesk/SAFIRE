@@ -68,7 +68,7 @@ public:
       : EstimatorBase<MEM>(info),
         mpi(_mpi),
         walker_type(wlk),
-        observ0(mpi, info, name, pt_in, wlk, wfn),
+        observ0(mpi, name, pt_in, wlk, info.NMO, wfn),
         wfn0(std::addressof(wfn)),
         prop0(std::addressof(prop)),
         max_nback_prop(10),
