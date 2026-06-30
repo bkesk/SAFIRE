@@ -79,12 +79,9 @@ class Case:
 # ============================================================================
 
 def _wavefunction_is_implemented(c: Case) -> bool:
-    # PHMSD with a CLOSED walker would require perfect pairing: intentionally absent.
-    if c.wavefunction.type == WavefunctionClass.PHMSD and WALKERS[c.walker] == SpinSymm.CLOSED:
-        return False
-    # only collinear PHMSD is implemented; all NOMSD spin symmetries are fine.
+    # only collinear PHMSD with collinear walkers is implemented; all NOMSD spin symmetries are fine.
     if c.wavefunction.type == WavefunctionClass.PHMSD:
-        return c.wavefunction.spin == SpinSymm.COLLINEAR
+        return WALKERS[c.walker] == SpinSymm.COLLINEAR and c.wavefunction.spin == SpinSymm.COLLINEAR
     # Multi-determinant noncollinear (GHF CASCI) NOMSD currently segfaults; the read
     # path supports it but the eval path has a latent bug. Excluded manually (the only
     # such trial is BH's casci_ghf_nomsd).
