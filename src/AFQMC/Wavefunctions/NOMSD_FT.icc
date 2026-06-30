@@ -43,7 +43,6 @@ void NOMSD_FT<MEM,devPsiT>::Energy(const WlkSet& wset, TMat&& E, TVec&& Ov, int 
   Ov() = ComplexType(0.0);
   E() = ComplexType(0.0);
 
-  ComplexType zero(0.0);
   memory::buffered_array<MEM,ComplexType,2> G(nw,nspin*npol*NMO*npol*NMO); 
 
   if( ndet == 1) {
