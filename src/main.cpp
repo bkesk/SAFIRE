@@ -157,7 +157,9 @@ int main_impl(int argc, char** argv)
     print_version();
 
   // setup output loggers
-  sfqmc::arch::init(root,output_level,debug_level);
+  setup_loggers(root, output_level, debug_level);
+
+  sfqmc::arch::init(compute == "gpu");
 
   // !!!! assume a single input for now
   std::string myinput = inputs[0];
