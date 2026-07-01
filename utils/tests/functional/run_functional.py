@@ -488,7 +488,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("system", nargs="?", help="system key, or 'all'")
-    p.add_argument("--output-path", type=Path, help="root output directory")
+    p.add_argument("--output-path", type=Path, help="root output directory. It is recommended to empty this directory before running the tests.")
     p.add_argument("--mpiexec", default="",
                    help='launcher prefix prepended to AFQMC_EXEC (e.g. "mpiexec -n 34")')
     p.add_argument("--compute", choices=["cpu", "gpu"], default="cpu",

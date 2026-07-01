@@ -14,13 +14,10 @@ See the `pyproject.toml` file for default configuration.
 
 ## Functional Tests
 
-The functional tests are also invoked via `pytest`; however, the default settings
-defined in the `pyrpoject.toml` file will not  run the functional tests by default.
-You must explicitly request them using pytest marks.
+The functional tests are run using the script `functional/run_functional.py`.
 
 ### Sample Functional Test Slurm script
 
-A sample script to run the "weekly" functional tests is as follows.
 
 ```bash
 #!/bin/bash
@@ -40,7 +37,6 @@ date
 
 OUTPUT_DIR="/path/to/scratch/dir"
 rm -rf $OUTPUT_DIR
-mkdir -p $OUTPUT_DIR
 
 set -x PYTHONPATH (pwd) $PYTHONPATH
 python functional/run_functional.py \
@@ -54,13 +50,14 @@ echo "... done!"
 date
 ```
 
-> 💡 Note that the tests use a temporary directory for scratch work. 
-> The directory is cleared upon the next test run.
-> These are a very useful place to debug problems in the test.
+> 💡 Note that the tests write all input and output files to `$OUTPUT_DIR`. 
+> Using a persistent directory for this is useful because it allows inspecting logs afterwards.
+> However, it is recommended to delete the directory before each run to avoid coexisting old and new outputs. 
 
 ### Local Runs
 
 ```bash
+rm -rf $OUTPUT_DIR
 python functional/run_functional.py \
        all \
        --output-path=$OUTPUT_DIR \
