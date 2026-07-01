@@ -342,10 +342,28 @@ public:
     utils::check(false, "updateLogScale is not implemented for ground state calculations");
   }
 
-  auto getLogScale(SpinTypes s)
+  void resetLogScale()
   {
-    utils::check(false, "getLogScale is not implemented for ground state calculations"); 
+    utils::check(false, "resetLogScale is not implemented for ground state calculations");
   }
+
+  ComplexType getLogScale(SpinTypes s)
+  {
+    utils::check(false, "getLogScale is not implemented for ground state calculations");
+    return ComplexType(0.0);
+  }
+
+  void setLogPT0(nda::MemoryArrayOfRank<1> auto&& v)
+  {
+    utils::check(false, "setLogPT0 is not implemented for ground state calculations");
+  }
+
+  auto getLogPT0() const {
+    utils::check(false, "getLogPT0 is not implemented for ground state calculations");
+    return memory::array<MEM,ComplexType,1>{};
+  }
+
+
 
 protected:
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
