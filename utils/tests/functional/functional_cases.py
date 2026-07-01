@@ -33,7 +33,6 @@ ROOT = Path(__file__).resolve().parent
 
 class HamiltonianClass(enum.Enum):
     GENERIC_DENSE = enum.auto()
-    GENERIC_SPARSE = enum.auto()
     MODEL = enum.auto()
     KPFAC_CHOL = enum.auto()
     THC = enum.auto()
