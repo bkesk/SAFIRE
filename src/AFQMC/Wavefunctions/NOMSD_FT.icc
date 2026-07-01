@@ -307,7 +307,7 @@ void NOMSD_FT<MEM,devPsiT>::Log_Overlap(const WlkSet& wset, TVec&& Ov, int nt)
                         wset.UMatrices(Alpha),wset.DMatrices(Alpha),wset.VMatrices(Alpha),
                         sclL_up, sclR_up, Ov);
       if(walker_type == CLOSED) utils::check(false, "Closed walkers not implemented for finite-T");
-      //  nda::tensor::scale(ComplexType(2.0),Ov);
+
       if (walker_type == COLLINEAR_FT)  {
         memory::buffered_array<MEM,ComplexType,1> sclR_dn(nw);
         wset.getProperty(LOGSCL_DN, sclR_dn(nda::range::all));

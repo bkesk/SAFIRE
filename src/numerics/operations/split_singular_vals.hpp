@@ -61,7 +61,6 @@ requires( nda::mem::have_compatible_addr_space<A_t,B_t,C_t,O_t> and
           std::decay_t<C_t>::is_stride_order_C() 
         )
 void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t const& scl0)
-//void splitDmatrix(A_t const& A, B_t&& B, C_t&& C, O_t&& logdet, T_t & scl0)
 {
   sfqmc::utils::check(A.shape() == B.shape(), "Size mismatch");
   sfqmc::utils::check(A.shape() == C.shape(), "Size mismatch");

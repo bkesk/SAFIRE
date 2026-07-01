@@ -171,11 +171,6 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
 
       // Create Trial wavefunction.
       auto PsiT = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,ntau);
-      //using csr = PsiT_Matrix<MEM>;
-      //nda::array<csr, 3> PsiT(ndets_to_read,nspin,3);
-      //memory::array<MEM,ComplexType, 1> sclL(nspin*ndets_to_read);
-      //nda::array<ComplexType, 1> sclL(nspin*ndets_to_read);
-      //std::tie(PsiT, sclL) = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,ntau);
 
       // Set initial walker's Slater matrix.
       getInitialGuess_ft(ngrp, *mpi, name, NMO, walker_type);

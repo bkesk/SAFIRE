@@ -851,9 +851,6 @@ void MixedDensityMatrix(A_t const& UL, B_t const& DL, C_t const& VL,
 
   memory::buffered_array<MEM,Type,1> ovlp_loc(1,Type(0.0));
 
-  // overlap is accumulated, so it must first be zeroed
-  //ovlp() = Type(0.0);
-
   // if running on GPU
   if constexpr (nda::mem::have_device_compatible_addr_space<A_t>)
   {

@@ -496,7 +496,9 @@ public:
 
   int walkerSizeIO() const
   {
-    if (walkerType == COLLINEAR)
+    if (walkerType == COLLINEAR_FT or walkerType == NONCOLLINEAR_FT)
+      return walker_size; //finite-T walkers include U,D,V matrices
+    else if (walkerType == COLLINEAR)
       return wlk_desc[0] * (wlk_desc[1] + wlk_desc[2]) + 10;
     else // since NAEB = 0 in both CLOSED and NONCOLLINEAR cases
       return wlk_desc[0] * wlk_desc[1] + 10;

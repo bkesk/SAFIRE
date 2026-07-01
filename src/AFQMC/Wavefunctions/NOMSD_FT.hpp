@@ -347,26 +347,6 @@ public:
       sclL(0) = scl_new;
     else
       sclL(1) = scl_new;
-    /*
-    if(s==Alpha){
-      if(MEM==DEVICE_MEMORY){
-        auto scl_h = nda::to_host(sclL);
-        sclL(0) = scl_h(0)+scl_new; 
-      }
-      else{
-        sclL(0) += scl_new;
-      }
-    }
-    else if(s==Beta){
-      if(MEM==DEVICE_MEMORY){
-        auto scl_h = nda::to_host(sclL);
-        sclL(1) = scl_h(1)+scl_new; 
-      }
-      else{
-        sclL(1) += scl_new;
-      }   
-    }
-    */
   }
 
   auto getLogScale(SpinTypes s){

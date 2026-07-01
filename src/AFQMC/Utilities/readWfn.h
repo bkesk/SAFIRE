@@ -154,8 +154,6 @@ auto read_nomsd_wavefunction(h5::group& grp,int ndets,
   // keep in on host at first
   nda::array<csr, 3> psi(ndets,nspin,3);
 
-  //nda::array<ComplexType, 1> sclL(nspin*ndets);
-
   WALKER_TYPES wfn_type = afqmc::initWALKER_TYPES(dims[3]);
 
   if(wfn_type == walker_type) {

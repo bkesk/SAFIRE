@@ -249,51 +249,12 @@ void driver_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
 TEST_CASE("driver_factory: build", "[driver_factory]")
 {
   auto& mpi = utils::make_unit_test_mpi_context();
-
-  /*
-  if (UTEST_HAMIL!="" and UTEST_WFN!="") {
-    app_log(0,"Driver factory unit testing. Running user provided test:");
-    app_log(0," Hamiltonian: {}", UTEST_HAMIL);
-    app_log(0," Wavefunction: {}", UTEST_WFN);
-    bool ft = false;
-    if (UTEST_WFN.find("ft") != std::string::npos
-        or UTEST_WFN.find("FT") != std::string::npos) {
-      ft = true;
-    }
-    if(ft)
-      driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,COLLINEAR_FT);
-    else
-      driver_fac<HOST_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#if defined(ENABLE_DEVICE)
-    if(ft)
-      driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN,COLLINEAR_FT);
-    else
-      driver_fac<DEVICE_MEMORY>(mpi,UTEST_HAMIL,UTEST_WFN);
-#endif
-   } else {
-    app_log(0,"Driver factory unit testing. Running standard tests.");
-    auto files = utils::molecule_unit_tests_files(true,true,true,true,false);
-    for( auto f : files ) {
-      try {
-        driver_fac<HOST_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in driver_fac<HOST_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-      }
-#if defined(ENABLE_DEVICE)
-      try {
-        driver_fac<DEVICE_MEMORY>(mpi,std::get<0>(f),std::get<1>(f),std::get<2>(f));
-      } catch (const sfqmc::AppAbortException& e) {
-        FAIL_CHECK("APP_ABORT in driver_fac<DEVICE_MEMORY>(" << std::get<0>(f) << "): " << e.what());
-      }
-#endif
-    }
-  }
-  */
+  
   using namespace utils;
 
   run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES walker_type) {
     driver_factory_build<MEM>(mpi, hamil_file, wfn_file, walker_type);
-  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::ALL_SYSTEMS);
+  }, UTEST_HAMIL, UTEST_WFN, TestFiles::RHF | TestFiles::UHF | TestFiles::GHF | TestFiles::NOMSD | TestFiles::FINITE_T | TestFiles::ALL_SYSTEMS);
 }
 
 

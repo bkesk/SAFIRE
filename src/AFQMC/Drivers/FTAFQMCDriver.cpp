@@ -47,7 +47,7 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
   int nwalk_ini = wset.GlobalPopulation();
   int nwalk_ini_per_mpi = nwalk_ini/mpi->comm.size();
 
-  int print_interval = nStep / 20;
+   int print_interval = std::max(1, nStep / 20);
 
   app_log(1, "Initial weight and number of walkers: {}, {}", w0 ,nwalk_ini);
   app_log(1, "Initial Eshift: {} ", Eshift);
@@ -155,13 +155,10 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
 
 }
 
-// Instantiate
-#define __inst__(M)                                            \
-template bool FTAFQMCDriver<M>::run(WalkerSet<M>& wset);
-
-__inst__(HOST_MEMORY)
+// Instantiate                                        
+template bool FTAFQMCDriver<HOST_MEMORY>::run(WalkerSet<HOST_MEMORY>& wset);
 #if defined(ENABLE_DEVICE)
-__inst__(DEVICE_MEMORY)
+  template bool FTAFQMCDriver<DEVICE_MEMORY>::run(WalkerSet<DEVICE_MEMORY>& wset);
 #endif
 
 } // namespace afqmc
