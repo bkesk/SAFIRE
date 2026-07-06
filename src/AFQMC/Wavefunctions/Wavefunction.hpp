@@ -82,6 +82,11 @@ public:
     return std::visit([&](auto&& a) { return a.getWalkerType(); }, var);
   }
 
+  bool isFiniteTemperature() const
+  {
+    return std::visit([&](auto&& a) { return a.isFiniteTemperature(); }, var);
+  }
+
   template<class... Args>
   void vMF(Args&&... args)
   {
