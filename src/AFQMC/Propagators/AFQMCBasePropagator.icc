@@ -572,7 +572,6 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
   // On entry, X(iw,m) = vbias(iw,m);
   // remember to call vbi = apply_bound_vbias(*vb);
 
-  ComplexType im(0.0, 1.0);
   auto [nwalk,nCV] = X.shape();
   // generate random numbers
   utils::check( rng_block_size >= nCV, "Error in assemble_X: rng_block_size < nCV.");
