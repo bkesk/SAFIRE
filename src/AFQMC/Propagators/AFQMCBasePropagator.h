@@ -232,7 +232,7 @@ public:
     bool denseP2                = pt0.get<bool>("denseP2", true);
     bool debug_verbosity        = pt0.get<bool>("debug_verbosity", false);
     auto natural_shift          = pt0.get<bool>("natural_shift",true);
-    auto symmetric_split        = pt0.get<bool>("symmetric_split",false);
+    auto symmetric_split        = pt0.get<bool>("symmetric_split",true);
     auto use_cp_constraint      = pt0.get<bool>("use_cp_constraint", false);
     auto use_real_vbias         = pt0.get<bool>("use_real_vbias", false);
     std::string external_field  = pt0.get<std::string>("external_field", "");
@@ -405,7 +405,7 @@ protected:
   double upper_cutoff_scale = 10.0;
   double lower_cutoff_scale = 1.0;
   bool natural_shift = true;
-  bool symmetric_split = false;
+  bool symmetric_split = true;
   bool use_cp_constraint = false;
   bool use_real_vbias = false;
 
