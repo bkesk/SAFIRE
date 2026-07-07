@@ -584,6 +584,19 @@ void AFQMCBasePropagator<MEM>::assemble_X(RealType sqrtdt,
   // remember to call vbi = apply_bound_vbias(*vb);
 
   auto [nwalk,nCV] = X.shape();
+
+  // Count force-bias (vbias) clamp hits for the end-of-run report. On entry X(iw,m) still holds
+  // the raw vbias, so re-evaluate the exact magnitude condition construct_X uses to clamp it.
+  // Host-only (X is on device for DEVICE_MEMORY); device counting is not supported.
+  if constexpr (MEM == HOST_MEMORY) {
+    RealType bnd = vbias_bound * sqrtdt;
+    auto Xv = X();
+    for (long iw = 0; iw < nwalk; ++iw)
+      for (long m = 0; m < nCV; ++m) {
+        ++vbias_bound_stats.total;
+        if (std::abs(Xv(iw, m)) > bnd) ++vbias_bound_stats.upper;
+      }
+  }
   // generate random numbers
   utils::check( rng_block_size >= nCV, "Error in assemble_X: rng_block_size < nCV.");
   memory::buffered_array<MEM,RealType,2> RNGbuff(nwalk,rng_block_size);
