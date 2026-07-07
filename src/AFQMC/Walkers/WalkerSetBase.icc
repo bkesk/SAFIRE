@@ -81,7 +81,7 @@ void WalkerSetBase<_M_>::parse(ptree pt_in)
 }
 
 template<MEMORY_SPACE _M_>
-void WalkerSetBase<_M_>::setup()
+void WalkerSetBase<_M_>::setup(int NMO, int nup, int ndown)
 {
   LoadBalance_timer = AFQMCTimer.add("WalkerSetBase::loadBalance");
   Branching_timer = AFQMCTimer.add("WalkerSetBase::branching");
@@ -610,24 +610,21 @@ void WalkerSetBase<_M_>::resize_bp(int nbp, int nCV, int nref)
   wlk_desc[4] = nCV;
   wlk_desc[5] = nref;
   wlk_desc[6] = 3 * nbp;
-  int ncol    = nup;
-  int nrow    = NMO;
-  if (walkerType != CLOSED and walkerType != FULLYPOLARIZED)
+  // For all T=0 walker types (the only ones supported here), the Slater matrix
+  // dimensions are recovered directly from wlk_desc: nrow = wlk_desc[0] (already
+  // carries the 2*NMO factor for NONCOLLINEAR), ncol = wlk_desc[1] + wlk_desc[2]
+  // (wlk_desc[2] is 0 for the non-COLLINEAR cases).
+  int nrow, ncol;
+  if (walkerType == CLOSED or walkerType == FULLYPOLARIZED or
+      walkerType == COLLINEAR or walkerType == NONCOLLINEAR)
   {
-    if (walkerType == COLLINEAR)
-    {
-      ncol += ndown;
-    }
-    else if (walkerType == NONCOLLINEAR)
-    {
-      nrow += NMO;
-      ncol += ndown;
-    }
-    else
-    {
-      app_error(" Error: Incorrect walker_type on WalkerSetBase::setup ");
-      APP_ABORT("");
-    }
+    nrow = wlk_desc[0];
+    ncol = wlk_desc[1] + wlk_desc[2];
+  }
+  else
+  {
+    app_error(" Error: Incorrect walker_type on WalkerSetBase::resize_bp ");
+    APP_ABORT("");
   }
   // store nbpx3 history of weights and factors in circular buffer
   int cnt            = 0;

@@ -147,8 +147,8 @@ inline decltype(auto) make_WalkerSet(
                 AFQMCInfo& info,
                 std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r)
 {
-//  return WalkerSet<_M_>( WalkerSetBase<_M_>(_mpi_,pt,info,r) );
-  return WalkerSetBase<_M_>(_mpi_,pt,info,r);
+//  return WalkerSet<_M_>( WalkerSetBase<_M_>(_mpi_,pt,info.NMO,info.nup,info.ndown,r) );
+  return WalkerSetBase<_M_>(_mpi_,pt,info.NMO,info.nup,info.ndown,r);
 }
 
 } // namespace afqmc

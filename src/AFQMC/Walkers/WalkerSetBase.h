@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <random>
-#include <type_traits>
 #include <memory>
 
 #include "configuration.hpp"
@@ -59,14 +57,11 @@ namespace afqmc
  * the call will abort the execution. 
  */
 template<MEMORY_SPACE _MEM_>
-class WalkerSetBase : public AFQMCInfo
+class WalkerSetBase
 {
-protected:
-
 public:
   static constexpr MEMORY_SPACE MEM    = _MEM_;
 
-public:
   // contiguous_walker = true means that all the data of a walker is continguous in memory
   static const bool contiguous_walker = true;
   // contiguous_storage = true means that the data of all walker is continguous in memory
@@ -86,11 +81,12 @@ public:
   /// constructor
   WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
                 ptree pt,
-                AFQMCInfo& info,
+                int NMO,
+                int nup,
+                int ndown,
                 std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r
                )
-      : AFQMCInfo(info),
-        mpi(_mpi_),
+      : mpi(_mpi_),
         rng(r),
         walker_size(1),
         walker_memory_usage(0),
@@ -110,7 +106,7 @@ public:
         max_weight(4.0)
   {
     parse(pt);
-    setup();
+    setup(NMO, nup, ndown);
   }
 
   /// destructor
@@ -690,7 +686,7 @@ protected:
 
   // performs setup
   void parse(ptree cur);
-  void setup();
+  void setup(int NMO, int nup, int ndown);
 
   // load balance algorithm
   LOAD_BALANCE_ALGORITHM load_balance;

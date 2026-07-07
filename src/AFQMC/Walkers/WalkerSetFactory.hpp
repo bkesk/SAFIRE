@@ -114,7 +114,8 @@ protected:
     info = pt.get<std::string>("system", "");
     utils::check(InfoMap.find(info) != InfoMap.end(), "ERROR: Undefined system: {}", info);
 
-    return WalkerSet<MEM>(WalkerSetBase<MEM>(mpi, pt, InfoMap[info], rng));
+    auto& sysinfo = InfoMap[info];
+    return WalkerSet<MEM>(WalkerSetBase<MEM>(mpi, pt, sysinfo.NMO, sysinfo.nup, sysinfo.ndown, rng));
   }
 
   std::map<std::string, ptree> wlkBlocks;
