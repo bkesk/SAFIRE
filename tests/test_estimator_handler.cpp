@@ -186,9 +186,9 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
       float dt = 0.01f;
       float total_time = 0.0f;
       double E1 = 0.0;
-      EstimatorHandler<MEM> estim0(mpi, InfoMap["info0"], "test_est_handler",
+      EstimatorHandler<MEM> estim0(mpi, "test_est_handler",
         est_pt, wset, WfnFac, wfn, prop,
-                          type, HamFac, "ham0", dt);
+                          HamFac, "ham0", dt);
     
       // set measurement intervals
       measure_interval = estim0.get_max_common_interval();

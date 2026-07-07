@@ -346,8 +346,8 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
   bool addEnergyEstim = hybrid;
 
   // estimator setup
-  auto estim0 = EstimatorHandler<MEM>(mpi, AFinfo, title, pt_in, wset, WfnFac, wfn0, 
-         prop0, walker_type, HamFac, ham_name, dt, addEnergyEstim, !free_proj);
+  auto estim0 = EstimatorHandler<MEM>(mpi, title, pt_in, wset, WfnFac, wfn0,
+         prop0, HamFac, ham_name, dt, addEnergyEstim, !free_proj);
 
   app_log(1,"\n****************************************************");
   app_log(1,"****************************************************");
@@ -772,9 +772,9 @@ bool DriverFactory<MEM>::executeCSAFQMCDriver(std::string title, int m_series, p
     char buf[256];
     snprintf(buf, sizeof(buf), "%s.g%03d", title.c_str(), sys);
     std::string tag(buf);
-    estimators.emplace_back(EstimatorHandler(TGHandler, AFinfo, 
-		tag, pt_in, wset, 
-		WfnFac, wfn0, prop0, walker_type, HamFac, ham_name, dt,
+    estimators.emplace_back(EstimatorHandler(TGHandler, AFinfo.nup, AFinfo.ndown,
+		tag, pt_in, wset,
+		WfnFac, wfn0, prop0, HamFac, ham_name, dt,
                 addEnergyEstim, !free_proj));
   }
 

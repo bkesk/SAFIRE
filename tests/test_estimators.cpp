@@ -181,7 +181,7 @@ void estimators_reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boos
 
     std::vector<EstimPtr> estimators;
     estimators.push_back(std::make_unique<BackPropagatedEstimator<MEM>>(
-        mpi, InfoMap["info0"], "none", est_pt, type, wset, wfn, prop, true));
+        mpi, "none", est_pt, wset, wfn, prop, true));
 
     std::string file = test_hdf_name(UTEST_WFN, UTEST_HAMIL, "run1");
     std::ofstream out;
@@ -219,7 +219,7 @@ void estimators_reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boos
 
     std::vector<EstimPtr> estimators2;
     estimators2.push_back(std::make_unique<BackPropagatedEstimator<MEM>>(
-        mpi, InfoMap["info0"], "none", est_pt2, type, wset, wfn, prop, true));
+        mpi, "none", est_pt2, wset, wfn, prop, true));
 
     std::string file = test_hdf_name(wfn_file, hamil_file, "run2");
     std::ofstream out;

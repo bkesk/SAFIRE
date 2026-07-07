@@ -126,6 +126,8 @@ public:
 
   bool isFiniteTemperature() const { return true; }
 
+  int getNMO() const { return NMO; }
+
   /*
    * Returns the memory space.
    */
@@ -337,7 +339,7 @@ public:
     return 0;
   }
 
-  void getReferences(int number_of_references, nda::MemoryArrayOfRank<3> auto&& Refs) const
+  void getReferences(nda::MemoryArrayOfRank<3> auto&& Refs) const
   {
     utils::check(false, "back propagation not implemented for finite-T");
   }

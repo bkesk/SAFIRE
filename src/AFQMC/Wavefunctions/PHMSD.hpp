@@ -175,11 +175,6 @@ public:
   }
 
   /*
-   * Returns the memory space.
-   */
-  constexpr auto get_memory_space() const { return MEM; }
-
-  /*
    * Expectation value of Hubbard-Stratonovich potential with respect to trial wave-function.
    */
   void vMF(nda::MemoryVector auto&& v, double dt); 
@@ -362,12 +357,14 @@ public:
 
   ComplexType getReferenceWeight(int i) const { return std::get<2>(*abij.configuration(i)); }
 
-  int total_number_of_references() const { return abij.number_of_configurations(); } 
+  int total_number_of_references() const { return abij.number_of_configurations(); }
+
+  int getNMO() const { return NMO; }
 
   /*
    * Returns the reference Slater Matrices needed for back propagation.  
    */
-  void getReferences(int number_of_references, nda::MemoryArrayOfRank<3> auto&& Refs) 
+  void getReferences(nda::MemoryArrayOfRank<3> auto& Refs) 
   {
     using nda::range;
     auto all = range::all;
@@ -376,12 +373,10 @@ public:
     int nspin = walker_type == COLLINEAR ? 2 : 1;
     int nspin_in_wfn = OrbMats.extent(0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
-    if(number_of_references==0) return;
-    if(number_of_references < 0) number_of_references = total_number_of_references(); 
-    utils::check(number_of_references > 0 and
-                 number_of_references <= Refs.extent(0),
-                 "Invalid number_of_references: {} should fulfill 0 < n <= {}!", number_of_references, Refs.extent(0));
-    utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
+
+    int number_of_references = abij.number_of_configurations();
+    Refs.resize(number_of_references, npol*NMO, nel);
+    
     if (RefOrbMats.extent(0) < number_of_references)
     {
       RefOrbMats = memory::share_from_root(*mpi, [&] {
