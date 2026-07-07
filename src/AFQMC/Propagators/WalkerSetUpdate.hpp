@@ -218,10 +218,11 @@ void hybrid_walker_update(Wlk &w, RealType dt, bool apply_constrain,
           ComplexType(scale * std::exp(-dt * (eloc.real() - Eshift)), 0.0);
     pseudo_eloc(i) = eloc;
     ovlp(i) = new_ovlp(i);
-    if (scale != 0)
+    if (std::abs(scale) > std::numeric_limits<RealType>::min()) {
       weight_factor(i) = std::exp(-ComplexType(0.0, dt) *
                                   (0.5 * (eloc.imag() + old_eloc.imag()))) /
                          scale;
+    }
     else
       weight_factor(i) = 0.0;
     phase1(i) *= weight_factor(i);
@@ -323,9 +324,13 @@ void local_energy_walker_update(Wlk &w, RealType dt, bool apply_constrain,
         scale *
             std::exp(-dt * (0.5 * (eloc.real() + old_eloc.real()) - Eshift)),
         0.0);
-    weight_factor(i) = std::exp(-ComplexType(0.0, dt) *
+    if (std::abs(scale) > std::numeric_limits<RealType>::min()) {
+      weight_factor(i) = std::exp(-ComplexType(0.0, dt) *
                                 (0.5 * (eloc.imag() + old_eloc.imag()))) /
                        scale;
+    } else {
+      weight_factor(i) = 0.0;
+    }
     phase(i) *= weight_factor(i);
     pseudo_eloc(i) = eloc;
     ovlp(i) = new_ovlp(i);
