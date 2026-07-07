@@ -106,8 +106,9 @@ void hybrid_walker_update(Wlk &w, RealType dt, bool apply_constrain,
                           nda::MemoryVector auto &&MFfactor,
                           nda::MemoryVector auto &&hybrid_weight,
                           double lower_cutoff_scale, double upper_cutoff_scale,
-                          bool symmetric_split, bool debug_verbosity,
-                          bool step0, bool use_cp_constraint,
+                          bool symmetric_split,
+                          bool step0, bool debug_verbosity,
+                          bool use_cp_constraint,
                           BoundStats &eloc_stats) {
   auto all = nda::range::all;
   int nwalk = w.size();
