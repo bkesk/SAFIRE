@@ -109,7 +109,8 @@ public:
 
     app_log(1,"\n\n --------------- Constructing Propagator ------------------ \n");
 
-    app_log(1," vbias_bound: {}", vbias_bound); 
+    app_log(1," vbias_bound: {}", vbias_bound);
+    app_log(1," cutoff scales (upper/lower): {} / {}", upper_cutoff_scale, lower_cutoff_scale);
     if(denseP1)
       app_log(1," Using dense 1-body propagator");
     else
