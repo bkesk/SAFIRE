@@ -74,8 +74,6 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   if( auto node = pt.get_child_optional("dense_trial") )
     dense_trial_opt = node->get_value_optional<bool>(); 
 
-  ComplexType NCE     = 0.0;
-
   const auto [NMO, nup_in_wfn, ndown_in_wfn] = read_info_from_wfn(filename,"any");
 
   int nspin = walker_type == COLLINEAR ? 2 : 1;
@@ -113,11 +111,8 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
           "Error: Trial wavefunction is NONCOLLINEAR and requires NONCOLLINEAR walkers. walker_type: {}", walkerTypeToString(walker_type));
       
       auto [nup, ndown] = broadcast_number_of_electrons({nup_in_wfn, ndown_in_wfn}, input_wtype, walker_type);
-    
-      NCE = h.getNuclearCoulombEnergy();
 
       //mpi->comm.broadcast_n(ci.data(), ci.size());
-      //mpi->comm.broadcast_value(NCE);
 
       // Create Trial wavefunction.
       auto PsiT = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,nup,ndown);
@@ -150,12 +145,12 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
           }
         }
         return Wavefunction(NOMSD<MEM,MType>(pt, NMO, nup, ndown, walker_type, mpi, std::move(HOps), 
-                                      std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
+                                      std::move(ci), std::move(PsiT_dense),targetNW));
       }
       else
       {
         return Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>(pt, NMO, nup, ndown, walker_type, mpi, std::move(HOps), 
-                                      std::move(ci), std::move(PsiT),NCE,targetNW)); 
+                                      std::move(ci), std::move(PsiT),targetNW)); 
       }
     }
     else
@@ -166,10 +161,8 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       
       int ntau = nup_in_wfn;
       utils::check(ndown_in_wfn == 0, "expected ndown dimension to be 0 at finite temperature");
-      NCE = h.getNuclearCoulombEnergy();
 
       //mpi->comm.broadcast_n(ci.data(), ci.size());
-      //mpi->comm.broadcast_value(NCE);
 
       // Create Trial wavefunction.
       auto PsiT = read_nomsd_wavefunction<MEM>(ngrp,ndets_to_read,walker_type,NMO,ntau);
@@ -211,12 +204,12 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
           }
         }
         return Wavefunction(NOMSD_FT<MEM,MType>(pt, NMO, ntau, walker_type, mpi, std::move(HOps), 
-                                      std::move(ci), std::move(PsiT_dense),NCE,targetNW)); 
+                                      std::move(ci), std::move(PsiT_dense),targetNW));
       }
       else
       {
         return Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>(pt, NMO, ntau, walker_type, mpi, std::move(HOps), 
-                                      std::move(ci), std::move(PsiT),NCE,targetNW));
+                                      std::move(ci), std::move(PsiT),targetNW));
       }
 
     }
@@ -453,7 +446,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
 
     return Wavefunction<MEM>(PHMSD<MEM>(pt, walker_type, NMO, nup, ndown, mpi, std::move(HOps),
                     std::move(abij), std::move(det_coupling_matrix),
-                    std::move(PsiT_1d), NCE, targetNW));
+                    std::move(PsiT_1d), targetNW));
   }
   else
   {

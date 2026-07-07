@@ -60,15 +60,13 @@ public:
         HamiltonianOperations<MEM>&& hop_,
         nda::array<ComplexType,1>&& ci_,
         nda::array<devPsiT,2>&& orbs_,
-        ComplexType nce,
         [[maybe_unused]] int targetNW = 1)
       : mpi(_mpi),
         walker_type(wlk),
         NMO{NMO_}, nup{nup_}, ndown{ndown_},
         HamOp(std::move(hop_)),
         ci(std::move(ci_)),
-        OrbMats(std::move(orbs_)),
-        NuclearCoulombEnergy(nce)
+        OrbMats(std::move(orbs_))
   {
     utils::check(OrbMats.extent(0) == ci.size(), "Size mismatch");
     // convert user input to verbose input
@@ -381,8 +379,6 @@ protected:
 
   // OrbMats[ndet][nspin](nel,NMO)
   nda::array<devPsiT,2> OrbMats;
-
-  ComplexType NuclearCoulombEnergy;
 
 /*
   void recompute_ci();

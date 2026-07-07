@@ -30,11 +30,7 @@ namespace afqmc
 class ModelHamOpsGenerator
 {
 public:
-  ModelHamOpsGenerator(ptree pt_in,
-                       ComplexType nucE = 0,
-                       ComplexType fzcE = 0)
-      : NuclearCoulombEnergy(nucE), 
-        FrozenCoreEnergy(fzcE)
+  ModelHamOpsGenerator(ptree pt_in)
   {
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
@@ -51,8 +47,6 @@ public:
   ModelHamOpsGenerator(ModelHamOpsGenerator&& other)      = default;
   ModelHamOpsGenerator& operator=(ModelHamOpsGenerator const& other) = default;
   ModelHamOpsGenerator& operator=(ModelHamOpsGenerator&& other) = default;
-
-  ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
   HamiltonianTypes getHamType() const { return ModelHamiltonian; }
 
@@ -81,10 +75,6 @@ public:
   }
 
 protected:
-
-  // nuclear coulomb term
-  ComplexType NuclearCoulombEnergy = 0.0;
-  ComplexType FrozenCoreEnergy = 0.0;
 
   std::string fileName = "";
   bool shift_1body = false;

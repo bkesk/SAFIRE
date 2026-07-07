@@ -60,7 +60,6 @@ public:
         HamiltonianOperations<MEM>&& hop_,
         nda::array<ComplexType,1>&& ci_,
         nda::array<devPsiT,3>&& orbs_,
-        ComplexType nce,
         [[maybe_unused]] int targetNW = 1)
       : mpi(mpi_),
         walker_type(wlk),
@@ -69,7 +68,6 @@ public:
         ci(std::move(ci_)),
         OrbMats(std::move(orbs_)),
         RefOrbMats(0, 0, 0, 0),
-        NuclearCoulombEnergy(nce),
         sclL(walker_type == COLLINEAR ? 2: 1)
   {
 
@@ -399,8 +397,6 @@ protected:
   memory::array<MEM,ComplexType,4> RefOrbMats;
 
   memory::array<MEM,ComplexType,1> LogPT0;
-
-  ComplexType NuclearCoulombEnergy;
 
   // log scale for DL
   nda::array<ComplexType, 1> sclL;

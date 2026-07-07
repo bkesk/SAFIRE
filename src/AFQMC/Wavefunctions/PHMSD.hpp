@@ -68,7 +68,6 @@ public:
         ph_excitations<int, ComplexType, MEM>&& abij_,
         nda::array<csrM,1>&& op_spin_det_coupling_,
         nda::array<csrM,1>&& orbs_,
-        ComplexType nce,
         [[maybe_unused]] int targetNW = 1)
       : mpi(mpi_),
         walker_type(wlk),
@@ -76,8 +75,7 @@ public:
         HamOp(std::move(hop_)),
         abij(std::move(abij_)),
         OpSpinDetCouplings(std::move(op_spin_det_coupling_)),
-        OrbMats(std::move(orbs_)),
-        NuclearCoulombEnergy(nce)
+        OrbMats(std::move(orbs_))
   {
     /* To me, PHMSD is not compatible with walker_type=CLOSED unless
      * the MSD expansion is symmetric with respect to spin. For this, 
@@ -459,8 +457,6 @@ protected:
 
   // store references for back propagation
   memory::const_shared_array<HOST_MEMORY,ComplexType,3> RefOrbMats;
-
-  ComplexType NuclearCoulombEnergy;
 
   /*
    * Node-shared dense (daggered) copies of the orbital matrices.

@@ -42,12 +42,8 @@ public:
     utils::check(false, "Default constructor of THCHamiltonian not allowed.");
   }
 
-  THCHamiltonian(ptree pt_in,
-                 ComplexType nucE = 0,
-                 ComplexType fzcE = 0)
-      : NuclearCoulombEnergy(nucE),
-        FrozenCoreEnergy(fzcE),
-	fileName("")
+  THCHamiltonian(ptree pt_in)
+      : fileName("")
   {
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
@@ -63,8 +59,6 @@ public:
   THCHamiltonian(THCHamiltonian&& other)      = default;
   THCHamiltonian& operator=(THCHamiltonian const& other) = default;
   THCHamiltonian& operator=(THCHamiltonian&& other) = default;
-
-  ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
   HamiltonianTypes getHamType() const { return THC; }
 
@@ -92,9 +86,6 @@ public:
   }
 
 protected:
-  ComplexType NuclearCoulombEnergy;
-  ComplexType FrozenCoreEnergy;
-
   std::string fileName;
 
   template<MEMORY_SPACE MEM, bool REAL> 

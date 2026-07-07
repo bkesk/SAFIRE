@@ -32,12 +32,8 @@ class KPTHCHamiltonian
 {
 public:
 
-  KPTHCHamiltonian(ptree pt_in,
-                   ComplexType nucE = 0,
-                   ComplexType fzcE = 0)
-      : NuclearCoulombEnergy(nucE),
-        FrozenCoreEnergy(fzcE),
-      	fileName("")
+  KPTHCHamiltonian(ptree pt_in)
+      : fileName("")
   {
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
@@ -53,8 +49,6 @@ public:
   KPTHCHamiltonian(KPTHCHamiltonian&& other)      = default;
   KPTHCHamiltonian& operator=(KPTHCHamiltonian const& other) = default;
   KPTHCHamiltonian& operator=(KPTHCHamiltonian&& other) = default;
-
-  ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
   HamiltonianTypes getHamType() const { return KPTHC; }
 
@@ -83,9 +77,6 @@ public:
 
 protected:
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
-
-  ComplexType NuclearCoulombEnergy;
-  ComplexType FrozenCoreEnergy;
 
   std::string fileName;
 

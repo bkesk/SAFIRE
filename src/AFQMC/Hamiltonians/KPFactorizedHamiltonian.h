@@ -37,12 +37,8 @@ class KPFactorizedHamiltonian
 {
 public:
 
-  KPFactorizedHamiltonian(ptree pt_in,
-                          ComplexType nucE = 0,
-                          ComplexType fzcE = 0)
-      : NuclearCoulombEnergy(nucE),
-      	FrozenCoreEnergy(fzcE),	
-        fileName("")
+  KPFactorizedHamiltonian(ptree pt_in)
+      : fileName("")
   {
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
@@ -59,8 +55,6 @@ public:
   KPFactorizedHamiltonian(KPFactorizedHamiltonian&& other)      = default;
   KPFactorizedHamiltonian& operator=(KPFactorizedHamiltonian const& other) = default;
   KPFactorizedHamiltonian& operator=(KPFactorizedHamiltonian&& other) = default;
-
-  ComplexType getNuclearCoulombEnergy() const { return NuclearCoulombEnergy; }
 
   HamiltonianTypes getHamType() const { return KPFactorized; }
 
@@ -91,10 +85,6 @@ public:
 
 protected:
   std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi;
-
-  // nuclear coulomb term
-  ComplexType NuclearCoulombEnergy;
-  ComplexType FrozenCoreEnergy;
 
   std::string fileName;
 

@@ -78,13 +78,12 @@ RealDenseHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
   if (mpi->comm.root()) 
   {
     file = h5::file(fileName,'r');
-    h5::group g = h5::group(file).open_group("Hamiltonian"); 
+    h5::group root = h5::group(file);
+    h5::group g = root.open_group("Hamiltonian");
 
     h5::h5_read(g,"dims",Idata);
 
-    std::vector<RealType> E_(2);
-    h5::h5_read(g,"Energies",E_);
-    E0 = E_[0] + E_[1];
+    E0 = read_energy_offset(root, "std", nact_up, nact_dn);
 
     {
       // Too many choices, consider forcing standard structure (e.g. [ns_f][np_f*NMO][np_f*NMO]
