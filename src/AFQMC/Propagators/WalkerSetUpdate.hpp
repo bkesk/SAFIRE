@@ -170,8 +170,7 @@ void hybrid_walker_update(Wlk &w, RealType dt, bool apply_constrain,
     }
     ComplexType eloc_ = eloc;
 
-    if ((!std::isfinite(eloc.real())) ||
-        (std::abs(eloc.real()) < std::numeric_limits<RealType>::min())) {
+    if (!std::isfinite(eloc.real())) {
       scale = 0.0;
       eloc = old_eloc;
     } else {
@@ -306,8 +305,7 @@ void local_energy_walker_update(Wlk &w, RealType dt, bool apply_constrain,
                                                      mf_factor(i).imag())))
                            : 1.0);
     }
-    if ((!std::isfinite(eloc.real())) ||
-        (std::abs(eloc.real()) < std::numeric_limits<RealType>::min())) {
+    if (!std::isfinite(eloc.real())) {
       scale = 0.0;
       eloc = old_eloc;
     } else {
