@@ -285,9 +285,9 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
    *  - add logic for estimators, e.g. whether to evaluate energy, which wfn to use, etc.
    */
 
-  // walker set and type
-  auto& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
-  WALKER_TYPES walker_type = wset.getWalkerType();
+  // walker_type is read early from the walker-set input block
+  // the WalkerSet is built after the wavefunction
+  WALKER_TYPES walker_type = WSetFac.get_walker_type(wset_name);
 
   bool finiteT = false;
   if (not WfnFac.is_constructed(wfn_name))
@@ -305,22 +305,23 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
   // propagator
   auto& prop0 = PropFac.getPropagator(mpi, prop_name, wfn0, rng);
   bool hybrid       = prop0.hybrid_propagation();
-  // resize walker set
-  if (restarted)
+
+  // Build and populate the walker set: from the restart file, or from the wavefunction's initial guess.
+  auto& wset = [&]() -> decltype(auto) {
+    if(restarted) {
+      h5::file file(hdf_read_restart,'r');
+      return WSetFac.getWalkerSetFromHDF5(mpi, wset_name, rng_wlk, walker_type, file, nWalkers, set_nWalker_target);
+    } else {
+      return WSetFac.getWalkerSet(mpi, wset_name, rng_wlk, walker_type, WfnFac.getInitialGuess(wfn_name), nWalkers);
+    }
+  }();
+
+  // perform runtime optimization
+  wfn0.runtime_optimization(wset);
+  wfn0.Energy(wset);
+
+  if (not restarted)
   {
-    h5::file file(hdf_read_restart,'r');
-    restartFromHDF5(wset, nWalkers, file, set_nWalker_target);
-    // perform runtime optimization
-    wfn0.runtime_optimization(wset);   
-    wfn0.Energy(wset);
-  }
-  else
-  {
-    auto initial_guess = WfnFac.getInitialGuess(wfn_name);
-    wset.resize(nWalkers, initial_guess()); 
-    // perform runtime optimization
-    wfn0.runtime_optimization(wset);   
-    wfn0.Energy(wset);
     print_initial_energy(wset);
     if (hybrid)
     {

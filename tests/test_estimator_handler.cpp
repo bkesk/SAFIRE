@@ -81,8 +81,6 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
   wlk_pt.put("system","info0");
   wlk_pt.put("walker_type", walkerTypeToString(type));
 
-  auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
-
   int nspin            = (type == COLLINEAR) ? 2 : 1;
   int npol             = (type == NONCOLLINEAR) ? 2 : 1;
 
@@ -105,9 +103,10 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
   PropgFac.push("prop0", prop_pt);
   auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
-  auto initial_guess = WfnFac.getInitialGuess("wfn0");
-  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
-  wset.resize(nwalk, initial_guess);
+  auto const& initial_guess = WfnFac.getInitialGuess("wfn0");
+  REQUIRE(int(initial_guess.size()) == nspin);
+  REQUIRE(initial_guess[0].shape() == std::array<long,2>{npol*NMO,nup});
+  auto wset = WalkerSet<MEM>(mpi, wlk_pt, rng, type, initial_guess, nwalk);
   
   // number of steps to propagate
   int nStep = 200;

@@ -27,6 +27,7 @@
 
 #include "AFQMC/config.h"
 #include "AFQMC/Walkers/WalkerSet.hpp"
+#include "AFQMC/Walkers/WalkerIO.hpp"
 
 namespace sfqmc
 {
@@ -52,7 +53,14 @@ public:
       return true;
   }
 
-  auto& getWalkerSet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, const std::string& ID, std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> rng)
+  // Build (or return the cached) walker set, fully populated from the per-spin
+  // initial guess. Dimensions are inferred from the guess.
+  auto& getWalkerSet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+                     const std::string& ID,
+                     std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> rng,
+                     WALKER_TYPES walker_type,
+                     const std::vector<nda::matrix<ComplexType>>& guess,
+                     int nWalkers)
   {
     auto xml = wlkBlocks.find(ID);
     if (xml == wlkBlocks.end())
@@ -60,13 +68,40 @@ public:
     auto wlk = handlers.find(ID);
     if (wlk == handlers.end())
     {
-      auto newwlk = handlers.insert(std::make_pair(ID, buildHandler(mpi, xml->second, rng)));
+      auto newwlk = handlers.insert(std::make_pair(ID,
+          WalkerSet<MEM>(mpi, xml->second, rng, walker_type, guess, nWalkers)));
       if (!newwlk.second)
-        utils::check(false," Error: Problems inserting new hamiltonian. ");
+        utils::check(false," Error: Problems inserting new walker set. ");
       return (newwlk.first)->second;
     }
     else
       return wlk->second;
+  }
+
+  // Build (or return the cached) walker set from an HDF5 restart file. Walker
+  // dimensions and count come from the file; fh5 must be open read-only on all
+  // ranks.
+  auto& getWalkerSetFromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+                             const std::string& ID,
+                             std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> rng,
+                             WALKER_TYPES walker_type,
+                             h5::file& fh5,
+                             int nWalkers,
+                             bool set_to_target)
+  {
+    auto xml = wlkBlocks.find(ID);
+    if (xml == wlkBlocks.end())
+      utils::check(false,"Error: Missing xml Block in WalkerSetFactory::getWalkerSetFromHDF5(string&). ");
+    auto wlk = handlers.find(ID);
+    if (wlk != handlers.end())
+      return wlk->second;
+
+    auto newwlk = handlers.insert(std::make_pair(ID,
+        readWalkersFromHDF5<WalkerSet<MEM>>(mpi, xml->second, rng, walker_type,
+                                            fh5, nWalkers, set_to_target)));
+    if (!newwlk.second)
+      utils::check(false," Error: Problems inserting new walker set. ");
+    return (newwlk.first)->second;
   }
 
   ptree get_input(const std::string& ID) const
@@ -76,10 +111,16 @@ public:
     {
       app_log(1,"WlkFac cannot find {}",ID);
       utils::check(false,"Error: failed to find walker_set with above name.");
-      return ptree{};	
+      return ptree{};
     }
     else
       return xml->second;
+  }
+
+  // Resolve the walker_type of a walker-set block without constructing it.
+  WALKER_TYPES get_walker_type(const std::string& ID) const
+  {
+    return WalkerSet<MEM>::parse_walker_type(get_input(ID));
   }
 
   // this routine allows you to modify the input block associated with ID 
@@ -104,19 +145,10 @@ public:
   }
 
 protected:
-  // reference to container of AFQMCInfo objects
-  std::map<std::string, AFQMCInfo>& InfoMap;
-
-  // generates a new WalkerSet and returns the pointer to the base class
-  WalkerSet<MEM> buildHandler(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, ptree pt, std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> rng)
-  {
-    std::string type, info;
-    info = pt.get<std::string>("system", "");
-    utils::check(InfoMap.find(info) != InfoMap.end(), "ERROR: Undefined system: {}", info);
-
-    auto& sysinfo = InfoMap[info];
-    return WalkerSet<MEM>(WalkerSetBase<MEM>(mpi, pt, sysinfo.NMO, sysinfo.nup, sysinfo.ndown, rng));
-  }
+  // reference to container of AFQMCInfo objects. Kept for construction symmetry
+  // with the other factories; the walker set no longer uses it for dimensions
+  // (those are inferred from the initial guess / restart file).
+  [[maybe_unused]] std::map<std::string, AFQMCInfo>& InfoMap;
 
   std::map<std::string, ptree> wlkBlocks;
 

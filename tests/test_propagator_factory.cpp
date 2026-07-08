@@ -99,8 +99,6 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
   wlk_pt.put("walker_type", walkerTypeToString(type));
-  wlk_pt.put("finite_temperature", finiteT);
-  auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
@@ -112,18 +110,21 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
   WfnFac.push("wfn0", wfn_pt);
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, finiteT, &ham, nwalk);
 
-  if(!finiteT)
-  {
-    auto initial_guess = WfnFac.getInitialGuess("wfn0"); 
-    REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
-    wset.resize(nwalk, initial_guess);
-  }
-  else
-  {
-    auto initial_guess_ft = WfnFac.getInitialGuess_ft("wfn0"); 
-    REQUIRE(initial_guess_ft.shape() == std::array<long,4>{3,nspin,npol*NMO,NMO});
-    wset.resize(nwalk, initial_guess_ft);
-  }
+  auto wset = [&]() {
+    if(!finiteT)
+    {
+      auto const& initial_guess = WfnFac.getInitialGuess("wfn0");
+      REQUIRE(int(initial_guess.size()) == nspin);
+      REQUIRE(initial_guess[0].shape() == std::array<long,2>{npol*NMO,nup});
+      return WalkerSet<MEM>(mpi, wlk_pt, rng, type, initial_guess, nwalk);
+    }
+    else
+    {
+      auto initial_guess_ft = WfnFac.getInitialGuess_ft("wfn0");
+      REQUIRE(initial_guess_ft.shape() == std::array<long,4>{3,nspin,npol*NMO,NMO});
+      return WalkerSet<MEM>(mpi, wlk_pt, rng, type, initial_guess_ft, nwalk);
+    }
+  }();
 
   ptree prop_pt;
   prop_pt.put("name","prop0");

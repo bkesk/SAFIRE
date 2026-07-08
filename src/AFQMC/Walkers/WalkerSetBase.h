@@ -73,18 +73,21 @@ public:
   using const_reference = walker<_MEM_,const ComplexType>;
   using const_iterator  = walker_iterator<_MEM_,const ComplexType>;
 
-  WalkerSetBase() 
-  {
-    utils::check(false, "Default initialization of WalkerSetBase is not allowed.");
-  } 
+  // A walker set cannot be created empty, because it needs to know about the dimensions it is going to hold.
+  WalkerSetBase() = delete;
 
-  /// constructor
+  /// Constructor: build a set of nWalkers walkers with the given dimensions
+  /// {rows, naea, naeb}. The walker type is parsed by the caller and passed in
+  /// (see parse_walker_type) so it is resolved exactly once. Walkers are
+  /// allocated and initialized to valid default values (unit
+  /// weight/overlap/phase, zero Slater matrices).
   WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
                 ptree pt,
-                int NMO,
-                int nup,
-                int ndown,
-                std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r
+                std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r,
+                WALKER_TYPES walker_type,
+                std::array<int, 3> dims,
+                int nWalkers,
+                bool finite_temperature_
                )
       : mpi(_mpi_),
         rng(r),
@@ -95,8 +98,8 @@ public:
         bp_pos(-1),
         tau_step(0),
         history_pos(0),
-        walkerType(UNDEFINED_WALKER_TYPE),
-        finite_temperature(false),
+        walkerType(walker_type),
+        finite_temperature(finite_temperature_),
         tot_num_walkers(0),
         walker_buffer(0, 1),
         bp_buffer(0, 0),
@@ -106,16 +109,40 @@ public:
         max_weight(4.0)
   {
     parse(pt);
-    setup(NMO, nup, ndown);
+    setup(dims);
+    allocate_walkers(nWalkers);
   }
 
-  /// destructor
-  ~WalkerSetBase() {}
+  /// Constructor: build a set of nWalkers walkers from the per-spin initial
+  /// guess matrices. Dimensions are inferred from the guess, so no external
+  /// NMO/nup/ndown is needed. Every walker is initialized to the guess.
+  WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
+                ptree pt,
+                std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r,
+                WALKER_TYPES walker_type,
+                const std::vector<nda::matrix<ComplexType>>& guess,
+                int nWalkers
+               )
+      : WalkerSetBase(_mpi_, pt, r, walker_type, dims_from_guess(guess), nWalkers, false)
+  {
+    populate_from_guess(guess);
+  }
 
-  WalkerSetBase(WalkerSetBase const& other) = default;
-  WalkerSetBase(WalkerSetBase&& other)      = default;
-  WalkerSetBase& operator=(WalkerSetBase const& other) = default;
-  WalkerSetBase& operator=(WalkerSetBase&& other) = default;
+  /// Constructor: build a set of nWalkers finite-temperature walkers from the
+  /// rank-4 UDV initial guess {3, nspin, rows, naea}. Dimensions are inferred
+  /// from the guess, so no external NMO/nup/ndown is needed. Every walker is
+  /// initialized to the guess.
+  WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
+                ptree pt,
+                std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r,
+                WALKER_TYPES walker_type,
+                nda::MemoryArrayOfRank<4> auto const& UDV,
+                int nWalkers
+               )
+      : WalkerSetBase(_mpi_, pt, r, walker_type, dims_from_guess_ft(UDV), nWalkers, true)
+  {
+    populate_from_guess_ft(UDV);
+  }
 
   /*
    * Returns the memory space.
@@ -224,10 +251,6 @@ public:
     return const_reference(walker_buffer(i,nda::range::all), data_displ, wlk_desc);
   }
 
-  // cleans state of object.
-  //   -erases allocated memory
-  bool clean();
-
   /*
    * Increases the capacity of the containers to n.
    */
@@ -245,28 +268,27 @@ public:
   void resize(int n);
 
   /*
-   * Adds/removes the number of walkers in the set to match the requested value.
-   * Walkers are removed from the end of the set 
-   *     and buffer capacity remains unchanged in this case.
-   * New walkers are initialized from the supplied matrix. 
-   * Capacity is increased if necessary.
-   * Target Populations are set to n.
+   * (Re)populates every walker's Slater matrix from the per-spin guess. The set
+   * must already be sized; each guess matrix is exactly (rows x naea)/(NMO x naeb).
    */
-  void resize(int n, nda::MemoryArrayOfRank<3> auto const& A);
+  void populate_from_guess(const std::vector<nda::matrix<ComplexType>>& guess);
 
   /*
-   * Finite temperature resize
-  */
-  void resize(int n, nda::MemoryArrayOfRank<3> auto const& U,
-                     nda::MemoryArrayOfRank<2> auto const& D,
-                     nda::MemoryArrayOfRank<3> auto const& V);
-
-  void resize(int n, nda::MemoryArrayOfRank<4> auto const& UDV);
+   * (Re)populates every walker's finite-temperature U/D/V matrices from the
+   * rank-4 guess {3, nspin, rows, naea} (D is a full matrix; its diagonal is
+   * used). The set must already be sized.
+   */
+  void populate_from_guess_ft(nda::MemoryArrayOfRank<4> auto const& UDV);
 
   /*
    * Finite temperature reset walkers at the beginning of each sweep
   */
   void reset(int n);
+
+  // cleans state of object.
+  //   -erases allocated memory
+  bool clean();
+
   /*
    * Resizes back propagation buffers.
    * Must be called before any call to bp-related routines.
@@ -301,6 +323,26 @@ public:
   }
 
   private:
+  /// Dimensions {rows, naea, naeb} of a walker set holding the given per-spin
+  /// guess matrices (rows = 2*NMO for noncollinear; naeb = 0 unless collinear).
+  static std::array<int, 3> dims_from_guess(const std::vector<nda::matrix<ComplexType>>& guess)
+  {
+    utils::check(guess.size() == 1 or guess.size() == 2, "Invalid initial guess.");
+    return {int(guess[0].extent(0)), int(guess[0].extent(1)),
+            guess.size() > 1 ? int(guess[1].extent(1)) : 0};
+  }
+
+  /// Dimensions {rows, naea, naeb} of a finite-temperature walker set holding
+  /// the given rank-4 UDV guess {3, nspin, rows, naea}. nspin == 2 signals
+  /// collinear-ft (naeb == naea); otherwise naeb == 0.
+  static std::array<int, 3> dims_from_guess_ft(nda::MemoryArrayOfRank<4> auto const& UDV)
+  {
+    utils::check(UDV.extent(0) == 3, "Invalid finite-T initial guess.");
+    int rows = int(UDV.extent(2));
+    int naea = int(UDV.extent(3));
+    int naeb = (UDV.extent(1) == 2) ? naea : 0;
+    return {rows, naea, naeb};
+  }
 
   template<walker_data D>
   auto extract_SM( SpinTypes s ) {
@@ -594,6 +636,11 @@ public:
     return bp_buffer(range::all,range(i0,i0+wlk_desc[6]));
   }
 
+  // Resolve the walker_type enum directly from a walker-set input block,
+  // without constructing a walker set. Uses the same "collinear" default as
+  // interpret_inputs so it matches what the constructor would parse.
+  static WALKER_TYPES parse_walker_type(const ptree& pt0);
+
   static ptree interpret_inputs(const ptree pt0)
   {
     // read inputs with default options
@@ -686,7 +733,10 @@ protected:
 
   // performs setup
   void parse(ptree cur);
-  void setup(int NMO, int nup, int ndown);
+  // lay out the walker buffer given {rows, naea, naeb} (= wlk_desc[0..2])
+  void setup(std::array<int, 3> dims);
+  // reserve capacity for n walkers and initialize them to valid defaults
+  void allocate_walkers(int n);
 
   // load balance algorithm
   LOAD_BALANCE_ALGORITHM load_balance;

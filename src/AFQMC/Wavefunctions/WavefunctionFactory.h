@@ -144,28 +144,26 @@ public:
     return xml->second;
   }
 
-  // returns the xmlNodePtr associated with ID
-  auto getInitialGuess(const std::string& ID) 
+  // returns the per-spin initial-guess matrices associated with ID
+  const std::vector<nda::matrix<ComplexType>>& getInitialGuess(const std::string& ID)
   {
     auto mat = initial_guess.find(ID);
     if (mat == initial_guess.end())
     {
       APP_ABORT(" Error: Missing initial guess in WavefunctionFactory. ");
     }
-    // return view
-    return mat->second();
+    return mat->second;
   }
 
-  // returns the xmlNodePtr associated with ID
-  auto getInitialGuess(const std::string& ID) const
+  // returns the per-spin initial-guess matrices associated with ID
+  const std::vector<nda::matrix<ComplexType>>& getInitialGuess(const std::string& ID) const
   {
     auto mat = initial_guess.find(ID);
     if (mat == initial_guess.end())
     {
       APP_ABORT(" Error: Missing initial guess in WavefunctionFactory. ");
     }
-    // return view
-    return mat->second();
+    return mat->second;
   }
 
     // returns the xmlNodePtr associated with ID
@@ -224,7 +222,7 @@ protected:
                         Hamiltonian& h,
                         int targetNW);
 
-  void getInitialGuess(h5::group grp, utils::mpi_context_t<boost::mpi3::communicator>& mpi, const std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type, bool finiteT);
+  void getInitialGuess(h5::group grp, const std::string& name, int NMO, int nup, int ndown, WALKER_TYPES walker_type);
   void getInitialGuess_ft(h5::group grp, utils::mpi_context_t<boost::mpi3::communicator>& mpi, const std::string& name, int NMO, WALKER_TYPES walker_type, bool finiteT);
 /*
   int getExcitation(nda::MemoryVector& deti,
@@ -252,7 +250,10 @@ protected:
 
   std::map<std::string, Wavefunction<MEM>> wavefunctions;
 
-  std::map<std::string, memory::const_shared_array<HOST_MEMORY, ComplexType, 3>> initial_guess;
+  // per-spin trial orbital matrices, sized to the walker (alpha: npol*NMO x naea,
+  // beta: NMO x naeb for collinear). The true widths keep {rows, naea, naeb}
+  // inferable by the walker set without AFQMCInfo.
+  std::map<std::string, std::vector<nda::matrix<ComplexType>>> initial_guess;
 
   std::map<std::string, memory::const_shared_array<HOST_MEMORY, ComplexType, 4>> initial_guess_ft;
 };

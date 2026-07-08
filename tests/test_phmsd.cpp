@@ -29,18 +29,13 @@
 #include "IO/app_loggers.h"
 
 #include <string>
-#include <complex>
 #include <algorithm>
 
-#include "AFQMC/Wavefunctions/Excitations.hpp"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
-#include "AFQMC/Walkers/WalkerSet.hpp"
 #include "test_utils.hpp"
-#include "AFQMC/Utilities/Utils.hpp"
 #include "AFQMC/Utilities/readWfn.h"
-#include "numerics/sparse/sparse.hpp"
 
 extern bool WRITE_REFERENCE;
 extern std::string UTEST_HAMIL, UTEST_WFN;
@@ -186,22 +181,27 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
   wlk_pt.put("name","wset0");
   wlk_pt.put("walker_type", walkerTypeToString(type));
 
-  auto wset = make_WalkerSet<MEM>(mpi, wlk_pt, InfoMap["info0"], rng);
-  auto initial_guess = WfnFac.getInitialGuess("wfn0");
-  REQUIRE(initial_guess.shape() == std::array<long,3>{nspin,npol*NMO,nup});
+  auto const& initial_guess = WfnFac.getInitialGuess("wfn0");
+  REQUIRE(int(initial_guess.size()) == nspin);
+  REQUIRE(initial_guess[0].shape() == std::array<long,2>{npol*NMO,nup});
 
-  // apply small unitary rotation to initial_guess
-  // add different rotations to every walker to test routines
-  {
-    nda::array<ComplexType,3> rotated_initial_guess(nspin,npol*NMO,nup);
+  // apply a small unitary rotation to the per-spin initial guess, then build
+  // the walker set already populated from it
+  auto wset = [&]() {
     nda::array<ComplexType,2> R = nda::rand(std::array<long,2>{npol*NMO,npol*NMO});
     nda::array<ComplexType,1> tau(npol*NMO);
     nda::lapack::geqrf(nda::transpose(R),tau);
     nda::lapack::gqr(nda::transpose(R),tau);
+    std::vector<nda::matrix<ComplexType>> rotated_initial_guess;
+    rotated_initial_guess.reserve(nspin);
     for(int is=0; is<nspin; ++is)
-      nda::blas::gemm(R,initial_guess(is,all,all),rotated_initial_guess(is,all,all));
-    wset.resize(nwalk, rotated_initial_guess);
-  }
+    {
+      nda::matrix<ComplexType> g(initial_guess[is].shape());
+      nda::blas::gemm(R, initial_guess[is], g);
+      rotated_initial_guess.push_back(std::move(g));
+    }
+    return WalkerSet<MEM>(mpi, wlk_pt, rng, type, rotated_initial_guess, nwalk);
+  }();
 
   // 0. Get raw occupancies and coefficients from file.
   nda::array<PsiT_Matrix<HOST_MEMORY>, 1> PsiT_MO;
@@ -236,12 +236,10 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
     nda::h5_write(ng,"ci_coeffs",coeffs);
 
     {
-      auto Psi0 = initial_guess(0,all,all);
-      nda::h5_write(ng,"Psi0_alpha",Psi0);
+      nda::h5_write(ng,"Psi0_alpha",initial_guess[0]);
     }
     if(type == COLLINEAR) {
-      auto Psi0 = initial_guess(1,all,range(ndown));
-      nda::h5_write(ng,"Psi0_beta",Psi0);
+      nda::h5_write(ng,"Psi0_beta",initial_guess[1]);
     }
 
     for(int idet=0, n=0; idet<ndets; ++idet) {
