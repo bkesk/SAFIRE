@@ -135,12 +135,12 @@ void sharedwset_basic_walker_features(WALKER_TYPES wtype, bool finiteT)
       auto umat = it->UMatrix(Alpha);
       REQUIRE( umat.extent(0) == initUDV.extent(2) );
       REQUIRE( umat.extent(1) == M );
-      REQUIRE(nda::to_host(it->UMatrix(Alpha)) == initUDV(0,0,nda::ellipsis{}));
+      REQUIRE(nda::to_host(it->UMatrix(Alpha)) == nda::to_host(initUDV(0,0,nda::ellipsis{})));
       if( ws.getWalkerType() == COLLINEAR ) {
         auto umatB = it->UMatrix(Beta);
         REQUIRE( umatB.extent(0) == initUDV.extent(2) );
         REQUIRE( umatB.extent(1) == M );
-        REQUIRE( nda::to_host(it->UMatrix(Beta)) == initUDV(0,1,nda::range::all,nda::range(M)));
+        REQUIRE( nda::to_host(it->UMatrix(Beta)) == nda::to_host(initUDV(0,1,nda::range::all,nda::range(M))));
       }
       it->set_property(WEIGHT,base * 1.0 + 0.5);
       it->set_property(OVLP,base * 1.0 + 0.5);
