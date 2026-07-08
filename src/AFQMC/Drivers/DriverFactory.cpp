@@ -400,7 +400,9 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, p
   //int ndown     = AFinfo.ndown;
 
   std::string hdf_read_restart;
-  bool set_nWalker_target;
+  // read but unused: finite-T restart is not yet supported, so the walker set is
+  // always built fresh from the wavefunction guess (see below).
+  [[maybe_unused]] bool set_nWalker_target;
   double dt;
   hdf_read_restart = pt.get<std::string>("hdf_read_file");
   set_nWalker_target = pt.get<bool>("set_nwalker_to_target");
@@ -472,13 +474,9 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, p
    *  - add logic for estimators, e.g. whether to evaluate energy, which wfn to use, etc.
    */
 
-  // walker set and type
-  // if executing FT driver, finite_temperature flag internally set to true
-  // ft driver selected by user in input file
-  WSetFac.get_input(wset_name).put("finite_temperature", true);
-  auto& wset          = WSetFac.getWalkerSet(mpi, wset_name, rng_wlk);
-  WALKER_TYPES walker_type = wset.getWalkerType();
-  wset.setTauStep(0); // time-slice initialized to 0
+  // walker_type is read early from the walker-set input block; the WalkerSet is
+  // built after the wavefunction. The FT driver forces finite_temperature = true.
+  WALKER_TYPES walker_type = WSetFac.get_walker_type(wset_name);
   bool finiteT = true;
   if (not WfnFac.is_constructed(wfn_name))
   {
@@ -495,42 +493,35 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, p
   // propagator
   auto& prop0 = PropFac.getPropagator(mpi, prop_name, wfn0, rng);
   bool hybrid       = prop0.hybrid_propagation();
-  // resize walker set
-  if (restarted)
+
+  // Build and populate the finite-temperature walker set from the wavefunction's
+  // rank-4 UDV initial guess. FT restart is not yet supported.
+  utils::check(not restarted, "Restart not yet implemented for finite-T calculations");
+  auto& wset = WSetFac.getWalkerSetFT(mpi, wset_name, rng_wlk, walker_type,
+                                      WfnFac.getInitialGuess_ft(wfn_name), nWalkers);
+  wset.setTauStep(0); // time-slice initialized to 0
+
+  // perform runtime optimization; ntau implicitly set to 0 here
+  wfn0.runtime_optimization(wset);
+  wfn0.Energy(wset);
+  memory::buffered_array<MEM,ComplexType,1> ovlp0(nWalkers,ComplexType(0.0));
+  wset.getProperty(OVLP,ovlp0);
+  wfn0.setLogPT0(ovlp0);
+  print_initial_energy(wset);
+  if (hybrid)
   {
-    h5::file file(hdf_read_restart,'r');
-    restartFromHDF5(wset, nWalkers, file, set_nWalker_target);
-    // perform runtime optimization
-    wfn0.runtime_optimization(wset);  
-    wfn0.Energy(wset);
-  }
-  else
-  {
-    auto initial_guess = WfnFac.getInitialGuess_ft(wfn_name);
-    wset.resize(nWalkers, initial_guess()); 
-    // perform runtime optimization
-    wfn0.runtime_optimization(wset);  
-    // ntau implicitly set to 0 here    
-    wfn0.Energy(wset);
-    memory::buffered_array<MEM,ComplexType,1> ovlp0(nWalkers,ComplexType(0.0));
-    wset.getProperty(OVLP,ovlp0);
-    wfn0.setLogPT0(ovlp0);
-    print_initial_energy(wset);
-    if (hybrid)
+    // Eshift defaults to 0.0 if not provided in input
+    //    otherwise, use the value from input with warning
+    if (Eshift != 0.0)
     {
-      // Eshift defaults to 0.0 if not provided in input
-      //    otherwise, use the value from input with warning
-      if (Eshift != 0.0)
-      {
-        app_warning("user set expert-level parameter, \"initial_Eshift\" : Using user-provided initial Eshift = {}", Eshift);
-      }
-    } else {
-      if (Eshift != 0.0)
-      {
-        app_log(1, "[Warning] : User set initial Eshift {} with local energy importance. This value is ignored.", Eshift);
-      }
-      Eshift = real(ComplexType(wset[0].energy()));
+      app_warning("user set expert-level parameter, \"initial_Eshift\" : Using user-provided initial Eshift = {}", Eshift);
     }
+  } else {
+    if (Eshift != 0.0)
+    {
+      app_log(1, "[Warning] : User set initial Eshift {} with local energy importance. This value is ignored.", Eshift);
+    }
+    Eshift = real(ComplexType(wset[0].energy()));
   }
 
   // is this run using importance sampling? 
@@ -540,8 +531,8 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, p
   bool addEnergyEstim = hybrid;
 
   // estimator setup
-  auto estim0 = EstimatorHandler<MEM>(mpi, AFinfo, title, pt_in, wset, WfnFac, wfn0, 
-         prop0, walker_type, HamFac, ham_name, dt, addEnergyEstim, !free_proj);
+  auto estim0 = EstimatorHandler<MEM>(mpi, title, pt_in, wset, WfnFac, wfn0,
+         prop0, HamFac, ham_name, dt, addEnergyEstim, !free_proj);
 
   app_log(1,"\n****************************************************");
   app_log(1,"****************************************************");

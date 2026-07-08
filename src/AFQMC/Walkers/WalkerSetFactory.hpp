@@ -78,6 +78,32 @@ public:
       return wlk->second;
   }
 
+  // Build (or return the cached) finite-temperature walker set, fully populated
+  // from the rank-4 UDV initial guess {3, nspin, rows, naea}. Dimensions are
+  // inferred from the guess and finite_temperature is set true by the ctor.
+  auto& getWalkerSetFT(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
+                       const std::string& ID,
+                       std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> rng,
+                       WALKER_TYPES walker_type,
+                       nda::MemoryArrayOfRank<4> auto const& UDV,
+                       int nWalkers)
+  {
+    auto xml = wlkBlocks.find(ID);
+    if (xml == wlkBlocks.end())
+      utils::check(false,"Error: Missing xml Block in WalkerSetFactory::getWalkerSetFT(string&). ");
+    auto wlk = handlers.find(ID);
+    if (wlk == handlers.end())
+    {
+      auto newwlk = handlers.insert(std::make_pair(ID,
+          WalkerSet<MEM>(mpi, xml->second, rng, walker_type, UDV, nWalkers)));
+      if (!newwlk.second)
+        utils::check(false," Error: Problems inserting new walker set. ");
+      return (newwlk.first)->second;
+    }
+    else
+      return wlk->second;
+  }
+
   // Build (or return the cached) walker set from an HDF5 restart file. Walker
   // dimensions and count come from the file; fh5 must be open read-only on all
   // ranks.

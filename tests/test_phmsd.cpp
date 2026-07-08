@@ -34,6 +34,7 @@
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
+#include "AFQMC/Walkers/WalkerSet.hpp"
 #include "test_utils.hpp"
 #include "AFQMC/Utilities/readWfn.h"
 
