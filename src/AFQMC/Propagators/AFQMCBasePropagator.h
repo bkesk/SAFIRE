@@ -40,7 +40,7 @@ namespace afqmc
  * For all hamiltonians that only use a dense vHS. For model hamiltonians, use AFQMCModelPropagator.
  */
 template<MEMORY_SPACE MEM>
-class AFQMCBasePropagator : public AFQMCInfo
+class AFQMCBasePropagator
 {
 
 public:
@@ -48,13 +48,11 @@ public:
     utils::check(false, "Error: Reached disabled AFQMCBasePropagator default constructor.");
   }
 
-  AFQMCBasePropagator(AFQMCInfo& info,
-                      ptree pt_in,
+  AFQMCBasePropagator(ptree pt_in,
                       std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi_,
                       Wavefunction<MEM>& wfn_,
                       std::shared_ptr<utils::RandomGenerator_t<MEM>> r)
-      : AFQMCInfo(info),
-        mpi(mpi_),
+      : mpi(mpi_),
         wfn(std::addressof(wfn_)),
         P1s(0),
         P1s_inv(0),
@@ -66,17 +64,19 @@ public:
         rng_block_size(wfn->number_of_cholesky_vectors())
   {
     utils::check(bool(mpi), "Error: Null mpi_context.");
+    const int NMO = wfn->getNMO();
     std::tie(nspins_in_vHS, npol_in_vHS) = wfn->vHS_dims();
     app_log(1," vHS dimensions: nspins = {}, npol = {}", nspins_in_vHS, npol_in_vHS);
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
     app_log(2,"\nBasePropagator input:\n\n{}\n",io::to_string(pt));
     // initialize using verbose input
-    int i_, a_;
-    std::string external_field, excited_file;
+    std::string external_field;
+    // int i_, a_;
+    // std::string excited_file;
     double external_field_scale;
-    i_ = pt.get<int>("i");
-    a_ = pt.get<int>("a");
+    // i_ = pt.get<int>("i");
+    // a_ = pt.get<int>("a");
     order                = pt.get<int>("taylor_n");
     vbias_bound          = pt.get<double>("vbias_bound");
     external_field_scale = pt.get<double>("external_field_scale");
@@ -92,7 +92,7 @@ public:
     free_projection     = pt.get<bool>("free_projection");
     denseP1             = pt.get<bool>("denseP1");
     denseP2             = pt.get<bool>("denseP2");
-    excited_file        = pt.get<std::string>("excited");
+    // excited_file        = pt.get<std::string>("excited");
     debug_verbosity     = pt.get<bool>("debug_verbosity");
     natural_shift       = pt.get<bool>("natural_shift");
     symmetric_split     = pt.get<bool>("symmetric_split");
@@ -144,6 +144,9 @@ public:
 
     // read orbital matrix if excited state propagator
     excitedState = false;
+    // Excited-state propagator is disabled pending re-implementation (it was an
+    // abort-only stub).
+    /*
     if (excited_file != "" && i_ >= 0 && a_ >= 0)
     {
       if (i_ < NMO && a_ < NMO)
@@ -168,10 +171,11 @@ public:
       {
         utils::check(false," Errors: Inconsistent excited orbitals. ");
       }
-      utils::check(false," Error: Finish implementation. ");	
+      utils::check(false," Error: Finish implementation. ");
       // read from hdf5
       //readWfn(excited_file, excitedOrbMat_, NMO, maxOccupExtendedMat.first, maxOccupExtendedMat.second);
     }
+    */
     if (external_field != std::string(""))
     {
       //    read_external_field(H1ext);
@@ -258,7 +262,6 @@ public:
     pt1.put("symmetric_split",symmetric_split);
     pt1.put("debug_verbosity", debug_verbosity);
     std::unordered_set<std::string> pass_through_keys = {
-      "system",
       "name",
       "debug"
     };

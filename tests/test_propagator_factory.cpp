@@ -71,24 +71,16 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
   WALKER_TYPES type         = getWalkerType(wfn_file);
   int nspin                 = type == COLLINEAR ? 2 : 1;
   int npol                  = type == NONCOLLINEAR ? 2 : 1;
-
-  int ntau = 0;
-  if(finiteT){
-    ntau = nup;
-    nup = NMO;
-    ndown = NMO;
-  }
-  std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown, ntau}));
+  // finite-T imaginary-time slice count (the wfn "nup" field for a finite-T guess)
+  int ntau                  = nup;
 
   ptree ham_pt;
   ham_pt.put("name","ham0");
-  ham_pt.put("system","info0");
   ham_pt.put("filename",hamil_file);
   ham_pt.put("shift_1body",true);
   //ham_pt.put("shift_1body",false);
 
-  HamiltonianFactory HamFac(InfoMap);
+  HamiltonianFactory HamFac;
   HamFac.push("ham0", ham_pt);
   Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
@@ -102,7 +94,6 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
-  wfn_pt.put("system","info0");
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("dense_trial",dense_trial);
 
@@ -128,10 +119,9 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
 
   ptree prop_pt;
   prop_pt.put("name","prop0");
-  prop_pt.put("system","info0");
   prop_pt.put("denseP2",true);
 
-  PropagatorFactory<MEM> PropgFac(InfoMap);
+  PropagatorFactory<MEM> PropgFac;
   PropgFac.push("prop0", prop_pt);
   auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 

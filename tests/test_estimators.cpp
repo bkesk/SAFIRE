@@ -120,22 +120,17 @@ void estimators_reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boos
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
   std::shared_ptr<utils::RandomGenerator_t<MEM>> rng_dev = std::make_shared<utils::RandomGenerator_t<MEM>>(utils::make_rng<MEM>(777));
 
-  std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
-
   ptree ham_pt;
   ham_pt.put("name","ham0");
-  ham_pt.put("system","info0");
   ham_pt.put("filename",hamil_file);
 
-  HamiltonianFactory HamFac(InfoMap);
+  HamiltonianFactory HamFac;
   HamFac.push("ham0", ham_pt);
   auto& ham = HamFac.getHamiltonian(mpi, "ham0");
 
   WALKER_TYPES type = afqmc::getWalkerType(wfn_file);
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
-  wlk_pt.put("system","info0");
   wlk_pt.put("walker_type", walkerTypeToString(type));
 
   int nspin = (type == COLLINEAR) ? 2 : 1;
@@ -143,7 +138,6 @@ void estimators_reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boos
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
-  wfn_pt.put("system","info0");
   wfn_pt.put("filename",wfn_file);
 
   int nwalk = 2;
@@ -153,9 +147,8 @@ void estimators_reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boos
 
   ptree prop_pt;
   prop_pt.put("name","prop0");
-  prop_pt.put("system","info0");
 
-  PropagatorFactory<MEM> PropgFac(InfoMap);
+  PropagatorFactory<MEM> PropgFac;
   PropgFac.push("prop0", prop_pt);
   auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 

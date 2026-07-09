@@ -67,9 +67,7 @@ public:
     pt1.put("name", name);
     pt1.put("filename", filename);
     pt1.put("shift_1body", shift_1b);
-    std::unordered_set<std::string> pass_through_keys = {
-      "system"
-    };
+    std::unordered_set<std::string> pass_through_keys = {};
     io::compare_known_keys("Lattice Model",pt1, pt0,pass_through_keys);
     return pt1;
   }

@@ -77,9 +77,7 @@ public:
     pt1.put("name", name);
     pt1.put("filename", filename);
     pt1.put("max_memory", mmem_mb);
-    std::unordered_set<std::string> pass_through_keys = {
-      "system"
-    };
+    std::unordered_set<std::string> pass_through_keys = {};
     io::compare_known_keys("Dense, Real Factorized (Cholesky) Hamiltonian",pt1, pt0,pass_through_keys);
     return pt1;
   }

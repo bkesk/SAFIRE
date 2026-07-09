@@ -37,7 +37,7 @@ template<MEMORY_SPACE MEM>
 class WalkerSetFactory
 {
 public:
-  WalkerSetFactory(std::map<std::string, AFQMCInfo>& info) : InfoMap(info) {}
+  WalkerSetFactory() {}
 
   ~WalkerSetFactory() {}
 
@@ -171,11 +171,6 @@ public:
   }
 
 protected:
-  // reference to container of AFQMCInfo objects. Kept for construction symmetry
-  // with the other factories; the walker set no longer uses it for dimensions
-  // (those are inferred from the initial guess / restart file).
-  [[maybe_unused]] std::map<std::string, AFQMCInfo>& InfoMap;
-
   std::map<std::string, ptree> wlkBlocks;
 
   std::map<std::string, WalkerSet<MEM>> handlers;

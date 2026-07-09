@@ -75,6 +75,8 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     dense_trial_opt = node->get_value_optional<bool>(); 
 
   const auto [NMO, nup_in_wfn, ndown_in_wfn] = read_info_from_wfn(filename,"any");
+  if(ndown_in_wfn > nup_in_wfn)
+    utils::check(false," Error nup < ndown: Up spin must be the majority spin. nup: {}, ndown: {}",nup_in_wfn,ndown_in_wfn);
 
   int nspin = walker_type == COLLINEAR ? 2 : 1;
   int npol = walker_type == NONCOLLINEAR ? 2 : 1;

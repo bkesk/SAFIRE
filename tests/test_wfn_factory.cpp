@@ -100,22 +100,16 @@ void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   app_log(1, "wfn_factory_sdet: native type {} -> walker type {} (dense_trial={})",
           walkerTypeToString(from), walkerTypeToString(type), dense_trial);
 
-  int ntau(0);
   if(finiteT){
-    ntau = nup;
     nup = NMO;
     ndown = NMO;
   }
 
-  std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown, ntau}));
-
   ptree ham_pt;
   ham_pt.put("name","ham0");
-  ham_pt.put("system","info0");
   ham_pt.put("filename",hamil_file);
 
-  HamiltonianFactory HamFac(InfoMap);
+  HamiltonianFactory HamFac;
   HamFac.push("ham0", ham_pt); 
   Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
@@ -129,7 +123,6 @@ void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
-  wfn_pt.put("system","info0");
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("dense_trial",dense_trial);
 

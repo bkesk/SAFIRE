@@ -100,7 +100,6 @@ public:
     pt1.put("rediag", rediag);
     pt1.put("dense_trial", dense_trial);
     std::unordered_set<std::string> pass_through_keys = {
-      "system",
       "name",
       "ndets_to_read",
       "filename",

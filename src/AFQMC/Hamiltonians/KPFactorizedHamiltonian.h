@@ -76,9 +76,7 @@ public:
     pt1.put("name", name);
     pt1.put("filename", filename);
     pt1.put("buffer_size",bsize);
-    std::unordered_set<std::string> pass_through_keys = {
-      "system"
-    };
+    std::unordered_set<std::string> pass_through_keys = {};
     io::compare_known_keys("K-point Factorized Cholesky Hamiltonian",pt1, pt0,pass_through_keys);
     return pt1;
   }

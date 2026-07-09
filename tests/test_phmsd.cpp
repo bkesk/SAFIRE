@@ -154,21 +154,16 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
   double dt         = 0.01;
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
 
-  std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
-
   ptree ham_pt;
   ham_pt.put("name","ham0");
-  ham_pt.put("system","info0");
   ham_pt.put("filename",hamil_file);
 
-  HamiltonianFactory HamFac(InfoMap);
+  HamiltonianFactory HamFac;
   HamFac.push("ham0", ham_pt);
   Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
-  wfn_pt.put("system","info0");
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("rediag","no");
   wfn_pt.put("ndets_to_read",-1);
@@ -261,7 +256,6 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
 
   ptree nomsd_pt;
   nomsd_pt.put("name","nomsd");
-  nomsd_pt.put("system","info0");
   nomsd_pt.put("filename",nomsd_file);
 
   WfnFac.push("nomsd", nomsd_pt);
@@ -377,7 +371,6 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
   {
     ptree wfn1_pt;
     wfn1_pt.put("name","wfn1");
-    wfn1_pt.put("system","info0");
     wfn1_pt.put("filename",wfn_file);
     wfn1_pt.put("rediag","no");
     wfn1_pt.put("ndets_to_read",-1);

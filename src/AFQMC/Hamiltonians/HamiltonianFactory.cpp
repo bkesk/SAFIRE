@@ -42,14 +42,6 @@ namespace afqmc
 {
 Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, ptree pt)
 {
-  std::string info;
-  info = pt.get<std::string>("system", "");
-  utils::check(InfoMap.find(info) != InfoMap.end(), "ERROR: Undefined system in execute block. ");
-
-  AFQMCInfo& AFinfo = InfoMap[info];
-
-  int NMO  = AFinfo.NMO;
-
   std::string filename = pt.get<std::string>("filename");
   std::string format;  // only meaningful at root
   HamiltonianTypes htype = UNKNOWN;
@@ -90,9 +82,6 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
     }
   }
   mpi->comm.broadcast(Idata.begin(), Idata.end());
-
-  // safety check!!!
-  utils::check(Idata[3] == NMO, " Error: NMO differs from value in integral file. ");
 
   mpi->comm.barrier();
   if (htype == KPTHC)

@@ -78,9 +78,7 @@ public:
     ptree pt1;
     pt1.put("name", name);
     pt1.put("filename", filename);
-    std::unordered_set<std::string> pass_through_keys = {
-      "system"
-    };
+    std::unordered_set<std::string> pass_through_keys = {};
     io::compare_known_keys("Tensor hyper-contraction (THC) Hamiltonian", pt1, pt0,pass_through_keys);
     return pt1;
   }

@@ -140,7 +140,6 @@ public:
     if( auto val = pt0.get_optional<int>("algorithm") )
       pt1.put("algorithm", *val);
     std::unordered_set<std::string> pass_through_keys = {
-      "system",
       "name",
       "ndets_to_read",
       "restart_file",

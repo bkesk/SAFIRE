@@ -122,79 +122,25 @@ std::string DriverFactory<MEM>::get_wavefunction_id(ptree pt)
   return name;
 }
 
-// similar to get_or_push, but customized for AFQMCInfo
 template<MEMORY_SPACE MEM>
-std::string DriverFactory<MEM>::get_system_id(ptree pt, std::string wfn_name)
-{
-  std::string name("");
-  auto wfn_pt = WfnFac.get_input(wfn_name);
-  std::string filename = wfn_pt.template get<std::string>("filename","");
-  const auto [nmo,nup,ndn] = read_info_from_wfn(filename,"any");
-  if(ndn > nup)
-    utils::check(false," Error  nup < ndown: Up spin must be the majority spin. nup: {}, ndown: {}",nup,ndn);
-  if( auto pt_ = pt.get_child_optional("system") ) {
-    if(pt_->size() > 0) {
-      // input block provided, build ptree to reuse parse routine
-      name = pt_->template get<std::string>("name","");
-      if(name == "")
-        name = std::string("sysid_") + std::to_string(++unique_id);
-      if(InfoMap.find(name) == InfoMap.end()) {
-        //note: for finiteT ntau = nup, ndn = 0
-        AFQMCInfo info(name,nmo,nup,ndn,nup);
-        InfoMap.insert(std::pair<std::string, AFQMCInfo>(info.name, info));
-      }
-    } else if( auto val = pt_->get_value_optional<std::string>() ) {
-      // id of previously declared block provided
-      if(*val != "") name = *val;
-      else utils::check(false," Error: Found empty string in system tag.");
-    } else
-      utils::check(false," Error: Can't convert system value to string.");
-  } else {
-    // not found, build from wavefunction input 
-    name = std::string("sysid_") + std::to_string(++unique_id);
-    //note: for finiteT ntau = nup, ndn = 0
-    AFQMCInfo info(name,nmo,nup,ndn,nup);
-    InfoMap.insert(std::pair<std::string, AFQMCInfo>(info.name, info));
-  }
-  // check for compatibility
-  utils::check(InfoMap.find(name) != InfoMap.end(), "Error: Unregistered system id:{}", name);
-  {
-    auto info = InfoMap.find(name)->second;
-    utils::check(nmo == info.NMO," Error: Inconsistent definition of NMO between system and wavefunction.");
-    utils::check(nup == info.nup," Error: Inconsistent definition of nup between system and wavefunction.");
-    utils::check(ndn == info.ndown," Error: Inconsistent definition of ndown between system and wavefunction.");
-  } 
-
-  // add to WfnFac.get_input(wfn_name) if missing
-  if(wfn_pt.template get<std::string>("system","") == "")
-    WfnFac.get_input(wfn_name).put("system",name);
-  return name;
-}
-
-template<MEMORY_SPACE MEM>
-std::tuple<std::string,std::string,std::string,std::string,std::string>
+std::tuple<std::string,std::string,std::string,std::string>
     DriverFactory<MEM>::get_component_ids(ptree pt)
 {
-  // 1. get wavefunction id, push input block if necessary 
+  // 1. get wavefunction id, push input block if necessary
   std::string wfn_name = get_wavefunction_id(pt); //pt.get<std::string>("wavefunction");
-  // 2. get or create system id. At this stage, 
-  //    WfnFac.get_input(wfn_name) must exist 
-  //    Adds system tag to wfn_pt if missing
-  std::string system = get_system_id(pt,wfn_name);
   // default ptree in case input blocks are default constructed
   ptree pt_default;
-  pt_default.put("system",system);
-  // 3. get ids of hamiltonian, walker_set and propagator. Build later.
-  std::string wset_name = get_or_push("walker_set",pt,WSetFac,pt_default,system);
-  std::string prop_name = get_or_push("propagator",pt,PropFac,pt_default,system);
+  // 2. get ids of hamiltonian, walker_set and propagator. Build later.
+  std::string wset_name = get_or_push("walker_set",pt,WSetFac,pt_default);
+  std::string prop_name = get_or_push("propagator",pt,PropFac,pt_default);
   // add filename from wavefunction fo default input for hamiltonian
   {
     auto wfn_pt = WfnFac.get_input(wfn_name);
     pt_default.put("filename", wfn_pt.template get<std::string>("filename"));
   }
-  std::string ham_name = get_or_push("hamiltonian",pt,HamFac,pt_default,system);
+  std::string ham_name = get_or_push("hamiltonian",pt,HamFac,pt_default);
 
-  return std::make_tuple(system,ham_name,wfn_name,wset_name,prop_name);
+  return std::make_tuple(ham_name,wfn_name,wset_name,prop_name);
 }
 
 template<MEMORY_SPACE MEM>
@@ -206,14 +152,7 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
   ptree pt = interpret_inputs_afqmc(pt_in);
   app_log(2,"\nDrvFac::executeAFQMCDriver input:\n{}\n",io::to_string(pt));
   // initialize using verbose input
-  auto [system,ham_name,wfn_name,wset_name,prop_name] = get_component_ids(pt);
-
-  if (InfoMap.find(system) == InfoMap.end())
-  {
-    app_error("ERROR: Undefined system in execute block. ");
-    return false;
-  }
-  auto& AFinfo = InfoMap[system];
+  auto [ham_name,wfn_name,wset_name,prop_name] = get_component_ids(pt);
 
   std::string hdf_read_restart;
   bool set_nWalker_target;
@@ -358,7 +297,7 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, ptr
   app_log(1,"****************************************************");
   app_log(1,"****************************************************\n");
 
-  AFQMCDriver<MEM> driver(mpi, AFinfo, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0, estim0);
+  AFQMCDriver<MEM> driver(mpi, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0, estim0);
 
   // free any shared windows that were abandoned during initialization
   mpi->shared_windows.collective_free_unused();
@@ -388,16 +327,7 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, p
   ptree pt = interpret_inputs_ftafqmc(pt_in);
   app_log(2,"\nDrvFac::executeFTAFQMCDriver input:\n{}\n",io::to_string(pt));
   // initialize using verbose input
-  auto [system,ham_name,wfn_name,wset_name,prop_name] = get_component_ids(pt);
-
-  if (InfoMap.find(system) == InfoMap.end())
-  {
-    app_error("ERROR: Undefined system in execute block. ");
-    return false;
-  }
-  auto& AFinfo = InfoMap[system];
-  //int NMO      = AFinfo.NMO;
-  //int ndown     = AFinfo.ndown;
+  auto [ham_name,wfn_name,wset_name,prop_name] = get_component_ids(pt);
 
   std::string hdf_read_restart;
   // read but unused: finite-T restart is not yet supported, so the walker set is
@@ -542,7 +472,7 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, p
   app_log(1,"****************************************************");
   app_log(1,"****************************************************\n");
 
-  FTAFQMCDriver<MEM> driver(mpi, AFinfo, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0, estim0);
+  FTAFQMCDriver<MEM> driver(mpi, title, m_series, block0, step0, Eshift, pt_in, wfn0, prop0, estim0);
 
   if (!driver.run(wset))
   {
@@ -810,8 +740,7 @@ bool DriverFactory<MEM>::executeCSAFQMCDriver(std::string title, int m_series, p
 #define __inst__(M)                                                                  \
 template bool DriverFactory<M>::executeDriver(std::string,std::string,int,ptree);    \
 template std::string DriverFactory<M>::get_wavefunction_id(ptree);                   \
-template std::string DriverFactory<M>::get_system_id(ptree,std::string);             \
-template std::tuple<std::string,std::string,std::string,std::string,std::string>     \
+template std::tuple<std::string,std::string,std::string,std::string>                 \
   DriverFactory<M>::get_component_ids(ptree);                                        \
 template bool DriverFactory<M>::executeAFQMCDriver(std::string,int,ptree);           \
 template bool DriverFactory<M>::executeFTAFQMCDriver(std::string,int,ptree);           \

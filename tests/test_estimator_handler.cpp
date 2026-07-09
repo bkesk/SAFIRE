@@ -57,28 +57,23 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
                " Wavefunction file not found: {}. \n Run unit test with --wfn /path/to/wfn.h5 ", wfn_file);
 
   int population_control_interval = 10;
-  auto[NMO,nup, ndown] = read_info_from_wfn(wfn_file, "any");
+  [[maybe_unused]] auto[NMO,nup, ndown] = read_info_from_wfn(wfn_file, "any");
   utils::check(NMO == read_nmo_from_hdf(hamil_file), "NMO differ between hamil and wfn files.");
 
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
   std::shared_ptr<utils::RandomGenerator_t<MEM>> rng_dev = std::make_shared<utils::RandomGenerator_t<MEM>>(utils::make_rng<MEM>(777));
 
-  std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
-
   ptree ham_pt;
   ham_pt.put("name","ham0");
-  ham_pt.put("system","info0");
   ham_pt.put("filename",hamil_file);
 
-  HamiltonianFactory HamFac(InfoMap);
+  HamiltonianFactory HamFac;
   HamFac.push("ham0", ham_pt);
   Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
   WALKER_TYPES type = afqmc::getWalkerType(wfn_file);
   ptree wlk_pt;
   wlk_pt.put("name","wset0");
-  wlk_pt.put("system","info0");
   wlk_pt.put("walker_type", walkerTypeToString(type));
 
   int nspin            = (type == COLLINEAR) ? 2 : 1;
@@ -86,7 +81,6 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
 
   ptree wfn_pt;
   wfn_pt.put("name","wfn0");
-  wfn_pt.put("system","info0");
   wfn_pt.put("filename",wfn_file);
   wfn_pt.put("dense_trial",true);
 
@@ -97,9 +91,8 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
 
   ptree prop_pt;
   prop_pt.put("name","prop0");
-  prop_pt.put("system","info0");
 
-  PropagatorFactory<MEM> PropgFac(InfoMap);
+  PropagatorFactory<MEM> PropgFac;
   PropgFac.push("prop0", prop_pt);
   auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 

@@ -674,9 +674,7 @@ public:
     pt1.put("min_weight", min_weight);
     pt1.put("max_weight", max_weight);
     pt1.put("finite_temperature", finite_temperature);
-    std::unordered_set<std::string> pass_through_keys = {
-      "system"
-    };
+    std::unordered_set<std::string> pass_through_keys = {};
     io::compare_known_keys("Walker set",pt1, pt0,pass_through_keys);
     return pt1;
   }

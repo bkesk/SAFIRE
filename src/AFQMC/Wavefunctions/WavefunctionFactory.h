@@ -48,12 +48,9 @@ public:
       APP_ABORT("Error in WavefunctionFactory: missing required input: name \n");
     if(not io::check_exists<std::string>(pt0,"filename"))
       APP_ABORT("Error in WavefunctionFactory: missing required input: filename \n");
-    if(not io::check_exists<std::string>(pt0,"system"))
-      APP_ABORT("Error in WavefunctionFactory: missing required input: info \n");
     // read inputs with default options
     int ndets_to_read = pt0.get<int>("ndets_to_read", -1);
     std::string name          = pt0.get<std::string>("name");
-    std::string info          = pt0.get<std::string>("system");
     std::string filename      = pt0.get<std::string>("filename");
 //    std::string restart_file  = pt0.get<std::string>("restart_file", "");
     bool rediag        = pt0.get<bool>("rediag", false);
@@ -61,7 +58,6 @@ public:
     // create verbose internal inputs
     ptree pt1;
     pt1.put("name", name);
-    pt1.put("system", info);
     pt1.put("filename", filename);
 //    pt1.put("restart_file", restart_file);
     pt1.put("rediag", rediag);
@@ -72,9 +68,7 @@ public:
     // set default later, since it depends on HamiltonianOperations type
     if( auto val = pt0.get_optional<bool>("dense_trial") )
       pt1.put("dense_trial", *val);
-    std::unordered_set<std::string> pass_through_keys = {
-      "system"
-    };
+    std::unordered_set<std::string> pass_through_keys = {};
     io::compare_known_keys("Wavefunction Factory",pt1, pt0,pass_through_keys);
     return pt1;
   }
@@ -252,7 +246,7 @@ protected:
 
   // per-spin trial orbital matrices, sized to the walker (alpha: npol*NMO x naea,
   // beta: NMO x naeb for collinear). The true widths keep {rows, naea, naeb}
-  // inferable by the walker set without AFQMCInfo.
+  // inferable by the walker set directly from the guess.
   std::map<std::string, std::vector<nda::matrix<ComplexType>>> initial_guess;
 
   std::map<std::string, memory::const_shared_array<HOST_MEMORY, ComplexType, 4>> initial_guess_ft;

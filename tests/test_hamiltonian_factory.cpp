@@ -73,16 +73,12 @@ void thc_vs_chol_energy_agreement(
   h5::group nomsd_grp = wfn_grp.open_group("Wavefunction").open_group("NOMSD");
   auto PsiT = read_nomsd_wavefunction<HOST_MEMORY>(nomsd_grp, 1, walker_type, NMO, nup, ndown);
 
-  std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert({"info0", AFQMCInfo{"info0", NMO, nup, ndown}});
-
   // Build HamiltonianOperations from a file-backed Hamiltonian
   auto make_ham_ops = [&](std::string hamil_file) {
     ptree ham_pt;
     ham_pt.put("name",     "ham0");
-    ham_pt.put("system",   "info0");
     ham_pt.put("filename", hamil_file);
-    HamiltonianFactory HamFac(InfoMap);
+    HamiltonianFactory HamFac;
     HamFac.push("ham0", ham_pt);
     auto& ham = HamFac.getHamiltonian(mpi, "ham0");
     return ham.template getHamiltonianOperations<HOST_MEMORY>(walker_type, mpi, PsiT);
@@ -169,17 +165,12 @@ void hamiltonian_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3:
 
   int NMO = read_nmo_from_hdf(hamil_file);
   CHECK(NMO > 0);
-  int nup=1, ndown=1;
-
-  std::map<std::string, AFQMCInfo> InfoMap;
-  InfoMap.insert(std::pair<std::string, AFQMCInfo>("info0", AFQMCInfo{"info0", NMO, nup, ndown}));
 
   ptree ham_pt;
   ham_pt.put("name","ham0");
-  ham_pt.put("system","info0");
   ham_pt.put("filename",hamil_file);
 
-  HamiltonianFactory HamFac(InfoMap);
+  HamiltonianFactory HamFac;
   HamFac.push("ham0", ham_pt);
   [[maybe_unused]] Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 }
