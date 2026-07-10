@@ -77,9 +77,11 @@ inline std::string get_hamiltonian_format(h5::group& grp)
 
 // Reads the constant energy offset from an integral file: E_nuclear + E_frozen_core,
 // plus the Madelung electron self-interaction for periodic (coqui) systems.
+// nup/ndn are the trial-WF occupations of each spin block (ndn == 0 for CLOSED and
+// NONCOLLINEAR), from which the total electron count is derived for the Madelung term.
 // Must be called on the MPI root (the caller broadcasts the result).
 inline ComplexType read_energy_offset(h5::group& grp, std::string const& format,
-                                      long nup, long ndown)
+                                      WALKER_TYPES type, long nup, long ndn)
 {
   ComplexType E0(0);
   if(format == "std") {
@@ -98,7 +100,8 @@ inline ComplexType read_energy_offset(h5::group& grp, std::string const& format,
     }
     if(H5Aexists(h5::hid_t(hgrp), "madelung_constant")) {
       h5::h5_read_attribute(hgrp, "madelung_constant", madelung);
-      madelung *= -1.0 * (nup + ndown);
+      long nelec = (type == CLOSED) ? 2 * nup : nup + ndn;  // NONCOLLINEAR: ndn == 0
+      madelung *= -1.0 * nelec;
     }
     app_log(2, "");
     app_log(2, " - Nuclear coulomb energy: {}", nuc);

@@ -118,7 +118,7 @@ KPTHCHamiltonian::getHamiltonianOperations(WALKER_TYPES type,
     file = h5::file(fileName,'r');
     grp = std::make_optional(h5::group(file));
     format = get_hamiltonian_format(*grp);
-    E0 = read_energy_offset(*grp, format, nel_up, nel_dn);
+    E0 = read_energy_offset(*grp, format, type, nel_up, nel_dn);
     // open subgroup
     utils::check(format == "coqui", base_error + " Only coqui format is allowed. Format found:{}",format);
     hgrp = std::make_optional(grp->open_group("System"));
