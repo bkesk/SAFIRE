@@ -131,12 +131,9 @@ bool AFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
   if (nCheckpoint > 0)
     checkpoint(wset, iBlock, step_tot);
 
+  prop0.printBoundStatistics();
   // print timers
-  if(mpi->comm.root())
-  { 
-    prop0.printBoundStatistics();
-    AFQMCTimer.print_all();
-  }
+  if(mpi->comm.root()) AFQMCTimer.print_all();
 
   app_log(1,"****************************************************");
   app_log(1,"               Finished AFQMC calculation           ");
