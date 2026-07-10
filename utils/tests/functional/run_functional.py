@@ -81,7 +81,7 @@ class Case:
 def _wavefunction_is_implemented(c: Case) -> bool:
     # only collinear PHMSD with collinear walkers is implemented; all NOMSD spin symmetries are fine.
     if c.wavefunction.type == WavefunctionClass.PHMSD:
-        return WALKERS[c.walker] == SpinSymm.COLLINEAR or WALKERS[c.walker] == SpinSymm.NONCOLLINEAR and c.wavefunction.spin == SpinSymm.COLLINEAR
+        return WALKERS[c.walker] == SpinSymm.COLLINEAR and c.wavefunction.spin == SpinSymm.COLLINEAR
     return True
 
 
@@ -115,6 +115,11 @@ def should_skip(c: Case) -> bool:
     if c.hamiltonian.type == HamiltonianClass.MODEL and c.hamiltonian.spin == SpinSymm.CLOSED:
         return True
 
+    # The old reference would not support upgrading a wavefunction to Hamiltonian symmetry
+    if(c.hamiltonian.spin == SpinSymm.NONCOLLINEAR
+       and c.wavefunction.spin == SpinSymm.COLLINEAR
+       and WALKERS[c.walker] == SpinSymm.NONCOLLINEAR):
+        return True
     return False
 
 
