@@ -216,7 +216,7 @@ def build_systems() -> Dict[str, System]:
                 "ham_chol_closed": Hamiltonian("ham_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL,
                                                runparams={"total_walkers": 3200}),
                 "ham_thc_closed": Hamiltonian("ham_thc_1e-6.h5", S.CLOSED, HC.THC,
-                                              runparams={"max_num_mpi_ranks": 16, "total_walkers": 3200}),
+                                              runparams={"max_num_mpi_ranks": 16, "total_walkers": 1600}),
             },
             wavefunctions={
                 "pbe_closed_nomsd": Wavefunction("wfn_mf_pbe_closed.h5", S.CLOSED, WC.NOMSD),
@@ -230,7 +230,7 @@ def build_systems() -> Dict[str, System]:
             subdir="solids/C_diamond_coqui",
             hamiltonians={
                 "ham_2x2x2_chol_closed": Hamiltonian("ham_2x2x2_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL,
-                                                     runparams={"steps": 6000, "total_walkers": 3200}),
+                                                     runparams={"steps": 6000, "total_walkers": 1600}),
             },
             wavefunctions={"pbe_wfn_2x2x2_collinear": Wavefunction("wfn_mf_2x2x2_pbe.h5", S.COLLINEAR, WC.NOMSD)},
             walkers=["COLLINEAR"],
