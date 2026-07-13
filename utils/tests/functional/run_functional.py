@@ -343,7 +343,7 @@ def _compare_energy(ft: h5.File, fr: h5.File) -> bool:
     if "energy" not in ft or "energy" not in fr:
         print("  [compare] missing energy dataset")
         return False
-    E, _ = ft["energy"][:]
+    E, dE = ft["energy"][:]
     Eref, dEref = fr["energy"][:]
     sigma = np.sqrt(dE**2 + dEref**2)
 
