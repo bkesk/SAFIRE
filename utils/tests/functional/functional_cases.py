@@ -137,7 +137,7 @@ def build_systems() -> Dict[str, System]:
         "Li": System(
             subdir="molecules/Li",
             hamiltonians={"hamil_closed": Hamiltonian("hamil_closed.h5", S.CLOSED, HC.GENERIC_DENSE)},
-            wavefunctions={"rohf_wfn_fullypolarized": Wavefunction("rohf_nomsd_fullypolarized.h5", FP, WC.NOMSD)},
+            wavefunctions={"rohf_wfn_fullypolarized": Wavefunction("rohf_nomsd_fullypolarized.h5", S.FULLYPOLARIZED, WC.NOMSD)},
             walkers=["FULLYPOLARIZED"],
             bp=True,
         ),
