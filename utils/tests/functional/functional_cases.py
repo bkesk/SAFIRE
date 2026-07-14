@@ -214,7 +214,7 @@ def build_systems() -> Dict[str, System]:
             subdir="solids/C_diamond_coqui",
             hamiltonians={
                 "ham_chol_closed": Hamiltonian("ham_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL,
-                                               runparams={"total_walkers": 3200}),
+                                               runparams={"total_walkers": 1600}),
                 "ham_thc_closed": Hamiltonian("ham_thc_1e-6.h5", S.CLOSED, HC.THC,
                                               runparams={"max_num_mpi_ranks": 16, "total_walkers": 1600}),
             },
