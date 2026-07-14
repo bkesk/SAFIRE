@@ -70,15 +70,13 @@ public:
     app_log(1," vHS dimensions: nspins = {}, npol = {}", nspins_in_vHS, npol_in_vHS);
     // convert user input to verbose input
     ptree pt = interpret_inputs(pt_in);
-    // Several defaults are Hamiltonian-type dependent, matching develop: its dedicated
-    // model/lattice propagator defaulted upper/lower_cutoff_scale to 50/50 and vbias_bound to
-    // 100 while the molecular base propagator used 10/1 and 50. Overhaul folded both into this
-    // class, so apply the model defaults here -- but only when the user did not set the values
-    // explicitly in the input.
+    // set model hamiltonian defaults to legacy values if not specified by user
     if (wfn->getHamType() == ModelHamiltonian) {
       if (not pt_in.get_optional<double>("upper_cutoff_scale")) pt.put("upper_cutoff_scale", 50.0);
       if (not pt_in.get_optional<double>("lower_cutoff_scale")) pt.put("lower_cutoff_scale", 50.0);
       if (not pt_in.get_optional<double>("vbias_bound"))        pt.put("vbias_bound", 100.0);
+      if (not pt_in.get_optional<bool>("denseP2"))                pt.put("denseP2", false);
+      if (not pt_in.get_optional<bool>("symmetric_split"))        pt.put("symmetric_split", false);
     }
     app_log(2,"\nBasePropagator input:\n\n{}\n",io::to_string(pt));
     // initialize using verbose input
