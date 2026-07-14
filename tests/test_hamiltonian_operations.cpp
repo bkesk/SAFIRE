@@ -32,16 +32,12 @@
 #include "catch2/catch_test_macros.hpp"
 
 #include <complex>
-#include <random>
-#include <string>
-#include <vector>
 
 #include "config.h"
 #include "AFQMC/config.h"
 #include "IO/AppAbort.hpp"
 #include "IO/app_loggers.h"
 #include "nda/nda.hpp"
-#include "utilities/check.hpp"
 #include "test_common.hpp"
 
 #include "hubbard_factorizations.hpp"

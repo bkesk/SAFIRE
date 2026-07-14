@@ -304,15 +304,27 @@ nda::array<T, 4> host_vexx_diagonal_kp(long NMO, RealType U, int nH) {
 
 /// Trivial Brillouin-zone tables for the single-kpoint lift (nkpts=1).
 struct SingleQTables {
-  nda::array<int, 2> nocc;     // (nspin, nkpts) — occupations per spin per k
+  nda::array<nda::array<int, 1>, 2> nocc; // (nspin, nkpts) — occupied orbital indices per spin per k
   nda::array<int, 1> minusq;   // q -> index of -q
   nda::array<int, 2> qk_to_k2; // (q, k) -> k+q index
   nda::array<int, 1> qmap;     // q -> index in symmetric-q list (KP3IndexFactorization)
 };
 
 inline SingleQTables make_single_q_tables(HubbardSpec const& s) {
+  // Single kpoint: every electron of walker-spin `is` occupies bands
+  // 0 .. nel_for_spin(is)-1 at the one kpoint.
+  int wns = s.walker_nspin();
+  nda::array<nda::array<int, 1>, 2> nocc(wns, 1);
+  for(int is = 0; is < wns; ++is) {
+    long n = s.nel_for_spin(is);
+    nda::array<int, 1> rows(n);
+    for(long a = 0; a < n; ++a) {
+      rows(a) = int(a);
+    }
+    nocc(is, 0) = std::move(rows);
+  }
   return SingleQTables{
-      .nocc     = nda::array<int, 2>{{s.walker_nup()}, {s.walker_ndown()}},
+      .nocc     = std::move(nocc),
       .minusq   = nda::array<int, 1>{0},
       .qk_to_k2 = nda::array<int, 2>{{0}},
       .qmap     = nda::array<int, 1>{0},
