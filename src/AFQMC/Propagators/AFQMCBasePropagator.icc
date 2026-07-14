@@ -52,6 +52,8 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   int nwalk        = wset.size();
   int npol  = walker_type == NONCOLLINEAR ? 2 : 1;
   int nspin = walker_type == COLLINEAR ? 2 : 1;
+  // Orbital count inferred from the walker Slater matrices (nwalk, npol*NMO, naea).
+  const int NMO = int(wset.SlaterMatrices(Alpha).extent(1)) / npol;
   SPRealType sqrtdt  = std::sqrt(SPRealType(dt));
   int nCV     = wfn->number_of_cholesky_vectors();
   bool step0 = false;
@@ -181,6 +183,10 @@ void AFQMCBasePropagator<MEM>::BackPropagate(int nbpsteps, int nStabalize, WlkSe
   int nwalk        = wset.size();
   int nCV          = wfn->number_of_cholesky_vectors();
   int nrefs        = Refs.extent(1);
+  // Dimensions inferred from the walker Slater matrices (nwalk, npol*NMO, naea/naeb).
+  const int NMO    = int(wset.SlaterMatrices(Alpha).extent(1)) / npol;
+  const int nup    = int(wset.SlaterMatrices(Alpha).extent(2));
+  const int ndown  = (walker_type == COLLINEAR) ? int(wset.SlaterMatrices(Beta).extent(2)) : 0;
   int nel          = ( walker_type==COLLINEAR ? nup+ndown : nup );
 
   utils::check(Refs.shape() == std::array<long,4>{nwalk,nrefs,npol*NMO,nel}, 
@@ -300,8 +306,12 @@ void AFQMCBasePropagator<MEM>::PropagateOperators(int nsteps, WlkSet& wset,
   int nspin        = (walker_type == COLLINEAR) ? 2 : 1;
   int nwalk        = wset.size();
   int nCV          = wfn->number_of_cholesky_vectors();
-  int bp_step      = wset.getBPPos(); 
+  int bp_step      = wset.getBPPos();
   ComplexType one(1.0,0.0);
+  // Dimensions inferred from the walker Slater matrices (nwalk, npol*NMO, naea/naeb).
+  const int NMO    = int(wset.SlaterMatrices(Alpha).extent(1)) / npol;
+  const int nup    = int(wset.SlaterMatrices(Alpha).extent(2));
+  const int ndown  = (walker_type == COLLINEAR) ? int(wset.SlaterMatrices(Beta).extent(2)) : 0;
 
   // Fields(nwalk, steps, nCV)
   auto Fields = wset.getFields();

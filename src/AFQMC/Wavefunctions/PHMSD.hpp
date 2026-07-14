@@ -68,7 +68,6 @@ public:
         ph_excitations<int, ComplexType, MEM>&& abij_,
         nda::array<csrM,1>&& op_spin_det_coupling_,
         nda::array<csrM,1>&& orbs_,
-        ComplexType nce,
         [[maybe_unused]] int targetNW = 1)
       : mpi(mpi_),
         walker_type(wlk),
@@ -76,8 +75,7 @@ public:
         HamOp(std::move(hop_)),
         abij(std::move(abij_)),
         OpSpinDetCouplings(std::move(op_spin_det_coupling_)),
-        OrbMats(std::move(orbs_)),
-        NuclearCoulombEnergy(nce)
+        OrbMats(std::move(orbs_))
   {
     /* To me, PHMSD is not compatible with walker_type=CLOSED unless
      * the MSD expansion is symmetric with respect to spin. For this, 
@@ -142,7 +140,6 @@ public:
     if( auto val = pt0.get_optional<int>("algorithm") )
       pt1.put("algorithm", *val);
     std::unordered_set<std::string> pass_through_keys = {
-      "system",
       "name",
       "ndets_to_read",
       "restart_file",
@@ -173,11 +170,6 @@ public:
 // This needs to depend on algorithm!!!
     HamOp.runtime_optimization(G);
   }
-
-  /*
-   * Returns the memory space.
-   */
-  constexpr auto get_memory_space() const { return MEM; }
 
   /*
    * Expectation value of Hubbard-Stratonovich potential with respect to trial wave-function.
@@ -362,12 +354,14 @@ public:
 
   ComplexType getReferenceWeight(int i) const { return std::get<2>(*abij.configuration(i)); }
 
-  int total_number_of_references() const { return abij.number_of_configurations(); } 
+  int total_number_of_references() const { return abij.number_of_configurations(); }
+
+  int getNMO() const { return NMO; }
 
   /*
    * Returns the reference Slater Matrices needed for back propagation.  
    */
-  void getReferences(int number_of_references, nda::MemoryArrayOfRank<3> auto&& Refs) 
+  void getReferences(nda::MemoryArrayOfRank<3> auto& Refs) 
   {
     using nda::range;
     auto all = range::all;
@@ -376,12 +370,10 @@ public:
     int nspin = walker_type == COLLINEAR ? 2 : 1;
     int nspin_in_wfn = OrbMats.extent(0);
     int npol = (walker_type == NONCOLLINEAR ? 2 : 1);
-    if(number_of_references==0) return;
-    if(number_of_references < 0) number_of_references = total_number_of_references(); 
-    utils::check(number_of_references > 0 and
-                 number_of_references <= Refs.extent(0),
-                 "Invalid number_of_references: {} should fulfill 0 < n <= {}!", number_of_references, Refs.extent(0));
-    utils::check(Refs.extent(1) == npol*NMO and Refs.extent(2) == nel, "Size mismatch");
+
+    int number_of_references = abij.number_of_configurations();
+    Refs.resize(number_of_references, npol*NMO, nel);
+    
     if (RefOrbMats.extent(0) < number_of_references)
     {
       RefOrbMats = memory::share_from_root(*mpi, [&] {
@@ -464,8 +456,6 @@ protected:
 
   // store references for back propagation
   memory::const_shared_array<HOST_MEMORY,ComplexType,3> RefOrbMats;
-
-  ComplexType NuclearCoulombEnergy;
 
   /*
    * Node-shared dense (daggered) copies of the orbital matrices.
