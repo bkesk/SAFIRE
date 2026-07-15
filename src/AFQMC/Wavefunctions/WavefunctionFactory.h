@@ -72,6 +72,10 @@ public:
     // set default later, since it depends on HamiltonianOperations type
     if( auto val = pt0.get_optional<bool>("dense_trial") )
       pt1.put("dense_trial", *val);
+    if( auto val = pt0.get_optional<int>("nwalk_block_size") )
+      pt1.put("nwalk_block_size", *val);
+    if( auto val = pt0.get_optional<int>("ndet_block_size") )
+      pt1.put("ndet_block_size", *val);
     std::unordered_set<std::string> pass_through_keys = {
       "system"
     };

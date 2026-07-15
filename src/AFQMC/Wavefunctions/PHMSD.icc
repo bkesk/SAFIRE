@@ -320,15 +320,10 @@ void PHMSD<MEM>::energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
   else  
   {
 
-    // Walker-batching: KEright + Tdn scale with the batch size; cap the batch so their
-    // combined footprint stays within ~1.5 GiB (keeps large-nwalk runs within GPU memory).
-    // Per-walker energies are independent, so any batch size is numerically identical.
-    int nbatch__ = nwalk;
-    {
-      long per_walker = 2L * maxn_unique_confg * nkev * long(sizeof(ComplexType));
-      long budget = 3L << 29; // ~1.5 GiB
-      nbatch__ = std::min(nwalk, std::max(1, int(budget / std::max(1L, per_walker))));
-    }
+    // Walker-block size: process nwalk_block_size walkers per energy batch so the KEright/Tdn
+    // device temporaries stay bounded regardless of the total walker count. Per-walker energies
+    // are independent, so the block size is numerically irrelevant (nwalk_block_size input).
+    int nbatch__ = std::min(nwalk, std::max(1, nwalk_block_size));
     auto SMup=wset.SlaterMatrices(Alpha);
     auto SMdn=wset.SlaterMatrices(Beta);
 
@@ -386,7 +381,7 @@ void PHMSD<MEM>::energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
 
         // 4a. calculate R matrices and evaluate E, KEright 
         ph_excited_energies_first_step(abij, wgt, QQ0inv0, eloc,
-                                       KEright(range(nexcit[0]),all,all), HamOp);
+                                       KEright(range(nexcit[0]),all,all), HamOp, ndet_block_size);
         nda::tensor::add(one, eloc, "wi", one, E(w_rng,all), "wi");
 
         memory::buffered_array<MEM,ComplexType,3> Tdn(nexcit[0], nw, nkev);
@@ -445,7 +440,7 @@ void PHMSD<MEM>::energy_alg1(const WlkSet& wset, Mat&& E, TVec&& Ov)
 
         //4b. calculate R matrices and evaluate E, KEright
         ph_excited_energies_second_step(abij, wgt, QQ0inv1, eloc,
-                                        KEright(range(nexcit[1]),all,all), HamOp);
+                                        KEright(range(nexcit[1]),all,all), HamOp, ndet_block_size);
         nda::tensor::add(one, eloc, "wi", one, E(w_rng,all), "wi");
       }
     }

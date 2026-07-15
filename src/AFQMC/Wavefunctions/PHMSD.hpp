@@ -131,6 +131,13 @@ public:
       for(int i=0; i<ndown; i++)
         utils::check(refc[nup+i] == i, " Error: PHMSD algorithm=1 requires refc[i]==i.\n\n");
     }
+
+    if( auto val = pt.get_optional<int>("nwalk_block_size") ) nwalk_block_size = *val;
+    if( auto val = pt.get_optional<int>("ndet_block_size") )  ndet_block_size  = *val;
+    utils::check(nwalk_block_size > 0, " Error: PHMSD nwalk_block_size must be > 0.");
+    utils::check(ndet_block_size  > 0, " Error: PHMSD ndet_block_size must be > 0.");
+    app_log(1, " PHMSD energy batching: nwalk_block_size={}, ndet_block_size={}.",
+            nwalk_block_size, ndet_block_size);
   }
 
   static ptree interpret_inputs(const ptree pt0)
@@ -141,13 +148,19 @@ public:
     // leave as a true optional, to bypass issue with default value
     if( auto val = pt0.get_optional<int>("algorithm") )
       pt1.put("algorithm", *val);
+    if( auto val = pt0.get_optional<int>("nwalk_block_size") )
+      pt1.put("nwalk_block_size", *val);
+    if( auto val = pt0.get_optional<int>("ndet_block_size") )
+      pt1.put("ndet_block_size", *val);
     std::unordered_set<std::string> pass_through_keys = {
       "system",
       "name",
       "ndets_to_read",
       "restart_file",
       "filename",
-      "rediag"
+      "rediag",
+      "nwalk_block_size",
+      "ndet_block_size"
     };
     io::compare_known_keys("particle-hole multi-Slater det. (PHMSD) Wavefunction", pt1, pt0,pass_through_keys);
     return pt1;
@@ -455,7 +468,13 @@ protected:
   // 2: calculate Fapbq and call ph_energy_Fapbq
   int energy_algorithm = 0;
 
-  ph_excitations<int, ComplexType, MEM> abij; 
+  // energy_shared_alg1 batching (optional wavefunction inputs; see interpret_inputs):
+  //   nwalk_block_size : walkers processed per energy batch  (bounds KEright/Tdn)
+  //   ndet_block_size  : determinants per excitation-shell block (bounds R/KEl)
+  int nwalk_block_size = 8;
+  int ndet_block_size  = 4096;
+
+  ph_excitations<int, ComplexType, MEM> abij;
 
   // sparse matrix with opposite spin determinant couplings
   nda::array<PsiT_Matrix<MEM>,1> OpSpinDetCouplings;

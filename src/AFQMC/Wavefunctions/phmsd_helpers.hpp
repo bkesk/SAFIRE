@@ -293,7 +293,7 @@ void get_compact_ph_R_matrices(nda::MemoryVector auto const& iexcit,
 template<class Op, nda::MemoryMatrix Mat>
 void ph_excited_energies_first_step(ph_excitations<int, ComplexType, memory::get_memory_space<Mat>()>& abij,
          Mat&& wgt, nda::MemoryArrayOfRank<3> auto T,
-         nda::MemoryMatrix auto&& E, nda::MemoryArrayOfRank<3> auto&& KE, Op& HamOps)
+         nda::MemoryMatrix auto&& E, nda::MemoryArrayOfRank<3> auto&& KE, Op& HamOps, int ndet_block_size)
 {
   using nda::range;
   auto all = range::all;
@@ -320,7 +320,7 @@ void ph_excited_energies_first_step(ph_excitations<int, ComplexType, memory::get
   // process each excitation shell in blocks of at most NDET_BLK determinants so the
   // per-block temporaries (R, and the ndet-proportional intermediates inside
   // ph_excited_energy) stay bounded regardless of the total determinant count.
-  const int NDET_BLK = 512;
+  const int NDET_BLK = ndet_block_size;
   for (int nex = 1, idet=1; nex < abij.maximum_excitation_number()[spin]; nex++)
   {
     int ndet = abij.number_of_unique_excitations(nex)[spin];
@@ -353,9 +353,9 @@ void ph_excited_energies_first_step(ph_excitations<int, ComplexType, memory::get
 // E[nwalk,3]
 // KE[ndet,nwalk,nke]
 template<class Op, nda::MemoryMatrix Mat>
-void ph_excited_energies_second_step(ph_excitations<int, ComplexType, 
+void ph_excited_energies_second_step(ph_excitations<int, ComplexType,
          memory::get_memory_space<Mat>()>& abij, Mat&& wgt, nda::MemoryArrayOfRank<3> auto T,
-         nda::MemoryMatrix auto&& E, nda::MemoryArrayOfRank<3> auto&& KE, Op& HamOps)
+         nda::MemoryMatrix auto&& E, nda::MemoryArrayOfRank<3> auto&& KE, Op& HamOps, int ndet_block_size)
 {
   using nda::range;
   auto all = range::all;
@@ -382,7 +382,7 @@ void ph_excited_energies_second_step(ph_excitations<int, ComplexType,
 
   // process each excitation shell in blocks of at most NDET_BLK determinants (see
   // ph_excited_energies_first_step) to bound the per-block device temporaries.
-  const int NDET_BLK = 512;
+  const int NDET_BLK = ndet_block_size;
   for (int nex = 1, idet=1; nex < abij.maximum_excitation_number()[spin]; nex++)
   {
     int ndet = abij.number_of_unique_excitations(nex)[spin];
