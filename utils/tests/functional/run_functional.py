@@ -46,6 +46,7 @@ from typing import List, Optional
 
 import h5py as h5
 import numpy as np
+import scipy.stats
 
 # Reusing SAFIRE library utilities is fine; only the dev test harness is avoided.
 from afqmctools.utils.types import SpinSymm
@@ -364,10 +365,8 @@ def _compare_energy(ft: h5.File, fr: h5.File) -> bool:
     return False
 
 
-def _compare_1rdm(ft: h5.File, fr: h5.File) -> bool:
-    """Compare the back-propagated 1-RDM. A shape mismatch fails; otherwise we
-    report the fraction of elements agreeing within the joint stochastic
-    uncertainty (statistics-only check, warn-like, never fails) as the suite does."""
+def _compare_1rdm(ft: h5.File, fr: h5.File, tolerance = 0.02) -> bool:
+    """Compare the back-propagated 1-RDM. A shape mismatch fails; otherwise we do Bonferroni style test on the worst mismatch."""
     if "avg_1rdm" not in ft or "avg_1rdm" not in fr:
         print("  [compare] missing avg_1rdm dataset")
         return False
@@ -381,9 +380,16 @@ def _compare_1rdm(ft: h5.File, fr: h5.File) -> bool:
     sigma = np.sqrt(Aerr ** 2 + Berr ** 2).real
     for part in ("real", "imag"):
         a, b = getattr(A, part), getattr(B, part)
-        for k in (1, 2, 3):
-            pct = float(np.mean(np.isclose(a, b, atol=k * sigma, rtol=1e-4)) * 100)
-            print(f"  [compare] avg_1rdm {part} within {k} sigma: {pct:.1f}%")
+
+        z = (a - b)/sigma
+        z_crit = scipy.stats.norm.ppf(1-tolerance / (2 * sigma.size))
+        worst = np.unravel_index(np.argmax(np.abs(z)), z.shape)
+
+        if np.abs(z[worst]) <= z_crit:
+            print(f"  [compare] avg_1rdm {part} OK: worst component z = {z[worst]:.2f} <= {z_crit:.2f} (p={tolerance:.2f}) at idx = {worst}")
+        else:
+            print(f"  [compare] avg_1rdm {part} mismatch: worst component z = {z[worst]:.2f} <= {z_crit:.2f} (p={tolerance:.2f}) at idx = {worst}")
+            return False
     return True
 
 
