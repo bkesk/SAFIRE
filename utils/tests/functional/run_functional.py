@@ -64,6 +64,9 @@ from functional_cases import (
 )
 
 
+SIGNIFICANCE_LEVEL = 0.001
+MACHINE_EPS = 1e-9
+
 @dataclass
 class Case:
     hamiltonian: Hamiltonian
@@ -363,11 +366,11 @@ def _compare_energy(ft: h5.File, fr: h5.File) -> bool:
         print(f"  [compare] energy mismatch: {E:.6f} ± {dE:.6f} vs {Eref:.6f} ± {dEref:.6f} (p = {p:.2g} < {SIGNIFICANCE_LEVEL})")
         return False
 
-    print(f"  [compare] energy OK: {E:.6f} ± {dE:.6f} vs {Eref:.6f} ± {dEref:.6f} (p = {p:.2g})")
+    print(f"  [compare] energy OK: {E:.6f}±{dE:.6f} vs {Eref:.6f}±{dEref:.6f} (p = {p:.2g})")
     return True
 
 
-def _compare_1rdm(ft: h5.File, fr: h5.File, tolerance = 0.02, machine_eps = 1e-10) -> bool:
+def _compare_1rdm(ft: h5.File, fr: h5.File) -> bool:
     """Compare the back-propagated 1-RDM. A shape mismatch fails; otherwise we do Bonferroni adjusted test on the worst mismatch."""
     if "avg_1rdm" not in ft or "avg_1rdm" not in fr:
         print("  [compare] missing avg_1rdm dataset")
@@ -384,22 +387,22 @@ def _compare_1rdm(ft: h5.File, fr: h5.File, tolerance = 0.02, machine_eps = 1e-1
     # blocks that are identically zero (e.g. a collinear-derived noncollinear
     # reference) have sigma ~ machine epsilon, where (a - b)/sigma is a
     # tiny/tiny ratio that spuriously inflates the z-score.
-    valid = sigma > machine_eps
+    valid = sigma > MACHINE_EPS
     n_valid = int(np.count_nonzero(valid))
-    
+
     det = ~valid
     if det.any():
-        if not np.allclose(A[det], B[det], rtol=machine_eps, atol=machine_eps):
+        if not np.allclose(A[det], B[det], rtol=MACHINE_EPS, atol=MACHINE_EPS):
             d = np.abs(A - B)
             d[valid] = 0.0
             worst = tuple(map(int, np.unravel_index(np.argmax(d), d.shape)))
-            print(f"  [compare] avg_1rdm deterministic (sigma <= {machine_eps}) mismatch: |Δ| = {d[worst]:.3e} > {machine_eps} at idx = {worst}")
+            print(f"  [compare] avg_1rdm deterministic (sigma <= {MACHINE_EPS}) mismatch: |Δ| = {d[worst]:.3e} > {MACHINE_EPS} at idx = {worst}")
             return False
 
     if n_valid == 0:
-        print(f"  [compare] avg_1rdm: no components with sigma > {machine_eps}; matched to machine precision")
+        print(f"  [compare] avg_1rdm: no components with sigma > {MACHINE_EPS}; matched to machine precision")
         return True
-    z_crit = scipy.stats.norm.ppf(1 - tolerance / (2 * n_valid))
+    z_crit = scipy.stats.norm.ppf(1 - SIGNIFICANCE_LEVEL / (2 * n_valid))
     for part in ("real", "imag"):
         a, b = getattr(A, part), getattr(B, part)
 
@@ -408,9 +411,9 @@ def _compare_1rdm(ft: h5.File, fr: h5.File, tolerance = 0.02, machine_eps = 1e-1
         worst = tuple(map(int, np.unravel_index(np.argmax(np.abs(z)), z.shape)))
 
         if np.abs(z[worst]) <= z_crit:
-            print(f"  [compare] avg_1rdm {part} OK: worst component z = {z[worst]:.2f} <= {z_crit:.2f} (p={tolerance:.2f}) at idx = {worst}")
+            print(f"  [compare] avg_1rdm {part} OK: worst component z = {z[worst]:.2f} <= {z_crit:.2f} at idx = {worst}")
         else:
-            print(f"  [compare] avg_1rdm {part} mismatch: worst component z = {z[worst]:.2f} > {z_crit:.2f} (p={tolerance:.2f}) at idx = {worst}")
+            print(f"  [compare] avg_1rdm {part} mismatch: worst component z = {z[worst]:.2f} > {z_crit:.2f} at idx = {worst}")
             return False
     return True
 
