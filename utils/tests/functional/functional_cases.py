@@ -154,7 +154,7 @@ def build_systems() -> Dict[str, System]:
             },
             walkers=["CLOSED", "COLLINEAR", "NONCOLLINEAR"],
         ),
-        "square_4x4": System(
+        "hubbard": System(
             subdir="models/square_4x4_hubbard_nup5_ndn5",
             hamiltonians={
                 "ham_closed": Hamiltonian("ham_closed.h5", S.CLOSED, HC.MODEL),
@@ -183,7 +183,7 @@ def build_systems() -> Dict[str, System]:
             ],
             bp=True,
         ),
-        "square_6x1": System(
+        "hubbard_kanamori": System(
             subdir="models/square_6x1_hubbard_kanamori_nup6_ndn6",
             hamiltonians={
                 "ham_collinear": Hamiltonian("ham_collinear.h5", S.COLLINEAR, HC.MODEL),
@@ -210,7 +210,7 @@ def build_systems() -> Dict[str, System]:
                 ),
             ],
         ),
-        "diamond_coqui": System(
+        "diamond": System(
             subdir="solids/C_diamond_coqui",
             hamiltonians={
                 "ham_chol_closed": Hamiltonian("ham_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL,
