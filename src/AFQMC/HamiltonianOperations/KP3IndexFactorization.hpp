@@ -687,7 +687,7 @@ public:
       for(int iq=0; iq<nkpts; iq++)  {
         int nchol = Lank(iq).extent(4);
         if( iq != minusq(iq) ) 
-          math::accumulate(one,X3d(all,1,range(ncv0(iq),ncv0(iq)+nchol)),
+          math::accumulate(one,X3d(all,1,range(ncv0(minusq(iq)),ncv0(minusq(iq))+nchol)),
                                           X3d(all,0,range(ncv0(iq),ncv0(iq)+nchol)));
       }
       arch::set_device_synchronization(true);
