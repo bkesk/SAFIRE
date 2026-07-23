@@ -798,6 +798,10 @@ private:
     if (addEJ)
       utils::check(Kl.extent(0) == nwalk and Kl.extent(1) == nCV, "Size mismatch");
 
+    // Empty spin sector, nothing to do.
+    if (nel[ispin] == 0)
+      return;
+
     // one-body contribution
     // haj(ndet,nel,npol*nmo)
     if (addH1)

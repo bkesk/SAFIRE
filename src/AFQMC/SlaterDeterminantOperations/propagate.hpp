@@ -222,6 +222,7 @@ void propagate_impl(int npol, S_t && SM, P_t const& P1, V_t const& V, int order 
   using Type = nda::get_value_t<S_t>;
   static_assert( nda::is_complex_v<Type>, "Type mismatch");
   auto [Nw, Mtot, Nel] = SM.shape();
+  if(Nel == 0) return;  // empty sector (e.g. COLLINEAR ndown==0): nothing to propagate
   utils::check(Mtot%npol==0, "npol:{} incompatible with M:{}",npol,Mtot);
   long M = Mtot/npol;
   utils::check( P1.shape() == std::array<long,2>{Mtot,Mtot}, "Shape mismatch");

@@ -141,6 +141,7 @@ auto half_rotate_hamiltonian(utils::mpi_context_t<mpi3::communicator>& mpi, std:
       auto [id] = idx;
     
       for(long is=0; is<nspin; ++is) {
+        if(nel[is] == 0) continue;  // empty sector (ndown==0): no rows to half-rotate
         auto Aai = math::sparse::to_array<'N'>(PsiT(id,is));
         auto h_ = block(range(is*nel[0],nel[0]+is*nel[1]),all);
         nda::blas::gemm(Aai,nda::reshape(hc(), nspin, npol*NMO, npol*NMO)(is, all, all), h_);
