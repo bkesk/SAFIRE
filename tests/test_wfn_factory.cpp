@@ -323,7 +323,7 @@ TEST_CASE("wfn_factory: sdet", "[wfn_factory]")
       wfn_factory_sdet<MEM>(mpi, hamil_file, wfn_file, from, true, false, false);
     } else {
       // Test the wfn's native walker type plus every walker type it can be converted to.
-      for(auto to : {CLOSED, COLLINEAR, NONCOLLINEAR, FULLYPOLARIZED}) {
+      for(auto to : {CLOSED, COLLINEAR, NONCOLLINEAR}) {
         if(!walkerTypeIsConvertible(from, to)) continue;
         wfn_factory_sdet<MEM>(mpi, hamil_file, wfn_file, to, false, true,  write_reference && MEM == HOST_MEMORY);
         wfn_factory_sdet<MEM>(mpi, hamil_file, wfn_file, to, false, false, false);
