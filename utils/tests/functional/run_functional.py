@@ -39,7 +39,7 @@ import re
 import shlex
 import subprocess as sp
 import sys
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
 from typing import List, Optional
@@ -75,7 +75,6 @@ class Case:
     reference: Path      # absolute path to the reference results.h5
     out_subdir: Path     # path (relative to output-path/system) for this run
     runparams: dict
-    bp: bool = False     # run with back-propagation (and compare the 1-RDM)
 
 
 # ============================================================================
@@ -127,8 +126,8 @@ def should_skip(c: Case) -> bool:
     return False
 
 
-def bp_cherry_pick(c: Case) -> bool:
-    """Back-propagation subset selection from should_run_successfully_bp.
+def should_backprop(c: Case) -> bool:
+    """Back-propagation subset selection from should_succeed.
 
     BP runs are expensive, so only a representative subset of the successful
     space is exercised, chosen to cover distinct spin-symmetry transitions.
@@ -145,18 +144,6 @@ def bp_cherry_pick(c: Case) -> bool:
     elif h == SpinSymm.NONCOLLINEAR:
         return w == SpinSymm.NONCOLLINEAR and walker == SpinSymm.NONCOLLINEAR
     return False
-
-
-def bp_cases(success: List[Case]) -> List[Case]:
-    """The back-propagation cases: the cherry-picked subset of success cases,
-    flagged for BP and written to a sibling ``*_bp`` directory so they do not
-    clobber the plain run."""
-    picked = []
-    for c in success:
-        if bp_cherry_pick(c):
-            out = c.out_subdir.parent / (c.out_subdir.name + "_bp")
-            picked.append(replace(c, bp=True, out_subdir=out))
-    return picked
 
 
 # ============================================================================
@@ -366,7 +353,7 @@ def _compare_energy(ft: h5.File, fr: h5.File) -> bool:
         print(f"  [compare] energy mismatch: {E:.6f} ± {dE:.6f} vs {Eref:.6f} ± {dEref:.6f} (p = {p:.2g} < {SIGNIFICANCE_LEVEL})")
         return False
 
-    print(f"  [compare] energy OK: {E:.6f}±{dE:.6f} vs {Eref:.6f}±{dEref:.6f} (p = {p:.2g})")
+    print(f"  [compare] energy OK: {E:.6f} ± {dE:.6f} vs {Eref:.6f} ± {dEref:.6f} (p = {p:.2g} > {SIGNIFICANCE_LEVEL})")
     return True
 
 
@@ -477,7 +464,7 @@ def detect_ranks(mpiexec: str) -> int:
 
 def run_case(system: System, case: Case, out_root: Path, mpiexec: str,
              afqmc_exec: str, compute: str, ranks: int, timeout: Optional[float],
-             expect_success: bool) -> bool:
+             expect_success: bool, backpropagation: bool) -> bool:
     """Run one case's AFQMC subprocess, then record and compare its results."""
     out_dir = (out_root / case.out_subdir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -493,7 +480,7 @@ def run_case(system: System, case: Case, out_root: Path, mpiexec: str,
         n_walkers_per_mpi_task=n_walkers,
         steps=case.runparams.get("steps", 10000),
         timestep=case.runparams.get("timestep", 0.01),
-        run_bp=case.bp,
+        run_bp=backpropagation,
     )
 
     # Pass the input as an absolute path and let the child run in out_dir (so
@@ -516,9 +503,9 @@ def run_case(system: System, case: Case, out_root: Path, mpiexec: str,
             return False
         run_time = perf_counter() - t0
 
-    record_results(out_dir, return_code, run_time, run_bp=case.bp)
+    record_results(out_dir, return_code, run_time, run_bp=backpropagation)
     return compare(out_dir / "results.h5", case.reference, expect_success,
-                   check_bp=case.bp)
+                   check_bp=backpropagation)
 
 
 # ============================================================================
@@ -576,32 +563,32 @@ def main(argv=None) -> int:
     for name in selected:
         system = systems[name]
         all_cases = generate(system)
-        success = [c for c in all_cases if should_succeed(c) and not should_skip(c)]
+        success = [c for c in all_cases if should_succeed(c) and not should_skip(c) and not (system.bp and should_backprop(c))]
         fail = [c for c in all_cases if not should_succeed(c) and not should_skip(c)]
+        backprop = [c for c in all_cases if should_succeed(c) and system.bp and should_backprop(c) and not should_skip(c)]
 
         for c in all_cases:
             if should_skip(c):
                 print(f"Skipped case {c.out_subdir}.")
 
-        # Back-propagation cases are a cherry-picked subset of the success cases,
-        # only for systems that have them.
-        bp = bp_cases(success) if system.bp else []
         print(f"=== {name}: {len(success)} expected-success, "
-              f"{len(fail)} expected-fail, {len(bp)} back-propagation ===")
+              f"{len(fail)} expected-fail, {len(backprop)} back-propagation ===")
 
         for expect_success, label, group in (
                 (False, "EXPECT_FAILURE", fail),
                 (True, "EXPECT_SUCCESS", success),
-                (True, "BACKPROPAGATION", bp)):
+                (True, "BACKPROPAGATION", backprop)):
             for case in group:
                 tag = f"[{label}] {case.out_subdir}"
                 if args.dry_run:
                     print(f"  {tag}")
                     continue
                 print(f"\n>>> {name} {tag}")
+
                 ok = run_case(
                     system, case, args.output_path / name, args.mpiexec,
-                    afqmc_exec, args.compute, ranks, args.timeout, expect_success)
+                    afqmc_exec, args.compute, ranks, args.timeout, expect_success,
+                    label == "BACKPROPAGATION")
                 print(f"  RESULT: {'PASS' if ok else 'FAIL'}")
                 total_pass += int(ok)
                 total_fail += int(not ok)
