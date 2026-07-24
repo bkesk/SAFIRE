@@ -158,13 +158,6 @@ public:
     }
   }
 
-  ~KP3IndexFactorization() = default;
-
-  KP3IndexFactorization(const KP3IndexFactorization& other) = default;
-  KP3IndexFactorization& operator=(const KP3IndexFactorization& other) = default;
-  KP3IndexFactorization(KP3IndexFactorization&& other)                 = default;
-  KP3IndexFactorization& operator=(KP3IndexFactorization&& other) = default;
-
   nda::array<ComplexType,3> getOneBodyPropagatorMatrix(double dt,
                                                        nda::MemoryVector auto const& vMF)
   {
