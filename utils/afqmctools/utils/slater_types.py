@@ -13,6 +13,8 @@ Define an enumerated type to simplify specifying a Slater determinant type.
 """
 
 from enum import Enum
+from warnings import warn
+
 from afqmctools.hamiltonian.model.ham_class import SpinSymm
 
 class _SlaterType(Enum):
@@ -38,7 +40,6 @@ class _SlaterType(Enum):
     CLOSED='rhf'
     COLLINEAR='uhf'
     NONCOLLINEAR='ghf'
-    FULLYPOLARIZED='fully_polarized'
 
 
 def _slater_enum_map(type):
@@ -61,7 +62,11 @@ def _slater_enum_map(type):
     elif type in (3,'noncollinear','ghf',SpinSymm.NONCOLLINEAR):
         return _SlaterType.NONCOLLINEAR
     elif type in (4,'fully_polarized','fullypolarized','fp'):
-        return _SlaterType.FULLYPOLARIZED
+        warn(
+            "The 'fully_polarized' Slater determinant / walker type has been removed. "
+            "Using COLLINEAR with zero beta electrons instead."
+        )
+        return _SlaterType.COLLINEAR
     else:
         raise ValueError(f"Invalid Slater type: {type}")
 
@@ -94,8 +99,6 @@ def _slater2dims(slater_type:_SlaterType):
         return 2
     elif slater_type == _SlaterType.NONCOLLINEAR:
         return 3
-    elif slater_type == _SlaterType.FULLYPOLARIZED:
-        return 4
     else:
         return 0
 
@@ -144,12 +147,13 @@ def _is_collinear(phi,nelec):
     Determine if the Slater matrix is collinear-like
     (i.e. UHF or ROHF-like) based on the shape of the
     Slater matrix and the number of electrons.
+
+    A fully spin-polarized state (nelec[1] == 0) is collinear with an
+    empty beta sector.
     """
 
     # UHF-like
-    if nelec[1] == 0:
-        return False # fully polarized!
-    elif len(phi.shape) == 3 and nelec[1] > 0:
+    if len(phi.shape) == 3:
         return True
     # ROHF-like
     elif len(phi.shape) == 2 and nelec[0] != nelec[1]:
@@ -165,18 +169,6 @@ def _is_closed(phi,nelec):
 
 def _is_noncollinear(phi,M):
     if len(phi.shape) == 2 and phi.shape[0] == 2*M:
-        return True
-    else:
-        return False
-
-def _is_fully_polarized(phi,nelec=None):
-    if nelec[1] != 0:
-        return False
-    # UHF-like - this case should probably never be reached? keep for safety
-    elif len(phi.shape) == 3 and nelec[1] == 0:
-        return True
-    # ROHF-like
-    elif len(phi.shape) == 2 and nelec[1] == 0:
         return True
     else:
         return False
@@ -216,7 +208,5 @@ def _get_slater_type(phi,nelec,M):
         return _SlaterType.CLOSED
     elif _is_collinear(phi,nelec=nelec):
         return _SlaterType.COLLINEAR
-    elif _is_fully_polarized(phi,nelec=nelec):
-        return _SlaterType.FULLYPOLARIZED
     else:
         raise ValueError("Unable to determine a valid Slater determinant type.")
