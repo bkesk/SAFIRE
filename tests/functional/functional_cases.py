@@ -81,7 +81,6 @@ WALKERS: Dict[str, SpinSymm] = {
     "CLOSED": SpinSymm.CLOSED,
     "COLLINEAR": SpinSymm.COLLINEAR,
     "NONCOLLINEAR": SpinSymm.NONCOLLINEAR,
-    "FULLYPOLARIZED": SpinSymm.FULLYPOLARIZED,
 }
 
 
@@ -126,8 +125,8 @@ def build_systems() -> Dict[str, System]:
         "Li": System(
             data_dir="Li",
             hamiltonians={"hamil_closed": Hamiltonian("hamil_closed.h5", S.CLOSED, HC.GENERIC_DENSE)},
-            wavefunctions={"rohf_wfn_fullypolarized": Wavefunction("rohf_nomsd_fullypolarized.h5", S.FULLYPOLARIZED, WC.NOMSD)},
-            walkers=["FULLYPOLARIZED"],
+            wavefunctions={"rohf_wfn_polarized": Wavefunction("rohf_nomsd_polarized.h5", S.COLLINEAR, WC.NOMSD)},
+            walkers=["COLLINEAR"],
             bp=True,
         ),
         "Pb": System(

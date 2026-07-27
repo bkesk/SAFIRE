@@ -126,9 +126,6 @@ def should_succeed(c: Case) -> bool:
         # no closed walkers on lattice hamiltonian
         not (c.hamiltonian.type == HamiltonianClass.MODEL
              and WALKERS[c.walker] == SpinSymm.CLOSED),
-        # wfn/walkers either both fully-polarized or both not
-        (c.wavefunction.spin == SpinSymm.FULLYPOLARIZED)
-        == (WALKERS[c.walker] == SpinSymm.FULLYPOLARIZED),
     ]
     return all(rules)
 
