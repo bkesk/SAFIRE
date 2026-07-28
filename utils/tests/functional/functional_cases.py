@@ -62,23 +62,17 @@ class Wavefunction:
 
 
 @dataclass
-class ExplicitCase:
-    """A non-combinatorial case, naming its own hamiltonian/wavefunction dirs."""
-    hamiltonian: Hamiltonian
-    wavefunction: Wavefunction
-    walker: str
-    ham_name: str        # hamiltonian component of the reference/output path
-    wfn_name: str        # wavefunction component of the reference/output path
-
-
-@dataclass
 class System:
+    """One set of cases: every hamiltonian x wavefunction x walker combination.
+
+    The dict keys name the reference/output path components, so a group of runs
+    that is not a full cross product belongs in its own ``System``.
+    """
     data_dir: str        # per-system dir under afqmc_inputs/ and statistical_references/
     hamiltonians: Dict[str, Hamiltonian]
     wavefunctions: Dict[str, Wavefunction]
     walkers: List[str]
     ref_override: Optional[Path] = None   # absolute ref dir (e.g. external ceph)
-    extra: List[ExplicitCase] = field(default_factory=list)
     bp: bool = False     # whether this system has back-propagation tests
 
     @property
@@ -170,22 +164,18 @@ def build_systems() -> Dict[str, System]:
                 "fe_noncollinear": Wavefunction("wfn_fe_noncollinear.h5", S.NONCOLLINEAR, WC.NOMSD),
             },
             walkers=["CLOSED", "COLLINEAR", "NONCOLLINEAR"],
-            extra=[
-                ExplicitCase(
-                    Hamiltonian("ham_collinear_Um4_disc_charge.h5", S.COLLINEAR, HC.MODEL),
-                    Wavefunction("uhf_U0.1_wfn_nup5_ndn5.h5", S.COLLINEAR, WC.NOMSD),
-                    "COLLINEAR",
-                    "ham_collinear_disc_charge",
-                    "hf_U0.1_collinear",
-                ),
-                ExplicitCase(
-                    Hamiltonian("ham_collinear_Um4_cont_charge.h5", S.COLLINEAR, HC.MODEL),
-                    Wavefunction("uhf_U0.1_wfn_nup5_ndn5.h5", S.COLLINEAR, WC.NOMSD),
-                    "COLLINEAR",
-                    "ham_collinear_cont_charge",
-                    "hf_U0.1_collinear",
-                ),
-            ],
+            bp=True,
+        ),
+        "hubbard_charge": System(
+            data_dir="square_4x4_hubbard_nup5_ndn5",
+            hamiltonians={
+                "ham_collinear_disc_charge": Hamiltonian("ham_collinear_Um4_disc_charge.h5", S.COLLINEAR, HC.MODEL),
+                "ham_collinear_cont_charge": Hamiltonian("ham_collinear_Um4_cont_charge.h5", S.COLLINEAR, HC.MODEL),
+            },
+            wavefunctions={
+                "hf_U0.1_collinear": Wavefunction("uhf_U0.1_wfn_nup5_ndn5.h5", S.COLLINEAR, WC.NOMSD),
+            },
+            walkers=["COLLINEAR"],
             bp=True,
         ),
         "hubbard_kanamori": System(
@@ -203,18 +193,13 @@ def build_systems() -> Dict[str, System]:
         ),
         "rashba_soc": System(
             data_dir="rashba_soc",
-            hamiltonians={},
-            wavefunctions={},
-            walkers=[],
-            extra=[
-                ExplicitCase(
-                    Hamiltonian("afqmc_U1.0_lambda0.1sqrt3_free_elec_trial.h5", S.NONCOLLINEAR, HC.MODEL),
-                    Wavefunction("afqmc_U1.0_lambda0.1sqrt3_free_elec_trial.h5", S.NONCOLLINEAR, WC.NOMSD),
-                    "NONCOLLINEAR",
-                    "lambda0.1sqrt3_noncollinear",
-                    "ghf_nomsd_free_elec_trial",
-                ),
-            ],
+            hamiltonians={
+                "lambda0.1sqrt3_noncollinear": Hamiltonian("afqmc_U1.0_lambda0.1sqrt3_free_elec_trial.h5", S.NONCOLLINEAR, HC.MODEL),
+            },
+            wavefunctions={
+                "ghf_nomsd_free_elec_trial": Wavefunction("afqmc_U1.0_lambda0.1sqrt3_free_elec_trial.h5", S.NONCOLLINEAR, WC.NOMSD),
+            },
+            walkers=["NONCOLLINEAR"],
         ),
         "diamond": System(
             data_dir="C_diamond_coqui",

@@ -14,11 +14,11 @@ Simple functional-test runner for SAFIRE.
 
 For a chosen system it:
   1. enumerates the hamiltonian x wavefunction x walker combinations defined in
-     `functional_cases.py` (the same definitions the test modules use),
-  2. filters them into "expected success" and "expected failure" sets using a
-      reimplementation of the suite's spin-symmetry / implementation rules,
+     `functional_cases.py`,
+  2. filters them into "expected success" and "expected failure" sets using the
+     spin-symmetry / implementation rules,
   3. writes `afqmc.json` and runs AFQMC for each case in a directory mirroring
-     the `afqmc_ref_runs` layout,
+     the `statistical_references` layout,
   4. records `afqmc.out` (+ AFQMC's native output) and a small `results.h5`,
   5. compares against the stored reference `results.h5` and prints a plain-text
      PASS/FAIL line per case plus a final tally.
@@ -159,31 +159,19 @@ def merge_runparams(*sources) -> dict:
 
 
 def generate(system: System) -> List[Case]:
+    """Every hamiltonian x wavefunction x walker combination of a system, each
+    keyed to the reference at `<hamiltonian>/<wavefunction>/<walker>/results.h5`."""
     cases: List[Case] = []
-    ref = system.ref_dir
-
     for h_name, hamiltonian in system.hamiltonians.items():
         for w_name, wavefunction in system.wavefunctions.items():
             for walker in system.walkers:
-                run_dir = ref / h_name / w_name / walker.lower()
-                if not run_dir.exists():
-                    print(f"  [skip] no reference dir: {run_dir}")
-                    continue
+                subdir = Path(h_name) / w_name / walker.lower()
                 cases.append(Case(
                     hamiltonian=hamiltonian, wavefunction=wavefunction, walker=walker,
-                    reference=run_dir / "results.h5",
-                    out_subdir=Path(h_name) / w_name / walker.lower(),
+                    reference=system.ref_dir / subdir / "results.h5",
+                    out_subdir=subdir,
                     runparams=merge_runparams(hamiltonian.runparams, wavefunction.runparams),
                 ))
-
-    for ex in system.extra:
-        reference = ref / ex.reference
-        cases.append(Case(
-            hamiltonian=ex.hamiltonian, wavefunction=ex.wavefunction, walker=ex.walker,
-            reference=reference,
-            out_subdir=reference.relative_to(ref).parent,
-            runparams=merge_runparams(ex.hamiltonian.runparams, ex.wavefunction.runparams),
-        ))
     return cases
 
 
