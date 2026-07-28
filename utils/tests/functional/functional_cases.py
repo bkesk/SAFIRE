@@ -27,6 +27,7 @@ from afqmctools.utils.types import SpinSymm
 ROOT = Path(__file__).resolve().parent
 INPUTS_ROOT = ROOT / "afqmc_inputs"
 REFERENCES_ROOT = ROOT / "statistical_references"
+SNAPSHOT_REFERENCES_ROOT = ROOT / "snapshot_references"
 
 
 # ============================================================================
@@ -68,21 +69,12 @@ class System:
     The dict keys name the reference/output path components, so a group of runs
     that is not a full cross product belongs in its own ``System``.
     """
-    data_dir: str        # per-system dir under afqmc_inputs/ and statistical_references/
+
+    data_dir: str        # per-system dir under afqmc_inputs/ and the reference roots
     hamiltonians: Dict[str, Hamiltonian]
     wavefunctions: Dict[str, Wavefunction]
     walkers: List[str]
-    ref_override: Optional[Path] = None   # absolute ref dir (e.g. external ceph)
     bp: bool = False     # whether this system has back-propagation tests
-
-    @property
-    def inputs_dir(self) -> Path:
-        return INPUTS_ROOT / self.data_dir
-
-    @property
-    def ref_dir(self) -> Path:
-        return self.ref_override or (REFERENCES_ROOT / self.data_dir)
-
 
 # The shared walker map: defined ONCE, referenced by name from each system.
 WALKERS: Dict[str, SpinSymm] = {
@@ -204,10 +196,8 @@ def build_systems() -> Dict[str, System]:
         "diamond": System(
             data_dir="C_diamond_coqui",
             hamiltonians={
-                "ham_chol_closed": Hamiltonian("ham_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL,
-                                               runparams={"total_walkers": 1600}),
-                "ham_thc_closed": Hamiltonian("ham_thc_1e-6.h5", S.CLOSED, HC.THC,
-                                              runparams={"max_num_mpi_ranks": 16, "total_walkers": 1600}),
+                "ham_chol_closed": Hamiltonian("ham_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL),
+                "ham_thc_closed": Hamiltonian("ham_thc_1e-6.h5", S.CLOSED, HC.THC),
             },
             wavefunctions={
                 "pbe_closed_nomsd": Wavefunction("wfn_mf_pbe_closed.h5", S.CLOSED, WC.NOMSD),
@@ -220,8 +210,7 @@ def build_systems() -> Dict[str, System]:
         "diamond_2x2x2": System(
             data_dir="C_diamond_coqui",
             hamiltonians={
-                "ham_2x2x2_chol_closed": Hamiltonian("ham_2x2x2_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL,
-                                                     runparams={"steps": 6000, "total_walkers": 1600}),
+                "ham_2x2x2_chol_closed": Hamiltonian("ham_2x2x2_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL),
             },
             wavefunctions={"pbe_wfn_2x2x2_collinear": Wavefunction("wfn_mf_2x2x2_pbe.h5", S.COLLINEAR, WC.NOMSD)},
             walkers=["COLLINEAR"],

@@ -23,22 +23,30 @@ For a chosen system it:
   5. compares against the stored reference `results.h5` and prints a plain-text
      PASS/FAIL line per case plus a final tally.
 
-Usage:
-    export AFQMC_EXEC=/path/to/afqmc
-    python run_functional.py SYSTEM --output-path DIR \
-        [--mpiexec "mpiexec -n 34" | "srun"] [--compute {cpu,gpu}] \
-        [--timeout SECONDS] [--dry-run]
-    python run_functional.py --list          # show available systems
-    python run_functional.py all --output-path DIR ...
+The comparison in step 5 comes in two flavours. By default a long run is compared
+statistically against `statistical_references`, which tests the physics but tolerates
+any change that stays within the stochastic error. With `--snapshot` a short, seeded
+run is compared to `snapshot_references` for numerically exact agreement, which
+catches changes the statistical test cannot see (a reordered random-number stream,
+say) but only reproduces at a fixed rank count.
+
+With `--regenerate` step 5 is replaced by copying each freshly recorded `results.h5`
+into the reference tree, which is how the stored references are produced in the first
+place.
+
+The AFQMC executable is taken from the AFQMC_EXEC environment variable.
 """
 
 import argparse
+import enum
 import json
 import os
 import re
 import shlex
+import shutil
 import subprocess as sp
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
@@ -61,20 +69,41 @@ from functional_cases import (
     System,
     WALKERS,
     build_systems,
+    INPUTS_ROOT,
+    REFERENCES_ROOT,
+    SNAPSHOT_REFERENCES_ROOT
 )
+
+
+class TestType(enum.Enum):
+    EXPECT_SUCCESS = enum.auto()
+    EXPECT_FAILURE = enum.auto()
+    BACKPROPAGATION = enum.auto()
 
 
 SIGNIFICANCE_LEVEL = 0.001
 MACHINE_EPS = 1e-9
+
+# Length of the equilibration phase discarded before averaging a scalar.dat column, in
+# units of imaginary time. Snapshot runs are too short to equilibrate and are compared
+# as they are, so they keep every block.
+NEQUIL = 5.0
+SNAPSHOT_NEQUIL = 0.0
+
 
 @dataclass
 class Case:
     hamiltonian: Hamiltonian
     wavefunction: Wavefunction
     walker: str
-    reference: Path      # absolute path to the reference results.h5
-    out_subdir: Path     # path (relative to output-path/system) for this run
+    data_dir: str              # system dir shared by afqmc_inputs/ and both reference roots
+    out_subdir: Path           # path (relative to output-path/system) for this run
     runparams: dict
+
+    def reference(self, snapshot: bool = False) -> Path:
+        """The stored results.h5 for this case, in the snapshot or statistical tree."""
+        root = SNAPSHOT_REFERENCES_ROOT if snapshot else REFERENCES_ROOT
+        return root / self.data_dir / self.out_subdir / "results.h5"
 
 
 # ============================================================================
@@ -168,7 +197,7 @@ def generate(system: System) -> List[Case]:
                 subdir = Path(h_name) / w_name / walker.lower()
                 cases.append(Case(
                     hamiltonian=hamiltonian, wavefunction=wavefunction, walker=walker,
-                    reference=system.ref_dir / subdir / "results.h5",
+                    data_dir=system.data_dir,
                     out_subdir=subdir,
                     runparams=merge_runparams(hamiltonian.runparams, wavefunction.runparams),
                 ))
@@ -180,8 +209,18 @@ def generate(system: System) -> List[Case]:
 # ============================================================================
 
 def write_input(path: Path, hamil_file: Path, wfn_file: Path, walker: str,
-                n_walkers_per_mpi_task: int, steps: int, timestep: float,
-                run_bp: bool):
+                n_walkers_per_mpi_task: int, timestep: float, run_bp: bool,
+                snapshot: bool):
+    steps = 10000
+    equil_multiplier = 200
+    population_control_interval = 10
+    bp_measure_interval_multiplier = 40
+    if snapshot:
+        steps = 20
+        equil_multiplier = 0
+        population_control_interval = 1
+        bp_measure_interval_multiplier = 2
+
     execute = {
         "walker_set": {"walker_type": walker},
         "wavefunction": {"filename": str(wfn_file)},
@@ -195,11 +234,11 @@ def write_input(path: Path, hamil_file: Path, wfn_file: Path, walker: str,
             "name": "back_propagation",
             "path_restoration": True,
             "bp_walker_ortho_interval": 10,
-            "measure_interval_multiplier": 40,
-            "equil_multiplier": 200,
+            "measure_interval_multiplier": bp_measure_interval_multiplier,
+            "equil_multiplier": equil_multiplier,
             "onerdm": {"name": "one_rdm"},
         }
-    execute["population_control_interval"] = 10
+    execute["population_control_interval"] = population_control_interval
     execute["measure_interval_multiplier"] = 1
     execute["walker_ortho_interval"] = 10
     execute["seed"] = 42
@@ -258,10 +297,10 @@ def _write_message_group(f: h5.File, name: str, messages: set):
         g.create_dataset(f"{prefix}_{i}", data=str(m))
 
 
-def _scalar_column(scalar_file: str, column: Optional[str], label: str):
+def _scalar_column(scalar_file: str, column: Optional[str], label: str, nequil: float):
     """Average a scalar.dat column, returning [value, stoch_error] or None."""
     try:
-        params = dict(fname=scalar_file, xaxis="time", nequil=5.0, verbose=False)
+        params = dict(fname=scalar_file, xaxis="time", nequil=nequil, verbose=False)
         if column is not None:
             params["column"] = column
         v, dv = analyze_scalar_data(params)
@@ -271,13 +310,15 @@ def _scalar_column(scalar_file: str, column: Optional[str], label: str):
         return None
 
 
-def record_results(out_dir: Path, return_code: int, run_time: float, run_bp: bool):
+def record_results(out_dir: Path, return_code: int, ranks: int, run_time: float,
+                   run_bp: bool, nequil: float):
     """Extract a results summary and write results.h5 (schema-compatible with the
-    reference files written by the pytest suite: includes energy, weight,
-    LogOvlpFactor and the error/warning message groups)."""
+    stored reference files: includes energy, weight, LogOvlpFactor and the
+    error/warning message groups)."""
     out_text = (out_dir / "afqmc.out").read_text()
     with h5.File(out_dir / "results.h5", "w") as f:
         f.create_dataset("return_code", data=return_code)
+        f.create_dataset("num_ranks", data=ranks)
         f.create_dataset("run_time_seconds", data=run_time)
         f.create_dataset("afqmc_is_finite", data=is_finite(out_text))
         f.create_dataset("afqmc_raised_error", data=raised_error(out_text))
@@ -287,10 +328,10 @@ def record_results(out_dir: Path, return_code: int, run_time: float, run_bp: boo
         _write_message_group(f, "warning_messages", warning_messages(out_text))
         if return_code == 0:
             scalar_file = str(out_dir / "qmc.s000.scalar.dat")
-            energy = _scalar_column(scalar_file, None, "energy")
+            energy = _scalar_column(scalar_file, None, "energy", nequil)
             if energy is not None:
                 f.create_dataset("energy", data=energy)
-            weight = _scalar_column(scalar_file, "weight", "weight")
+            weight = _scalar_column(scalar_file, "weight", "weight", nequil)
             if weight is not None:
                 f.create_dataset("weight", data=weight)
             # Log overlap: old name LogOvlpFactor, new name LogOvlp; support both.
@@ -299,7 +340,7 @@ def record_results(out_dir: Path, return_code: int, run_time: float, run_bp: boo
                             else "LogOvlp")
             except OSError:
                 ovlp_col = "LogOvlpFactor"
-            log_ovlp = _scalar_column(scalar_file, ovlp_col, "LogOvlpFactor")
+            log_ovlp = _scalar_column(scalar_file, ovlp_col, "LogOvlpFactor", nequil)
             if log_ovlp is not None:
                 f.create_dataset("LogOvlpFactor", data=log_ovlp)
             if run_bp:
@@ -319,12 +360,14 @@ def _rc_class(code) -> int:
     return 1 if int(code) > 0 else 0
 
 
-def _h5_error_messages(f: h5.File) -> set:
-    g = f.get("error_messages")
+def _h5_messages(f: h5.File, group: str = "error_messages") -> set:
+    g = f.get(group)
     if g is None:
         return set()
     n = int(g["num_messages"][()])
-    return {str(g[f"error_{i}"][()]) for i in range(n)}
+    prefix = group.split("_")[0]  # error_messages -> error_0, error_1, ...
+    msgs = (g[f"{prefix}_{i}"][()] for i in range(n))
+    return {m.decode() if isinstance(m, bytes) else str(m) for m in msgs}
 
 
 def _compare_energy(ft: h5.File, fr: h5.File) -> bool:
@@ -337,7 +380,7 @@ def _compare_energy(ft: h5.File, fr: h5.File) -> bool:
 
     z = (E-Eref)/sigma
     p = 2 * scipy.stats.norm.sf(abs(z))
-    if p < SIGNIFICANCE_LEVEL:
+    if np.isnan(p) or p < SIGNIFICANCE_LEVEL:
         print(f"  [compare] energy mismatch: {E:.6f} ± {dE:.6f} vs {Eref:.6f} ± {dEref:.6f} (p = {p:.2g} < {SIGNIFICANCE_LEVEL})")
         return False
 
@@ -393,10 +436,8 @@ def _compare_1rdm(ft: h5.File, fr: h5.File) -> bool:
     return True
 
 
-def compare(test_h5: Path, ref_h5: Path, expect_success: bool, check_bp: bool = False) -> bool:
-    if not ref_h5.exists():
-        print(f"  [compare] reference missing: {ref_h5}")
-        return False
+def compare_statistically(test_h5: Path, ref_h5: Path, test_type: TestType) -> bool:
+    """Whether the run agrees with the reference within the stochastic error."""
     with h5.File(test_h5, "r") as ft, h5.File(ref_h5, "r") as fr:
         if not bool(ft["afqmc_is_finite"][()]):
             print("  [compare] test results contain NaN")
@@ -407,12 +448,12 @@ def compare(test_h5: Path, ref_h5: Path, expect_success: bool, check_bp: bool = 
             print(f"  [compare] return-code class mismatch: test={test_rc} ref={ref_rc}")
             return False
 
-        if expect_success:
+        if test_type != TestType.EXPECT_FAILURE:
             if test_rc != 0:
                 print("  [compare] expected success but run exited with error")
                 return False
             ok = _compare_energy(ft, fr)
-            if check_bp:
+            if test_type == TestType.BACKPROPAGATION:
                 ok = _compare_1rdm(ft, fr) and ok
             for name in ("weight", "LogOvlpFactor"):
                 if name in ft and name in fr:
@@ -424,9 +465,128 @@ def compare(test_h5: Path, ref_h5: Path, expect_success: bool, check_bp: bool = 
         if test_rc != 1 or ref_rc != 1:
             print("  [compare] expected both to exit with error")
             return False
-        if _h5_error_messages(fr) != _h5_error_messages(ft):
+        if _h5_messages(fr) != _h5_messages(ft):
             print("  [compare] error messages differ (still counts as matching error exit)")
         return True
+
+
+def _exact_mismatch(a, b) -> Optional[str]:
+    """None if a and b agree to MACHINE_EPS, else a description of the disagreement."""
+    a, b = np.asarray(a), np.asarray(b)
+    if a.shape != b.shape:
+        return f"shape {a.shape} vs {b.shape}"
+    if a.dtype.kind in "SUO" or b.dtype.kind in "SUO":
+        return None if np.array_equal(a, b) else f"{a} vs {b}"
+    if np.array_equal(a, b) or np.allclose(a, b, rtol=MACHINE_EPS, atol=MACHINE_EPS):
+        return None
+    d = np.abs(a.astype(np.complex128) - b.astype(np.complex128))
+    if d.ndim == 0:
+        return f"{a} vs {b} (|Δ| = {d:.3e} > {MACHINE_EPS})"
+    worst = tuple(map(int, np.unravel_index(np.argmax(d), d.shape)))
+    return f"|Δ| = {d[worst]:.3e} > {MACHINE_EPS} at idx = {worst}"
+
+
+def _input_settings(f: h5.File) -> dict:
+    """The recorded input file, with the hamiltonian/wavefunction paths reduced to bare
+    filenames: those are absolute, so they differ between checkouts even when the run
+    settings are identical."""
+    raw = f["input_file"][()]
+    document = json.loads(raw.decode() if isinstance(raw, bytes) else raw)
+    execute = document["afqmc"]["execute"]
+    for key in ("hamiltonian", "wavefunction"):
+        if key in execute and "filename" in execute[key]:
+            execute[key]["filename"] = Path(execute[key]["filename"]).name
+    return document
+
+
+def compare_exactly(test_h5: Path, snapshot_h5: Path) -> bool:
+    """Whether the run reproduces the snapshot to MACHINE_EPS.
+
+    Snapshot runs are short, seeded and unequilibrated, so every recorded quantity is a
+    deterministic function of the input and the number of ranks. That makes the whole
+    file comparable, which is a stricter test than compare_statistically. The
+    error/warning message text is the one exception, treated as in the statistical test:
+    a difference is reported but does not fail the case.
+    """
+    with h5.File(test_h5, "r") as ft, h5.File(snapshot_h5, "r") as fs:
+        if not bool(ft["afqmc_is_finite"][()]):
+            print("  [compare] test results contain NaN")
+            return False
+
+        # run_time_seconds is timing; input_file is compared as parsed settings below.
+        ignored = {"run_time_seconds", "input_file"}
+        test_keys, snap_keys = set(ft.keys()) - ignored, set(fs.keys()) - ignored
+        if test_keys != snap_keys:
+            print(f"  [compare] recorded quantities differ: "
+                  f"only in test = {sorted(test_keys - snap_keys)}, "
+                  f"only in snapshot = {sorted(snap_keys - test_keys)}")
+            return False
+
+        # A snapshot only reproduces at the rank count it was recorded with: walkers are
+        # split over the ranks and every rank draws its own auxiliary fields. Report that
+        # before anything else, since it explains every other difference.
+        if "num_ranks" in test_keys:
+            mismatch = _exact_mismatch(ft["num_ranks"][()], fs["num_ranks"][()])
+            if mismatch is not None:
+                print(f"  [compare] rank count differs ({mismatch}); rerun with the "
+                      f"launcher the snapshot was recorded with, or re-record it")
+                return False
+
+        if _input_settings(ft) != _input_settings(fs):
+            print("  [compare] the snapshot was recorded with different run settings; "
+                  "re-record it")
+            return False
+
+        message_groups = {"error_messages", "warning_messages"}
+        for name in sorted(message_groups & test_keys):
+            if _h5_messages(ft, name) != _h5_messages(fs, name):
+                print(f"  [compare] {name} differ (not compared)")
+
+        ok = True
+        compared = sorted(test_keys - message_groups)
+        for name in compared:
+            mismatch = _exact_mismatch(ft[name][()], fs[name][()])
+            if mismatch is not None:
+                print(f"  [compare] {name} mismatch: {mismatch}")
+                ok = False
+        if ok:
+            print(f"  [compare] all {len(compared)} recorded quantities match to "
+                  f"{MACHINE_EPS}")
+        return ok
+
+
+def store_reference(results: Path, dest: Path, test_type: TestType) -> bool:
+    """Copy a freshly recorded results.h5 over the stored reference at `dest`.
+
+    A run is only frozen as a reference when its outcome matches what the case is
+    expected to do: recording a crashed run as a success reference (or a successful
+    run as an expected-failure reference) would bake the wrong behaviour in.
+    """
+    with h5.File(results, "r") as f:
+        rc = _rc_class(f["return_code"][()])
+        finite = bool(f["afqmc_is_finite"][()])
+
+    if test_type == TestType.EXPECT_FAILURE:
+        if rc == 0:
+            print("  [regenerate] refusing to store: expected failure but the run "
+                  "exited successfully")
+            return False
+    elif rc != 0:
+        print("  [regenerate] refusing to store: expected success but the run exited "
+              "with error")
+        return False
+    elif not finite:
+        print("  [regenerate] refusing to store: results contain NaN")
+        return False
+
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(results, dest)
+    except OSError as e:
+        print(f"  [regenerate] could not write {dest}: {e}")
+        return False
+    print(f"  [regenerate] wrote {dest}")
+    return True
 
 
 # ============================================================================
@@ -450,31 +610,41 @@ def detect_ranks(mpiexec: str) -> int:
     return count
 
 
-def run_case(system: System, case: Case, out_root: Path, mpiexec: str,
+def run_case(case: Case, test_type: TestType, out_root: Path, mpiexec: str,
              afqmc_exec: str, compute: str, ranks: int, timeout: Optional[float],
-             expect_success: bool, backpropagation: bool) -> bool:
-    """Run one case's AFQMC subprocess, then record and compare its results."""
+             snapshot: bool, regenerate: bool) -> Optional[bool]:
+    """Run one case's AFQMC subprocess, then record and compare its results (or, with
+    `regenerate`, store them as the new reference). None if the case has no reference
+    and could not be compared."""
     out_dir = (out_root / case.out_subdir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    hamil_file = system.inputs_dir / case.hamiltonian.file
-    wfn_file = system.inputs_dir / case.wavefunction.file
+    hamil_file = INPUTS_ROOT / case.data_dir / case.hamiltonian.file
+    wfn_file = INPUTS_ROOT / case.data_dir / case.wavefunction.file
 
+    run_bp = test_type == TestType.BACKPROPAGATION
     total_walkers = case.runparams.get("total_walkers", 1600)
+    if snapshot:
+        total_walkers = 50
     n_walkers = total_walkers // max(1, ranks)
 
     input_file = out_dir / "afqmc.json"
     write_input(
         input_file, hamil_file, wfn_file, case.walker,
         n_walkers_per_mpi_task=n_walkers,
-        steps=case.runparams.get("steps", 10000),
         timestep=case.runparams.get("timestep", 0.01),
-        run_bp=backpropagation,
+        run_bp=run_bp,
+        snapshot=snapshot,
     )
 
     # Pass the input as an absolute path and let the child run in out_dir (so
     # AFQMC's native output lands there) rather than mutating our own cwd.
     run_cmd = shlex.split(mpiexec) + [afqmc_exec, "--compute", compute,
                                      str(input_file)]
+
+    # for expected failures we can save time by not generating stack traces
+    if test_type == TestType.EXPECT_FAILURE:
+        run_cmd += ["--verbosity", "0"]
+
     print(f"  cmd: {' '.join(run_cmd)}")
 
     with open(out_dir / "afqmc.out", "w") as fout:
@@ -491,9 +661,18 @@ def run_case(system: System, case: Case, out_root: Path, mpiexec: str,
             return False
         run_time = perf_counter() - t0
 
-    record_results(out_dir, return_code, run_time, run_bp=backpropagation)
-    return compare(out_dir / "results.h5", case.reference, expect_success,
-                   check_bp=backpropagation)
+    results = out_dir / "results.h5"
+    record_results(out_dir, return_code, ranks, run_time, run_bp,
+                   nequil=SNAPSHOT_NEQUIL if snapshot else NEQUIL)
+    reference = case.reference(snapshot)
+    if regenerate:
+        return store_reference(results, reference, test_type)
+    if not reference.exists():
+        print(f"  [compare] reference missing: {reference}")
+        return None
+    if snapshot:
+        return compare_exactly(results, reference)
+    return compare_statistically(results, reference, test_type)
 
 
 # ============================================================================
@@ -515,6 +694,11 @@ def main(argv=None) -> int:
     p.add_argument("--dry-run", action="store_true",
                    help="list planned cases without running AFQMC")
     p.add_argument("--list", action="store_true", help="list available systems and exit")
+    p.add_argument("--snapshot", action="store_true", help="run each test for a few steps and check for numerically exact agreement against a seeded snapshot")
+    p.add_argument("--regenerate", action="store_true",
+                   help="instead of comparing, copy each run's results.h5 into the "
+                        "reference tree (snapshot_references with --snapshot, "
+                        "statistical_references otherwise)")
     args = p.parse_args(argv)
 
     if args.list or not args.system:
@@ -543,11 +727,11 @@ def main(argv=None) -> int:
 
     # The launcher is fixed for the whole run, so probe the rank count once.
     ranks = 1
-    if not args.dry_run and args.compute != "gpu":
+    if not args.dry_run:
         ranks = detect_ranks(args.mpiexec)
         print(f"Detected {ranks} MPI rank(s) for launcher: {args.mpiexec!r}")
 
-    total_pass = total_fail = 0
+    total_pass = total_fail = total_skip = 0
     for name in selected:
         system = systems[name]
         all_cases = generate(system)
@@ -555,34 +739,46 @@ def main(argv=None) -> int:
         fail = [c for c in all_cases if not should_succeed(c) and not should_skip(c)]
         backprop = [c for c in all_cases if should_succeed(c) and system.bp and should_backprop(c) and not should_skip(c)]
 
-        for c in all_cases:
-            if should_skip(c):
-                print(f"Skipped case {c.out_subdir}.")
-
         print(f"=== {name}: {len(success)} expected-success, "
               f"{len(fail)} expected-fail, {len(backprop)} back-propagation ===")
 
-        for expect_success, label, group in (
-                (False, "EXPECT_FAILURE", fail),
-                (True, "EXPECT_SUCCESS", success),
-                (True, "BACKPROPAGATION", backprop)):
+        for c in all_cases:
+            if should_skip(c):
+                print(f"  [SKIPPED] {c.out_subdir}")
+
+        for test_type, group in (
+                (TestType.EXPECT_FAILURE, fail),
+                (TestType.EXPECT_SUCCESS, success),
+                (TestType.BACKPROPAGATION, backprop)):
             for case in group:
-                tag = f"[{label}] {case.out_subdir}"
+                tag = f"[{test_type.name}] {case.out_subdir}"
                 if args.dry_run:
                     print(f"  {tag}")
                     continue
                 print(f"\n>>> {name} {tag}")
 
                 ok = run_case(
-                    system, case, args.output_path / name, args.mpiexec,
-                    afqmc_exec, args.compute, ranks, args.timeout, expect_success,
-                    label == "BACKPROPAGATION")
-                print(f"  RESULT: {'PASS' if ok else 'FAIL'}")
+                    case, test_type, args.output_path / name, args.mpiexec,
+                    afqmc_exec, args.compute, ranks=ranks, timeout=args.timeout,
+                    snapshot=args.snapshot, regenerate=args.regenerate)
+                if ok is None:
+                    print("  RESULT: SKIP")
+                    total_skip += 1
+                    continue
+                if args.regenerate:
+                    print(f"  RESULT: {'REGENERATED' if ok else 'NOT REGENERATED'}")
+                else:
+                    print(f"  RESULT: {'PASS' if ok else 'FAIL'}")
                 total_pass += int(ok)
                 total_fail += int(not ok)
 
     if not args.dry_run:
-        print(f"\n==== {total_pass} passed, {total_fail} failed ====")
+        if args.regenerate:
+            print(f"\n==== {total_pass} regenerated, {total_fail} not regenerated, "
+                  f"{total_skip} skipped ====")
+        else:
+            print(f"\n==== {total_pass} passed, {total_fail} failed, "
+                  f"{total_skip} skipped ====")
     return 1 if total_fail else 0
 
 
