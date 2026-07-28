@@ -665,7 +665,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("system", nargs="?", help="system key, or 'all'")
-    p.add_argument("--output-path", type=Path, help="root output directory. It is recommended to empty this directory before running the tests.")
+    p.add_argument("--output-path", type=Path, help="root output directory, temporary by default. It is recommended to empty this directory before running the tests.")
     p.add_argument("--mpiexec", default="",
                    help='launcher prefix prepended to AFQMC_EXEC (e.g. "mpiexec -n 34")')
     p.add_argument("--compute", choices=["cpu", "gpu"], default="cpu",
@@ -697,9 +697,10 @@ def main(argv=None) -> int:
         print(f"Unknown system '{args.system}'. Use --list to see options.")
         return 2
 
+    temp_dir = None
     if not args.dry_run and args.output_path is None:
-        print("--output-path is required unless --dry-run is given.")
-        return 2
+        temp_dir = tempfile.TemporaryDirectory()
+        args.output_path = Path(temp_dir.name)
 
     afqmc_exec = os.environ.get("AFQMC_EXEC")
     if not args.dry_run and not afqmc_exec:
