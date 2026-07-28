@@ -64,6 +64,9 @@ timeout(time: 1, unit: 'HOURS') {
             warnError("Tests failed") {
               sh 'cd $BUILD && ctest --output-on-failure'
             }
+            warnError("Snapshot tests failed") {
+              sh 'cd $BUILD && AFQMC_EXEC=$(pwd)/bin/safire PYTHONPATH=$SRC/utils python3 ../tests/functional/run_functional.py all --snapshot'
+            }
           }
         },
         cpp_clang: {

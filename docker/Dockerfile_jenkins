@@ -22,9 +22,18 @@ RUN apt-get update && apt-get install -y openssh-client git \
    python3-mpi4py \
    python3-h5py \
    python3-venv \
+   python3-scipy \
+   python3-pandas \
+   python3-matplotlib \
+   python3-toml \
    catch2 \
    libspdlog1.12 \
    libspdlog-dev
+
+# numba is not packaged for 24.04, but stats.lib.stats imports it at module scope, so the
+# functional test runner needs it. The archive numpy satisfies numba's requirement, so pip
+# leaves it (and hence the apt h5py built against it) alone.
+RUN pip install --break-system-packages numba
 
 # necessary for building BLIS within TBLIS
 ENV CC=/usr/bin/gcc
