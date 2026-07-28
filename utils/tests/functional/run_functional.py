@@ -122,13 +122,9 @@ def should_succeed(c: Case) -> bool:
         _wavefunction_is_implemented(c),
         WALKERS[c.walker] >= c.hamiltonian.spin,  # walker<->hamiltonian spin compatible
         WALKERS[c.walker] >= c.wavefunction.spin,  # walker<->wavefunction spin compatible
-        # not closed-THC with noncollinear wfn
-        not (c.hamiltonian.type == HamiltonianClass.THC
-             and c.hamiltonian.spin == SpinSymm.CLOSED
-             and c.wavefunction.spin == SpinSymm.NONCOLLINEAR),
         # no closed walkers on lattice hamiltonian
         not (c.hamiltonian.type == HamiltonianClass.MODEL
-             and c.hamiltonian.spin == SpinSymm.CLOSED),
+             and WALKERS[c.walker] == SpinSymm.CLOSED),
         # wfn/walkers either both fully-polarized or both not
         (c.wavefunction.spin == SpinSymm.FULLYPOLARIZED)
         == (WALKERS[c.walker] == SpinSymm.FULLYPOLARIZED),
@@ -137,21 +133,6 @@ def should_succeed(c: Case) -> bool:
 
 
 def should_skip(c: Case) -> bool:
-    # Multi-determinant noncollinear (GHF CASCI) NOMSD works but currently
-    # segfaults in the reference
-    if c.wavefunction.file == "afqmc_casci_ghf_nomsd.h5":
-        return True
-
-    # The code now supports model Hamiltonians as long as the walker spin symmetry is not closed
-    # However, the reference fails for any closed model Hamiltonian.
-    if c.hamiltonian.type == HamiltonianClass.MODEL and c.hamiltonian.spin == SpinSymm.CLOSED:
-        return True
-
-    # The old reference would not support upgrading a wavefunction to Hamiltonian symmetry
-    if(c.hamiltonian.spin == SpinSymm.NONCOLLINEAR
-       and c.wavefunction.spin == SpinSymm.COLLINEAR
-       and WALKERS[c.walker] == SpinSymm.NONCOLLINEAR):
-        return True
     return False
 
 
