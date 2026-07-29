@@ -191,7 +191,7 @@ run_result run_polarized(std::shared_ptr<utils::mpi_context_t<boost::mpi3::commu
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
   // Same seed for every representation so the auxiliary fields are identical.
   std::shared_ptr<utils::RandomGenerator_t<MEM>> rng_dev =
-      std::make_shared<utils::RandomGenerator_t<MEM>>(utils::make_rng<MEM>(777));
+      std::make_shared<utils::RandomGenerator_t<MEM>>(777);
 
   ptree ham_pt;
   ham_pt.put("name", "ham0");
