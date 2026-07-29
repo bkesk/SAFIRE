@@ -28,7 +28,8 @@ statistically against `statistical_references`, which tests the physics but tole
 any change that stays within the stochastic error. With `--snapshot` a short, seeded
 run is compared to `snapshot_references` for numerically exact agreement, which
 catches changes the statistical test cannot see (a reordered random-number stream,
-say) but only reproduces at a fixed rank count.
+say) but only reproduces at a fixed rank count, and on gpu only for an executable built
+with -DDEVICE_RNG_FROM_HOST=ON.
 
 With `--regenerate` step 5 is replaced by copying each freshly recorded `results.h5`
 into the reference tree, which is how the stored references are produced in the first
@@ -591,6 +592,23 @@ def detect_ranks(mpiexec: str) -> int:
     return count
 
 
+def device_rng_from_host_enabled(afqmc_exec: str) -> bool:
+    """Whether `afqmc_exec` was built with -DDEVICE_RNG_FROM_HOST=ON, read off its
+    --version feature list. Without it the device samples its own random numbers and
+    cannot reproduce a snapshot recorded on the host."""
+    try:
+        proc = sp.run([afqmc_exec, "--version"], stdout=sp.PIPE, stderr=sp.DEVNULL,
+                      env=os.environ, text=True, timeout=120)
+    except Exception as e:
+        print(f"  [error] could not run '{afqmc_exec} --version' ({e})")
+        return False
+    for line in proc.stdout.splitlines():
+        if line.startswith("Features:"):
+            return "DeviceRNGFromHost" in line
+    print(f"  [error] no 'Features:' line in '{afqmc_exec} --version' output")
+    return False
+
+
 def run_case(case: Case, test_type: TestType, out_root: Path, mpiexec: str,
              afqmc_exec: str, compute: str, ranks: int, timeout: Optional[float],
              snapshot: bool, regenerate: bool) -> Optional[bool]:
@@ -706,6 +724,15 @@ def main(argv=None) -> int:
     if not args.dry_run and not afqmc_exec:
         print("AFQMC_EXEC environment variable is not set.")
         return 2
+
+    # Snapshots are exact comparisons, so a GPU run has to draw the same random numbers
+    # as the host build the references were recorded with.
+    if not args.dry_run and args.snapshot and args.compute == "gpu":
+        if not device_rng_from_host_enabled(afqmc_exec):
+            print("Snapshot tests on gpu need a build configured with "
+                  "-DDEVICE_RNG_FROM_HOST=ON; otherwise the device draws its own "
+                  "random numbers and no case can reproduce its snapshot.")
+            return 2
 
     # The launcher is fixed for the whole run, so probe the rank count once.
     ranks = 1

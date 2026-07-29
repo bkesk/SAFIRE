@@ -84,6 +84,9 @@ option(ENABLE_SPDLOG "Build with spdlog" ON)
 option(ENABLE_CPPTRACE "Build with cpptrace support" ON)
 option(ENABLE_ASAN "Compile with AddressSanitizer for host C/C++ code" OFF)
 option(ENABLE_UBSAN "Compile with UndefinedBehaviorSanitizer for host C/C++ code" OFF)
+# Samples random fields on the host and copies them to the device, so device runs reproduce
+# host results bit-for-bit. Slow; for testing only. Has no effect in host-only builds.
+option(DEVICE_RNG_FROM_HOST "Use a host-sampled, copy-to-device RNG for host/device reproducibility" OFF)
 
 # Keep dependency-local sanitizer toggles disabled. SAFIRE controls sanitizer
 # flags globally through ENABLE_ASAN/ENABLE_UBSAN to avoid toolchain conflicts.
