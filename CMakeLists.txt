@@ -217,19 +217,29 @@ find_package(Boost 1.70.0 REQUIRED CONFIG)
 ######################################################################
 # Save current warning flags
 if(ENABLE_SPDLOG)
-  if(DEFINED SPDLOG) 
+  # not SPDLOG_VERSION: spdlog's own CMakeLists.txt uses that name
+  set(SPDLOG_FETCH_VERSION 1.8.3)
+
+  if(DEFINED SPDLOG)
     set(FETCHCONTENT_SOURCE_DIR_SPDLOG ${SPDLOG})
+  else()
+    # EXACT because spdlog's package version file is SameMajorVersion-compatible, so any
+    # 1.x would match: the Debian/Ubuntu packages (1.12) are built against an external fmt
+    # and drop the bundled one that src/IO/fmt_extensions.hpp includes.
+    find_package(spdlog ${SPDLOG_FETCH_VERSION} EXACT QUIET)
   endif()
 
-  set(SPDLOG_BUILD_SHARED OFF)
+  if(NOT spdlog_FOUND)
+    set(SPDLOG_BUILD_SHARED OFF)
 
-  FetchContent_Declare(
-          spdlog
-          GIT_REPOSITORY https://github.com/gabime/spdlog.git
-          GIT_TAG        v1.8.3
-          SYSTEM
-  )
-  FetchContent_MakeAvailable(spdlog)
+    FetchContent_Declare(
+            spdlog
+            GIT_REPOSITORY https://github.com/gabime/spdlog.git
+            GIT_TAG        v${SPDLOG_FETCH_VERSION}
+            SYSTEM
+    )
+    FetchContent_MakeAvailable(spdlog)
+  endif()
 endif()
 
 ######################################################################
@@ -281,7 +291,9 @@ if(NOT Catch2_FOUND)
   FetchContent_MakeAvailable(Catch2)
 endif()
 
-list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
+# Catch.cmake lives in extras/ (not the v2 contrib/), which both paths already put on
+# CMAKE_MODULE_PATH: the fetched tree from its own CMakeLists.txt, the installed one from
+# Catch2Config.cmake.
 include(Catch)
 
 ######################################################################

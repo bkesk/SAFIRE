@@ -5,19 +5,35 @@ properties([
 
 timeout(time: 1, unit: 'HOURS') {
   parallel cpu: {
-    buildPod(context: 'docker', dockerfile: 'Dockerfile_jenkins') {
+    buildPod(context: 'docker', dockerfile: 'Dockerfile_jenkins', tag: 'cpu',
+             buildArgs: '--build-arg VARIANT=cpu') {
       withEnv([
         "SRC=$WORKSPACE",
         "BUILD=$WORKSPACE/build",
-        "BUILD_CLANG=$WORKSPACE/build-clang"
+        "BUILD_CLANG=$WORKSPACE/build-clang",
+        "VENV=$WORKSPACE/venv",
+        "PATH+VENV=$WORKSPACE/venv/bin"
       ]) {
+        stage('python env') {
+          // The image's /opt/venv is root-owned and the pod runs as uid 1000, so copy it into
+          // the workspace before installing anything into it. A venv is not relocatable: the
+          // scripts in bin/ hardcode the old prefix in their shebang and activate hardcodes
+          // VIRTUAL_ENV, hence the rewrite (-I so the python symlinks are left alone).
+          //
+          // Only afqmctools itself is installed: its dependency stack is already in the venv
+          // at the versions the image pins, and --no-deps keeps pip from quietly resolving a
+          // different one here. This runs before the parallel stages below because they share
+          // the workspace and would otherwise race on the copy.
+          sh '''
+            rm -rf $VENV
+            cp -a /opt/venv $VENV
+            grep -rIl /opt/venv $VENV/bin | xargs -r sed -i "s|/opt/venv|$VENV|g"
+            pip install --no-deps $SRC/utils
+          '''
+        }
         parallel python: {
           stage('build docs') {
             sh '''
-              python3 -m venv $WORKSPACE/venv
-              cd $SRC/utils
-              . $WORKSPACE/venv/bin/activate
-              pip install .[DOCS]
               cd $SRC/docs
               make html
             '''
@@ -65,7 +81,7 @@ timeout(time: 1, unit: 'HOURS') {
               sh 'cd $BUILD && ctest --output-on-failure'
             }
             warnError("Snapshot tests failed") {
-              sh 'cd $BUILD && AFQMC_EXEC=$(pwd)/bin/safire PYTHONPATH=$SRC/utils python3 ../tests/functional/run_functional.py all --snapshot'
+              sh 'cd $BUILD && AFQMC_EXEC=$(pwd)/bin/safire python3 ../tests/functional/run_functional.py all --snapshot'
             }
           }
         },
@@ -98,7 +114,8 @@ timeout(time: 1, unit: 'HOURS') {
     }
   },
   cuda: {
-    buildPod(context: 'docker', dockerfile: 'Dockerfile_jenkins_cuda', tag: 'cuda5', gpus: 1) {
+    buildPod(context: 'docker', dockerfile: 'Dockerfile_jenkins', tag: 'cuda', gpus: 1,
+             buildArgs: '--build-arg VARIANT=cuda') {
       withEnv([
         "SRC=$WORKSPACE",
         "BUILD=$WORKSPACE/build"
