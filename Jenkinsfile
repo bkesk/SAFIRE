@@ -133,11 +133,15 @@ timeout(time: 1, unit: 'HOURS') {
               -DENABLE_CPPTRACE=OFF \
               -DENABLE_SPDLOG=ON \
               -DENABLE_CUDA=ON \
-              -DCUDA_ARCH=70
+              -DCUDA_ARCH=70 \
+              -DDEVICE_RNG_FROM_HOST=ON
           '''
           sh 'ninja -C $BUILD -j $PARALLEL'
           warnError("Tests failed") {
             sh 'cd $BUILD && CUDA_LAUNCH_BLOCKING=1 ctest --output-on-failure'
+          }
+          warnError("Snapshot tests failed") {
+            sh 'cd $BUILD && AFQMC_EXEC=$(pwd)/bin/safire python3 ../tests/functional/run_functional.py all --compute gpu --snapshot'
           }
         }
       }
