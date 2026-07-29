@@ -20,12 +20,12 @@
 #include "mpi3/communicator.hpp"
 #include "utilities/check.hpp"
 #include "AFQMC/Utilities/type_conversion.hpp"
-#include "arch/arch.h"
 #include "nda/nda.hpp"
 #include "numerics/nda_functions.hpp"
 #include "numerics/operations/tensor.hpp"
 
 #if defined(ENABLE_DEVICE)
+#include "arch/CUDA/cuda_init.h"
 #include "curand.h"
 #endif
 
@@ -82,7 +82,6 @@ public:
                            "curandGenerateUniformDouble");
       math::zero_imag(V);
     } 
-    arch::synchronize_if_set();
   }
 };
 
@@ -100,7 +99,6 @@ public:
     memory::buffered_array<HOST_MEMORY,T,1> Vhost(V.extent(0));
     rng_.sampleUniformFields(Vhost());
     V() = Vhost();
-    arch::synchronize_if_set();
   }
 };
 

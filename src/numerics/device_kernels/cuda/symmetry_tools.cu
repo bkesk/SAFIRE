@@ -48,13 +48,11 @@ void transform_k2g(bool trev, nda::stack_array<double, 3, 3> const& Rinv,
   int* err_d;
   int err = 0;
   cuda::cuda_check(cudaMalloc((void**)&err_d, sizeof(int)), "cudaMalloc");
-  cuda::synchronize();
   auto k2g_d = to_cuda_std_mdspan(k2g);
   auto kernel = sfqmc::utils::detail::transform_k2g<decltype(k2g_d)>{(trev?-1.0:1.0),
             to_cuda_std_array<3>(mesh),to_cuda_std_array<3>(Gs),
             to_cuda_std_array<9>(Rinv),k2g_d,err_d};
   cub::DeviceFor::Bulk(k2g.extent(0),kernel);
-  cuda::synchronize();
   cuda::cuda_check( cudaMemcpy(&err, err_d, sizeof(int), cudaMemcpyDefault), "CudaMemcpy" );
   cuda::cuda_check(cudaFree(err_d), "cudaFree");
   if( err > 0 ) 
