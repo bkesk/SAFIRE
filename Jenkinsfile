@@ -3,6 +3,13 @@ properties([
   buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
 ])
 
+// --no-deps because dependencies should already be installed in the image
+def pythonEnv = {
+  stage('python env') {
+    sh 'pip install --no-deps $SRC/utils'
+  }
+}
+
 timeout(time: 1, unit: 'HOURS') {
   parallel cpu: {
     buildPod(context: 'docker', dockerfile: 'Dockerfile_jenkins', tag: 'cpu',
@@ -10,27 +17,9 @@ timeout(time: 1, unit: 'HOURS') {
       withEnv([
         "SRC=$WORKSPACE",
         "BUILD=$WORKSPACE/build",
-        "BUILD_CLANG=$WORKSPACE/build-clang",
-        "VENV=$WORKSPACE/venv",
-        "PATH+VENV=$WORKSPACE/venv/bin"
+        "BUILD_CLANG=$WORKSPACE/build-clang"
       ]) {
-        stage('python env') {
-          // The image's /opt/venv is root-owned and the pod runs as uid 1000, so copy it into
-          // the workspace before installing anything into it. A venv is not relocatable: the
-          // scripts in bin/ hardcode the old prefix in their shebang and activate hardcodes
-          // VIRTUAL_ENV, hence the rewrite (-I so the python symlinks are left alone).
-          //
-          // Only afqmctools itself is installed: its dependency stack is already in the venv
-          // at the versions the image pins, and --no-deps keeps pip from quietly resolving a
-          // different one here. This runs before the parallel stages below because they share
-          // the workspace and would otherwise race on the copy.
-          sh '''
-            rm -rf $VENV
-            cp -a /opt/venv $VENV
-            grep -rIl /opt/venv $VENV/bin | xargs -r sed -i "s|/opt/venv|$VENV|g"
-            pip install --no-deps $SRC/utils
-          '''
-        }
+        pythonEnv()
         parallel python: {
           stage('build docs') {
             sh '''
@@ -120,6 +109,7 @@ timeout(time: 1, unit: 'HOURS') {
         "SRC=$WORKSPACE",
         "BUILD=$WORKSPACE/build"
       ]) {
+        pythonEnv()
         stage('cuda') {
           sh 'mkdir $BUILD'
           sh '''
