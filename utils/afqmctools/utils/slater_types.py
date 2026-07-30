@@ -147,9 +147,6 @@ def _is_collinear(phi,nelec):
     Determine if the Slater matrix is collinear-like
     (i.e. UHF or ROHF-like) based on the shape of the
     Slater matrix and the number of electrons.
-
-    A fully spin-polarized state (nelec[1] == 0) is collinear with an
-    empty beta sector.
     """
 
     # UHF-like

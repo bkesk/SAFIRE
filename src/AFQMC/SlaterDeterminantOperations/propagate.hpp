@@ -35,7 +35,7 @@ namespace detail
 
 /*
  * Calculate S = exp(im*V)*S using a Taylor expansion of exp(V)
- * Can be used for fully polarized, closed shell, collinear (call each spin separately)
+ * Can be used for closed shell, collinear (call each spin separately)
  * or noncollinear with full spin-orbit potential.
  */
 template<char TA, nda::MemoryArrayOfRank<3> V_t, nda::MemoryArrayOfRank<3> S_t>
@@ -112,7 +112,7 @@ void apply_expM(int npol, V_t const& V, S_t && S, int order = 6)
 /*
  * Calculate S = exp(im*V)*S using a Taylor expansion of exp(V)
  * In this case, V is a csr_matrix with dimensions [Nw*M, Nw*M].
- * Can be used for fully polarized, closed shell, collinear (call each spin separately)
+ * Can be used for closed shell, collinear (call each spin separately)
  * or noncollinear with full spin-orbit potential.
  */
 template<char TA, math::sparse::CSRMatrix V_t, nda::MemoryArrayOfRank<3> S_t>
