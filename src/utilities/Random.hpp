@@ -85,12 +85,38 @@ public:
     arch::synchronize_if_set();
   }
 };
+
+// Reproduces the HostRandomGenerator on device by doing inefficient copies. Useful for testing.
+class FromHostRandomGenerator {
+private:
+  HostRandomGenerator rng_;
+public:
+  FromHostRandomGenerator(SeedType iseed) : rng_{iseed} {}
+
+  template<nda::MemoryVector Vec>
+  requires(nda::mem::on_device<Vec>)
+  void sampleUniformFields(Vec && V){
+    using T = nda::get_value_t<Vec>;
+    memory::buffered_array<HOST_MEMORY,T,1> Vhost(V.extent(0));
+    rng_.sampleUniformFields(Vhost());
+    V() = Vhost();
+    arch::synchronize_if_set();
+  }
+};
+
 #endif
 
 
 #if defined(ENABLE_DEVICE)
+
+#if defined(DEVICE_RNG_FROM_HOST)
+using DeviceRandomGenerator = FromHostRandomGenerator;
+#else
+using DeviceRandomGenerator = CurandRandomGenerator;
+#endif
+
 template<MEMORY_SPACE MEM = HOST_MEMORY>
-using RandomGenerator_t = std::conditional_t<MEM==DEVICE_MEMORY,CurandRandomGenerator,HostRandomGenerator>; 
+using RandomGenerator_t = std::conditional_t<MEM==DEVICE_MEMORY,DeviceRandomGenerator,HostRandomGenerator>; 
 #else
 template<MEMORY_SPACE MEM = HOST_MEMORY>
 using RandomGenerator_t = HostRandomGenerator; 
