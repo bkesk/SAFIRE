@@ -330,15 +330,10 @@ TEST_CASE("polarized: consistency with up-only noncollinear", "[polarized]")
 
   using namespace utils;
 
-  // Molecular Cholesky collinear sources only for now. SOLIDS are left out
-  // because the C_diamond coqui Hamiltonian hits an unrelated scalar-attribute
-  // read issue (nuclear_energy read as rank-1 ComplexType). LATTICES (model
-  // Hamiltonians) are also left out. Non-collinear/closed source entries are
-  // skipped inside polarized_consistency.
   run_test_with_files([&]<auto MEM>(std::string hamil_file, std::string wfn_file, WALKER_TYPES, bool) {
     polarized_consistency<MEM>(mpi, hamil_file, wfn_file);
   }, UTEST_HAMIL, UTEST_WFN,
-     TestFiles::UHF | TestFiles::NOMSD | TestFiles::MOLECULES | TestFiles::SOLIDS);
+     TestFiles::UHF | TestFiles::NOMSD | TestFiles::MOLECULES | TestFiles::SOLIDS | TestFiles::LATTICES);
 }
 
 } // namespace sfqmc

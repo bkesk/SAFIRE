@@ -286,12 +286,18 @@ auto to_array(nda::MemoryMatrix auto const& view, nda::range row_range, nda::ran
 //      typename v_t::regular_t A(col_range.size(),row_range.size()); 
       constexpr MEMORY_SPACE M = memory::get_memory_space<v_t>();
       memory::buffered_array<M,nda::get_value_t<v_t>,2> A(col_range.size(),row_range.size());;
+      if(A.size() == 0) {
+        return A;  // transposing an empty matrix is a no-op; cuTENSOR rejects zero-length modes
+      }
       nda::tensor::add(view,"ji",A,"ij");
       return A; 
     } else if constexpr (op=='H' or op=='C') {
 //      typename v_t::regular_t A(col_range.size(),row_range.size()); 
       constexpr MEMORY_SPACE M = memory::get_memory_space<v_t>();
       memory::buffered_array<M,nda::get_value_t<v_t>,2> A(col_range.size(),row_range.size());;
+      if(A.size() == 0) {
+        return A;  // transposing an empty matrix is a no-op; cuTENSOR rejects zero-length modes
+      }
       nda::tensor::add(nda::conj(view),"ji",A,"ij");
       return A; 
     } else
@@ -316,12 +322,18 @@ auto to_array(nda::MemoryMatrix auto const& view)
 //      typename v_t::regular_t A(view.extent(1),view.extent(0));
       constexpr MEMORY_SPACE M = memory::get_memory_space<v_t>();
       memory::buffered_array<M,nda::get_value_t<v_t>,2> A(view.extent(1),view.extent(0));
+      if(A.size() == 0) {
+        return A;  // transposing an empty matrix is a no-op; cuTENSOR rejects zero-length modes
+      }
       nda::tensor::add(view,"ji",A,"ij");
       return A; 
     } else if constexpr (op=='H' or op=='C') {
 //      typename v_t::regular_t A(view.extent(1),view.extent(0));
       constexpr MEMORY_SPACE M = memory::get_memory_space<v_t>();
       memory::buffered_array<M,nda::get_value_t<v_t>,2> A(view.extent(1),view.extent(0));
+      if(A.size() == 0) {
+        return A;  // transposing an empty matrix is a no-op; cuTENSOR rejects zero-length modes
+      }
       nda::tensor::add(nda::conj(view),"ji",A,"ij");
       return A; 
     } else

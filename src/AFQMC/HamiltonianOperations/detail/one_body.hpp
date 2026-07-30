@@ -195,6 +195,9 @@ kpoint_half_rotate_cholesky(utils::mpi_context_t<mpi3::communicator>& mpi,
       auto [id,is,ik] = idx;
       auto const& rows = nocc(is,ik);
       int nk = int(rows.size());
+      if(nk == 0) {
+        return;  // empty sector (ndown==0): no rows to half-rotate
+      }
       for(long ip=0; ip<npol; ++ip) {
         auto [is_,ip_] = interaction_block(is,ip,npol,nspin_in_H1,npol_in_H1);
         if(Q <= Qm) {
@@ -231,6 +234,9 @@ kpoint_half_rotate_cholesky(utils::mpi_context_t<mpi3::communicator>& mpi,
         int ik = k2_to_k(k2);
         auto const& rows = nocc(is,k2);
         int nb = int(rows.size());
+        if(nb == 0) {
+          return;  // empty sector (ndown==0): no rows to half-rotate
+        }
         for(long ip=0; ip<npol; ++ip) {
           auto [is_,ip_] = interaction_block(is,ip,npol,nspin_in_H1,npol_in_H1);
           // conj(L[Q,k,k2](lj,n)) * A[k2]bj
