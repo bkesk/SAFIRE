@@ -9,7 +9,6 @@
 #      http://www.apache.org/licenses/LICENSE-2.0
 
 from enum import IntFlag
-from warnings import warn
 
 class SpinSymm(IntFlag):
     """
@@ -38,11 +37,5 @@ def get_spin_symm_enum(spin_symm):
         return SpinSymm.COLLINEAR
     elif spin_symm in ('ghf','noncollinear',"nc",SpinSymm.NONCOLLINEAR,3):
         return SpinSymm.NONCOLLINEAR
-    elif spin_symm in ('fullypolarized','fully polarized','fully_polarized','fp',4):
-        warn(
-            "The 'fully_polarized' spin symmetry has been removed. "
-            "Using COLLINEAR with zero beta electrons instead."
-        )
-        return SpinSymm.COLLINEAR
     else:
         raise ValueError(f"Unknown Spin symmetry: {spin_symm}")

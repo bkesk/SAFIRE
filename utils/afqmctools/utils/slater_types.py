@@ -13,7 +13,6 @@ Define an enumerated type to simplify specifying a Slater determinant type.
 """
 
 from enum import Enum
-from warnings import warn
 
 from afqmctools.hamiltonian.model.ham_class import SpinSymm
 
@@ -61,12 +60,6 @@ def _slater_enum_map(type):
         return _SlaterType.COLLINEAR
     elif type in (3,'noncollinear','ghf',SpinSymm.NONCOLLINEAR):
         return _SlaterType.NONCOLLINEAR
-    elif type in (4,'fully_polarized','fullypolarized','fp'):
-        warn(
-            "The 'fully_polarized' Slater determinant / walker type has been removed. "
-            "Using COLLINEAR with zero beta electrons instead."
-        )
-        return _SlaterType.COLLINEAR
     else:
         raise ValueError(f"Invalid Slater type: {type}")
 
