@@ -13,8 +13,8 @@ Registry of functional-test cases for ``run_functional.py``.
 
 This module holds only the data model and the per-system definitions (the list
 of Hamiltonian / wavefunction / walker inputs and reference paths). The runner
-imports :func:`build_systems` and :data:`WALKERS` from here. Keeping the case
-list separate keeps the runner focused on scheduling and checking logic.
+imports :func:`build_systems` from here. Keeping the case list separate keeps
+the runner focused on scheduling and checking logic.
 """
 
 import enum
@@ -73,16 +73,9 @@ class System:
     data_dir: str        # per-system dir under afqmc_inputs/ and the reference roots
     hamiltonians: Dict[str, Hamiltonian]
     wavefunctions: Dict[str, Wavefunction]
-    walkers: List[str]
+    walkers: List[SpinSymm]  # the member name also names the reference path component
+                             # and the walker_type of the generated input
     bp: bool = False     # whether this system has back-propagation tests
-
-# The shared walker map: defined ONCE, referenced by name from each system.
-WALKERS: Dict[str, SpinSymm] = {
-    "CLOSED": SpinSymm.CLOSED,
-    "COLLINEAR": SpinSymm.COLLINEAR,
-    "NONCOLLINEAR": SpinSymm.NONCOLLINEAR,
-    "FULLYPOLARIZED": SpinSymm.FULLYPOLARIZED,
-}
 
 
 # ============================================================================
@@ -97,7 +90,7 @@ def build_systems() -> Dict[str, System]:
             data_dir="N2",
             hamiltonians={"cas_basis_hamil_closed": Hamiltonian("cas_basis_hamil.h5", S.CLOSED, HC.GENERIC_DENSE)},
             wavefunctions={"cas_wfn_collinear": Wavefunction("cas_wfn.h5", S.COLLINEAR, WC.PHMSD)},
-            walkers=["COLLINEAR"],
+            walkers=[S.COLLINEAR],
         ),
         "BH": System(
             data_dir="BH",
@@ -120,14 +113,14 @@ def build_systems() -> Dict[str, System]:
                 "rcasci_uhf_1phmsd": Wavefunction("afqmc_casci_uhf_1phmsd.h5", S.COLLINEAR, WC.PHMSD),
                 "rcasci_ghf_1phmsd": Wavefunction("afqmc_casci_ghf_1phmsd.h5", S.NONCOLLINEAR, WC.PHMSD),
             },
-            walkers=["CLOSED", "COLLINEAR", "NONCOLLINEAR"],
+            walkers=[S.CLOSED, S.COLLINEAR, S.NONCOLLINEAR],
             bp=True,
         ),
         "Li": System(
             data_dir="Li",
             hamiltonians={"hamil_closed": Hamiltonian("hamil_closed.h5", S.CLOSED, HC.GENERIC_DENSE)},
-            wavefunctions={"rohf_wfn_fullypolarized": Wavefunction("rohf_nomsd_fullypolarized.h5", S.FULLYPOLARIZED, WC.NOMSD)},
-            walkers=["FULLYPOLARIZED"],
+            wavefunctions={"rohf_wfn_polarized": Wavefunction("rohf_nomsd_polarized.h5", S.COLLINEAR, WC.NOMSD)},
+            walkers=[S.COLLINEAR],
             bp=True,
         ),
         "Pb": System(
@@ -141,7 +134,7 @@ def build_systems() -> Dict[str, System]:
                 "ghf_sf_nomsd": Wavefunction("afqmc_ghf_sf_nomsd.h5", S.NONCOLLINEAR, WC.NOMSD),
                 "ghf_soc_nomsd": Wavefunction("afqmc_ghf_soc_nomsd.h5", S.NONCOLLINEAR, WC.NOMSD),
             },
-            walkers=["CLOSED", "COLLINEAR", "NONCOLLINEAR"],
+            walkers=[S.CLOSED, S.COLLINEAR, S.NONCOLLINEAR],
         ),
         "hubbard": System(
             data_dir="square_4x4_hubbard_nup5_ndn5",
@@ -155,7 +148,7 @@ def build_systems() -> Dict[str, System]:
                 "fe_collinear": Wavefunction("wfn_fe_collinear.h5", S.COLLINEAR, WC.NOMSD),
                 "fe_noncollinear": Wavefunction("wfn_fe_noncollinear.h5", S.NONCOLLINEAR, WC.NOMSD),
             },
-            walkers=["CLOSED", "COLLINEAR", "NONCOLLINEAR"],
+            walkers=[S.CLOSED, S.COLLINEAR, S.NONCOLLINEAR],
             bp=True,
         ),
         "hubbard_charge": System(
@@ -167,7 +160,7 @@ def build_systems() -> Dict[str, System]:
             wavefunctions={
                 "hf_U0.1_collinear": Wavefunction("uhf_U0.1_wfn_nup5_ndn5.h5", S.COLLINEAR, WC.NOMSD),
             },
-            walkers=["COLLINEAR"],
+            walkers=[S.COLLINEAR],
             bp=True,
         ),
         "hubbard_kanamori": System(
@@ -180,7 +173,7 @@ def build_systems() -> Dict[str, System]:
                 "fe_collinear": Wavefunction("wfn_fe_collinear.h5", S.COLLINEAR, WC.NOMSD),
                 "fe_noncollinear": Wavefunction("wfn_fe_noncollinear.h5", S.NONCOLLINEAR, WC.NOMSD),
             },
-            walkers=["COLLINEAR", "NONCOLLINEAR"],
+            walkers=[S.COLLINEAR, S.NONCOLLINEAR],
             bp=True,
         ),
         "rashba_soc": System(
@@ -191,7 +184,7 @@ def build_systems() -> Dict[str, System]:
             wavefunctions={
                 "ghf_nomsd_free_elec_trial": Wavefunction("afqmc_U1.0_lambda0.1sqrt3_free_elec_trial.h5", S.NONCOLLINEAR, WC.NOMSD),
             },
-            walkers=["NONCOLLINEAR"],
+            walkers=[S.NONCOLLINEAR],
         ),
         "diamond": System(
             data_dir="C_diamond_coqui",
@@ -204,7 +197,7 @@ def build_systems() -> Dict[str, System]:
                 "pbe_collinear_nomsd": Wavefunction("wfn_mf_pbe.h5", S.COLLINEAR, WC.NOMSD),
                 "pbe_collinear_nomsd_noncollinear": Wavefunction("wfn_mf_pbe_noncollinear.h5", S.NONCOLLINEAR, WC.NOMSD),
             },
-            walkers=["CLOSED", "COLLINEAR", "NONCOLLINEAR"],
+            walkers=[S.CLOSED, S.COLLINEAR, S.NONCOLLINEAR],
             bp=True,
         ),
         "diamond_2x2x2": System(
@@ -213,7 +206,7 @@ def build_systems() -> Dict[str, System]:
                 "ham_2x2x2_chol_closed": Hamiltonian("ham_2x2x2_chol_1e-5.h5", S.CLOSED, HC.KPFAC_CHOL),
             },
             wavefunctions={"pbe_wfn_2x2x2_collinear": Wavefunction("wfn_mf_2x2x2_pbe.h5", S.COLLINEAR, WC.NOMSD)},
-            walkers=["COLLINEAR"],
+            walkers=[S.COLLINEAR],
             bp=True,
         ),
     }

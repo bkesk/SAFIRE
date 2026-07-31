@@ -68,7 +68,6 @@ from functional_cases import (
     Hamiltonian,
     Wavefunction,
     System,
-    WALKERS,
     build_systems,
     INPUTS_ROOT,
     REFERENCES_ROOT,
@@ -96,7 +95,7 @@ SNAPSHOT_NEQUIL = 0.0
 class Case:
     hamiltonian: Hamiltonian
     wavefunction: Wavefunction
-    walker: str
+    walker: SpinSymm
     data_dir: str              # system dir shared by afqmc_inputs/ and both reference roots
     out_subdir: Path           # path (relative to output-path/system) for this run
     runparams: dict
@@ -114,21 +113,18 @@ class Case:
 def _wavefunction_is_implemented(c: Case) -> bool:
     # only collinear PHMSD with collinear walkers is implemented; all NOMSD spin symmetries are fine.
     if c.wavefunction.type == WavefunctionClass.PHMSD:
-        return WALKERS[c.walker] == SpinSymm.COLLINEAR and c.wavefunction.spin == SpinSymm.COLLINEAR
+        return c.walker == SpinSymm.COLLINEAR and c.wavefunction.spin == SpinSymm.COLLINEAR
     return True
 
 
 def should_succeed(c: Case) -> bool:
     rules = [
         _wavefunction_is_implemented(c),
-        WALKERS[c.walker] >= c.hamiltonian.spin,  # walker<->hamiltonian spin compatible
-        WALKERS[c.walker] >= c.wavefunction.spin,  # walker<->wavefunction spin compatible
+        c.walker >= c.hamiltonian.spin,  # walker<->hamiltonian spin compatible
+        c.walker >= c.wavefunction.spin,  # walker<->wavefunction spin compatible
         # no closed walkers on lattice hamiltonian
         not (c.hamiltonian.type == HamiltonianClass.MODEL
-             and WALKERS[c.walker] == SpinSymm.CLOSED),
-        # wfn/walkers either both fully-polarized or both not
-        (c.wavefunction.spin == SpinSymm.FULLYPOLARIZED)
-        == (WALKERS[c.walker] == SpinSymm.FULLYPOLARIZED),
+             and c.walker == SpinSymm.CLOSED),
     ]
     return all(rules)
 
@@ -143,7 +139,7 @@ def should_backprop(c: Case) -> bool:
     BP runs are expensive, so only a representative subset of the successful
     space is exercised, chosen to cover distinct spin-symmetry transitions.
     """
-    h, w, walker = c.hamiltonian.spin, c.wavefunction.spin, WALKERS[c.walker]
+    h, w, walker = c.hamiltonian.spin, c.wavefunction.spin, c.walker
     if h == SpinSymm.CLOSED:
         if w == SpinSymm.COLLINEAR:
             return walker != SpinSymm.CLOSED
@@ -176,7 +172,7 @@ def generate(system: System) -> List[Case]:
     for h_name, hamiltonian in system.hamiltonians.items():
         for w_name, wavefunction in system.wavefunctions.items():
             for walker in system.walkers:
-                subdir = Path(h_name) / w_name / walker.lower()
+                subdir = Path(h_name) / w_name / walker.name.lower()
                 cases.append(Case(
                     hamiltonian=hamiltonian, wavefunction=wavefunction, walker=walker,
                     data_dir=system.data_dir,
@@ -190,7 +186,7 @@ def generate(system: System) -> List[Case]:
 # Input file
 # ============================================================================
 
-def write_input(path: Path, hamil_file: Path, wfn_file: Path, walker: str,
+def write_input(path: Path, hamil_file: Path, wfn_file: Path, walker: SpinSymm,
                 n_walkers_per_mpi_task: int, timestep: float, run_bp: bool,
                 snapshot: bool):
     steps = 10000
@@ -204,7 +200,7 @@ def write_input(path: Path, hamil_file: Path, wfn_file: Path, walker: str,
         bp_measure_interval_multiplier = 2
 
     execute = {
-        "walker_set": {"walker_type": walker},
+        "walker_set": {"walker_type": walker.name},
         "wavefunction": {"filename": str(wfn_file)},
         "hamiltonian": {"filename": str(hamil_file)},
         "timestep": timestep,

@@ -290,11 +290,17 @@ namespace detail
 
     if constexpr (nda::is_complex_v<value_type>) {
       static_assert(A::is_stride_order_C() or A::is_stride_order_Fortran(), "Stride order mismatch");
-      if(a.indexmap().min_stride() != 1) {
+      // A zero extent zeroes out the strides of the enclosing dimensions, so an
+      // empty array carries no usable stride information: min_stride() is not
+      // meaningful and the doubled strides no longer respect the stride order.
+      // Nothing is addressable either way, so build the view from the shape alone.
+      bool const empty = (a.size() == 0);
+      if(not empty and a.indexmap().min_stride() != 1) {
         std::source_location loc = std::source_location::current();
         sfqmc::APP_ABORT_with_source(loc, "Strides mismatch");
-      } 
+      }
       if constexpr (A::is_stride_order_C()) {
+        using idx_map_t = nda::idx_map<rank+1, 0, nda::C_stride_order<rank+1>, nda::layout_prop_e::none>;
         std::array<long,rank+1> shape;
         std::copy_n(a.shape().begin(),rank,shape.begin());
         shape[rank] = 2;
@@ -302,12 +308,13 @@ namespace detail
         std::transform(a.strides().begin(),a.strides().end(),str.begin(),
             [](auto const& x) {return 2*x;} );
         str[rank] = 1;
-        nda::idx_map<rank+1, 0, nda::C_stride_order<rank+1>, nda::layout_prop_e::none> idxm(shape,str);
-        if constexpr (std::is_const_v<std::remove_pointer_t<decltype(a.data())>>) 
+        idx_map_t idxm = (empty ? idx_map_t(shape) : idx_map_t(shape,str));
+        if constexpr (std::is_const_v<std::remove_pointer_t<decltype(a.data())>>)
           return memory::array_view<MEM,const real_t,rank+1>(idxm, reinterpret_cast<real_t const*>(a.data()));
         else
           return memory::array_view<MEM,real_t,rank+1>(idxm, reinterpret_cast<real_t*>(a.data()));
       } else {
+        using idx_map_t = nda::idx_map<rank+1, 0, nda::Fortran_stride_order<rank+1>, nda::layout_prop_e::none>;
         std::array<long,rank+1> shape;
         std::copy_n(a.shape().begin(),rank,shape.begin()+1);
         shape[0] = 2;
@@ -315,8 +322,8 @@ namespace detail
         std::transform(a.strides().begin(),a.strides().end(),str.begin()+1,
             [](auto const& x) {return 2*x;} );
         str[0] = 1;
-        nda::idx_map<rank+1, 0, nda::Fortran_stride_order<rank+1>, nda::layout_prop_e::none> idxm(shape,str);    
-        if constexpr (std::is_const_v<std::remove_pointer_t<decltype(a.data())>>) 
+        idx_map_t idxm = (empty ? idx_map_t(shape) : idx_map_t(shape,str));
+        if constexpr (std::is_const_v<std::remove_pointer_t<decltype(a.data())>>)
           return memory::array_view<MEM,const real_t,rank+1,nda::F_stride_layout>(idxm, reinterpret_cast<real_t const*>(a.data()));
         else
           return memory::array_view<MEM,real_t,rank+1,nda::F_stride_layout>(idxm, reinterpret_cast<real_t*>(a.data()));
