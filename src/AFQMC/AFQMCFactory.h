@@ -30,7 +30,7 @@
 #include <cstdlib>
 
 #include "config.h"
-#include "IO/ptree/ptree_utilities.hpp"
+#include "AFQMC/parameters.hpp"
 #include "utilities/threading.h"
 #include "utilities/mpi_context.h"
 
@@ -57,19 +57,17 @@ namespace afqmc
   * - DriverFactory DriverFac
 
  *
- * @param type std::string describing the type of Driver to be used. Valid choices are "afqmc", and "csafqmc".
-  * @param pt boost::property_tree::ptree The property tree containing input file parameters
+ * @param params AFQMCParameters The deserialized contents of the simulation block of the input file
  */
 template<MEMORY_SPACE MEM>
 class AFQMCFactory
 {
 public:
   ///constructor
-  AFQMCFactory(std::string type, 
-               std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi, 
-	       const ptree pt, int n_groups = 1)
-     : m_series(pt.get<int>("project.series", 0)),
-       project_title(pt.get<std::string>("project.id", "afqmc")),
+  AFQMCFactory(const AFQMCParameters& params,
+               std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi)
+     : m_series(params.project.series),
+       project_title(params.project.id),
        mpi(_mpi),
        HamFac(),
        WSetFac(),
@@ -77,11 +75,11 @@ public:
        PropFac(),
        DriverFac(mpi, WSetFac, PropFac, WfnFac, HamFac)
   {
-    utils::check(n_groups==1, "finish!!!");
+    utils::check(params.project.n_groups==1, "finish!!!");
     app_log(1, " AFQMCFactory Project settings: ");
     app_log(1, "    -- id             : {} ", project_title);
     app_log(1, "    -- series         : {} ", m_series);
-    app_log(1, "    -- n_groups       : {} ", n_groups);
+    app_log(1, "    -- n_groups       : {} ", params.project.n_groups);
     app_log(1, "    -- MPI tasks/node : {} ", mpi->node_comm.size());
     app_log(1, "    -- MPI nodes      : {} ", mpi->internode_comm.size());
     app_log(1, "    -- MPI tasks      : {} ", mpi->comm.size());
@@ -92,11 +90,13 @@ public:
             sfqmc::utils::tblis_threads_was_user_set() ? "(user-provided)" : "");
     app_log(1, "    -- OMP_NUM_THREADS   : {} {}\n\n", omp_env ? omp_env : "(unset)",
             sfqmc::utils::omp_threads_was_user_set() ? "(user-provided)" : "");
-    // parse input
-    utils::check(parse(pt), " Error in AFQMCFactory: Problems parsing the input file. ");
+    app_log(2, "\nAFQMCFactory input:\n{}\n", nlohmann::json(params).dump(2));
 
-    // execute 
-    utils::check(execute(type,pt), "Error in AFQMCFactory: Problems executing the input file. ");
+    // parse input
+    utils::check(parse(params), "Error in AFQMCFactory: Problems parsing the input file.");
+
+    // execute
+    utils::check(execute(params), "Error in AFQMCFactory: Problems executing the input file.");
   }
 
   ///destructor
@@ -130,12 +130,12 @@ private:
   //  Executable sections (drivers) are created with objects already existing
   //  in the maps.
   //
-  bool parse(const ptree pt);
+  bool parse(const AFQMCParameters& params);
 
   //
   //  Traverse input tree and creates executable sections, using objects created during parsing.
   //
-  bool execute(std::string type, const ptree pt);
+  bool execute(const AFQMCParameters& params);
 };
 } // namespace afqmc
 } // namespace sfqmc

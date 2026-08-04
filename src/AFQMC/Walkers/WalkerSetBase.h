@@ -21,7 +21,7 @@
 #include "configuration.hpp"
 #include "config.h"
 #include "IO/AppAbort.hpp"
-#include "IO/ptree/ptree_utilities.hpp"
+#include "AFQMC/parameters.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/mpi_context.h"
 #include "utilities/type_traits.hpp"
@@ -82,7 +82,7 @@ public:
   /// allocated and initialized to valid default values (unit
   /// weight/overlap/phase, zero Slater matrices).
   WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
-                ptree pt,
+                const WalkerSetParameters& params,
                 std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r,
                 WALKER_TYPES walker_type,
                 std::array<int, 3> dims,
@@ -108,7 +108,7 @@ public:
         min_weight(0.05),
         max_weight(4.0)
   {
-    parse(pt);
+    parse(params);
     setup(dims);
     allocate_walkers(nWalkers);
   }
@@ -117,13 +117,13 @@ public:
   /// guess matrices. Dimensions are inferred from the guess, so no external
   /// NMO/nup/ndown is needed. Every walker is initialized to the guess.
   WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
-                ptree pt,
+                const WalkerSetParameters& params,
                 std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r,
                 WALKER_TYPES walker_type,
                 const std::vector<nda::matrix<ComplexType>>& guess,
                 int nWalkers
                )
-      : WalkerSetBase(_mpi_, pt, r, walker_type, dims_from_guess(guess), nWalkers, false)
+      : WalkerSetBase(_mpi_, params, r, walker_type, dims_from_guess(guess), nWalkers, false)
   {
     populate_from_guess(guess);
   }
@@ -133,13 +133,13 @@ public:
   /// from the guess, so no external NMO/nup/ndown is needed. Every walker is
   /// initialized to the guess.
   WalkerSetBase(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi_,
-                ptree pt,
+                const WalkerSetParameters& params,
                 std::shared_ptr<utils::RandomGenerator_t<HOST_MEMORY>> r,
                 WALKER_TYPES walker_type,
                 nda::MemoryArrayOfRank<4> auto const& UDV,
                 int nWalkers
                )
-      : WalkerSetBase(_mpi_, pt, r, walker_type, dims_from_guess_ft(UDV), nWalkers, true)
+      : WalkerSetBase(_mpi_, params, r, walker_type, dims_from_guess_ft(UDV), nWalkers, true)
   {
     populate_from_guess_ft(UDV);
   }
@@ -636,49 +636,6 @@ public:
     return bp_buffer(range::all,range(i0,i0+wlk_desc[6]));
   }
 
-  // Resolve the walker_type enum directly from a walker-set input block,
-  // without constructing a walker set. Uses the same "collinear" default as
-  // interpret_inputs so it matches what the constructor would parse.
-  static WALKER_TYPES parse_walker_type(const ptree& pt0);
-
-  static ptree interpret_inputs(const ptree pt0)
-  {
-    // read inputs with default options
-    std::string name, walker_type, load_balance_type, pop_control_type;
-    double min_weight, max_weight;
-    name              = pt0.get<std::string>("name", "wset0");
-    walker_type       = pt0.get<std::string>("walker_type", "collinear");
-    load_balance_type = pt0.get<std::string>("load_balance_type", "async");
-    pop_control_type  = pt0.get<std::string>("pop_control_type", "pair");
-    min_weight        = pt0.get<double>("min_weight", 0.05);
-    max_weight        = pt0.get<double>("max_weight", 4.0);
-    bool finite_temperature = pt0.get<bool>("finite_temperature", false);
-  
-    // check input validity
-    if (min_weight < 1e-2) APP_ABORT("min_weight too small");
-    //std::map<std::string, std::set<std::string> > options = {
-    //  {"walker_type", {"closed", "collinear", "noncollinear"}}
-    //};
-    //if (options["walker_type"].count(tolower(walker_type)) < 0)
-    //{
-    //  app_log() << walker_type << std::endl;
-    //  APP_ABORT("unknown walker_type");
-    //}
-  
-    // create verbose internal inputs
-    ptree pt1;
-    pt1.put("name", name);
-    pt1.put("walker_type", walker_type);
-    pt1.put("load_balance_type", load_balance_type);
-    pt1.put("pop_control_type", pop_control_type);
-    pt1.put("min_weight", min_weight);
-    pt1.put("max_weight", max_weight);
-    pt1.put("finite_temperature", finite_temperature);
-    std::unordered_set<std::string> pass_through_keys = {};
-    io::compare_known_keys("Walker set",pt1, pt0,pass_through_keys);
-    return pt1;
-  }
-
   // load balancing algorithm
   void loadBalance(nda::MemoryArrayOfRank<2> auto&& M,  
                    std::vector<int> const& nwalk_counts_old,  
@@ -730,7 +687,7 @@ protected:
   memory::array<MEM, ComplexType, 2> bp_buffer;
 
   // performs setup
-  void parse(ptree cur);
+  void parse(const WalkerSetParameters& params);
   // lay out the walker buffer given {rows, naea, naeb} (= wlk_desc[0..2])
   void setup(std::array<int, 3> dims);
   // reserve capacity for n walkers and initialize them to valid defaults

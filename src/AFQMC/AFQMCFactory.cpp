@@ -47,72 +47,56 @@ namespace sfqmc
 namespace afqmc
 {
 
-template<MEMORY_SPACE MEM>
-bool AFQMCFactory<MEM>::parse(const ptree pt_in)
+namespace
 {
-  // look for non-executable blocks
-  for(auto& it : pt_in)
-  {
-    std::string cname = it.first;
-    ptree pt = it.second;
-    std::string oname = pt.get<std::string>("name", "");
-
-    if (cname == "hamiltonian")
-    {
-      if (oname == "") APP_ABORT("hamiltonian outside execute block must be named");
-      HamFac.push(oname, pt);
-    }
-    else if (cname == "wavefunction")
-    {
-      if (oname == "") APP_ABORT("wavefunction outside execute block must be named");
-      WfnFac.push(oname, pt);
-    }
-    else if (cname == "walker_set")
-    {
-      if (oname == "") APP_ABORT("walker_set outside execute block must be named");
-      WSetFac.push(oname, pt);
-    }
-    else if (cname == "propagator")
-    {
-      if (oname == "") APP_ABORT("propagator outside execute block must be named");
-      PropFac.push(oname, pt);
-    }
-    else if(cname != "project" and cname != "execute") {
-      app_warning("Ignoring unknown input block: {}", cname);
-    }
+// Blocks declared outside of an execute block are only reachable by name, so they have to
+// have one.
+template<class Factory, class Params>
+void push_named_blocks(Factory& fac, const std::vector<Params>& blocks, std::string_view what)
+{
+  for(const auto& params : blocks) {
+    utils::check(not params.name.empty(), "{} outside execute block must be named", what);
+    fac.push(params.name, params);
   }
+}
+} // namespace
+
+template<MEMORY_SPACE MEM>
+bool AFQMCFactory<MEM>::parse(const AFQMCParameters& params)
+{
+  push_named_blocks(HamFac, params.hamiltonian, "hamiltonian");
+  push_named_blocks(WfnFac, params.wavefunction, "wavefunction");
+  push_named_blocks(WSetFac, params.walker_set, "walker_set");
+  push_named_blocks(PropFac, params.propagator, "propagator");
 
   return true;
 }
 
 template<MEMORY_SPACE MEM>
-bool AFQMCFactory<MEM>::execute(std::string type, const ptree pt_in)
+bool AFQMCFactory<MEM>::execute(const AFQMCParameters& params)
 {
-  for(auto& [cname, pt] : pt_in)
+  for(const auto& exec : params.execute)
   {
-    if (cname == "execute")
+    // execute driver
+    if (!DriverFac.executeDriver(params.driver, std::format("{}.s{:03d}", project_title, m_series), m_series, exec))
     {
-      // execute driver
-      if (!DriverFac.executeDriver(type, std::format("{}.s{:03d}", project_title, m_series), m_series, pt))
-      {
-        app_error("Error in DriverFactory::executeDriver::run()");
-        app_error_flush();
-        return false;
-      }
-
-      m_series++;
+      app_error("Error in DriverFactory::executeDriver::run()");
+      app_error_flush();
+      return false;
     }
+
+    m_series++;
   }
 
   return true;
 }
 
-template bool AFQMCFactory<HOST_MEMORY>::execute(std::string,const ptree);
-template bool AFQMCFactory<HOST_MEMORY>::parse(const ptree);
+template bool AFQMCFactory<HOST_MEMORY>::execute(const AFQMCParameters&);
+template bool AFQMCFactory<HOST_MEMORY>::parse(const AFQMCParameters&);
 
 #if defined(ENABLE_DEVICE)
-template bool AFQMCFactory<DEVICE_MEMORY>::execute(std::string,const ptree);
-template bool AFQMCFactory<DEVICE_MEMORY>::parse(const ptree);
+template bool AFQMCFactory<DEVICE_MEMORY>::execute(const AFQMCParameters&);
+template bool AFQMCFactory<DEVICE_MEMORY>::parse(const AFQMCParameters&);
 #endif
 
 } // namespace afqmc

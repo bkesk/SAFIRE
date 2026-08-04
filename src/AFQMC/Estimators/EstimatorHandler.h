@@ -57,7 +57,7 @@ class EstimatorHandler
 public:
   EstimatorHandler(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                    std::string title,
-                   ptree exec_pt,
+                   const ExecuteParameters& exec,
                    WalkerSet<MEM>& wset,
                    WavefunctionFactory<MEM>& WfnFac,
                    Wavefunction<MEM>& wfn0,
@@ -74,45 +74,42 @@ public:
     app_log(1,"\n****************************************************");
     app_log(1,"               Initializing Estimators ");
     app_log(1,"\n****************************************************");
-    app_log(2,"\n EstimatorHandler input:\n{}\n", io::to_string(exec_pt));
-    ptree est_pt, basic_pt;
-    int est_index = 0;
-    // default measure_interval to DEFAULT_MEASURE_INTERVAL if not specified in exec_pt
-    int measure_interval_multiplier = exec_pt.get<int>("measure_interval_multiplier", DEFAULT_MEASURE_INTERVAL_MULTIPLIER);
-    int population_control_interval = exec_pt.get<int>("population_control_interval", DEFAULT_POPULATION_CONTROL_INTERVAL);
 
+    // every measurement interval is a multiple of the population control interval
+    const int pop_control_interval = exec.population_control_interval;
+    const int measure_interval = exec.measure_interval_multiplier * pop_control_interval;
+
+    // an estimator that does not give its own multiplier measures at the interval of the
+    // execute block
+    auto with_measure_interval = [&](EstimatorParameters params) {
+      if(not params.measure_interval_multiplier) {
+        params.measure_interval_multiplier = std::vector<int>{exec.measure_interval_multiplier};
+      }
+      return params;
+    };
+
+    int est_index = 0;
+    const EstimatorParameters default_params{};
+    const EstimatorParameters* basic_params = std::addressof(default_params);
     bool overwrite_default_energy=false;
     bool remove_default_energy=false;
-    for(auto& it : exec_pt)
+    for(const auto& params : exec.estimator)
     {
-      std::string cname = it.first;
-      if (cname == "estimator")
+      utils::check(params.name != EstimatorType::undefined, " Error: an estimator block requires a name. ");
+      if (params.name == EstimatorType::basic)
       {
-        ptree child = it.second;
-        std::string name = child.get<std::string>("name");
-        if (name == "basic" || name == "Basic" || name == "standard")
-        {
-          basic_pt = child;
-        }
-        else if (name == "energy")
-        {
-          overwrite_default_energy = child.get<bool>("overwrite", false);
-          remove_default_energy = child.get<bool>("remove", false);
-        }
+        basic_params = std::addressof(params);
+      }
+      else if (params.name == EstimatorType::energy)
+      {
+        overwrite_default_energy = params.overwrite;
+        remove_default_energy = params.remove;
       }
     }
 
-    basic_pt.put("measure_interval_multiplier", measure_interval_multiplier);
-    if (remove_node_if_exists(basic_pt, "_population_control_interval"))
-    {
-      app_warning("'_population_control_interval' is set in a 'basic' estimator block. The value in the 'basic' estimator block will be ignored.");
-    }
-    basic_pt.put("_population_control_interval", population_control_interval); // to compute measure_interval
-    est_pt.put("measure_interval_multiplier", measure_interval_multiplier);
-    est_pt.put("_population_control_interval", population_control_interval); // to compute measure_interval
-
+    // the basic estimator always measures at the interval of the execute block
     estimators.emplace_back(
-        static_cast<EstimPtr>(std::make_shared<BasicEstimator<MEM>>(mpi, title, basic_pt, impsamp)));
+        static_cast<EstimPtr>(std::make_shared<BasicEstimator<MEM>>(mpi, title, *basic_params, measure_interval, impsamp)));
     measure_schedule[est_index] = estimators.back()->get_measurement_interval();
     est_index++;
 
@@ -122,119 +119,92 @@ public:
         )
       {
         estimators.emplace_back(
-          std::make_shared<EnergyEstimator<MEM>>(mpi, est_pt, wfn0, impsamp));
+          std::make_shared<EnergyEstimator<MEM>>(mpi, default_params, measure_interval, wfn0, impsamp));
         measure_schedule[est_index] = estimators.back()->get_measurement_interval();
         est_index++;
       }
 
     int bp_estimator(false);
-    for(auto& it : exec_pt)
+    for(const auto& params : exec.estimator)
     {
-      std::string cname = it.first;
-      if (cname == "estimator")
+      // Estimator can use different ham & wfn from Driver
+      //  default is same ham & wfn from Driver
+      const std::string& wfn_name = params.wfn;
+      const std::string& ham_name = params.ham;
+
+      if (params.name == EstimatorType::basic)
       {
-        est_pt = it.second;
-        std::string name, wfn_name, ham_name;
-        name = est_pt.get<std::string>("name");
-        // Estimator can use different ham & wfn from Driver
-        wfn_name = est_pt.get<std::string>("wfn", "");
-        ham_name = est_pt.get<std::string>("ham", "");
-        //  default is same ham & wfn from Driver
-        
-        int child_measure_interval_multiplier = est_pt.get<int>("measure_interval_multiplier", measure_interval_multiplier);
-        if (remove_node_if_exists(est_pt, "_population_control_interval"))
-        {
-          app_warning("'_population_control_interval' is set in an estimator block. The value in the estimator block will be ignored!");
-        }
-        est_pt.put("_population_control_interval", population_control_interval); // to compute measure_interval
+        // do nothing
+        // first process estimators that do not need a wfn
+        continue;
+      }
 
-
-        if (name == "basic" || name == "Basic" || name == "standard")
+      // now do those that do
+      Wavefunction<MEM>* wfn = &wfn0;
+      if (wfn_name != "")
+      { // wfn_name must produce a viable wfn object
+        if (WfnFac.is_constructed(wfn_name))
         {
-          // do nothing
-          // first process estimators that do not need a wfn
+          wfn = std::addressof(
+              WfnFac.getWavefunction(mpi, wfn_name, wfn0.getWalkerType(), wfn0.isFiniteTemperature(), nullptr));
         }
         else
         {
-          // now do those that do
-          Wavefunction<MEM>* wfn = &wfn0;
-          if (wfn_name != "")
-          { // wfn_name must produce a viable wfn object
-            ptree wfn_pt = WfnFac.get_input(wfn_name);
-            if (WfnFac.is_constructed(wfn_name))
-            {
-              wfn = std::addressof(
-                  WfnFac.getWavefunction(mpi, wfn_name, wfn0.getWalkerType(), wfn0.isFiniteTemperature(), nullptr));
-            }
-            else if (ham_name != "")
-            {
-              Hamiltonian& ham = HamFac.getHamiltonian(mpi, ham_name);
-              wfn              = std::addressof(WfnFac.getWavefunction(mpi, wfn_name,
-                                                          wfn0.getWalkerType(), wfn0.isFiniteTemperature(), std::addressof(ham)));
-            }
-            else
-            {
-              Hamiltonian& ham = HamFac.getHamiltonian(mpi, ham0);
-              wfn              = std::addressof(WfnFac.getWavefunction(mpi, wfn_name,
-                                                          wfn0.getWalkerType(), wfn0.isFiniteTemperature(), std::addressof(ham)));
-            }
-            utils::check(wfn != nullptr, " Error: Problems generating wavefunction in DriverFactory::executeAFQMCDriver(). ");
-          }
-
-          if (name == "back_propagation")
-          {
-            utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
-            est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
-            estimators.emplace_back(static_cast<EstimPtr>(
-                std::make_shared<BackPropagatedEstimator<MEM>>(mpi, title, est_pt, wset, *wfn,
-                                                          prop0, impsamp)));
-            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
-            est_index++;
-            hdf_output = true;
-            bp_estimator = true;
-          }
-          else if (name == "time_evolved_operators")
-          {
-            utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
-            est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
-            estimators.emplace_back(static_cast<EstimPtr>(
-                std::make_shared<BPWithTimeEvolvedOperators<MEM>>(mpi, title,
-                            est_pt, wset, *wfn, prop0, impsamp)));
-            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
-            est_index++;
-            hdf_output = true;
-            bp_estimator = true;
-          }
-          else if (name == "mixed")
-          {
-            est_pt.put("measure_interval_multiplier", child_measure_interval_multiplier);
-            estimators.emplace_back(static_cast<EstimPtr>(
-                std::make_shared<MixedEstimator<MEM>>(mpi, title, est_pt, wset.getWalkerType(),
-                                                 *wfn)));
-            measure_schedule[est_index] = estimators.back()->get_measurement_interval();
-            est_index++;
-            hdf_output = true;
-          }
-          else if (name == "energy")
-          {
-            // NOTE: do not put child_measure_interval into est_pt "measure_interval_multiplier"
-            //       to ensure synchronization with other estimators that print to the
-            //       scalar data file
-            est_pt.put("measure_interval_multiplier", measure_interval_multiplier);
-            bool remove = est_pt.get<bool>("remove", false);
-            if(not remove) {
-              estimators.emplace_back(
-                  std::make_shared<EnergyEstimator<MEM>>(mpi, est_pt, *wfn, impsamp));
-              measure_schedule[est_index] = estimators.back()->get_measurement_interval();
-              est_index++;
-            }
-          }
-          else
-          {
-            app_log(1," Ignoring unknown estimator type: {}", name); 
-          }
+          Hamiltonian& ham = HamFac.getHamiltonian(mpi, ham_name != "" ? ham_name : ham0);
+          wfn              = std::addressof(WfnFac.getWavefunction(mpi, wfn_name,
+                                                      wfn0.getWalkerType(), wfn0.isFiniteTemperature(), std::addressof(ham)));
         }
+        utils::check(wfn != nullptr, " Error: Problems generating wavefunction in DriverFactory::executeAFQMCDriver(). ");
       }
+
+      switch (params.name)
+      {
+        case EstimatorType::back_propagation:
+        {
+          utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
+          estimators.emplace_back(static_cast<EstimPtr>(
+              std::make_shared<BackPropagatedEstimator<MEM>>(mpi, title, with_measure_interval(params),
+                                                        pop_control_interval, wset, *wfn, prop0, impsamp)));
+          hdf_output = true;
+          bp_estimator = true;
+          break;
+        }
+        case EstimatorType::time_evolved_operators:
+        {
+          utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
+          estimators.emplace_back(static_cast<EstimPtr>(
+              std::make_shared<BPWithTimeEvolvedOperators<MEM>>(mpi, title, with_measure_interval(params),
+                                                        pop_control_interval, wset, *wfn, prop0, impsamp)));
+          hdf_output = true;
+          bp_estimator = true;
+          break;
+        }
+        case EstimatorType::mixed:
+        {
+          estimators.emplace_back(static_cast<EstimPtr>(
+              std::make_shared<MixedEstimator<MEM>>(mpi, title, with_measure_interval(params),
+                                               pop_control_interval, wset.getWalkerType(), *wfn)));
+          hdf_output = true;
+          break;
+        }
+        case EstimatorType::energy:
+        {
+          // NOTE: use the measurement interval of the execute block rather than the one of
+          //       this estimator, to ensure synchronization with other estimators that print
+          //       to the scalar data file
+          if(not params.remove) {
+            estimators.emplace_back(
+                std::make_shared<EnergyEstimator<MEM>>(mpi, params, measure_interval, *wfn, impsamp));
+          } else {
+            continue;
+          }
+          break;
+        }
+        default:
+          utils::check(false, " Error: unhandled estimator type. ");
+      }
+      measure_schedule[est_index] = estimators.back()->get_measurement_interval();
+      est_index++;
     }
 
     check_synchronized(); // for Estimators that print to the same line of the scalar.dat file

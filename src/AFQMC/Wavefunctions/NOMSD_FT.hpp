@@ -25,7 +25,7 @@
 #include "numerics/shared_array/const_shared_array.hpp"
 #include "utilities/check.hpp"
 #include "utilities/check_strides.hpp"
-#include "IO/ptree/ptree_utilities.hpp"
+#include "AFQMC/parameters.hpp"
 #include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
 
@@ -53,7 +53,7 @@ public:
     utils::check(false,"Default constructor for NOMSD disabled.");
   }
 
-  NOMSD_FT(ptree pt_in,
+  NOMSD_FT(const WavefunctionParameters& params,
         int NMO_, int ntau_,
         WALKER_TYPES wlk,
         std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi_,
@@ -74,40 +74,13 @@ public:
     //std::cout<<"OrbMats(0,1,1)"<<std::endl;
 
     utils::check(OrbMats.extent(0) == ci.size(), "Size mismatch");
-    // convert user input to verbose input
-    ptree pt = interpret_inputs(pt_in);
-    app_log(2,"\nNOMSD input:\n{}\n",io::to_string(pt));
-    // initialize using verbose input
-    bool rediag;
-    rediag = pt.get<bool>("rediag");
-
-    if (rediag) {
+    if (params.rediag) {
       utils::check(false,"finish");
       //recompute_ci();
     }
     
     resetLogScale();
 
-  }
-
-  static ptree interpret_inputs(const ptree pt0)
-  {
-    // read inputs with default options
-    auto rediag      = pt0.get<bool>("rediag", false);
-    auto dense_trial = pt0.get<bool>("dense_trial", true);
-    // create verbose internal inputs
-    ptree pt1;
-    pt1.put("rediag", rediag);
-    pt1.put("dense_trial", dense_trial);
-    std::unordered_set<std::string> pass_through_keys = {
-      "name",
-      "ndets_to_read",
-      "filename",
-      "compute",
-      "dense_trial"
-    };
-    io::compare_known_keys("Non-orthogonal multi-Slater det. (NOMSD) Wavefunction",pt1, pt0,pass_through_keys);
-    return pt1;
   }
 
   ~NOMSD_FT() = default; 

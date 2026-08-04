@@ -24,7 +24,7 @@
 #include "utilities/Random.hpp"
 #include "test_common.hpp"
 
-#include "IO/ptree/ptree_utilities.hpp"
+#include "AFQMC/parameters.hpp"
 #include "IO/app_loggers.h"
 
 #include <stdio.h>
@@ -53,9 +53,7 @@ void sharedwset_basic_walker_features(WALKER_TYPES wtype, bool finiteT)
   auto& mpi = utils::make_unit_test_mpi_context();
 
   int NMO = 8, nup = 2, ndown = 2, nwalkers = 10;
-  ptree wlk_pt;
-  wlk_pt.put("name","wset0");
-  wlk_pt.put("walker_type",walkerTypeToString(wtype));
+  const WalkerSetParameters wlk_params{.name = "wset0", .walker_type = wtype};
   if (wtype == NONCOLLINEAR)
   {
     nup = 4;
@@ -83,7 +81,7 @@ void sharedwset_basic_walker_features(WALKER_TYPES wtype, bool finiteT)
     if(wtype == COLLINEAR)
       initA.emplace_back(initA_h(1, nda::range::all, nda::range(ndown)));
 
-    auto ws = WalkerSet<MEM>(mpi, wlk_pt, rng, wtype, initA, nwalkers);
+    auto ws = WalkerSet<MEM>(mpi, wlk_params, rng, wtype, initA, nwalkers);
 
     REQUIRE(ws.size() == nwalkers);
     for (auto it = ws.begin(); it != ws.end(); ++it)
@@ -127,7 +125,7 @@ void sharedwset_basic_walker_features(WALKER_TYPES wtype, bool finiteT)
 
     auto initUDV = memory::to_memory_space<MEM>(initUDV_h);
 
-    auto ws = WalkerSet<MEM>(mpi, wlk_pt, rng, wtype, initUDV, nwalkers);
+    auto ws = WalkerSet<MEM>(mpi, wlk_params, rng, wtype, initUDV, nwalkers);
 
     REQUIRE(ws.size() == nwalkers);
     for (auto it = ws.begin(); it != ws.end(); ++it)
@@ -329,10 +327,8 @@ void sharedwset_walker_io(WALKER_TYPES wtype)
   if(wtype == COLLINEAR)
     initA.emplace_back(initA_h(1, nda::range::all, nda::range(ndown)));
 
-  ptree pt0;
-  pt0.put("WalkerSet.name","wset0");
-  pt0.put("WalkerSet.walker_type",walkerTypeToString(wtype));
-  auto wset = WalkerSet<MEM>(mpi, pt0.get_child("WalkerSet"), rng, wtype, initA, nwalkers);
+  const WalkerSetParameters wlk_params{.name = "wset0", .walker_type = wtype};
+  auto wset = WalkerSet<MEM>(mpi, wlk_params, rng, wtype, initA, nwalkers);
 
   REQUIRE(wset.size() == nwalkers);
   int cnt(0);
@@ -367,7 +363,7 @@ void sharedwset_walker_io(WALKER_TYPES wtype)
 
   {
     h5::file fh5(std::string("dummy_walkers.h5"),'r');
-    auto wset2 = readWalkersFromHDF5<WalkerSet<MEM>>(mpi, pt0.get_child("WalkerSet"), rng,
+    auto wset2 = readWalkersFromHDF5<WalkerSet<MEM>>(mpi, wlk_params, rng,
                                                      wtype, fh5, nwalkers, true);
     std::array<walker_data,5> tags = {WEIGHT,OVLP,E1_,EXX_,EJ_};
     for (int i = 0; i < nwalkers; i++)

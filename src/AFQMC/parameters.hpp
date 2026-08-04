@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <fstream>
+#include <filesystem>
 
 #include "AFQMC/config.h"
 #include "AFQMC/Walkers/WalkerConfig.hpp"
@@ -14,8 +16,9 @@ namespace sfqmc::afqmc {
 enum class DriverType {
   afqmc,
   ftafqmc,
+  csafqmc,
 };
-SAFIRE_DEFINE_ENUM_NAMES(DriverType, afqmc, ftafqmc);
+SAFIRE_DEFINE_ENUM_NAMES(DriverType, afqmc, ftafqmc, csafqmc);
 
 SAFIRE_DEFINE_ENUM(WALKER_TYPES, {
   {UNDEFINED_WALKER_TYPE, "undefined"},
@@ -29,11 +32,11 @@ SAFIRE_DEFINE_ENUM_NAMES(BranchingAlgorithm, undefined, pair, comb, min_branch, 
 
   
 enum class PHMSDEnergyAlgorithm {
-  reference,
-  woodbury,
+  reference, // loop over unique configurations, calculate G and evaluate E from scratch
+  woodbury, // use ph_reference_energy and ph_excited_energy, which requires compact R matrix
+  // fapbq, // not implemented yet
 };
 SAFIRE_DEFINE_ENUM_NAMES(PHMSDEnergyAlgorithm, reference, woodbury);
-
 
 enum class EstimatorType {
   undefined,
@@ -49,11 +52,13 @@ SAFIRE_DEFINE_ENUM_NAMES(EstimatorType, undefined, basic, mixed, energy, back_pr
 struct ProjectParameters {
   std::string id{"afqmc"};
   int series{};
+  int n_groups{1}; // csafqmc only
 };
-SAFIRE_DEFINE_PARAMETERS(ProjectParameters, id, series);
+SAFIRE_DEFINE_PARAMETERS(ProjectParameters, id, series, n_groups);
 
 struct WalkerSetParameters {
-  std::string name{"wset0"};
+  // an unnamed block cannot be referenced, so it is registered under a generated name
+  std::string name{};
   WALKER_TYPES walker_type{COLLINEAR};
   LoadBalanceAlgorithm load_balance_type{LoadBalanceAlgorithm::async};
   BranchingAlgorithm pop_control_type{BranchingAlgorithm::pair};
@@ -86,7 +91,7 @@ SAFIRE_DEFINE_PARAMETERS(WavefunctionParameters, name, filename, rediag, ndets_t
                          nwalk_block_size, ndet_block_size);
 
 struct HamiltonianParameters {
-  std::string name{"ham0"};
+  std::string name{};
   std::string filename{}; // TODO: defaults to the filename of the wavefunction block
   int max_memory{2000};   // MiB
   bool shift_1body{};
@@ -95,13 +100,16 @@ struct HamiltonianParameters {
 SAFIRE_DEFINE_PARAMETERS(HamiltonianParameters, name, filename, max_memory, shift_1body, buffer_size);
 
 struct PropagatorParameters {
-  // TODO: for a ModelHamiltonian input file the defaults change to vbias_bound = 100.0,
-  // upper_cutoff_scale = lower_cutoff_scale = 50.0, denseP2 = false and symmetric_split = false
-  double taylor_n{6};
-  double vbias_bound{50.0};
+  std::string name{};
+
+  // The optionals below default to 50.0, 10.0, 1.0, true, true, except for a ModelHamiltonian,
+  // where they default to 100.0, 50.0, 50.0, false, false. The hamiltonian type is only known
+  // once the wavefunction has been built, so they are resolved in AFQMCBasePropagator.
+  int taylor_n{6};
+  std::optional<double> vbias_bound{};
   double external_field_scale{1.0};
-  double upper_cutoff_scale{10.0};
-  double lower_cutoff_scale{1.0};
+  std::optional<double> upper_cutoff_scale{};
+  std::optional<double> lower_cutoff_scale{};
   bool apply_constrain{true};
   bool importance_sampling{true};
   bool substractMF{true};
@@ -109,36 +117,40 @@ struct PropagatorParameters {
   bool printP1eigval{false};
   bool free_projection{false};
   bool denseP1{false};
-  bool denseP2{true};
+  std::optional<bool> denseP2{};
   bool debug_verbosity{false};
   bool natural_shift{true};
-  bool symmetric_split{true};
+  std::optional<bool> symmetric_split{};
   bool use_cp_constraint{false};
   bool use_real_vbias{false};
   std::string external_field{""};
   std::string excited{""};
 };
-SAFIRE_DEFINE_PARAMETERS(PropagatorParameters, taylor_n, vbias_bound, external_field_scale, upper_cutoff_scale,
+SAFIRE_DEFINE_PARAMETERS(PropagatorParameters, name, taylor_n, vbias_bound, external_field_scale, upper_cutoff_scale,
                          lower_cutoff_scale, apply_constrain, importance_sampling, substractMF, hybrid,
                          printP1eigval, free_projection, denseP1, denseP2, debug_verbosity, natural_shift,
                          symmetric_split, use_cp_constraint, use_real_vbias, external_field, excited);
 
+// the name of an observable is a label that the code does not use for anything
 struct OneRDMParameters {
+  std::string name{};
   std::string rotation{};
   std::string path{"/"};
   bool with_index_list{false};
 };
-SAFIRE_DEFINE_PARAMETERS(OneRDMParameters, rotation, path, with_index_list);
+SAFIRE_DEFINE_PARAMETERS(OneRDMParameters, name, rotation, path, with_index_list);
 
 struct DiagTwoRDMParameters {
+  std::string name{};
 };
-SAFIRE_DEFINE_EMPTY_PARAMETERS(DiagTwoRDMParameters);
+SAFIRE_DEFINE_PARAMETERS(DiagTwoRDMParameters, name);
 
 struct TwoRDMParameters {
+  std::string name{};
   std::string rotation{};
   std::string path{"/"};
 };
-SAFIRE_DEFINE_PARAMETERS(TwoRDMParameters, rotation, path);
+SAFIRE_DEFINE_PARAMETERS(TwoRDMParameters, name, rotation, path);
 
 struct PairCorrelatorParameters {
     std::string name{"pair_correlator"};
@@ -150,8 +162,9 @@ struct PairCorrelatorParameters {
 SAFIRE_DEFINE_PARAMETERS(PairCorrelatorParameters, name, walker_output, filename, pair_type);
 
 struct SpinSpinCorrParameters {
+  std::string name{};
 };
-SAFIRE_DEFINE_EMPTY_PARAMETERS(SpinSpinCorrParameters);
+SAFIRE_DEFINE_PARAMETERS(SpinSpinCorrParameters, name);
 
 struct EstimatorParameters {
   EstimatorType name{};
@@ -176,13 +189,14 @@ struct EstimatorParameters {
   // mixed
   int equil_multiplier{};
 
-  // bp
-  int bp_walker_ortho_interval{10};  // TODO: defaults to 1 for name = time_evolved_operators
+  // bp. bp_walker_ortho_interval defaults to 10, except for name = time_evolved_operators,
+  // where it defaults to 1.
+  std::optional<int> bp_walker_ortho_interval{};
   bool path_restoration{true};
-  bool extra_path_restoration{false}; // TODO: defaults to true for name = time_evolved_operators
+  bool extra_path_restoration{false};
 
-  // TODO: defaults to the measure_interval_multiplier of the enclosing execute block
-  std::vector<int> measure_interval_multiplier{{DEFAULT_MEASURE_INTERVAL_MULTIPLIER}};
+  // defaults to the measure_interval_multiplier of the enclosing execute block
+  std::optional<std::vector<int>> measure_interval_multiplier{};
 
   // observables
   std::optional<OneRDMParameters> onerdm{};
@@ -196,12 +210,22 @@ SAFIRE_DEFINE_PARAMETERS(EstimatorParameters, name, remove, wfn, ham, timers, nh
                          extra_path_restoration, measure_interval_multiplier, onerdm, diag2rdm, twordm,
                          pair_correlators, spinspin);
 
+/// The measurement intervals of an estimator, in units of the population control interval. The
+/// estimator handler resolves an unset value to the multiplier of the enclosing execute block,
+/// so the fallback here only applies to an estimator that is constructed directly.
+inline std::vector<int> measure_interval_multipliers(const EstimatorParameters& params) {
+  std::vector<int> multipliers =
+      params.measure_interval_multiplier.value_or(std::vector<int>{DEFAULT_MEASURE_INTERVAL_MULTIPLIER});
+  utils::check(not multipliers.empty(), "'measure_interval_multiplier' must not be empty.");
+  return multipliers;
+}
 
-struct ExecuteBlock {
-  WalkerSetParameters walker_set{};
-  WavefunctionParameters wavefunction{};
-  HamiltonianParameters hamiltonian{};
-  PropagatorParameters propagator{};
+
+struct ExecuteParameters {
+  std::optional<utils::BlockRef<WalkerSetParameters>> walker_set{};
+  std::optional<utils::BlockRef<WavefunctionParameters>> wavefunction{}; // required
+  std::optional<utils::BlockRef<HamiltonianParameters>> hamiltonian{};
+  std::optional<utils::BlockRef<PropagatorParameters>> propagator{};
   std::vector<EstimatorParameters> estimator{};
 
 
@@ -225,20 +249,21 @@ struct ExecuteBlock {
   int n_walkers_per_mpi_task{10};
   bool set_nwalker_to_target{};
   double initial_Eshift{}; // make optional
-  int seed{};
+  std::optional<int> seed{};
 };
-SAFIRE_DEFINE_PARAMETERS(ExecuteBlock, walker_set, wavefunction, hamiltonian, propagator, estimator, hdf_read_file,
+SAFIRE_DEFINE_PARAMETERS(ExecuteParameters, walker_set, wavefunction, hamiltonian, propagator, estimator, hdf_read_file,
                          hdf_write_file, steps, sweeps, population_control_interval, measure_interval_multiplier,
                          walker_ortho_interval, checkpoint_interval, weight_reset, dshift, print_sweep_step,
                          timestep, n_walkers_per_mpi_task, set_nwalker_to_target, initial_Eshift, seed);
 
 
 struct AFQMCParameters {
+  // not a member of the object itself: the driver type is the key the object is stored under
   DriverType driver{DriverType::afqmc};
 
   ProjectParameters project{};
 
-  std::vector<ExecuteBlock> execute{};
+  std::vector<ExecuteParameters> execute{};
 
   // blocks declared outside of an execute block have to be named, so that an execute block can refer to them
   std::vector<WalkerSetParameters> walker_set{};
@@ -246,9 +271,27 @@ struct AFQMCParameters {
   std::vector<HamiltonianParameters> hamiltonian{};
   std::vector<PropagatorParameters> propagator{};
 };
-SAFIRE_DEFINE_PARAMETERS(AFQMCParameters, driver, project, execute, walker_set, wavefunction, hamiltonian,
+SAFIRE_DEFINE_PARAMETERS(AFQMCParameters, project, execute, walker_set, wavefunction, hamiltonian,
                          propagator);
 
 
+/// Reads the whole input document. The key of the top level object selects its driver, e.g. {"afqmc": {...}}.
+inline AFQMCParameters parse_input_file(const std::filesystem::path& filename) {
+  std::ifstream input{filename};
+  if(!input) {
+    throw std::runtime_error{std::format("Could not open input file '{}'", filename.string())};
+  }
+  nlohmann::json raw_parameters{nlohmann::json::parse(input)};
+  
+  utils::check(raw_parameters.is_object(), "Expected a json object at the top level of the input file, but found {}.",
+               raw_parameters.type_name());
+  utils::check(raw_parameters.size() == 1, "The input file needs to contain exactly one simulation block.");
+
+  const auto simulation = raw_parameters.cbegin();
+  AFQMCParameters params;
+  from_json(nlohmann::json(simulation.key()), params.driver);
+  simulation.value().get_to(params);
+  return params;
+}
 
 }

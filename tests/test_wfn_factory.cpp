@@ -21,7 +21,7 @@
 #include "config.h"
 #include "IO/AppAbort.hpp"
 
-#include "IO/ptree/ptree_utilities.hpp"
+#include "AFQMC/parameters.hpp"
 #include "utilities/Random.hpp"
 #include "IO/app_loggers.h"
 
@@ -105,29 +105,17 @@ void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
     ndown = NMO;
   }
 
-  ptree ham_pt;
-  ham_pt.put("name","ham0");
-  ham_pt.put("filename",hamil_file);
-
   HamiltonianFactory HamFac;
-  HamFac.push("ham0", ham_pt); 
+  HamFac.push("ham0", HamiltonianParameters{.name = "ham0", .filename = hamil_file});
   Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
   int nwalk = 11; // choose prime number to force non-trivial splits in shared routines
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
 
-  ptree wlk_pt;
-  wlk_pt.put("name","wset0");
-  wlk_pt.put("walker_type", walkerTypeToString(type));
-  wlk_pt.put("finite_temperature", finiteT);
-
-  ptree wfn_pt;
-  wfn_pt.put("name","wfn0");
-  wfn_pt.put("filename",wfn_file);
-  wfn_pt.put("dense_trial",dense_trial);
+  const WalkerSetParameters wlk_params{.name = "wset0", .walker_type = type, .finite_temperature = finiteT};
 
   WavefunctionFactory<MEM> WfnFac{};
-  WfnFac.push("wfn0", wfn_pt);
+  WfnFac.push("wfn0", WavefunctionParameters{.name = "wfn0", .filename = wfn_file, .dense_trial = dense_trial});
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, finiteT, &ham, nwalk);
 
   //nwalk=nw;
@@ -137,13 +125,13 @@ void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
       auto const& initial_guess = WfnFac.getInitialGuess("wfn0");
       REQUIRE(int(initial_guess.size()) == nspin);
       REQUIRE(initial_guess[0].shape() == std::array<long,2>{npol*NMO,nup});
-      return WalkerSet<MEM>(mpi, wlk_pt, rng, type, initial_guess, nwalk);
+      return WalkerSet<MEM>(mpi, wlk_params, rng, type, initial_guess, nwalk);
     }
     else
     {
       auto initial_guess_ft = WfnFac.getInitialGuess_ft("wfn0");
       REQUIRE(initial_guess_ft.shape() == std::array<long,4>{3,nspin,npol*NMO,NMO});
-      return WalkerSet<MEM>(mpi, wlk_pt, rng, type, initial_guess_ft, nwalk);
+      return WalkerSet<MEM>(mpi, wlk_params, rng, type, initial_guess_ft, nwalk);
     }
   }();
 

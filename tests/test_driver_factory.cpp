@@ -17,7 +17,7 @@
   
 #include "config.h"
 #include "IO/app_loggers.h"
-#include "IO/ptree/ptree_utilities.hpp"
+#include "AFQMC/parameters.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/Timer.hpp"
 #include "test_common.hpp"
@@ -61,161 +61,138 @@ void driver_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::comm
   PropagatorFactory<MEM> PropFac;
   DriverFactory<MEM> DriverFac(mpi, WSetFac, PropFac, WfnFac, HamFac);
 
-  ptree ham_full;
-  ham_full.put("name","ham0");
-  ham_full.put("filename",hamil_file);
-  HamFac.push("ham0", ham_full);
+  HamFac.push("ham0", HamiltonianParameters{.name = "ham0", .filename = hamil_file});
+  WfnFac.push("wfn0", WavefunctionParameters{.name = "wfn0", .filename = wfn_file});
+  PropFac.push("prop0", PropagatorParameters{.name = "prop0"});
 
-  ptree wfn_full;
-  wfn_full.put("name","wfn0");
-  wfn_full.put("filename",wfn_file);
-  WfnFac.push("wfn0", wfn_full);
+  WalkerSetParameters wlk_full{.name = "wlk0"};
 
-  ptree wlk_full;
-  wlk_full.put("name","wlk0");
-
-  ptree prop_full;
-  prop_full.put("name","prop0");
-  PropFac.push("prop0", prop_full);
-
-  ptree wfn_min;
-  wfn_min.put("filename",wfn_file);
-
-  ptree ham_min;
-  ham_min.put("filename",hamil_file);  
-
-  ptree wlk_min;
-  wlk_min.put("max_weight","4.0");
+  const WavefunctionParameters wfn_min{.filename = wfn_file};
+  const HamiltonianParameters ham_min{.filename = hamil_file};
+  WalkerSetParameters wlk_min{.max_weight = 4.0};
 
   // KE: Some special walker_types must match the wavefunction type;
   //     if an explicit walker type is provided to this test, use it!
   if (walker_type != UNDEFINED_WALKER_TYPE) {
-    wlk_full.put("walker_type", walkerTypeToString(walker_type));
-    wlk_min.put("walker_type", walkerTypeToString(walker_type));
+    wlk_full.walker_type = walker_type;
+    wlk_min.walker_type = walker_type;
   }
 
   WSetFac.push("wlk0", wlk_full);
 
-  ptree prop_min;
-  prop_min.put("hybrid","true");
+  const PropagatorParameters prop_min{.hybrid = true};
 
   // Fix the seed so the test is reproducible.
   constexpr int test_seed = 463;
 
-  ptree exec;
-  exec.put("seed", test_seed);
-
   const bool default_walker = (walker_type == UNDEFINED_WALKER_TYPE);
 
+  ExecuteParameters exec{};
+
   if (default_walker) {
-    exec.put_child("wavefunction",wfn_min);
     // wfn only - this is invalid unless wfn file and hamil file are the same
     if (hamil_file == wfn_file) {
+      exec = ExecuteParameters{.wavefunction = wfn_min, .seed = test_seed};
       app_log(0,"[driver_factory] TEST: wfn only (inline); walker_type={}", walkerTypeToString(walker_type));
-      CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+      CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
     }
-    
+
     // wfn and ham
-    exec.put_child("hamiltonian",ham_min);
+    exec = ExecuteParameters{.wavefunction = wfn_min, .hamiltonian = ham_min, .seed = test_seed};
     app_log(0,"[driver_factory] TEST: wfn+ham (inline); walker_type={}", walkerTypeToString(walker_type));
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
 
     // wfn, ham, prop
-    exec.put_child("propagator",prop_min);
+    exec = ExecuteParameters{
+        .wavefunction = wfn_min, .hamiltonian = ham_min, .propagator = prop_min, .seed = test_seed};
     app_log(0,"[driver_factory] TEST: wfn+ham+prop (inline); walker_type={}", walkerTypeToString(walker_type));
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
   }
 
   // wfn, ham, prop, wlk
-  exec.clear();
-  exec.put("seed", test_seed);
-  exec.put_child("wavefunction",wfn_min);
-  exec.put_child("hamiltonian",ham_min);
-  exec.put_child("propagator",prop_min);
-  exec.put_child("walker_set",wlk_min);
+  exec = ExecuteParameters{.walker_set = wlk_min,
+                           .wavefunction = wfn_min,
+                           .hamiltonian = ham_min,
+                           .propagator = prop_min,
+                           .seed = test_seed};
   app_log(0,"[driver_fac] TEST: wfn+ham+prop+wlk (all inline); walker_type={}", walkerTypeToString(walker_type));
   if(finiteT)
-    CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::ftafqmc,"drv_test",0,exec));
   else
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
 
   if (default_walker) {
     // external wfn
-    exec.clear();
-    exec.put("seed", test_seed);
-    exec.put("wavefunction","wfn0");
     if (hamil_file == wfn_file) {
+      exec = ExecuteParameters{.wavefunction = std::string{"wfn0"}, .seed = test_seed};
       app_log(0,"[driver_factory] TEST: wfn only (external); walker_type={}", walkerTypeToString(walker_type));
-      CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+      CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
     }
 
     // wfn and ham
-    exec.put("hamiltonian","ham0");
+    exec = ExecuteParameters{
+        .wavefunction = std::string{"wfn0"}, .hamiltonian = std::string{"ham0"}, .seed = test_seed};
     app_log(0,"[driver_factory] TEST: wfn+ham (external); walker_type={}", walkerTypeToString(walker_type));
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
 
     // wfn, ham, prop
-    exec.put("propagator","prop0");
+    exec = ExecuteParameters{.wavefunction = std::string{"wfn0"},
+                             .hamiltonian = std::string{"ham0"},
+                             .propagator = std::string{"prop0"},
+                             .seed = test_seed};
     app_log(0,"[driver_factory] TEST: wfn+ham+prop (external); walker_type={}", walkerTypeToString(walker_type));
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
   }
 
   // wfn, ham, prop, wlk (all external)
-  exec.clear();
-  exec.put("seed", test_seed);
-  exec.put("wavefunction","wfn0");
-  exec.put("hamiltonian","ham0");
-  exec.put("propagator","prop0");
-  exec.put("walker_set","wlk0");
+  exec = ExecuteParameters{.walker_set = std::string{"wlk0"},
+                           .wavefunction = std::string{"wfn0"},
+                           .hamiltonian = std::string{"ham0"},
+                           .propagator = std::string{"prop0"},
+                           .seed = test_seed};
   app_log(0,"[driver_fac] TEST: wfn+ham+prop+wlk (all external); walker_type={}", walkerTypeToString(walker_type));
   if(finiteT)
-    CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::ftafqmc,"drv_test",0,exec));
   else
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
 
   // mixed external internal
-  exec.clear();
-  exec.put("seed", test_seed);
-  exec.put_child("wavefunction",wfn_min);
-  exec.put("walker_set","wlk0");
+  exec = ExecuteParameters{
+      .walker_set = std::string{"wlk0"}, .wavefunction = wfn_min, .seed = test_seed};
   if (hamil_file == wfn_file) {
     app_log(0,"[driver_fac] TEST: wfn(inline)+wlk(external); walker_type={}", walkerTypeToString(walker_type));
     if(finiteT)
-      CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+      CHECK(DriverFac.executeDriver(DriverType::ftafqmc,"drv_test",0,exec));
     else
-      CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+      CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
   }
 
   if (default_walker) {
-    exec.clear();
-    exec.put("seed", test_seed);
-    exec.put_child("wavefunction",wfn_min);
-    exec.put("hamiltonian","ham0");
+    exec = ExecuteParameters{
+        .wavefunction = wfn_min, .hamiltonian = std::string{"ham0"}, .seed = test_seed};
     app_log(0,"[driver_factory] TEST: wfn(inline)+ham(external); walker_type={}", walkerTypeToString(walker_type));
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
   }
 
-  exec.clear();
-  exec.put("seed", test_seed);
-  exec.put("wavefunction","wfn0");
-  exec.put_child("hamiltonian",ham_min);
-  exec.put("walker_set","wlk0");
+  exec = ExecuteParameters{.walker_set = std::string{"wlk0"},
+                           .wavefunction = std::string{"wfn0"},
+                           .hamiltonian = ham_min,
+                           .seed = test_seed};
   app_log(0,"[driver_fac] TEST: wfn(external)+ham(inline)+wlk(external); walker_type={}", walkerTypeToString(walker_type));
   if(finiteT)
-    CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::ftafqmc,"drv_test",0,exec));
   else
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
 
-  exec.clear();
-  exec.put("seed", test_seed);
-  exec.put("wavefunction","wfn0");
-  exec.put_child("hamiltonian",ham_min);
-  exec.put_child("walker_set",wlk_min);
+  exec = ExecuteParameters{.walker_set = wlk_min,
+                           .wavefunction = std::string{"wfn0"},
+                           .hamiltonian = ham_min,
+                           .seed = test_seed};
   app_log(0,"[driver_fac] TEST: wfn(external)+ham(inline)+wlk(inline); walker_type={}", walkerTypeToString(walker_type));
   if(finiteT)
-    CHECK(DriverFac.executeDriver("ftafqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::ftafqmc,"drv_test",0,exec));
   else
-    CHECK(DriverFac.executeDriver("afqmc","drv_test",0,exec));
+    CHECK(DriverFac.executeDriver(DriverType::afqmc,"drv_test",0,exec));
 
   // many more possibilities (combinatorial...) Add any problematic ones if needed
 }

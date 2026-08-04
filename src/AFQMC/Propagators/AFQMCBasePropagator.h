@@ -21,7 +21,7 @@
 #include <tuple>
 
 #include "IO/app_loggers.h"
-#include "IO/ptree/ptree_utilities.hpp"
+#include "AFQMC/parameters.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
 
@@ -49,7 +49,7 @@ public:
     utils::check(false, "Error: Reached disabled AFQMCBasePropagator default constructor.");
   }
 
-  AFQMCBasePropagator(ptree pt_in,
+  AFQMCBasePropagator(const PropagatorParameters& params,
                       std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi_,
                       Wavefunction<MEM>& wfn_,
                       std::shared_ptr<utils::RandomGenerator_t<MEM>> r)
@@ -68,46 +68,42 @@ public:
     const int NMO = wfn->getNMO();
     std::tie(nspins_in_vHS, npol_in_vHS) = wfn->vHS_dims();
     app_log(1," vHS dimensions: nspins = {}, npol = {}", nspins_in_vHS, npol_in_vHS);
-    // convert user input to verbose input
-    ptree pt = interpret_inputs(pt_in);
-    // set model hamiltonian defaults to legacy values if not specified by user
-    if (wfn->getHamType() == ModelHamiltonian) {
-      if (not pt_in.get_optional<double>("upper_cutoff_scale")) pt.put("upper_cutoff_scale", 50.0);
-      if (not pt_in.get_optional<double>("lower_cutoff_scale")) pt.put("lower_cutoff_scale", 50.0);
-      if (not pt_in.get_optional<double>("vbias_bound"))        pt.put("vbias_bound", 100.0);
-      if (not pt_in.get_optional<bool>("denseP2"))                pt.put("denseP2", false);
-      if (not pt_in.get_optional<bool>("symmetric_split"))        pt.put("symmetric_split", false);
-    }
-    app_log(2,"\nBasePropagator input:\n\n{}\n",io::to_string(pt));
-    // initialize using verbose input
-    std::string external_field;
-    // int i_, a_;
-    // std::string excited_file;
-    double external_field_scale;
-    // i_ = pt.get<int>("i");
-    // a_ = pt.get<int>("a");
-    order                = pt.get<int>("taylor_n");
-    vbias_bound          = pt.get<double>("vbias_bound");
-    external_field_scale = pt.get<double>("external_field_scale");
-    upper_cutoff_scale = pt.get<double>("upper_cutoff_scale");
-    lower_cutoff_scale = pt.get<double>("lower_cutoff_scale");
-    apply_constrain     = pt.get<bool>("apply_constrain");
-    importance_sampling = pt.get<bool>("importance_sampling");
-    substractMF          = pt.get<bool>("substractMF");
-    hybrid              = pt.get<bool>("hybrid");
-    external_field      = pt.get<std::string>("external_field");
-    printP1eV           = pt.get<bool>("printP1eigval");
-    if(not mpi->comm.root()) printP1eV = false;
-    free_projection     = pt.get<bool>("free_projection");
-    denseP1             = pt.get<bool>("denseP1");
-    denseP2             = pt.get<bool>("denseP2");
-    // excited_file        = pt.get<std::string>("excited");
-    debug_verbosity     = pt.get<bool>("debug_verbosity");
-    natural_shift       = pt.get<bool>("natural_shift");
-    symmetric_split     = pt.get<bool>("symmetric_split");
-    use_cp_constraint   = pt.get<bool>("use_cp_constraint");
-    use_real_vbias      = pt.get<bool>("use_real_vbias");
     auto hamtype(wfn->getHamType());
+    // some defaults take legacy values for model hamiltonians
+    const bool model = hamtype == ModelHamiltonian;
+    vbias_bound        = params.vbias_bound.value_or(model ? 100.0 : 50.0);
+    upper_cutoff_scale = params.upper_cutoff_scale.value_or(model ? 50.0 : 10.0);
+    lower_cutoff_scale = params.lower_cutoff_scale.value_or(model ? 50.0 : 1.0);
+    denseP2            = params.denseP2.value_or(not model);
+    symmetric_split    = params.symmetric_split.value_or(not model);
+
+    const std::string& external_field = params.external_field;
+    const double external_field_scale = params.external_field_scale;
+    order               = params.taylor_n;
+    apply_constrain     = params.apply_constrain;
+    importance_sampling = params.importance_sampling;
+    substractMF         = params.substractMF;
+    hybrid              = params.hybrid;
+    printP1eV           = params.printP1eigval;
+    if(not mpi->comm.root()) printP1eV = false;
+    free_projection     = params.free_projection;
+    denseP1             = params.denseP1;
+    debug_verbosity     = params.debug_verbosity;
+    natural_shift       = params.natural_shift;
+    use_cp_constraint   = params.use_cp_constraint;
+    use_real_vbias      = params.use_real_vbias;
+
+    if (free_projection)
+    {
+      if (importance_sampling || !hybrid || apply_constrain)
+      {
+        app_error("Free projection requires:");
+        app_error(" importance_sampling = no, currently {}", importance_sampling);
+        app_error(" hybrid = yes, currently {}", hybrid);
+        app_error(" apply_constrain = no, currently {}", apply_constrain);
+        utils::check(false,"BasePropagator: free_projection");
+      }
+    }
     utils::check(denseP2 or hamtype == ModelHamiltonian, "denseP2=false only allowed with ModelHamiltonian.");
 
     if ((hamtype == KPFactorized || hamtype == KPTHC) && denseP1)
@@ -208,75 +204,6 @@ public:
       });
     }
 
-  }
-
-  static ptree interpret_inputs(const ptree pt0)
-  {
-    // read inputs with default options
-    int i_ = pt0.get<int>("i", -1);
-    int a_ = pt0.get<int>("a", -1);
-    auto taylor_n               = pt0.get<double>("taylor_n",6);
-    double vbias_bound = pt0.get<double>("vbias_bound", 50.0);
-    double external_field_scale = pt0.get<double>("external_field_scale", 1.0);
-    double upper_cutoff_scale = pt0.get<double>("upper_cutoff_scale", 10.0);
-    double lower_cutoff_scale = pt0.get<double>("lower_cutoff_scale", 1.0);
-    bool apply_constrain        = pt0.get<bool>("apply_constrain", true);
-    bool importance_sampling    = pt0.get<bool>("importance_sampling", true);
-    bool substractMF            = pt0.get<bool>("substractMF", true);
-    bool hybrid                 = pt0.get<bool>("hybrid", true);
-    bool printP1eigval          = pt0.get<bool>("printP1eigval", false);
-    bool free_projection        = pt0.get<bool>("free_projection", false);
-    bool denseP1                = pt0.get<bool>("denseP1", false);
-    bool denseP2                = pt0.get<bool>("denseP2", true);
-    bool debug_verbosity        = pt0.get<bool>("debug_verbosity", false);
-    auto natural_shift          = pt0.get<bool>("natural_shift",true);
-    auto symmetric_split        = pt0.get<bool>("symmetric_split",true);
-    auto use_cp_constraint      = pt0.get<bool>("use_cp_constraint", false);
-    auto use_real_vbias         = pt0.get<bool>("use_real_vbias", false);
-    std::string external_field  = pt0.get<std::string>("external_field", "");
-    std::string excited_file    = pt0.get<std::string>("excited", "");
-    // validate inputs
-    if (free_projection)
-    {
-      if (importance_sampling || !hybrid || apply_constrain)
-      {
-        app_error("Free projection requires:");
-        app_error(" importance_sampling = no, currently {}", importance_sampling);
-        app_error(" hybrid = yes, currently {}", hybrid);
-        app_error(" apply_constrain = no, currently {}", apply_constrain); 
-        utils::check(false,"BasePropagator: free_projection");
-      }
-    }
-    // create verbose internal inputs
-    ptree pt1;
-    pt1.put("taylor_n", taylor_n);
-    pt1.put("i", i_);
-    pt1.put("a", a_);
-    pt1.put("vbias_bound", vbias_bound);
-    pt1.put("external_field_scale", external_field_scale);
-    pt1.put("upper_cutoff_scale", upper_cutoff_scale);
-    pt1.put("lower_cutoff_scale", lower_cutoff_scale);
-    pt1.put("apply_constrain", apply_constrain);
-    pt1.put("use_cp_constraint", use_cp_constraint);
-    pt1.put("use_real_vbias", use_real_vbias);
-    pt1.put("importance_sampling", importance_sampling);
-    pt1.put("substractMF", substractMF);
-    pt1.put("hybrid", hybrid);
-    pt1.put("printP1eigval", printP1eigval);
-    pt1.put("free_projection", free_projection);
-    pt1.put("denseP1", denseP1);
-    pt1.put("denseP2", denseP2);
-    pt1.put("external_field", external_field);
-    pt1.put("excited", excited_file);
-    pt1.put("natural_shift",natural_shift);
-    pt1.put("symmetric_split",symmetric_split);
-    pt1.put("debug_verbosity", debug_verbosity);
-    std::unordered_set<std::string> pass_through_keys = {
-      "name",
-      "debug"
-    };
-    io::compare_known_keys("Propagator",pt1, pt0,pass_through_keys);
-    return pt1;
   }
 
   ~AFQMCBasePropagator() {}

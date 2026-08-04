@@ -40,13 +40,15 @@ namespace sfqmc
 {
 namespace afqmc
 {
-Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi, ptree pt)
+Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
+                                         const HamiltonianParameters& params)
 {
-  std::string filename = pt.get<std::string>("filename");
+  const std::string& filename = params.filename;
+  utils::check(not filename.empty(), "Error: hamiltonian must contain a filename.");
   std::string format;  // only meaningful at root
   HamiltonianTypes htype = UNKNOWN;
 
-  app_log(1," Initializing Hamiltonian from file: {}", filename);
+  app_log(1,"Initializing Hamiltonian from file: {}", filename);
 
   h5::file file;
   std::optional<h5::group> grp, hgrp;
@@ -55,7 +57,7 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
     file = h5::file(filename,'r');
     grp = std::make_optional(h5::group(file));
     format = get_hamiltonian_format(*grp);
-    app_log(1, " Found hamiltonian with format: {}", format);
+    app_log(1, "Found hamiltonian with format: {}", format);
     htype = peekHamType(*grp,format);
     // open subgroup
     if(format == "coqui") {
@@ -88,35 +90,35 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   {
     if(mpi->comm.root())
       utils::check(format == "coqui", "Error: format: {} not yet implemented with this hamiltonian type.", format);
-    return Hamiltonian(KPTHCHamiltonian(pt));
+    return Hamiltonian(KPTHCHamiltonian(params));
   }
   else if (htype == KPFactorized)
   {
     if(mpi->comm.root())
       utils::check(format == "coqui" or format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
-    return Hamiltonian(KPFactorizedHamiltonian(pt));
+    return Hamiltonian(KPFactorizedHamiltonian(params));
   }
   else if (htype == RealDenseFactorized)
   {
     // CoQui does not generate real cholesky yet, it is hardwired to be complex
     if(mpi->comm.root())
       utils::check(format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
-    return Hamiltonian(RealDenseHamiltonian(pt));
+    return Hamiltonian(RealDenseHamiltonian(params));
   }
   else if ( htype == ModelHamiltonian ) 
   {
     if(mpi->comm.root())
       utils::check(format == "std", "Error: format: {} not yet implemented with this hamiltonian type.", format);
-    return Hamiltonian(ModelHamOpsGenerator(pt));
+    return Hamiltonian(ModelHamOpsGenerator(params));
   }
   else if ( htype == THC )
   {
     if(mpi->comm.root())
       utils::check(format == "coqui", "Error: format: {} not yet implemented with this hamiltonian type.", format);
-    return Hamiltonian(THCHamiltonian(pt));
+    return Hamiltonian(THCHamiltonian(params));
   }
 
-  utils::check(false, " Error in HamiltonianFactory::fromHDF5(): Unknown Hamiltonian Type. ");
+  utils::check(false, "Error in HamiltonianFactory::fromHDF5(): Unknown Hamiltonian Type.");
   return Hamiltonian{};
 }
 } // namespace afqmc
