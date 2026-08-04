@@ -15,8 +15,5 @@ target_sources(safire_lib
     phmsd_vmf.cu
     apply.cu
     probe.cu
-#    symmetry_tools.cu
-#    potentials.cu
-#    kpoint_tools.cu
 )
 
