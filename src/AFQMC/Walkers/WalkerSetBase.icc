@@ -63,16 +63,16 @@ void WalkerSetBase<_M_>::parse(ptree pt_in)
   else
     app_log(1, "Walker resides in GPU memory");
 
-  load_balance = utils::parse_enum<LOAD_BALANCE_ALGORITHM>(load_balance_type, {
-    {SIMPLE, "blocking 1-1 swap", {"simple"}},
-    {ASYNC, "nonblocking swap", {"async"}},
+  load_balance = utils::parse_enum<LoadBalanceAlgorithm>(load_balance_type, {
+    {LoadBalanceAlgorithm::simple, "blocking 1-1 swap", {"simple"}},
+    {LoadBalanceAlgorithm::async, "nonblocking swap", {"async"}},
   }, "load balancing algorithm");
   
-  pop_control = utils::parse_enum<BRANCHING_ALGORITHM>(pop_control_type, {
-    {PAIR, "paired walker branching", {"pair"}},
-    {SERIAL_COMB, "comb method [Booth, Gubernatis, PRE 2009]", {"serial_comb"}},
-    {COMB, "comb method [Booth, Gubernatis, PRE 2009]", {"comb"}},
-    {MIN_BRANCH, "minimum reconfiguration [Caffarel et al., 2000]", {"min"}},
+  pop_control = utils::parse_enum<BranchingAlgorithm>(pop_control_type, {
+    {BranchingAlgorithm::pair, "paired walker branching", {"pair"}},
+    {BranchingAlgorithm::serial_comb, "comb method [Booth, Gubernatis, PRE 2009]", {"serial_comb"}},
+    {BranchingAlgorithm::comb, "comb method [Booth, Gubernatis, PRE 2009]", {"comb"}},
+    {BranchingAlgorithm::min_branch, "minimum reconfiguration [Caffarel et al., 2000]", {"min"}},
   }, "population control algorithm");
 
   app_log(1, "");
@@ -309,13 +309,14 @@ void WalkerSetBase<_M_>::popControl()
   }
 
   // population control on master node
-  if (pop_control == PAIR || pop_control == SERIAL_COMB || pop_control == MIN_BRANCH)
+  if (pop_control == BranchingAlgorithm::pair || pop_control == BranchingAlgorithm::serial_comb ||
+      pop_control == BranchingAlgorithm::min_branch)
   {
     SerialBranching(*this, pop_control, min_weight, max_weight, nwalk_counts_old, Wexcess, *rng, mpi->comm);
 
     // distributed routines from here
   }
-  else if (pop_control == COMB)
+  else if (pop_control == BranchingAlgorithm::comb)
   {
     utils::check(false," Error: Distributed comb not implemented yet. \n\n");
     //afqmc::DistCombBranching(*this,rng_heads,nwalk_counts_old);

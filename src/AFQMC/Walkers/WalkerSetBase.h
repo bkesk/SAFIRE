@@ -103,8 +103,8 @@ public:
         tot_num_walkers(0),
         walker_buffer(0, 1),
         bp_buffer(0, 0),
-        load_balance(UNDEFINED_LOAD_BALANCE),
-        pop_control(UNDEFINED_BRANCHING),
+        load_balance(LoadBalanceAlgorithm::undefined),
+        pop_control(BranchingAlgorithm::undefined),
         min_weight(0.05),
         max_weight(4.0)
   {
@@ -533,7 +533,7 @@ public:
 
   bool isFiniteTemperature() const { return finite_temperature; }
 
-  std::tuple<BRANCHING_ALGORITHM,int,int> population_control_parameters() const 
+  std::tuple<BranchingAlgorithm,int,int> population_control_parameters() const 
   { return std::make_tuple(pop_control,min_weight,max_weight); }
 
   int walkerSizeIO() const
@@ -684,11 +684,11 @@ public:
                    std::vector<int> const& nwalk_counts_old,  
                    std::vector<int> const& nwalk_counts_new)
   {
-    if (load_balance == SIMPLE)
+    if (load_balance == LoadBalanceAlgorithm::simple)
     {
       afqmc::swapWalkersSimple(*this, M, nwalk_counts_old, nwalk_counts_new, mpi->comm);
     }
-    else if (load_balance == ASYNC)
+    else if (load_balance == LoadBalanceAlgorithm::async)
     {
       afqmc::swapWalkersAsync(*this, M, nwalk_counts_old, nwalk_counts_new, mpi->comm);
     }
@@ -737,10 +737,10 @@ protected:
   void allocate_walkers(int n);
 
   // load balance algorithm
-  LOAD_BALANCE_ALGORITHM load_balance;
+  LoadBalanceAlgorithm load_balance;
 
   // branching algorithm
-  BRANCHING_ALGORITHM pop_control;
+  BranchingAlgorithm pop_control;
   [[maybe_unused]] double min_weight, max_weight;
 };
 
