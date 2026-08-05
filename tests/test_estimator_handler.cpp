@@ -20,6 +20,7 @@
 #include "IO/AppAbort.hpp"
 
 #include "AFQMC/parameters.hpp"
+#include "AFQMC/parameter_defaults.hpp"
 #include "utilities/Random.hpp"
 #include "IO/app_loggers.h"
 #include "test_common.hpp"
@@ -79,7 +80,9 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, false, &ham, nwalk);
 
   PropagatorFactory<MEM> PropgFac;
-  PropgFac.push("prop0", PropagatorParameters{.name = "prop0"});
+  PropagatorParameters prop_params{.name = "prop0"};
+  apply_defaults(prop_params, ham.getHamType());
+  PropgFac.push("prop0", prop_params);
   auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
   auto const& initial_guess = WfnFac.getInitialGuess("wfn0");
@@ -106,7 +109,9 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
 
   for (auto test : cases)
   {
-    const ExecuteParameters exec{
+    ExecuteParameters exec{
+        .wavefunction = std::string{"wfn0"},
+        .hamiltonian = std::string{"ham0"},
         .estimator = {
             EstimatorParameters{.name = EstimatorType::energy, .overwrite = true},
             EstimatorParameters{.name = EstimatorType::back_propagation,
@@ -119,8 +124,7 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
         // the global multiplier used by BasicEstimator and EnergyEstimator
         .measure_interval_multiplier = test.meas1,
     };
-
-    app_log(1,"\nEstimator input:\n{}\n", nlohmann::json(exec).dump(2));
+    apply_defaults(exec);
 
     int measure_interval{};
     {
@@ -130,7 +134,7 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
       double E1 = 0.0;
       EstimatorHandler<MEM> estim0(mpi, "test_est_handler",
         exec, wset, WfnFac, wfn, prop,
-                          HamFac, "ham0", dt);
+                          HamFac, dt);
     
       // set measurement intervals
       measure_interval = estim0.get_max_common_interval();

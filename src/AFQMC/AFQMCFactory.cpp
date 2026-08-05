@@ -47,27 +47,13 @@ namespace sfqmc
 namespace afqmc
 {
 
-namespace
-{
-// Blocks declared outside of an execute block are only reachable by name, so they have to
-// have one.
-template<class Factory, class Params>
-void push_named_blocks(Factory& fac, const std::vector<Params>& blocks, std::string_view what)
-{
-  for(const auto& params : blocks) {
-    utils::check(not params.name.empty(), "{} outside execute block must be named", what);
-    fac.push(params.name, params);
-  }
-}
-} // namespace
-
 template<MEMORY_SPACE MEM>
 bool AFQMCFactory<MEM>::parse(const AFQMCParameters& params)
 {
-  push_named_blocks(HamFac, params.hamiltonian, "hamiltonian");
-  push_named_blocks(WfnFac, params.wavefunction, "wavefunction");
-  push_named_blocks(WSetFac, params.walker_set, "walker_set");
-  push_named_blocks(PropFac, params.propagator, "propagator");
+  push_blocks(HamFac, params.hamiltonian);
+  push_blocks(WfnFac, params.wavefunction);
+  push_blocks(WSetFac, params.walker_set);
+  push_blocks(PropFac, params.propagator);
 
   return true;
 }

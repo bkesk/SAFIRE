@@ -21,6 +21,7 @@
 #include "config.h"
 #include "IO/app_loggers.h"
 #include "AFQMC/parameters.hpp"
+#include "AFQMC/parameter_defaults.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/Timer.hpp"
 #include "test_common.hpp"
@@ -105,7 +106,9 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
   }();
 
   PropagatorFactory<MEM> PropgFac;
-  PropgFac.push("prop0", PropagatorParameters{.name = "prop0", .denseP2 = true});
+  PropagatorParameters prop_params{.name = "prop0", .denseP2 = true};
+  apply_defaults(prop_params, ham.getHamType());
+  PropgFac.push("prop0", prop_params);
   auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
   std::cout << setprecision(8);

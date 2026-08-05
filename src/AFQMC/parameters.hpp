@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include <optional>
 #include <fstream>
@@ -64,10 +65,9 @@ struct WalkerSetParameters {
   BranchingAlgorithm pop_control_type{BranchingAlgorithm::pair};
   double min_weight{0.05};
   double max_weight{4.0};
-  bool finite_temperature{};
 };
 SAFIRE_DEFINE_PARAMETERS(WalkerSetParameters, name, walker_type, load_balance_type, pop_control_type, min_weight,
-                         max_weight, finite_temperature);
+                         max_weight);
 
 
 struct WavefunctionParameters {
@@ -76,11 +76,8 @@ struct WavefunctionParameters {
 
   bool rediag{}; // ??
   int ndets_to_read{-1};
-  // TODO: default depends on the hamiltonian type in the input file (woodbury for RealDenseFactorized,
-  // reference otherwise)
+  // the two optionals below depend on the hamiltonian type, so resolve_defaults fills them in
   std::optional<PHMSDEnergyAlgorithm> algorithm{};
-  // TODO: default depends on the hamiltonian type in the input file (false for KPFactorized and KPTHC,
-  // true otherwise)
   std::optional<bool> dense_trial{};
   int nwalk_block_size{8};
   int ndet_block_size{4096};
@@ -92,7 +89,7 @@ SAFIRE_DEFINE_PARAMETERS(WavefunctionParameters, name, filename, rediag, ndets_t
 
 struct HamiltonianParameters {
   std::string name{};
-  std::string filename{}; // TODO: defaults to the filename of the wavefunction block
+  std::string filename{}; // resolve_defaults falls back to the filename of the wavefunction
   int max_memory{2000};   // MiB
   bool shift_1body{};
   int buffer_size{4096};
@@ -103,8 +100,7 @@ struct PropagatorParameters {
   std::string name{};
 
   // The optionals below default to 50.0, 10.0, 1.0, true, true, except for a ModelHamiltonian,
-  // where they default to 100.0, 50.0, 50.0, false, false. The hamiltonian type is only known
-  // once the wavefunction has been built, so they are resolved in AFQMCBasePropagator.
+  // where they default to 100.0, 50.0, 50.0, false, false. resolve_defaults fills them in.
   int taylor_n{6};
   std::optional<double> vbias_bound{};
   double external_field_scale{1.0};
@@ -189,13 +185,12 @@ struct EstimatorParameters {
   // mixed
   int equil_multiplier{};
 
-  // bp. bp_walker_ortho_interval defaults to 10, except for name = time_evolved_operators,
-  // where it defaults to 1.
-  std::optional<int> bp_walker_ortho_interval{};
+  // bp
+  int bp_walker_ortho_interval{10}; // in units of steps
   bool path_restoration{true};
   bool extra_path_restoration{false};
 
-  // defaults to the measure_interval_multiplier of the enclosing execute block
+  // resolve_defaults falls back to the measure_interval_multiplier of the enclosing execute block
   std::optional<std::vector<int>> measure_interval_multiplier{};
 
   // observables
@@ -210,13 +205,17 @@ SAFIRE_DEFINE_PARAMETERS(EstimatorParameters, name, remove, wfn, ham, timers, nh
                          extra_path_restoration, measure_interval_multiplier, onerdm, diag2rdm, twordm,
                          pair_correlators, spinspin);
 
-/// The measurement intervals of an estimator, in units of the population control interval. The
-/// estimator handler resolves an unset value to the multiplier of the enclosing execute block,
-/// so the fallback here only applies to an estimator that is constructed directly.
-inline std::vector<int> measure_interval_multipliers(const EstimatorParameters& params) {
-  std::vector<int> multipliers =
-      params.measure_interval_multiplier.value_or(std::vector<int>{DEFAULT_MEASURE_INTERVAL_MULTIPLIER});
-  utils::check(not multipliers.empty(), "'measure_interval_multiplier' must not be empty.");
+/// Reads a parameter whose default resolve_defaults is responsible for filling in.
+template<typename T>
+const T& resolved(const std::optional<T>& value, std::string_view name) {
+  utils::check(value.has_value(), "The parameter '{}' was not resolved. Did resolve_defaults run?", name);
+  return *value;
+}
+
+/// The measurement intervals of an estimator, in units of the population control interval.
+inline const std::vector<int>& measure_interval_multipliers(const EstimatorParameters& params) {
+  const std::vector<int>& multipliers = resolved(params.measure_interval_multiplier, "measure_interval_multiplier");
+  utils::check(!multipliers.empty(), "'measure_interval_multiplier' must not be empty.");
   return multipliers;
 }
 
@@ -281,8 +280,9 @@ inline AFQMCParameters parse_input_file(const std::filesystem::path& filename) {
   if(!input) {
     throw std::runtime_error{std::format("Could not open input file '{}'", filename.string())};
   }
-  nlohmann::json raw_parameters{nlohmann::json::parse(input)};
-  
+
+  const nlohmann::json raw_parameters = nlohmann::json::parse(input);
+
   utils::check(raw_parameters.is_object(), "Expected a json object at the top level of the input file, but found {}.",
                raw_parameters.type_name());
   utils::check(raw_parameters.size() == 1, "The input file needs to contain exactly one simulation block.");

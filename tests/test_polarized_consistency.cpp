@@ -36,6 +36,7 @@
 #include "config.h"
 
 #include "AFQMC/parameters.hpp"
+#include "AFQMC/parameter_defaults.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
 #include "utilities/h5_utils.hpp"
@@ -199,7 +200,9 @@ run_result run_polarized(std::shared_ptr<utils::mpi_context_t<boost::mpi3::commu
 
   int nwalk = 2;
   WavefunctionFactory<MEM> WfnFac{};
-  WfnFac.push("wfn0", WavefunctionParameters{.name = "wfn0", .filename = wfn_file});
+  WavefunctionParameters wfn_params{.name = "wfn0", .filename = wfn_file};
+  apply_defaults(wfn_params, ham.getHamType());
+  WfnFac.push("wfn0", wfn_params);
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, false, &ham, nwalk);
 
   const WalkerSetParameters wlk_params{.name = "wset0", .walker_type = type};
@@ -207,7 +210,9 @@ run_result run_polarized(std::shared_ptr<utils::mpi_context_t<boost::mpi3::commu
   auto wset = WalkerSet<MEM>(mpi, wlk_params, rng, type, initial_guess, nwalk);
 
   PropagatorFactory<MEM> PropFac;
-  PropFac.push("prop0", PropagatorParameters{.name = "prop0"});
+  PropagatorParameters prop_params{.name = "prop0"};
+  apply_defaults(prop_params, ham.getHamType());
+  PropFac.push("prop0", prop_params);
   auto& prop = PropFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
   wfn.Log_Overlap(wset);

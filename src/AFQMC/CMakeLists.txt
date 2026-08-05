@@ -3,6 +3,7 @@ target_sources(safire_lib
     Utilities/AFQMCTimer.cpp 
     Utilities/readWfn.cpp
     AFQMCFactory.cpp
+    parameter_defaults.cpp
     Drivers/DriverFactory.cpp
     Drivers/AFQMCDriver.cpp
     Drivers/FTAFQMCDriver.cpp

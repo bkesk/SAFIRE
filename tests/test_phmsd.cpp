@@ -22,6 +22,7 @@
 #include "IO/AppAbort.hpp"
 
 #include "AFQMC/parameters.hpp"
+#include "AFQMC/parameter_defaults.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
 #include "utilities/h5_utils.hpp"
@@ -159,8 +160,10 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
   Hamiltonian& ham = HamFac.getHamiltonian(mpi, "ham0");
 
   WavefunctionFactory<MEM> WfnFac{};
-  WfnFac.push("wfn0", WavefunctionParameters{.name = "wfn0", .filename = wfn_file,
-                                             .algorithm = PHMSDEnergyAlgorithm::reference});
+  WavefunctionParameters wfn_params{.name = "wfn0", .filename = wfn_file,
+                                    .algorithm = PHMSDEnergyAlgorithm::reference};
+  apply_defaults(wfn_params, ham.getHamType());
+  WfnFac.push("wfn0", wfn_params);
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, false, &ham, nwalk);
 
   const WalkerSetParameters wlk_params{.name = "wset0", .walker_type = type};
@@ -242,7 +245,9 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
   }
   mpi->comm.barrier();
 
-  WfnFac.push("nomsd", WavefunctionParameters{.name = "nomsd", .filename = nomsd_file});
+  WavefunctionParameters nomsd_params{.name = "nomsd", .filename = nomsd_file};
+  apply_defaults(nomsd_params, ham.getHamType());
+  WfnFac.push("nomsd", nomsd_params);
   auto& nomsd = WfnFac.getWavefunction(mpi, "nomsd", type, false, &ham, nwalk);
 
   // 1. Overlap 
@@ -353,8 +358,10 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
 
   if(wfn.getHamType() == RealDenseFactorized)  // add THC
   {
-    WfnFac.push("wfn1", WavefunctionParameters{.name = "wfn1", .filename = wfn_file,
-                                               .algorithm = PHMSDEnergyAlgorithm::woodbury});
+    WavefunctionParameters wfn1_params{.name = "wfn1", .filename = wfn_file,
+                                       .algorithm = PHMSDEnergyAlgorithm::woodbury};
+    apply_defaults(wfn1_params, ham.getHamType());
+    WfnFac.push("wfn1", wfn1_params);
     auto& wfn1 = WfnFac.getWavefunction(mpi, "wfn1", type, false, &ham, nwalk);
 
     memory::array<MEM,ComplexType,2> eloc(nwalk,3);

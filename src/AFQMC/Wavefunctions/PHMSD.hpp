@@ -94,10 +94,7 @@ public:
 
     // setup device structures
 
-    // the default depends on the hamiltonian type, which is only known here
-    energy_algorithm = params.algorithm.value_or(HamOp.getHamType() == RealDenseFactorized
-                                                     ? PHMSDEnergyAlgorithm::woodbury
-                                                     : PHMSDEnergyAlgorithm::reference);
+    energy_algorithm = resolved(params.algorithm, "algorithm");
 
     app_log(1, " Using the {} energy algorithm. ", nlohmann::json(energy_algorithm).get<std::string>());
     // check that refc is appropriate for the selected algorithm

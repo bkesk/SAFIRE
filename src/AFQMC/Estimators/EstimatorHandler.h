@@ -63,7 +63,6 @@ public:
                    Wavefunction<MEM>& wfn0,
                    Propagator<MEM>& prop0,
                    HamiltonianFactory& HamFac,
-                   std::string ham0,
                    double dt,
                    bool defaultEnergyEstim = false,
                    bool impsamp            = true)
@@ -79,23 +78,12 @@ public:
     const int pop_control_interval = exec.population_control_interval;
     const int measure_interval = exec.measure_interval_multiplier * pop_control_interval;
 
-    // an estimator that does not give its own multiplier measures at the interval of the
-    // execute block
-    auto with_measure_interval = [&](EstimatorParameters params) {
-      if(not params.measure_interval_multiplier) {
-        params.measure_interval_multiplier = std::vector<int>{exec.measure_interval_multiplier};
-      }
-      return params;
-    };
-
     int est_index = 0;
-    const EstimatorParameters default_params{};
-    const EstimatorParameters* basic_params = std::addressof(default_params);
+    const EstimatorParameters* basic_params = nullptr;
     bool overwrite_default_energy=false;
     bool remove_default_energy=false;
     for(const auto& params : exec.estimator)
     {
-      utils::check(params.name != EstimatorType::undefined, " Error: an estimator block requires a name. ");
       if (params.name == EstimatorType::basic)
       {
         basic_params = std::addressof(params);
@@ -106,6 +94,7 @@ public:
         remove_default_energy = params.remove;
       }
     }
+    utils::check(basic_params != nullptr, " Error: missing basic estimator block. Did resolve_defaults run? ");
 
     // the basic estimator always measures at the interval of the execute block
     estimators.emplace_back(
@@ -113,13 +102,14 @@ public:
     measure_schedule[est_index] = estimators.back()->get_measurement_interval();
     est_index++;
 
-    // add an EnergyEstimator if requested
-    if (defaultEnergyEstim && 
-            not(overwrite_default_energy or remove_default_energy) 
+    // add an EnergyEstimator if requested. It is not part of the input, so it takes the defaults.
+    if (defaultEnergyEstim &&
+            not(overwrite_default_energy or remove_default_energy)
         )
       {
+        const EstimatorParameters energy_params{.name = EstimatorType::energy};
         estimators.emplace_back(
-          std::make_shared<EnergyEstimator<MEM>>(mpi, default_params, measure_interval, wfn0, impsamp));
+          std::make_shared<EnergyEstimator<MEM>>(mpi, energy_params, measure_interval, wfn0, impsamp));
         measure_schedule[est_index] = estimators.back()->get_measurement_interval();
         est_index++;
       }
@@ -127,11 +117,6 @@ public:
     int bp_estimator(false);
     for(const auto& params : exec.estimator)
     {
-      // Estimator can use different ham & wfn from Driver
-      //  default is same ham & wfn from Driver
-      const std::string& wfn_name = params.wfn;
-      const std::string& ham_name = params.ham;
-
       if (params.name == EstimatorType::basic)
       {
         // do nothing
@@ -139,22 +124,20 @@ public:
         continue;
       }
 
-      // now do those that do
-      Wavefunction<MEM>* wfn = &wfn0;
-      if (wfn_name != "")
-      { // wfn_name must produce a viable wfn object
-        if (WfnFac.is_constructed(wfn_name))
-        {
-          wfn = std::addressof(
-              WfnFac.getWavefunction(mpi, wfn_name, wfn0.getWalkerType(), wfn0.isFiniteTemperature(), nullptr));
-        }
-        else
-        {
-          Hamiltonian& ham = HamFac.getHamiltonian(mpi, ham_name != "" ? ham_name : ham0);
-          wfn              = std::addressof(WfnFac.getWavefunction(mpi, wfn_name,
-                                                      wfn0.getWalkerType(), wfn0.isFiniteTemperature(), std::addressof(ham)));
-        }
-        utils::check(wfn != nullptr, " Error: Problems generating wavefunction in DriverFactory::executeAFQMCDriver(). ");
+      // now do those that do. An estimator may use a different ham & wfn from the driver;
+      // resolve_defaults has set both names to the driver's in the common case.
+      const int targetNW = exec.n_walkers_per_mpi_task;
+      Wavefunction<MEM>* wfn = nullptr;
+      if (WfnFac.is_constructed(params.wfn))
+      {
+        wfn = std::addressof(WfnFac.getWavefunction(mpi, params.wfn, wfn0.getWalkerType(),
+                                                    wfn0.isFiniteTemperature(), nullptr, targetNW));
+      }
+      else
+      {
+        Hamiltonian& ham = HamFac.getHamiltonian(mpi, params.ham);
+        wfn              = std::addressof(WfnFac.getWavefunction(mpi, params.wfn, wfn0.getWalkerType(),
+                                                    wfn0.isFiniteTemperature(), std::addressof(ham), targetNW));
       }
 
       switch (params.name)
@@ -163,7 +146,7 @@ public:
         {
           utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
           estimators.emplace_back(static_cast<EstimPtr>(
-              std::make_shared<BackPropagatedEstimator<MEM>>(mpi, title, with_measure_interval(params),
+              std::make_shared<BackPropagatedEstimator<MEM>>(mpi, title, params,
                                                         pop_control_interval, wset, *wfn, prop0, impsamp)));
           hdf_output = true;
           bp_estimator = true;
@@ -173,7 +156,7 @@ public:
         {
           utils::check(not bp_estimator, " Error: Only one back propagator estimator allowed. ");
           estimators.emplace_back(static_cast<EstimPtr>(
-              std::make_shared<BPWithTimeEvolvedOperators<MEM>>(mpi, title, with_measure_interval(params),
+              std::make_shared<BPWithTimeEvolvedOperators<MEM>>(mpi, title, params,
                                                         pop_control_interval, wset, *wfn, prop0, impsamp)));
           hdf_output = true;
           bp_estimator = true;
@@ -182,7 +165,7 @@ public:
         case EstimatorType::mixed:
         {
           estimators.emplace_back(static_cast<EstimPtr>(
-              std::make_shared<MixedEstimator<MEM>>(mpi, title, with_measure_interval(params),
+              std::make_shared<MixedEstimator<MEM>>(mpi, title, params,
                                                pop_control_interval, wset.getWalkerType(), *wfn)));
           hdf_output = true;
           break;

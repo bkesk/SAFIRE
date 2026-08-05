@@ -112,7 +112,7 @@ void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   int nwalk = 11; // choose prime number to force non-trivial splits in shared routines
   std::shared_ptr<utils::RandomGenerator_t<>> rng = std::make_shared<utils::RandomGenerator_t<>>();
 
-  const WalkerSetParameters wlk_params{.name = "wset0", .walker_type = type, .finite_temperature = finiteT};
+  const WalkerSetParameters wlk_params{.name = "wset0", .walker_type = type};
 
   WavefunctionFactory<MEM> WfnFac{};
   WfnFac.push("wfn0", WavefunctionParameters{.name = "wfn0", .filename = wfn_file, .dense_trial = dense_trial});

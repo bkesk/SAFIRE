@@ -28,6 +28,7 @@
 #include "AFQMC/config.h"
 #include "HamiltonianFactory.h"
 #include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
+#include "AFQMC/parameter_defaults.hpp"
 
 #include "AFQMC/Hamiltonians/RealDenseHamiltonian.h"
 #include "AFQMC/Hamiltonians/THCHamiltonian.h"
@@ -46,9 +47,10 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   const std::string& filename = params.filename;
   utils::check(not filename.empty(), "Error: hamiltonian must contain a filename.");
   std::string format;  // only meaningful at root
-  HamiltonianTypes htype = UNKNOWN;
 
   app_log(1,"Initializing Hamiltonian from file: {}", filename);
+
+  const HamiltonianTypes htype = peek_hamiltonian_type(params, *mpi);
 
   h5::file file;
   std::optional<h5::group> grp, hgrp;
@@ -58,18 +60,12 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
     grp = std::make_optional(h5::group(file));
     format = get_hamiltonian_format(*grp);
     app_log(1, "Found hamiltonian with format: {}", format);
-    htype = peekHamType(*grp,format);
     // open subgroup
     if(format == "coqui") {
       hgrp = std::make_optional(grp->open_group("System"));
     } else {
       hgrp = std::make_optional(grp->open_group("Hamiltonian"));
-    } 
-  }
-  {
-    int htype_ = int(htype);
-    mpi->comm.broadcast_n(&htype_, 1, 0);
-    htype = HamiltonianTypes(htype_);
+    }
   }
 
   std::vector<int> Idata(8);

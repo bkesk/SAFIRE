@@ -68,7 +68,7 @@ public:
         wfn0(std::addressof(wfn)),
         prop0(std::addressof(prop)),
         max_nback_prop(10),
-        nStabilize(params.bp_walker_ortho_interval.value_or(10)), // units of steps!!
+        nStabilize(params.bp_walker_ortho_interval), // units of steps!!
         path_restoration(params.path_restoration),
         importanceSampling(impsamp_),
         extra_path_restoration(params.extra_path_restoration),

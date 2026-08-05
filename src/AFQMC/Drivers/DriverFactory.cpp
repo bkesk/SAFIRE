@@ -77,45 +77,38 @@ bool DriverFactory<MEM>::executeDriver(DriverType type, std::string title,
 }
 
 template<MEMORY_SPACE MEM>
-std::string DriverFactory<MEM>::get_wavefunction_id(const ExecuteParameters& exec)
-{
-  utils::check(exec.wavefunction.has_value(), " Error: wavefunction input not found. It is required. ");
-
-  if(const auto* id = std::get_if<std::string>(&*exec.wavefunction)) {
-    utils::check(not id->empty(), " Error: Problems with wavefunction input. ");
-    // check that it exists in the factory and that it contains a non-empty filename
-    utils::check(not WfnFac.get_input(*id).filename.empty(),
-                 " Error: wavefunction must contain a filename. ");
-    return *id;
-  }
-
-  // found input block, push into Factory and return name
-  WavefunctionParameters params = std::get<WavefunctionParameters>(*exec.wavefunction);
-  if(params.name.empty()) {
-    params.name = std::format("sysid_{}", ++unique_id);
-  }
-  utils::check(not params.filename.empty(), " Error: wavefunction must contain a filename. ");
-  // the name has to be copied out before params is moved from
-  std::string name = params.name;
-  WfnFac.push(name, std::move(params));
-  return name;
-}
-
-template<MEMORY_SPACE MEM>
 std::tuple<std::string,std::string,std::string,std::string>
     DriverFactory<MEM>::get_component_ids(const ExecuteParameters& exec)
 {
-  // 1. get wavefunction id, push input block if necessary
-  std::string wfn_name = get_wavefunction_id(exec);
-  // 2. get ids of hamiltonian, walker_set and propagator. Build later.
-  std::string wset_name = resolve_or_push("walker_set", exec.walker_set, WSetFac, WalkerSetParameters{});
-  std::string prop_name = resolve_or_push("propagator", exec.propagator, PropFac, PropagatorParameters{});
-  // a hamiltonian that is not given at all defaults to the file of the wavefunction
-  HamiltonianParameters ham_default{};
-  ham_default.filename = WfnFac.get_input(wfn_name).filename;
-  std::string ham_name = resolve_or_push("hamiltonian", exec.hamiltonian, HamFac, std::move(ham_default));
+  auto name_of = [](const auto& block, std::string_view key) -> const std::string& {
+    utils::check(block.has_value(), " Error: the execute block has no {}. ", key);
+    const auto* name = std::get_if<std::string>(&*block);
+    utils::check(name != nullptr, " Error: the {} of the execute block was not resolved to a name. "
+                 "Did resolve_defaults run? ", key);
+    return *name;
+  };
 
-  return std::make_tuple(ham_name,wfn_name,wset_name,prop_name);
+  return std::make_tuple(name_of(exec.hamiltonian, "hamiltonian"), name_of(exec.wavefunction, "wavefunction"),
+                         name_of(exec.walker_set, "walker_set"), name_of(exec.propagator, "propagator"));
+}
+
+template<MEMORY_SPACE MEM>
+Wavefunction<MEM>& DriverFactory<MEM>::get_wavefunction(const std::string& wfn_name, const std::string& ham_name,
+                                                        WALKER_TYPES walker_type, bool finiteT, int nWalkers)
+{
+  /*
+   * Note: Hamiltonian is only needed to construct Wavefunction.
+   *       If Wavefunction already exists in the factory (constructed in a previous exec block)
+   *       there is no need to build Hamiltonian.
+   */
+  if(not WfnFac.is_constructed(wfn_name))
+  {
+    Hamiltonian& ham = HamFac.getHamiltonian(mpi, ham_name);
+    WfnFac.getWavefunction(mpi, wfn_name, walker_type, finiteT, std::addressof(ham), nWalkers);
+  }
+
+  // wfn builder should not use Hamiltonian pointer now
+  return WfnFac.getWavefunction(mpi, wfn_name, walker_type, finiteT, nullptr, nWalkers);
 }
 
 template<MEMORY_SPACE MEM>
@@ -123,7 +116,6 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, con
 {
   // reset timers
   AFQMCTimer.reset_all();
-  app_log(2,"\nDrvFac::executeAFQMCDriver input:\n{}\n",nlohmann::json(exec).dump(2));
   auto [ham_name,wfn_name,wset_name,prop_name] = get_component_ids(exec);
 
   std::string hdf_read_restart;
@@ -153,11 +145,6 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, con
   app_log(1,"****************************************************");
   app_log(1,"****************************************************\n");
 
-  /*
-   * Note: Hamiltonian is only needed to construct Wavefunction.
-   *       If Wavefunction already exists in the factory (constructed in a previous exec block)
-   *       there is no need to build Hamiltonian.
-   */
   if (mpi->comm.root() == 0)
   {
     if (hdf_read_restart != std::string(""))
@@ -199,17 +186,7 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, con
   WALKER_TYPES walker_type = WSetFac.get_walker_type(wset_name);
 
   bool finiteT = false;
-  if (not WfnFac.is_constructed(wfn_name))
-  {
-    // hamiltonian
-    Hamiltonian& ham0 = HamFac.getHamiltonian(mpi, ham_name);
-
-    // build wavefunction
-    WfnFac.getWavefunction(mpi, wfn_name, walker_type, finiteT, &ham0, nWalkers);
-  }
-
-  // wfn builder should not use Hamiltonian pointer now
-  auto& wfn0 = WfnFac.getWavefunction(mpi, wfn_name, walker_type, finiteT, nullptr, nWalkers);
+  auto& wfn0 = get_wavefunction(wfn_name, ham_name, walker_type, finiteT, nWalkers);
 
   // propagator
   auto& prop0 = PropFac.getPropagator(mpi, prop_name, wfn0, rng);
@@ -257,7 +234,7 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, con
 
   // estimator setup
   auto estim0 = EstimatorHandler<MEM>(mpi, title, exec, wset, WfnFac, wfn0,
-         prop0, HamFac, ham_name, dt, addEnergyEstim, !free_proj);
+         prop0, HamFac, dt, addEnergyEstim, !free_proj);
 
   app_log(1,"\n****************************************************");
   app_log(1,"****************************************************");
@@ -293,7 +270,6 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, c
 {
   // reset timers
   AFQMCTimer.reset_all();
-  app_log(2,"\nDrvFac::executeFTAFQMCDriver input:\n{}\n",nlohmann::json(exec).dump(2));
   auto [ham_name,wfn_name,wset_name,prop_name] = get_component_ids(exec);
 
   std::string hdf_read_restart;
@@ -323,11 +299,6 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, c
   app_log(1,"****************************************************");
   app_log(1,"****************************************************\n");
 
-  /*
-   * Note: Hamiltonian is only needed to construct Wavefunction.
-   *       If Wavefunction already exists in the factory (constructed in a previous exec block)
-   *       there is no need to build Hamiltonian.
-   */
   if (mpi->comm.root() == 0)
   {
     if (hdf_read_restart != std::string(""))
@@ -371,17 +342,7 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, c
   // built after the wavefunction. The FT driver forces finite_temperature = true.
   WALKER_TYPES walker_type = WSetFac.get_walker_type(wset_name);
   bool finiteT = true;
-  if (not WfnFac.is_constructed(wfn_name))
-  {
-    // hamiltonian
-    Hamiltonian& ham0 = HamFac.getHamiltonian(mpi, ham_name);
-
-    // build wavefunction
-    [[maybe_unused]] auto& wfn0 = WfnFac.getWavefunction(mpi, wfn_name, walker_type, finiteT, &ham0, nWalkers);
-  }
-
-  // wfn builder should not use Hamiltonian pointer now
-  auto& wfn0 = WfnFac.getWavefunction(mpi, wfn_name, walker_type, finiteT, nullptr, nWalkers);
+  auto& wfn0 = get_wavefunction(wfn_name, ham_name, walker_type, finiteT, nWalkers);
 
   // propagator
   auto& prop0 = PropFac.getPropagator(mpi, prop_name, wfn0, rng);
@@ -425,7 +386,7 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, c
 
   // estimator setup
   auto estim0 = EstimatorHandler<MEM>(mpi, title, exec, wset, WfnFac, wfn0,
-         prop0, HamFac, ham_name, exec.timestep, addEnergyEstim, !free_proj);
+         prop0, HamFac, exec.timestep, addEnergyEstim, !free_proj);
 
   app_log(1,"\n****************************************************");
   app_log(1,"****************************************************");
@@ -705,7 +666,6 @@ bool DriverFactory<MEM>::executeCSAFQMCDriver([[maybe_unused]] std::string title
 // Instantiate
 #define __inst__(M)                                                                            \
 template bool DriverFactory<M>::executeDriver(DriverType,std::string,int,const ExecuteParameters&);  \
-template std::string DriverFactory<M>::get_wavefunction_id(const ExecuteParameters&);               \
 template std::tuple<std::string,std::string,std::string,std::string>                           \
   DriverFactory<M>::get_component_ids(const ExecuteParameters&);                                    \
 template bool DriverFactory<M>::executeAFQMCDriver(std::string,int,const ExecuteParameters&);       \

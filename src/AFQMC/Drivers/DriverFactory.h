@@ -71,47 +71,16 @@ private:
   // Wavefunction factory
   WavefunctionFactory<MEM>& WfnFac;
 
-  int unique_id = 0;
-
-  // Returns the name associated with the wavefunction block of an execute block. It can be
-  // either the name of a previously registered block or a full (possibly nameless)
-  // declaration. After the successful return of this routine (e.g. wfn_name), we can assume
-  // that WfnFac.get_input(wfn_name) exists and that it contains a non-empty filename.
-  std::string get_wavefunction_id(const ExecuteParameters& exec);
-
+  // The names of the hamiltonian, wavefunction, walker set and propagator of an execute block.
+  // resolve_defaults has registered every block under a name, so the execute block only holds
+  // references.
   std::tuple<std::string,std::string,std::string,std::string>
     get_component_ids(const ExecuteParameters& exec);
 
-  // Resolves a sub-block of an execute block to the name of a block registered in the given
-  // factory:
-  // 1. A string references a block that must already be registered, otherwise the code aborts.
-  // 2. A full declaration is registered under its own name, or, if it does not have one, under
-  //    a generated unique name.
-  // 3. An absent block registers `fallback` under a generated unique name.
-  template<class Params, class Factory>
-  std::string resolve_or_push(std::string_view key, const std::optional<utils::BlockRef<Params>>& block,
-                              Factory& fac, Params fallback)
-  {
-    if(block) {
-      if(const auto* name = std::get_if<std::string>(&*block)) {
-        // retrieve the name to make sure it exists (aborts if not)
-        fac.get_input(*name);
-        return *name;
-      }
-      Params params = std::get<Params>(*block);
-      if(params.name.empty()) {
-        params.name = std::format("{}_unique_id_{}", key, ++unique_id);
-      }
-      std::string name = params.name;
-      fac.push(name, std::move(params));
-      return name;
-    }
-
-    fallback.name = std::format("{}_unique_id_{}", key, ++unique_id);
-    std::string name = fallback.name;
-    fac.push(name, std::move(fallback));
-    return name;
-  }
+  // The wavefunction named wfn_name. The hamiltonian ham_name is only built if the wavefunction
+  // does not exist yet, e.g. from a previous execute block.
+  Wavefunction<MEM>& get_wavefunction(const std::string& wfn_name, const std::string& ham_name,
+                                      WALKER_TYPES walker_type, bool finiteT, int nWalkers);
 
 };
 

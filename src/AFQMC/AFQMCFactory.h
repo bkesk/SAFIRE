@@ -45,6 +45,18 @@ namespace sfqmc
 {
 namespace afqmc
 {
+
+/// Registers the input blocks of one component with its factory. resolve_defaults has hoisted
+/// every block declared inside an execute block into these lists, so this registers all of them
+/// and the execute blocks only ever refer to them by name.
+template<class Factory, class Params>
+void push_blocks(Factory& fac, const std::vector<Params>& blocks)
+{
+  for(const auto& params : blocks) {
+    fac.push(params.name, params);
+  }
+}
+
 /**
  * @brief Factory class for AFQMC. Parses input, performs setup of classes, and executes the driver.
  *

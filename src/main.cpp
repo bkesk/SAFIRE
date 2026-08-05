@@ -29,6 +29,7 @@
 #include "utilities/app_version.h"
 
 #include "AFQMC/AFQMCFactory.h"
+#include "AFQMC/parameter_defaults.hpp"
 
 /*
  * *** execution blocks are processed sequentially, so order is important.
@@ -149,6 +150,8 @@ int main_impl(int argc, char** argv)
 
   sfqmc::arch::init(compute == "gpu");
 
+  auto mpi = std::make_shared<utils::mpi_context_t<boost::mpi3::communicator>>(utils::make_mpi_context(world));
+
   // !!!! assume a single input for now
   std::string myinput = inputs[0];
   afqmc::AFQMCParameters params;
@@ -157,8 +160,9 @@ int main_impl(int argc, char** argv)
   } catch (std::exception const& e) {
     throw AppAbortException(fmt::format("Could not parse input file: {}", e.what()));
   }
-
-  auto mpi = std::make_shared<utils::mpi_context_t<boost::mpi3::communicator>>(utils::make_mpi_context(world));
+  // every default the parameter structs cannot express as a member initializer is applied here,
+  // so that the code below only ever sees resolved values
+  afqmc::resolve_defaults(params, *mpi);
 
 // need new strategy for n_group>1, need to add a new "global" communicator to the context.
 #if defined(ENABLE_DEVICE)

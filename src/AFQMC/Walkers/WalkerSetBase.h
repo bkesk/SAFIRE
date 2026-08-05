@@ -102,12 +102,9 @@ public:
         finite_temperature(finite_temperature_),
         tot_num_walkers(0),
         walker_buffer(0, 1),
-        bp_buffer(0, 0),
-        load_balance(LoadBalanceAlgorithm::undefined),
-        pop_control(BranchingAlgorithm::undefined),
-        min_weight(0.05),
-        max_weight(4.0)
+        bp_buffer(0, 0)
   {
+    // parse fills load_balance, pop_control, min_weight and max_weight from params
     parse(params);
     setup(dims);
     allocate_walkers(nWalkers);
@@ -693,12 +690,15 @@ protected:
   // reserve capacity for n walkers and initialize them to valid defaults
   void allocate_walkers(int n);
 
+  // the four below are set by parse(); the sentinels only guard against a ctor that forgets to
+  // call it
+
   // load balance algorithm
-  LoadBalanceAlgorithm load_balance;
+  LoadBalanceAlgorithm load_balance{LoadBalanceAlgorithm::undefined};
 
   // branching algorithm
-  BranchingAlgorithm pop_control;
-  [[maybe_unused]] double min_weight, max_weight;
+  BranchingAlgorithm pop_control{BranchingAlgorithm::undefined};
+  [[maybe_unused]] double min_weight{}, max_weight{};
 };
 
 } // namespace afqmc

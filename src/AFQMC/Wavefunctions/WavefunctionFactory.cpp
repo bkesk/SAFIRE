@@ -117,9 +117,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       // Set initial walker's Slater matrix.
       getInitialGuess(ngrp, name, NMO, nup, ndown, walker_type);
 
-      // if not set, get default based on HamTYpe
-      // use sparse trial only on KP runs
-      dense_trial = params.dense_trial.value_or(h.getHamType() != KPFactorized && h.getHamType() != KPTHC);
+      dense_trial = resolved(params.dense_trial, "dense_trial");
 
       auto HOps = h.getHamiltonianOperations<MEM>(walker_type, mpi, PsiT);
 
@@ -160,9 +158,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       // Set initial walker's Slater matrix.
       getInitialGuess_ft(ngrp, *mpi, name, NMO, walker_type, finiteT);
 
-      // if not set, get default based on HamTYpe
-      // use sparse trial only on KP runs
-      dense_trial = params.dense_trial.value_or(h.getHamType() != KPFactorized && h.getHamType() != KPTHC);
+      dense_trial = resolved(params.dense_trial, "dense_trial");
 
       nda::array<PsiT_Matrix<MEM>, 2> IMat(ndets_to_read,nspin);
       // dim = NMO

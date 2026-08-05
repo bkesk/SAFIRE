@@ -21,6 +21,7 @@
 #include "config.h"
 
 #include "AFQMC/parameters.hpp"
+#include "AFQMC/parameter_defaults.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
 #include "test_common.hpp"
@@ -132,11 +133,15 @@ void estimators_reduced_density_matrix(std::shared_ptr<utils::mpi_context_t<boos
 
   int nwalk = 2;
   WavefunctionFactory<MEM> WfnFac{};
-  WfnFac.push("wfn0", WavefunctionParameters{.name = "wfn0", .filename = wfn_file});
+  WavefunctionParameters wfn_params{.name = "wfn0", .filename = wfn_file};
+  apply_defaults(wfn_params, ham.getHamType());
+  WfnFac.push("wfn0", wfn_params);
   auto& wfn = WfnFac.getWavefunction(mpi, "wfn0", type, false, &ham, nwalk);
 
   PropagatorFactory<MEM> PropgFac;
-  PropgFac.push("prop0", PropagatorParameters{.name = "prop0"});
+  PropagatorParameters prop_params{.name = "prop0"};
+  apply_defaults(prop_params, ham.getHamType());
+  PropgFac.push("prop0", prop_params);
   auto& prop = PropgFac.getPropagator(mpi, "prop0", wfn, rng_dev);
 
   auto const& initial_guess = WfnFac.getInitialGuess("wfn0");

@@ -69,13 +69,11 @@ public:
     std::tie(nspins_in_vHS, npol_in_vHS) = wfn->vHS_dims();
     app_log(1," vHS dimensions: nspins = {}, npol = {}", nspins_in_vHS, npol_in_vHS);
     auto hamtype(wfn->getHamType());
-    // some defaults take legacy values for model hamiltonians
-    const bool model = hamtype == ModelHamiltonian;
-    vbias_bound        = params.vbias_bound.value_or(model ? 100.0 : 50.0);
-    upper_cutoff_scale = params.upper_cutoff_scale.value_or(model ? 50.0 : 10.0);
-    lower_cutoff_scale = params.lower_cutoff_scale.value_or(model ? 50.0 : 1.0);
-    denseP2            = params.denseP2.value_or(not model);
-    symmetric_split    = params.symmetric_split.value_or(not model);
+    vbias_bound        = resolved(params.vbias_bound, "vbias_bound");
+    upper_cutoff_scale = resolved(params.upper_cutoff_scale, "upper_cutoff_scale");
+    lower_cutoff_scale = resolved(params.lower_cutoff_scale, "lower_cutoff_scale");
+    denseP2            = resolved(params.denseP2, "denseP2");
+    symmetric_split    = resolved(params.symmetric_split, "symmetric_split");
 
     const std::string& external_field = params.external_field;
     const double external_field_scale = params.external_field_scale;
