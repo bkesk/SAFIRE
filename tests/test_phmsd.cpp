@@ -277,8 +277,9 @@ void phmsd_compute(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicato
   ComplexType log_ovlp_sum = std::log(ovlp_sum);
 
   // the phase can be off by 2*pi due to small round-off errors around 0, what to do???
-  for (const auto &w : wset)
-    CHECK_THAT(std::exp(w.get_property(OVLP)), utils::Approx(ovlp_sum));
+  for(int iw = 0; iw < wset.size(); ++iw) {
+    CHECK_THAT(std::exp(wset[iw].get_property(OVLP)), utils::Approx(ovlp_sum));
+  }
 
   {
     memory::array<MEM,ComplexType,1> log_ov(nwalk);

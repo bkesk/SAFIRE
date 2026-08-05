@@ -84,19 +84,20 @@ void sharedwset_basic_walker_features(WALKER_TYPES wtype, bool finiteT)
     auto ws = WalkerSet<MEM>(mpi, wlk_params, rng, wtype, initA, nwalkers);
 
     REQUIRE(ws.size() == nwalkers);
-    for (auto it = ws.begin(); it != ws.end(); ++it)
+    for(int iw = 0; iw < ws.size(); ++iw)
     {
+      auto w = ws[iw];
       for(int spin = 0; spin < nspin; spin++) {
-        auto sm = it->SlaterMatrix(static_cast<SpinTypes>(spin));
+        auto sm = w.SlaterMatrix(static_cast<SpinTypes>(spin));
         REQUIRE( sm.extent(0) == M );
         REQUIRE( sm.extent(1) == (spin == 0 ? nup : ndown) );
         REQUIRE(nda::to_host(sm) == initA[spin]());
       }
-      it->set_property(WEIGHT,base * 1.0 + 0.5);
-      it->set_property(OVLP,base * 1.0 + 0.5);
-      it->set_property(E1_,base * 1.0 + 0.5);
-      it->set_property(EXX_,base * 1.0 + 0.5);
-      it->set_property(EJ_,base * 1.0 + 0.5);
+      w.set_property(WEIGHT,base * 1.0 + 0.5);
+      w.set_property(OVLP,base * 1.0 + 0.5);
+      w.set_property(E1_,base * 1.0 + 0.5);
+      w.set_property(EXX_,base * 1.0 + 0.5);
+      w.set_property(EJ_,base * 1.0 + 0.5);
       tot_weight += base * 1.0 + 0.5;
       base += Type(1.0);
       cnt++;
@@ -128,25 +129,26 @@ void sharedwset_basic_walker_features(WALKER_TYPES wtype, bool finiteT)
     auto ws = WalkerSet<MEM>(mpi, wlk_params, rng, wtype, initUDV, nwalkers);
 
     REQUIRE(ws.size() == nwalkers);
-    for (auto it = ws.begin(); it != ws.end(); ++it)
+    for(int iw = 0; iw < ws.size(); ++iw)
     {
-      auto umat = it->UMatrix(Alpha);
+      auto w = ws[iw];
+      auto umat = w.UMatrix(Alpha);
       REQUIRE( umat.extent(0) == initUDV.extent(2) );
       REQUIRE( umat.extent(1) == M );
-      REQUIRE(nda::to_host(it->UMatrix(Alpha)) == nda::to_host(initUDV(0,0,nda::ellipsis{})));
+      REQUIRE(nda::to_host(w.UMatrix(Alpha)) == nda::to_host(initUDV(0,0,nda::ellipsis{})));
       if( ws.getWalkerType() == COLLINEAR ) {
-        auto umatB = it->UMatrix(Beta);
+        auto umatB = w.UMatrix(Beta);
         REQUIRE( umatB.extent(0) == initUDV.extent(2) );
         REQUIRE( umatB.extent(1) == M );
-        REQUIRE( nda::to_host(it->UMatrix(Beta)) == nda::to_host(initUDV(0,1,nda::range::all,nda::range(M))));
+        REQUIRE( nda::to_host(w.UMatrix(Beta)) == nda::to_host(initUDV(0,1,nda::range::all,nda::range(M))));
       }
-      it->set_property(WEIGHT,base * 1.0 + 0.5);
-      it->set_property(OVLP,base * 1.0 + 0.5);
-      it->set_property(E1_,base * 1.0 + 0.5);
-      it->set_property(EXX_,base * 1.0 + 0.5);
-      it->set_property(EJ_,base * 1.0 + 0.5);
-      it->set_property(LOGSCL_UP,base * 1.0 + 0.5);
-      it->set_property(LOGSCL_DN,base * 1.0 + 0.5);
+      w.set_property(WEIGHT,base * 1.0 + 0.5);
+      w.set_property(OVLP,base * 1.0 + 0.5);
+      w.set_property(E1_,base * 1.0 + 0.5);
+      w.set_property(EXX_,base * 1.0 + 0.5);
+      w.set_property(EJ_,base * 1.0 + 0.5);
+      w.set_property(LOGSCL_UP,base * 1.0 + 0.5);
+      w.set_property(LOGSCL_DN,base * 1.0 + 0.5);
       tot_weight += base * 1.0 + 0.5;
       base += Type(1.0);
       cnt++;
@@ -159,17 +161,18 @@ void sharedwset_basic_walker_features(WALKER_TYPES wtype, bool finiteT)
   REQUIRE(cnt == nwalkers);
   base = Type(0.0);
   cnt = 0;
-  for (auto it = wset.begin(); it != wset.end(); ++it)
+  for(int iw = 0; iw < wset.size(); ++iw)
   {
+    auto w = wset[iw];
     Type d_(base * 1.0 + 0.5);
-    REQUIRE(Type(it->get_property(WEIGHT)) == d_);
-    REQUIRE(Type(it->get_property(OVLP)) == d_);
-    REQUIRE(Type(it->get_property(E1_)) == d_);
-    REQUIRE(Type(it->get_property(EXX_)) == d_);
-    REQUIRE(Type(it->get_property(EJ_)) == d_);
+    REQUIRE(Type(w.get_property(WEIGHT)) == d_);
+    REQUIRE(Type(w.get_property(OVLP)) == d_);
+    REQUIRE(Type(w.get_property(E1_)) == d_);
+    REQUIRE(Type(w.get_property(EXX_)) == d_);
+    REQUIRE(Type(w.get_property(EJ_)) == d_);
     if(finiteT){
-      REQUIRE(Type(it->get_property(LOGSCL_UP)) == d_);
-      REQUIRE(Type(it->get_property(LOGSCL_DN)) == d_);
+      REQUIRE(Type(w.get_property(LOGSCL_UP)) == d_);
+      REQUIRE(Type(w.get_property(LOGSCL_DN)) == d_);
     }
     base += Type(1.0);
     cnt++;
@@ -178,16 +181,17 @@ void sharedwset_basic_walker_features(WALKER_TYPES wtype, bool finiteT)
   REQUIRE(wset.capacity() == 20);
   base = Type(0.0);
   cnt = 0;
-  for (auto it = wset.begin(); it != wset.end(); ++it)
+  for(int iw = 0; iw < wset.size(); ++iw)
   {
-    REQUIRE(Type(it->get_property(WEIGHT)) == base * 1.0 + 0.5);
-    REQUIRE(Type(it->get_property(OVLP)) == base * 1.0 + 0.5);
-    REQUIRE(Type(it->get_property(E1_)) == base * 1.0 + 0.5);
-    REQUIRE(Type(it->get_property(EXX_)) == base * 1.0 + 0.5);
-    REQUIRE(Type(it->get_property(EJ_)) == base * 1.0 + 0.5);
+    auto w = wset[iw];
+    REQUIRE(Type(w.get_property(WEIGHT)) == base * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(OVLP)) == base * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(E1_)) == base * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(EXX_)) == base * 1.0 + 0.5);
+    REQUIRE(Type(w.get_property(EJ_)) == base * 1.0 + 0.5);
     if(finiteT){
-      REQUIRE(Type(it->get_property(LOGSCL_UP)) == base * 1.0 + 0.5);
-      REQUIRE(Type(it->get_property(LOGSCL_DN)) == base * 1.0 + 0.5);
+      REQUIRE(Type(w.get_property(LOGSCL_UP)) == base * 1.0 + 0.5);
+      REQUIRE(Type(w.get_property(LOGSCL_DN)) == base * 1.0 + 0.5);
     }
     base += Type(1.0);
     cnt++;
@@ -334,19 +338,20 @@ void sharedwset_walker_io(WALKER_TYPES wtype)
   int cnt(0);
   Type base(0.0);
   Type tot_weight(0.0);
-  for (auto it = wset.begin(); it != wset.end(); ++it)
+  for(int iw = 0; iw < wset.size(); ++iw)
   {
+    auto w = wset[iw];
     for(int spin = 0; spin < nspin; spin++) {
-      auto sm = it->SlaterMatrix(static_cast<SpinTypes>(spin));
+      auto sm = w.SlaterMatrix(static_cast<SpinTypes>(spin));
       REQUIRE(sm.extent(0) == npol * NMO);
       REQUIRE(sm.extent(1) == (spin == 0 ? nup : ndown));
       REQUIRE(nda::to_host(sm) == initA[spin]());
     }
-    it->set_property(WEIGHT,base * 1.0 + 0.1);
-    it->set_property(OVLP,base * 1.0 + 0.2);
-    it->set_property(E1_,base * 1.0 + 0.3);
-    it->set_property(EXX_,base * 1.0 + 0.4);
-    it->set_property(EJ_,base * 1.0 + 0.5);
+    w.set_property(WEIGHT,base * 1.0 + 0.1);
+    w.set_property(OVLP,base * 1.0 + 0.2);
+    w.set_property(E1_,base * 1.0 + 0.3);
+    w.set_property(EXX_,base * 1.0 + 0.4);
+    w.set_property(EJ_,base * 1.0 + 0.5);
     tot_weight += base * 1.0 + 0.5; // not used?
     base += Type(1.0);
     cnt++;

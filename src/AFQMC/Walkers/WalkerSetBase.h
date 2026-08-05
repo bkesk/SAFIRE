@@ -69,9 +69,7 @@ public:
   static const bool fixed_population   = true;
 
   using reference = walker<_MEM_,ComplexType>;
-  using iterator  = walker_iterator<_MEM_,ComplexType>;
   using const_reference = walker<_MEM_,const ComplexType>;
-  using const_iterator  = walker_iterator<_MEM_,const ComplexType>;
 
   // A walker set cannot be created empty, because it needs to know about the dimensions it is going to hold.
   WalkerSetBase() = delete;
@@ -191,42 +189,6 @@ public:
   void setHistoryPos(int p) { history_pos = p % wlk_desc[6]; }
   void advanceHistoryPos() { history_pos = (history_pos + 1) % wlk_desc[6]; }
 
-
-  /*
-   * Returns iterator to the first walker in the set
-   */
-  auto begin()
-  {
-    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return iterator(0, walker_buffer, data_displ, wlk_desc);
-  }
-
-  /*
-   * Returns iterator to the first walker in the set
-   */
-  auto begin() const
-  {
-    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_iterator(0, walker_buffer, data_displ, wlk_desc);
-  }
-
-  /*
-   * Returns iterator to the past-the-end walker in the set
-   */
-  auto end()
-  {
-    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
-  }
-
-  /*
-   * Returns iterator to the past-the-end walker in the set
-   */
-  auto end() const
-  {
-    utils::check(walker_buffer.extent(1) == walker_size, "Shape mismatch");
-    return const_iterator(tot_num_walkers, walker_buffer, data_displ, wlk_desc);
-  } 
 
   /*
    * Returns a reference to a walker

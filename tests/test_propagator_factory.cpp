@@ -115,12 +115,13 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
   wfn.Energy(wset);
   {
     ComplexType eav = 0, ov = 0;
-    for (auto it = wset.begin(); it != wset.end(); ++it)
+    for(int iw = 0; iw < wset.size(); ++iw)
     {
-      eav += it->get_property(WEIGHT) * (it->energy());
-      ov += it->get_property(WEIGHT);
+      auto w = wset[iw];
+      eav += w.get_property(WEIGHT) * (w.energy());
+      ov += w.get_property(WEIGHT);
     }
-    app_log(1," Initial Energy: {}", (eav / ov).real()); 
+    app_log(1," Initial Energy: {}", (eav / ov).real());
   }
   double tot_time = 0;
   RealType dt     = 0.01;
@@ -131,10 +132,11 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
       prop.Propagate(wset, Eshift, dt);
       wfn.Energy(wset);
       ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
+      for(int iw = 0; iw < wset.size(); ++iw)
       {
-        eav += it->get_property(WEIGHT) * (it->energy());
-        ov += it->get_property(WEIGHT);
+        auto w = wset[iw];
+        eav += w.get_property(WEIGHT) * (w.energy());
+        ov += w.get_property(WEIGHT);
       }
       tot_time += dt;
       app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
@@ -145,10 +147,11 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
       prop.Propagate(wset, Eshift, 2 * dt);
       wfn.Energy(wset);
       ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
+      for(int iw = 0; iw < wset.size(); ++iw)
       {
-        eav += it->get_property(WEIGHT) * (it->energy());
-        ov += it->get_property(WEIGHT);
+        auto w = wset[iw];
+        eav += w.get_property(WEIGHT) * (w.energy());
+        ov += w.get_property(WEIGHT);
       }
       tot_time += 2 * dt;
       app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());
@@ -164,10 +167,11 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
       prop.Propagate(wset, Eshift, dt, i+1);
       wfn.Energy(wset, i+1);
       ComplexType eav = 0, ov = 0;
-      for (auto it = wset.begin(); it != wset.end(); ++it)
+      for(int iw = 0; iw < wset.size(); ++iw)
       {
-        eav += it->get_property(WEIGHT) * (it->energy());
-        ov += it->get_property(WEIGHT);
+        auto w = wset[iw];
+        eav += w.get_property(WEIGHT) * (w.energy());
+        ov += w.get_property(WEIGHT);
       }
       tot_time += dt;
       app_log(1," -- {}  {}  {}",i,tot_time,(eav / ov).real());

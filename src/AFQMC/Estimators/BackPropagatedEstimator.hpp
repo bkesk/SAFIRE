@@ -107,8 +107,9 @@ public:
     wset.setBPPos(0);
     // set SMN in case BP begins right away
     if (nblocks_equil == 0)
-      for (auto it = wset.begin(); it < wset.end(); ++it)
-        it->setSlaterMatrixN();
+      for(int iw = 0; iw < wset.size(); ++iw) {
+        wset[iw].setSlaterMatrixN();
+      }
   }
 
   ~BackPropagatedEstimator() {}
@@ -147,8 +148,9 @@ public:
       if (bp_step == max_nback_prop)
       {
         if (iblock + 1 == nblocks_equil)
-          for (auto it = wset.begin(); it < wset.end(); ++it)
-            it->setSlaterMatrixN();
+          for(int iw = 0; iw < wset.size(); ++iw) {
+            wset[iw].setSlaterMatrixN();
+          }
         iblock++;
         wset.setBPPos(0);
       }
@@ -206,8 +208,9 @@ public:
     if (bp_step == max_nback_prop)
     {
       // 5. setup for next block
-      for (auto it = wset.begin(); it < wset.end(); ++it)
-        it->setSlaterMatrixN();
+      for(int iw = 0; iw < wset.size(); ++iw) {
+        wset[iw].setSlaterMatrixN();
+      }
       wset.setBPPos(0);
       average_has_run.assign(naverages, false);
 
