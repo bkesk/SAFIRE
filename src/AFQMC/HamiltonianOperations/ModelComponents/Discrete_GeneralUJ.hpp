@@ -15,14 +15,14 @@
 
 #include <vector>
 #include <type_traits>
-#include <boost/math/tools/roots.hpp>
 
-#include "config.h" 
+#include "config.h"
 #include "AFQMC/config.h"
 #include "utilities/check.hpp"
 #include "utilities/check_shape.hpp"
 #include "utilities/mpi_context.h"
 
+#include "numerics/operations/bisect.hpp"
 #include "numerics/sparse/sparse.hpp"
 #include "numerics/shared_array/const_shared_array.hpp"
 
@@ -366,10 +366,9 @@ private:
     using std::abs;
     using std::sqrt;
     using std::get;
-    using boost::math::tools::bisect;
-    auto tol = [](double min, double max) {
-        return std::abs(max - min) < 1e-12; 
-    };
+    using math::bisect;
+    constexpr double bisect_tol      = 1e-12;
+    constexpr int    bisect_max_iter = 300;
     utils::check(abs(U_) > 1e-8, "Error in Discrete_GeneralUJ::get_parameters: U==0.");
     utils::check(abs(std::imag(U_)) < 1e-8, "Error in Discrete_GeneralUJ::get_parameters: imag(U) > 0 not yet allowed.");
     utils::check(abs(std::imag(nMF_)) < 1e-8, "Error in Discrete_GeneralUJ::get_parameters: imag(nMF) > 0. Should not happen.");
@@ -420,13 +419,9 @@ private:
             return exp(-1.0*dt*Ud_) - std::real(cos(ComplexType(0.0,a)*(2.0-n_)) * cos(ComplexType(0.0,a)*n_) / (c*c));
           };
           // [a1,a0] should bracket the root and f(a) should be monotonically increasing
-          if( f(a0)*f(a1) > 0.0 )
-            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
-          std::uintmax_t miter(300);
-          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
-          if(miter == 300)
-            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
-          alpha = ComplexType(0.0,RealType(root.first));	     
+          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),bisect_tol,bisect_max_iter);
+          utils::check(root.converged,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
+          alpha = ComplexType(0.0,RealType(root.lower));
         } else {
           // alpha is real
           if( (std::abs(std::imag(a0_c)) > 1e-8) or (std::abs(std::imag(a1_c)) > 1e-8) )   	
@@ -439,13 +434,9 @@ private:
                   return exp(-1.0*dt*Ud_) - cos(a*(2.0-n_)) * cos(a*n_) / (c*c);
           }; 
           // [a0,a1] should bracket the root and f(a) should be monotonically increasing
-          if( f(a0)*f(a1) > 0.0 ) 
-            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
-          std::uintmax_t miter(300);
-          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
-          if(miter == 300)
-            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
-                alpha = ComplexType(RealType(root.first));
+          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),bisect_tol,bisect_max_iter);
+          utils::check(root.converged,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
+          alpha = ComplexType(RealType(root.lower));
         }
       }	
         utils::check(abs(cos(alpha*(1.0-nMF))) > 1e-8, 
@@ -479,13 +470,9 @@ private:
             return exp(dt*Ud_) - std::real(cosh(ComplexType(0.0,a)*(1.0-n_)) * cosh(ComplexType(0.0,a)*(1.0+n_)) / (c*c));
           };
           // [a1,a0] should bracket the root and f(a) should be monotonically increasing
-          if( f(a0)*f(a1) > 0.0 )
-            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
-          std::uintmax_t miter(300);
-          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
-          if(miter == 300)
-            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
-          alpha = ComplexType(0.0,RealType(root.first));	     
+          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),bisect_tol,bisect_max_iter);
+          utils::check(root.converged,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
+          alpha = ComplexType(0.0,RealType(root.lower));
         } else {
           // alpha is real
           if( (std::abs(std::imag(a0_c)) > 1e-8) or (std::abs(std::imag(a1_c)) > 1e-8) )   	
@@ -498,13 +485,9 @@ private:
                   return exp(dt*Ud_) - cosh(a*(1.0-n_)) * cosh(a*(1.0+n_)) / (c*c);
           }; 
           // [a0,a1] should bracket the root and f(a) should be monotonically increasing
-          if( f(a0)*f(a1) > 0.0 ) 
-            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
-          std::uintmax_t miter(300);
-          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),tol,miter);
-          if(miter == 300)
-            utils::check(false,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");		
-                alpha = ComplexType(RealType(root.first));
+          auto root = bisect(f,std::min(a0,a1),std::max(a0,a1),bisect_tol,bisect_max_iter);
+          utils::check(root.converged,"Error in Discrete_GeneralUJ::get_parameters: Problems bracketing root.");
+          alpha = ComplexType(RealType(root.lower));
         }
 
       }	
