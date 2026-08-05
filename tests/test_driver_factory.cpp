@@ -240,10 +240,12 @@ void check_unique_names(const std::vector<Params>& blocks)
 void parameter_defaults_resolution(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
                                    std::string hamil_file, std::string wfn_file)
 {
-  // the minimal input: one nameless wavefunction and nothing else
+  // the minimal input: one nameless wavefunction and nothing else. Its file has to hold the
+  // hamiltonian too, because that is what the inherited hamiltonian is peeked from -- only the
+  // hamiltonian file is read here, so hamil_file stands in for a single file holding both.
   {
     AFQMCParameters params{};
-    params.execute = {ExecuteParameters{.wavefunction = WavefunctionParameters{.filename = wfn_file}}};
+    params.execute = {ExecuteParameters{.wavefunction = WavefunctionParameters{.filename = hamil_file}}};
     resolve_defaults(params, *mpi);
 
     // the absent blocks are materialized, one of each, and the registries name them uniquely
