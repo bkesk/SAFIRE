@@ -96,21 +96,21 @@ public:
 
     energy_algorithm = resolved(params.algorithm, "algorithm");
 
-    app_log(1, " Using the {} energy algorithm. ", nlohmann::json(energy_algorithm).get<std::string>());
+    app_log(1, "Using the {} energy algorithm. ", nlohmann::json(energy_algorithm).get<std::string>());
     // check that refc is appropriate for the selected algorithm
     if(energy_algorithm == PHMSDEnergyAlgorithm::woodbury) {
       auto refc=abij.reference_configuration();
       for(int i=0; i<nup; i++)
-        utils::check(refc[i] == i, " Error: PHMSD woodbury algorithm requires refc[i]==i.\n\n");
+        utils::check(refc[i] == i, "Error: PHMSD woodbury algorithm requires refc[i]==i.\n\n");
       for(int i=0; i<ndown; i++)
-        utils::check(refc[nup+i] == i, " Error: PHMSD woodbury algorithm requires refc[i]==i.\n\n");
+        utils::check(refc[nup+i] == i, "Error: PHMSD woodbury algorithm requires refc[i]==i.\n\n");
     }
 
     nwalk_block_size = params.nwalk_block_size;
     ndet_block_size  = params.ndet_block_size;
     utils::check(nwalk_block_size > 0, " Error: PHMSD nwalk_block_size must be > 0.");
     utils::check(ndet_block_size  > 0, " Error: PHMSD ndet_block_size must be > 0.");
-    app_log(1, " PHMSD energy batching: nwalk_block_size={}, ndet_block_size={}.",
+    app_log(1, "PHMSD energy batching: nwalk_block_size={}, ndet_block_size={}.",
             nwalk_block_size, ndet_block_size);
   }
 

@@ -52,9 +52,7 @@ inline std::string_view branching_explanation(BranchingAlgorithm algorithm)
 template<MEMORY_SPACE _M_>
 void WalkerSetBase<_M_>::parse(const WalkerSetParameters& params)
 {
-  app_log(1,"\n****************************************************");
-  app_log(1,"           Initializing Walker Set ");
-  app_log(1,"****************************************************");
+  app_log(1, section(std::format("Initializing Walker Set \"{}\"", params.name)));
   // The walker type is resolved by the caller and passed to the constructor, so it is
   // not taken from the parameters here.
   min_weight   = params.min_weight;

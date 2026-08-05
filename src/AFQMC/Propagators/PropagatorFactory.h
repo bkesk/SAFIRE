@@ -21,6 +21,7 @@
 #include <map>
 #include <fstream>
 #include "utilities/Random.hpp"
+#include "IO/banner.hpp"
 
 #include "AFQMC/config.h"
 #include "AFQMC/parameters.hpp"
@@ -90,9 +91,7 @@ protected:
   // generates a new Propagator and returns the pointer to the base class
   Propagator<MEM> buildPropagator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, const PropagatorParameters& params, Wavefunction<MEM>& wfn, std::shared_ptr<utils::RandomGenerator_t<MEM>> rng)
   {
-    app_log(1,"\n****************************************************");
-    app_log(1,"               Initializing Propagator ");
-    app_log(1,"\n****************************************************");
+    app_log(1, section(std::format("Initializing Propagator \"{}\"", params.name)));
 
     return buildAFQMCPropagator(mpi, params, wfn, rng);
   }

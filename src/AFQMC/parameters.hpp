@@ -294,4 +294,6 @@ inline AFQMCParameters parse_input_file(const std::filesystem::path& filename) {
   return params;
 }
 
+void print_parameters(const AFQMCParameters& params);
+
 }

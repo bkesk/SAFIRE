@@ -23,6 +23,7 @@
 #include <map>
 #include <fstream>
 #include "IO/app_loggers.h"
+#include "IO/banner.hpp"
 
 #include "AFQMC/config.h"
 #include "AFQMC/parameters.hpp"
@@ -97,9 +98,7 @@ protected:
   Hamiltonian buildHamiltonian(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi,
                                const HamiltonianParameters& params)
   {
-    app_log(1,"\n****************************************************");
-    app_log(1,"               Initializing Hamiltonian ");
-    app_log(1,"\n****************************************************\n");
+    app_log(1, section(std::format("Initializing Hamiltonian \"{}\"", params.name)));
 
     return fromHDF5(mpi, params);
   }

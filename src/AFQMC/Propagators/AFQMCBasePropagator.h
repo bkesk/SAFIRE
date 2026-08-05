@@ -21,6 +21,7 @@
 #include <tuple>
 
 #include "IO/app_loggers.h"
+#include "IO/banner.hpp"
 #include "AFQMC/parameters.hpp"
 #include "utilities/Random.hpp"
 #include "utilities/check.hpp"
@@ -67,7 +68,7 @@ public:
     utils::check(bool(mpi), "Error: Null mpi_context.");
     const int NMO = wfn->getNMO();
     std::tie(nspins_in_vHS, npol_in_vHS) = wfn->vHS_dims();
-    app_log(1," vHS dimensions: nspins = {}, npol = {}", nspins_in_vHS, npol_in_vHS);
+    app_log(1,"vHS dimensions: nspins = {}, npol = {}", nspins_in_vHS, npol_in_vHS);
     auto hamtype(wfn->getHamType());
     vbias_bound        = resolved(params.vbias_bound, "vbias_bound");
     upper_cutoff_scale = resolved(params.upper_cutoff_scale, "upper_cutoff_scale");
@@ -110,40 +111,34 @@ public:
       utils::check(false,"BasePropagator: set denseP1 to false");
     }
 
-    app_log(1,"\n\n --------------- Constructing Propagator ------------------ \n");
-
-    app_log(1," vbias_bound: {}", vbias_bound);
-    app_log(1," cutoff scales (upper/lower): {} / {}", upper_cutoff_scale, lower_cutoff_scale);
+    app_log(1,"cutoff scales (upper/lower): {} / {}", upper_cutoff_scale, lower_cutoff_scale);
     if(denseP1)
-      app_log(1," Using dense 1-body propagator");
+      app_log(1,"Using dense 1-body propagator");
     else
-      app_log(1," Using sparse 1-body propagator");
+      app_log(1,"Using sparse 1-body propagator");
     if(denseP2)
-      app_log(1," Using dense 2-body propagator (vHS)");
+      app_log(1,"Using dense 2-body propagator (vHS)");
     else
-      app_log(1," Using sparse 2-body propagator (vHS)");
+      app_log(1,"Using sparse 2-body propagator (vHS)");
 
     if(nspins_in_vHS>1) 
-      app_log(1, " Using a spin-dependent vHS.");
+      app_log(1, "Using a spin-dependent vHS.");
     if(npol_in_vHS>1) 
-      app_log(1, " Using a polarization-dependent vHS.");
+      app_log(1, "Using a polarization-dependent vHS.");
 
-    if (!importance_sampling && !free_projection)
-      app_log(1," WARNING: importance_sampling=no without free projection does not make sense. ");
+    utils::check(importance_sampling || free_projection, "importance_sampling=false without free projection does not make sense.");
 
     if (hybrid)
-      app_log(1," Using hybrid method to calculate the weights during the propagation.");
+      app_log(1,"Using hybrid method to calculate the weights during the propagation.");
     else
-      app_log(1," Using local energy method to calculate the weights during the propagation.");
+      app_log(1,"Using local energy method to calculate the weights during the propagation.");
     if(natural_shift)
-      app_log(1, " Using natural shifts with discrete propagators. ");
+      app_log(1, "Using natural shifts with discrete propagators. ");
     if(symmetric_split)
-      app_log(1, " Using symmetric split of walker weight update.");
+      app_log(1, "Using symmetric split of walker weight update.");
 
-    if (debug_verbosity)
-    {
-      app_log(1,"[WARNING] Using debug verbosity. THIS WILL GENERATE A LOT OF OUTPUT.");
-      app_log(1,"Intended for debugging purposes with a few walkers only.");
+    if (debug_verbosity) {
+      app_warning("Using debug verbosity. THIS WILL GENERATE A LOT OF OUTPUT. Intended for debugging purposes with a few walkers only.");
     }
 
     // read orbital matrix if excited state propagator
@@ -250,9 +245,7 @@ public:
     long el_tot = buf[3], el_up = buf[4], el_lo = buf[5];
     auto pct = [](long h, long t) { return t > 0 ? 100.0 * double(h) / double(t) : 0.0; };
 
-    app_log(1, "\n****************************************************");
-    app_log(1,   "          Bounding-box trigger statistics           ");
-    app_log(1,   "****************************************************");
+    app_log(1, "\n{}", banner("Bounding-box trigger statistics"));
 
     app_log(1, " Force-bias (vbias) clamp  [|vbias| > vbias_bound*sqrt(dt)], per (walker,field):");
     if (vb_tot == 0)
@@ -268,7 +261,7 @@ public:
       app_log(1, "   operations: {}   hits: {} ({:.4f}%)  [upper: {} ({:.4f}%), lower: {} ({:.4f}%)]",
               el_tot, el_up + el_lo, pct(el_up + el_lo, el_tot),
               el_up, pct(el_up, el_tot), el_lo, pct(el_lo, el_tot));
-    app_log(1,   "****************************************************\n");
+    app_log(1, "{}\n", hrule());
   }
 
 

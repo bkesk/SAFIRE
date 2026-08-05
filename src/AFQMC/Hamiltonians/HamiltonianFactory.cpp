@@ -48,8 +48,6 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
   utils::check(not filename.empty(), "Error: hamiltonian must contain a filename.");
   std::string format;  // only meaningful at root
 
-  app_log(1,"Initializing Hamiltonian from file: {}", filename);
-
   const HamiltonianTypes htype = peek_hamiltonian_type(params, *mpi);
 
   h5::file file;

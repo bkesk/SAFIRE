@@ -49,7 +49,7 @@ public:
     for (int i = 0; i < nwfacts; i++)
       weight_factors.push(weight_product);
 
-    app_log(1,"  BasicEstimator: Number of products in weight history: {}", nwfacts);
+    app_log(1,"BasicEstimator: Number of products in weight history: {}", nwfacts);
 
     data.resize(10);
     data2.resize(10);

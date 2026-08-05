@@ -88,21 +88,6 @@ public:
        DriverFac(mpi, WSetFac, PropFac, WfnFac, HamFac)
   {
     utils::check(params.project.n_groups==1, "finish!!!");
-    app_log(1, " AFQMCFactory Project settings: ");
-    app_log(1, "    -- id             : {} ", project_title);
-    app_log(1, "    -- series         : {} ", m_series);
-    app_log(1, "    -- n_groups       : {} ", params.project.n_groups);
-    app_log(1, "    -- MPI tasks/node : {} ", mpi->node_comm.size());
-    app_log(1, "    -- MPI nodes      : {} ", mpi->internode_comm.size());
-    app_log(1, "    -- MPI tasks      : {} ", mpi->comm.size());
-    app_log(1, "    -- Compute Device    : {} ", (MEM==DEVICE_MEMORY?"gpu":"cpu")); 
-    const char* tblis_env = std::getenv("TBLIS_NUM_THREADS");
-    const char* omp_env = std::getenv("OMP_NUM_THREADS");
-    app_log(1, "    -- TBLIS_NUM_THREADS : {} {}", tblis_env ? tblis_env : "(unset)",
-            sfqmc::utils::tblis_threads_was_user_set() ? "(user-provided)" : "");
-    app_log(1, "    -- OMP_NUM_THREADS   : {} {}\n\n", omp_env ? omp_env : "(unset)",
-            sfqmc::utils::omp_threads_was_user_set() ? "(user-provided)" : "");
-    app_log(2, "\nAFQMCFactory input:\n{}\n", nlohmann::json(params).dump(2));
 
     // parse input
     utils::check(parse(params), "Error in AFQMCFactory: Problems parsing the input file.");

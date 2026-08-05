@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <iomanip>
 #include "IO/AppAbort.hpp"
+#include "IO/banner.hpp"
 #include "IO/app_loggers.h"
 
 namespace sfqmc {
@@ -176,14 +177,14 @@ public:
 
   void print_all()
   {
-    app_log(1,"***************************************************************************");
+    app_log(1, hrule());
     app_log(1, "{:>30}:{:>16}{:>16}{:>9}", "Timer Name", "Elapsed (s)", "Averaged (s)", 
 							"# calls");
-    app_log(1,"***************************************************************************");
+    app_log(1, hrule());
     for (auto& t : timers) 
       app_log(1, "{:>30}:{:16.8g}{:16.8g}{:9d}", t.name.c_str(), t.elapsed(),
 						   t.average(), t.number_of_calls());
-    app_log(1,"***************************************************************************");
+    app_log(1, hrule());
     app_log_flush();
   }
 };

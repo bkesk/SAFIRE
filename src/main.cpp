@@ -62,8 +62,7 @@ int main_impl(int argc, char** argv)
     "███████╗███████║█████╗  ██║██████╔╝█████╗  \n"
     "╚════██║██╔══██║██╔══╝  ██║██╔══██╗██╔══╝  \n"
     "███████║██║  ██║██║     ██║██║  ██║███████╗\n"
-    "╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝\n"
-    "\n"};
+    "╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝\n"};
 
   // parse command line inputs
   std::vector<std::string> inputs;
@@ -144,13 +143,16 @@ int main_impl(int argc, char** argv)
 
   app_log(1, welcome);      
 
-  if(root)
+  if(root && output_level >= 1)
     print_version();
 
+  app_log(1, "\nCompute device:    {} ", compute); 
+  auto mpi = std::make_shared<utils::mpi_context_t<boost::mpi3::communicator>>(utils::make_mpi_context(world));
+  app_log(1, "MPI ranks:         {}", mpi->comm.size());
+  app_log(1, "MPI nodes:         {}", mpi->internode_comm.size());
+  app_log(1, "MPI ranks/node:    {}", mpi->node_comm.size());
 
   sfqmc::arch::init(compute == "gpu");
-
-  auto mpi = std::make_shared<utils::mpi_context_t<boost::mpi3::communicator>>(utils::make_mpi_context(world));
 
   // !!!! assume a single input for now
   std::string myinput = inputs[0];
@@ -163,6 +165,7 @@ int main_impl(int argc, char** argv)
   // every default the parameter structs cannot express as a member initializer is applied here,
   // so that the code below only ever sees resolved values
   afqmc::resolve_defaults(params, *mpi);
+  afqmc::print_parameters(params);
 
 // need new strategy for n_group>1, need to add a new "global" communicator to the context.
 #if defined(ENABLE_DEVICE)

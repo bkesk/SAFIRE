@@ -17,6 +17,7 @@
 #pragma once
 
 #include "AFQMC/config.h"
+#include "IO/banner.hpp"
 #include "utilities/mpi_context.h"
 #include "utilities/freemem.h"
 
@@ -70,9 +71,7 @@ public:
   {
     estimators.reserve(10);
 
-    app_log(1,"\n****************************************************");
-    app_log(1,"               Initializing Estimators ");
-    app_log(1,"\n****************************************************");
+    app_log(1, section("Initializing Estimators"));
 
     // every measurement interval is a multiple of the population control interval
     const int pop_control_interval = exec.population_control_interval;
@@ -339,10 +338,10 @@ public:
   void display_measurement_intervals()
   {
     //TODO: get a descriptive name for each estimator
-    app_log(1, "\n\n======= Measurement Schedule: =========\n");
+    app_log(1, section("Measurement Schedule"));
     for (auto& it : measure_schedule)
       app_log(1, "Estimator {} has measurement interval {}", it.first, it.second);
-    app_log(1, "\n======================================\n\n");
+    app_log(1, hrule());
   }
 
 private:

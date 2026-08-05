@@ -71,7 +71,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   int ndets_to_read  = params.ndets_to_read;
 
   const auto [NMO, nup_in_wfn, ndown_in_wfn] = read_info_from_wfn(filename,"any");
-  utils::check(ndown_in_wfn <= nup_in_wfn," Error nup < ndown: Up spin must be the majority spin. nup: {}, ndown: {}",nup_in_wfn,ndown_in_wfn);
+  utils::check(ndown_in_wfn <= nup_in_wfn,"Error nup < ndown: Up spin must be the majority spin. nup: {}, ndown: {}",nup_in_wfn,ndown_in_wfn);
 
   int nspin = walker_type == COLLINEAR ? 2 : 1;
   int npol = walker_type == NONCOLLINEAR ? 2 : 1;
@@ -95,7 +95,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   
   if (wfn_type == NOMSD_WFN)
   {
-    app_log(1," Wavefunction type: NOMSD");
+    app_log(1,"Wavefunction type: NOMSD");
     nda::array<ComplexType,1> ci;
     h5::group ngrp = wgrp.open_group("NOMSD");
     // Read common trial wavefunction input options.
@@ -197,7 +197,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   else if (wfn_type == PHMSD_WFN)
   {
 
-    app_log(1," Wavefunction type: PHMSD");
+    app_log(1,"Wavefunction type: PHMSD");
 
     // Implementation notes:
     //  - PsiT: [Nact, NMO] where Nact is the number of active space orbitals,
@@ -219,17 +219,17 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     nda::array<int,2> occs;
     nda::array<ComplexType,1> coeffs;
     // 1. Read occupancies and coefficients.
-    app_log(1," Reading PHMSD wavefunction from {}", filename);
+    app_log(1,"Reading PHMSD wavefunction from {}", filename);
     read_ph_wavefunction_hdf(ngrp, coeffs, occs, ndets_to_read, walker_type, 
 				NMO, nup, ndown, PsiT_MO, orb_type);
     utils::check(occs.shape() == std::array<long,2>{ndets_to_read, nup + ndown}, "Size mismatch");
-    app_log(1," Finished reading PHMSD wavefunction ");
+    app_log(1,"Finished reading PHMSD wavefunction ");
     if(recompute_ci) {
       utils::check(false, "finish");
       // 2. Compute Variational Energy / update coefficients
-      app_log(1," Computing variational energy of trial wavefunction.");
+      app_log(1,"Computing variational energy of trial wavefunction.");
 //      computeVariationalEnergyPHMSD(TGwfn, h, occs, coeffs, ndets_to_read, nup, ndown, NMO, recompute_ci);
-      app_log(1," Finished computing variational energy of trial wavefunction.");
+      app_log(1,"Finished computing variational energy of trial wavefunction.");
     }
 
     // build reference MOs (PsiT_MO) if needed...
@@ -367,7 +367,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     getInitialGuess(ngrp, name, NMO, nup, ndown, walker_type);
 
     auto n_unique(abij.number_of_unique_excitations());
-    app_log(1," Number of unique determinants per spin channel: {} {} ",
+    app_log(1,"Number of unique determinants per spin channel: {} {} ",
                 n_unique[0],n_unique[1]);
     nda::array<int,1> counts_alpha(n_unique[0],0);
     nda::array<int,1> counts_beta(n_unique[1],0);
@@ -429,7 +429,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   }
   else
   {
-    utils::check(false," Error: Unknown wave-function wfn_type: {}", wfn_type);
+    utils::check(false,"Error: Unknown wave-function wfn_type: {}", wfn_type);
     return Wavefunction<MEM>{};
   }
   return Wavefunction<MEM>{};
@@ -485,11 +485,11 @@ void WavefunctionFactory<MEM>::getInitialGuess_ft(h5::group grp,
         M(2,1,nda::ellipsis{}) = VRup();
       }
       else
-        utils::check(false," Error: Unknown wtype. ");
+        utils::check(false,"Error: Unknown wtype. ");
     }
     return M;
   })));
-  utils::check(newg.second, " Error: Problems adding new initial guess. ");
+  utils::check(newg.second, "Error: Problems adding new initial guess. ");
 }
 
 /*
@@ -557,7 +557,7 @@ void WavefunctionFactory<MEM>::getInitialGuess(h5::group grp,
   }
 
   auto newg = initial_guess.insert(std::make_pair(name, std::move(M)));
-  utils::check(newg.second, " Error: Problems adding new initial guess. ");
+  utils::check(newg.second, "Error: Problems adding new initial guess.");
 }
 
 /*
@@ -801,7 +801,7 @@ void WavefunctionFactory<MEM>::build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int
 
     // reference determinant is non-trivial (occupy bottom nalpha/nbeta states...)
     // build non-trivial reference and redefine excitations with respect to this new reference...
-    app_log(1," Found non-trivial reference determinant. Constructing appropriate reference state.");
+    app_log(1,"Found non-trivial reference determinant. Constructing appropriate reference state.");
 
     // if beta reference configuration has singly occupied states, 
     // you will need separate references

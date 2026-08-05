@@ -22,6 +22,7 @@
 #include <fstream>
 
 #include "AFQMC/config.h"
+#include "IO/banner.hpp"
 #include "AFQMC/parameters.hpp"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
@@ -158,9 +159,7 @@ protected:
                                  Hamiltonian* h,
                                  int targetNW)
   {
-    app_log(1,"\n****************************************************");
-    app_log(1,"               Initializing Wavefunction ");
-    app_log(1,"\n****************************************************");
+    app_log(1, section(std::format("Initializing Wavefunction \"{}\"", params.name)));
 
     return fromHDF5(mpi, params, walker_type, finiteT, *h, targetNW);
   }

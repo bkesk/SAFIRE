@@ -17,6 +17,7 @@
 #include <iomanip>
 
 #include "config.h"
+#include "IO/banner.hpp"
 #include "utilities/check.hpp"
 
 #include "utilities/mpi_context.h"
@@ -51,7 +52,7 @@ namespace afqmc
 // Then prints the energy breakdown
 template<typename WlkSet>
 void print_initial_energy(WlkSet& wset){
-  app_log(1," Local Energy of starting determinant ");
+  app_log(1,"Local Energy of starting determinant ");
   //app_log(1," <psi_T|H|w_0>/<psi_T|w_0>: ");
   app_log(1,"  - Total energy    : {:f}", wset[0].energy());
   app_log(1,"  - One-body energy : {:f}", wset[0].get_property(E1_));
@@ -72,7 +73,7 @@ bool DriverFactory<MEM>::executeDriver(DriverType type, std::string title,
     case DriverType::csafqmc:
       return executeCSAFQMCDriver(title, m_series, exec);
   }
-  utils::check(false," Unknown execute driver.  ");
+  utils::check(false,"Unknown execute driver.  ");
   return false;
 }
 
@@ -137,13 +138,7 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, con
   iseed = (exec.seed ? utils::split_seed(*exec.seed, mpi->comm) : utils::make_seed(mpi->comm));
   std::shared_ptr<utils::RandomGenerator_t<MEM>> rng = std::make_shared<utils::RandomGenerator_t<MEM>>(iseed);
 
-  app_log(1,"\n****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"          Beginning Driver initialization.");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************\n");
+  app_log(1, banner("Beginning Driver initialization"));
 
   if (mpi->comm.root() == 0)
   {
@@ -236,13 +231,7 @@ bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, con
   auto estim0 = EstimatorHandler<MEM>(mpi, title, exec, wset, WfnFac, wfn0,
          prop0, HamFac, dt, addEnergyEstim, !free_proj);
 
-  app_log(1,"\n****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"          Finished Driver initialization.");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************\n");
+  app_log(1, banner("Finished Driver initialization"));
 
   AFQMCDriver<MEM> driver(mpi, title, m_series, block0, step0, Eshift, exec, wfn0, prop0, estim0);
 
@@ -291,13 +280,7 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, c
   iseed = (exec.seed ? utils::split_seed(*exec.seed, mpi->comm) : utils::make_seed(mpi->comm));
   std::shared_ptr<utils::RandomGenerator_t<MEM>> rng = std::make_shared<utils::RandomGenerator_t<MEM>>(iseed);
 
-  app_log(1,"\n****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"          Beginning Driver initialization.");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************\n");
+  app_log(1, banner("Beginning Driver initialization"));
 
   if (mpi->comm.root() == 0)
   {
@@ -326,8 +309,8 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, c
   mpi->comm.broadcast_value(restarted);
   if (restarted)
   {
-    app_log(1," Restarted from file. Block={}, step={}",block0,step0);
-    app_log(1,"                      Eshift: {}", Eshift);
+    app_log(1,"Restarted from file. Block={}, step={}",block0,step0);
+    app_log(1,"                     Eshift: {}", Eshift);
     mpi->comm.broadcast_value(Eshift);
     mpi->comm.broadcast_value(block0);
     mpi->comm.broadcast_value(step0);
@@ -388,25 +371,19 @@ bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, c
   auto estim0 = EstimatorHandler<MEM>(mpi, title, exec, wset, WfnFac, wfn0,
          prop0, HamFac, exec.timestep, addEnergyEstim, !free_proj);
 
-  app_log(1,"\n****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"          Finished Driver initialization.");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************\n");
+  app_log(1, banner("Finished Driver initialization"));
 
   FTAFQMCDriver<MEM> driver(mpi, title, m_series, block0, step0, Eshift, exec, wfn0, prop0, estim0);
 
   if (!driver.run(wset))
   {
-    app_error(" Problems with FTAFQMCDriver::run().");
+    app_error("Problems with FTAFQMCDriver::run().");
     return false;
   }
 
   if (!driver.clear())
   {
-    app_error(" Problems with FTAFQMCDriver::clear().");
+    app_error("Problems with FTAFQMCDriver::clear().");
     return false;
   }
 
@@ -463,13 +440,7 @@ bool DriverFactory<MEM>::executeCSAFQMCDriver([[maybe_unused]] std::string title
   for(int i=0; i<nsys; i++)
     rngs.emplace_back(utils::make_device_rng(iseed));
 
-  app_log(1,"\n****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"          Beginning Driver initialization.");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************\n");
+  app_log(1, banner("Beginning Driver initialization"));
 
   / *
    * Note: Hamiltonian is only needed to construct Wavefunction.
@@ -632,13 +603,7 @@ bool DriverFactory<MEM>::executeCSAFQMCDriver([[maybe_unused]] std::string title
   for(auto& v : wfn_ref) max_nCV = std::max(max_nCV, v.get().local_number_of_cholesky_vectors()); 
   for(auto& v : prop_ref) v.get().set_rng_block_size(max_nCV);
 
-  app_log(1,"\n****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"          Finished Driver initialization.");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************");
-  app_log(1,"****************************************************\n");
+  app_log(1, banner("Finished Driver initialization"));
 
   gTG.Global().barrier();
 / *
