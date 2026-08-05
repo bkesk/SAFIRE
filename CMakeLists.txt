@@ -320,8 +320,6 @@ target_include_directories(mpi3 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/extern/mpi
 
 
 ######################################################################
-configure_file(${PROJECT_SOURCE_DIR}/src/safire.settings ${PROJECT_BINARY_DIR}/bin/safire.settings)
-install(FILES ${PROJECT_BINARY_DIR}/bin/safire.settings DESTINATION bin)
 
 #Create an Interface target for compiler warnings
 add_library(${PROJECT_NAME}_warnings INTERFACE)
