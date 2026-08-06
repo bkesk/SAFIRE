@@ -40,9 +40,6 @@ class Discrete_GeneralUJ
   using csrMat = math::sparse::csr_matrix<T, MEM, int, int>;
 
 public:
-
-  Discrete_GeneralUJ() {}
-
   Discrete_GeneralUJ(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
                      WALKER_TYPES type,
                      PropagatorTypes ptype,  

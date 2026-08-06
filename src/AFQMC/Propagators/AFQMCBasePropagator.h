@@ -46,9 +46,7 @@ class AFQMCBasePropagator
 {
 
 public:
-  AFQMCBasePropagator() {
-    utils::check(false, "Error: Reached disabled AFQMCBasePropagator default constructor.");
-  }
+  AFQMCBasePropagator() = delete;
 
   AFQMCBasePropagator(const PropagatorParameters& params,
                       std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> mpi_,

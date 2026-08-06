@@ -36,7 +36,7 @@ class HamiltonianOperations
 
 public:
 
-  HamiltonianOperations(); 
+  HamiltonianOperations() = delete;
 
   template<typename HOps>
   HamiltonianOperations(HOps&& other);

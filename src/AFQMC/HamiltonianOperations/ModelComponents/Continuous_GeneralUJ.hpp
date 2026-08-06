@@ -36,9 +36,7 @@ class Continuous_GeneralUJ
 
 public:
 
-  Continuous_GeneralUJ() {
-   utils::check(false, "Error in Continuous_GeneralUJ: Reached disabled default constructor.");
-  }
+  Continuous_GeneralUJ() = delete;
 
   Continuous_GeneralUJ(std::shared_ptr<utils::mpi_context_t<mpi3::communicator>> _mpi,
                        WALKER_TYPES type,

@@ -37,7 +37,7 @@ class Hamiltonian
 {
 
 public:
-  Hamiltonian() = default; 
+  Hamiltonian() = delete;
   explicit Hamiltonian(THCHamiltonian&& other) : var(std::move(other)) {}
   explicit Hamiltonian(KPTHCHamiltonian&& other) : var(std::move(other)) {}
   explicit Hamiltonian(ModelHamOpsGenerator&& other) : var(std::move(other)) {}

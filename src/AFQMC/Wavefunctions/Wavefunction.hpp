@@ -33,7 +33,7 @@ template<MEMORY_SPACE MEM>
 class Wavefunction 
 {
 public:
-  Wavefunction() { APP_ABORT(" Error: Reached default constructor of Wavefunction. "); }
+  Wavefunction() = delete;
 
   explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
   explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>> const& other) : var(other) {} 

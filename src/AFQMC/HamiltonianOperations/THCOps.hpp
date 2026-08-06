@@ -44,10 +44,7 @@ public:
   static constexpr HamiltonianTypes HamOpType = THC;
   constexpr HamiltonianTypes getHamType() const { return THC; }
 
-  THCOps()
-  {
-    utils::check(false,"Default constructor for THCOps disabled.");
-  }
+  THCOps() = delete;
 
   /*
    * nup/ndown stands for number of alpha/beta electrons

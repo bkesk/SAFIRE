@@ -112,8 +112,7 @@ Hamiltonian HamiltonianFactory::fromHDF5(std::shared_ptr<utils::mpi_context_t<mp
     return Hamiltonian(THCHamiltonian(params));
   }
 
-  utils::check(false, "Error in HamiltonianFactory::fromHDF5(): Unknown Hamiltonian Type.");
-  return Hamiltonian{};
+  APP_ABORT("Error in HamiltonianFactory::fromHDF5(): Unknown Hamiltonian Type.");
 }
 } // namespace afqmc
 } // namespace sfqmc

@@ -47,10 +47,6 @@ public:
   using SMType  = memory::array_view<MEM,value_type,2,nda::C_layout>;
   using SVType  = memory::array_view<MEM,value_type,1,nda::C_layout>;
 
-  walker() {
-    utils::check(false, "Error: Empty walker not allowed");
-  }
-
   walker(nda::MemoryArrayOfRank<1> auto&& a, const wlk_indices& i_, const wlk_descriptor& d_)
       : _data(a.data()), _size(a.size()), 
         indx(i_), desc(d_)

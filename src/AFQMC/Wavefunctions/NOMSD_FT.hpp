@@ -49,9 +49,7 @@ class NOMSD_FT
 
 public:
 
-  NOMSD_FT() {
-    utils::check(false,"Default constructor for NOMSD disabled.");
-  }
+  NOMSD_FT() = delete;
 
   NOMSD_FT(const WavefunctionParameters& params,
         int NMO_, int ntau_,

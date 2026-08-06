@@ -33,7 +33,7 @@ template<MEMORY_SPACE MEM>
 class Propagator 
 {
 public:
-  Propagator() { utils::check(false," Error: Reached default constructor of Propagator. "); }
+  Propagator() = delete;
 
   explicit Propagator(AFQMCBasePropagator<MEM>&& other) : var(std::move(other)) {}
   explicit Propagator(AFQMCBasePropagator<MEM> const& other) : var(other) {} 

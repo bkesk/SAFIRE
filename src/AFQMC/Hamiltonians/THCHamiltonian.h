@@ -38,9 +38,7 @@ class THCHamiltonian
 {
 public:
 
-  THCHamiltonian() {
-    utils::check(false, "Default constructor of THCHamiltonian not allowed.");
-  }
+  THCHamiltonian() = delete;
 
   THCHamiltonian(const HamiltonianParameters& params) : fileName(params.filename) {}
 
