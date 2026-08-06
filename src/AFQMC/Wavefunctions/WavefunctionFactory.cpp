@@ -15,7 +15,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <random>
-#include <boost/optional.hpp>
 #include "AFQMC/config.h"
 #include "utilities/h5_utils.hpp"
 #include "AFQMC/Hamiltonians/hdf5_helpers.hpp"
@@ -57,25 +56,22 @@ auto broadcast_number_of_electrons(const std::array<int, N> &nel, WALKER_TYPES f
 
 template<MEMORY_SPACE MEM>
 Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
-                                           ptree pt_in,
+                                           const WavefunctionParameters& params,
                                            WALKER_TYPES walker_type,
                                            bool finiteT,
                                            Hamiltonian& h,
                                            int targetNW)
 {
-  ptree pt = interpret_inputs(pt_in);
-
   bool dense_trial;
-  std::string name          = pt.get<std::string>("name");
-  std::string filename      = pt.get<std::string>("filename");
-  bool recompute_ci  = pt.get<bool>("rediag");
-  int ndets_to_read  = pt.get<int>("ndets_to_read");
-  boost::optional<bool> dense_trial_opt;// = pt.get_optional<bool>("dense_trial");
-  if( auto node = pt.get_child_optional("dense_trial") )
-    dense_trial_opt = node->get_value_optional<bool>(); 
+  const std::string& name     = params.name;
+  const std::string& filename = params.filename;
+  utils::check(not name.empty(), "Error in WavefunctionFactory: missing required input: name");
+  utils::check(not filename.empty(), "Error in WavefunctionFactory: missing required input: filename");
+  bool recompute_ci  = params.rediag;
+  int ndets_to_read  = params.ndets_to_read;
 
   const auto [NMO, nup_in_wfn, ndown_in_wfn] = read_info_from_wfn(filename,"any");
-  utils::check(ndown_in_wfn <= nup_in_wfn," Error nup < ndown: Up spin must be the majority spin. nup: {}, ndown: {}",nup_in_wfn,ndown_in_wfn);
+  utils::check(ndown_in_wfn <= nup_in_wfn,"Error nup < ndown: Up spin must be the majority spin. nup: {}, ndown: {}",nup_in_wfn,ndown_in_wfn);
 
   int nspin = walker_type == COLLINEAR ? 2 : 1;
   int npol = walker_type == NONCOLLINEAR ? 2 : 1;
@@ -99,7 +95,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   
   if (wfn_type == NOMSD_WFN)
   {
-    app_log(1," Wavefunction type: NOMSD");
+    app_log(1,"Wavefunction type: NOMSD");
     nda::array<ComplexType,1> ci;
     h5::group ngrp = wgrp.open_group("NOMSD");
     // Read common trial wavefunction input options.
@@ -121,16 +117,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       // Set initial walker's Slater matrix.
       getInitialGuess(ngrp, name, NMO, nup, ndown, walker_type);
 
-      // if not set, get default based on HamTYpe
-      // use sparse trial only on KP runs
-      if (dense_trial_opt == boost::none)
-      {
-        dense_trial = true; 
-        if (h.getHamType() == KPFactorized || h.getHamType() == KPTHC)
-          dense_trial = false; 
-      } else {
-        dense_trial = *dense_trial_opt;
-      }
+      dense_trial = resolved(params.dense_trial, "dense_trial");
 
       auto HOps = h.getHamiltonianOperations<MEM>(walker_type, mpi, PsiT);
 
@@ -145,12 +132,12 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
             });
           }
         }
-        return Wavefunction(NOMSD<MEM,MType>(pt, NMO, nup, ndown, walker_type, mpi, std::move(HOps), 
+        return Wavefunction(NOMSD<MEM,MType>(params, NMO, nup, ndown, walker_type, mpi, std::move(HOps), 
                                       std::move(ci), std::move(PsiT_dense),targetNW));
       }
       else
       {
-        return Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>(pt, NMO, nup, ndown, walker_type, mpi, std::move(HOps), 
+        return Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>(params, NMO, nup, ndown, walker_type, mpi, std::move(HOps), 
                                       std::move(ci), std::move(PsiT),targetNW)); 
       }
     }
@@ -171,16 +158,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       // Set initial walker's Slater matrix.
       getInitialGuess_ft(ngrp, *mpi, name, NMO, walker_type, finiteT);
 
-      // if not set, get default based on HamTYpe
-      // use sparse trial only on KP runs
-      if (dense_trial_opt == boost::none)
-      {
-        dense_trial = true; 
-        if (h.getHamType() == KPFactorized || h.getHamType() == KPTHC)
-          dense_trial = false; 
-      } else {
-        dense_trial = *dense_trial_opt;
-      }
+      dense_trial = resolved(params.dense_trial, "dense_trial");
 
       nda::array<PsiT_Matrix<MEM>, 2> IMat(ndets_to_read,nspin);
       // dim = NMO
@@ -204,12 +182,12 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
             }
           }
         }
-        return Wavefunction(NOMSD_FT<MEM,MType>(pt, NMO, ntau, walker_type, mpi, std::move(HOps), 
+        return Wavefunction(NOMSD_FT<MEM,MType>(params, NMO, ntau, walker_type, mpi, std::move(HOps), 
                                       std::move(ci), std::move(PsiT_dense),targetNW));
       }
       else
       {
-        return Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>(pt, NMO, ntau, walker_type, mpi, std::move(HOps), 
+        return Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>(params, NMO, ntau, walker_type, mpi, std::move(HOps), 
                                       std::move(ci), std::move(PsiT),targetNW));
       }
 
@@ -219,7 +197,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
   else if (wfn_type == PHMSD_WFN)
   {
 
-    app_log(1," Wavefunction type: PHMSD");
+    app_log(1,"Wavefunction type: PHMSD");
 
     // Implementation notes:
     //  - PsiT: [Nact, NMO] where Nact is the number of active space orbitals,
@@ -241,17 +219,17 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     nda::array<int,2> occs;
     nda::array<ComplexType,1> coeffs;
     // 1. Read occupancies and coefficients.
-    app_log(1," Reading PHMSD wavefunction from {}", filename);
+    app_log(1,"Reading PHMSD wavefunction from {}", filename);
     read_ph_wavefunction_hdf(ngrp, coeffs, occs, ndets_to_read, walker_type, 
 				NMO, nup, ndown, PsiT_MO, orb_type);
     utils::check(occs.shape() == std::array<long,2>{ndets_to_read, nup + ndown}, "Size mismatch");
-    app_log(1," Finished reading PHMSD wavefunction ");
+    app_log(1,"Finished reading PHMSD wavefunction ");
     if(recompute_ci) {
       utils::check(false, "finish");
       // 2. Compute Variational Energy / update coefficients
-      app_log(1," Computing variational energy of trial wavefunction.");
+      app_log(1,"Computing variational energy of trial wavefunction.");
 //      computeVariationalEnergyPHMSD(TGwfn, h, occs, coeffs, ndets_to_read, nup, ndown, NMO, recompute_ci);
-      app_log(1," Finished computing variational energy of trial wavefunction.");
+      app_log(1,"Finished computing variational energy of trial wavefunction.");
     }
 
     // build reference MOs (PsiT_MO) if needed...
@@ -389,7 +367,7 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
     getInitialGuess(ngrp, name, NMO, nup, ndown, walker_type);
 
     auto n_unique(abij.number_of_unique_excitations());
-    app_log(1," Number of unique determinants per spin channel: {} {} ",
+    app_log(1,"Number of unique determinants per spin channel: {} {} ",
                 n_unique[0],n_unique[1]);
     nda::array<int,1> counts_alpha(n_unique[0],0);
     nda::array<int,1> counts_beta(n_unique[1],0);
@@ -445,16 +423,14 @@ Wavefunction<MEM> WavefunctionFactory<MEM>::fromHDF5(std::shared_ptr<utils::mpi_
       PsiT_1d(i) = std::move(PsiT_MO(i));
     }
 
-    return Wavefunction<MEM>(PHMSD<MEM>(pt, walker_type, NMO, nup, ndown, mpi, std::move(HOps),
+    return Wavefunction<MEM>(PHMSD<MEM>(params, walker_type, NMO, nup, ndown, mpi, std::move(HOps),
                     std::move(abij), std::move(det_coupling_matrix),
                     std::move(PsiT_1d), targetNW));
   }
   else
   {
-    utils::check(false," Error: Unknown wave-function wfn_type: {}", wfn_type);
-    return Wavefunction<MEM>{};
+    APP_ABORT("Error: Unknown wave-function wfn_type: {}", wfn_type);
   }
-  return Wavefunction<MEM>{};
 }
 
 /*
@@ -507,11 +483,11 @@ void WavefunctionFactory<MEM>::getInitialGuess_ft(h5::group grp,
         M(2,1,nda::ellipsis{}) = VRup();
       }
       else
-        utils::check(false," Error: Unknown wtype. ");
+        utils::check(false,"Error: Unknown wtype. ");
     }
     return M;
   })));
-  utils::check(newg.second, " Error: Problems adding new initial guess. ");
+  utils::check(newg.second, "Error: Problems adding new initial guess. ");
 }
 
 /*
@@ -579,7 +555,7 @@ void WavefunctionFactory<MEM>::getInitialGuess(h5::group grp,
   }
 
   auto newg = initial_guess.insert(std::make_pair(name, std::move(M)));
-  utils::check(newg.second, " Error: Problems adding new initial guess. ");
+  utils::check(newg.second, "Error: Problems adding new initial guess.");
 }
 
 /*
@@ -823,7 +799,7 @@ void WavefunctionFactory<MEM>::build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int
 
     // reference determinant is non-trivial (occupy bottom nalpha/nbeta states...)
     // build non-trivial reference and redefine excitations with respect to this new reference...
-    app_log(1," Found non-trivial reference determinant. Constructing appropriate reference state.");
+    app_log(1,"Found non-trivial reference determinant. Constructing appropriate reference state.");
 
     // if beta reference configuration has singly occupied states, 
     // you will need separate references
@@ -952,11 +928,11 @@ void WavefunctionFactory<MEM>::build_PsiT_MO_phmsd(WALKER_TYPES walker_type, int
 
 // Instantiate templates
 
-template Wavefunction<HOST_MEMORY> WavefunctionFactory<HOST_MEMORY>::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,WALKER_TYPES,bool,Hamiltonian&,int);
+template Wavefunction<HOST_MEMORY> WavefunctionFactory<HOST_MEMORY>::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,const WavefunctionParameters&,WALKER_TYPES,bool,Hamiltonian&,int);
 
 #if defined(ENABLE_DEVICE)
 
-template Wavefunction<DEVICE_MEMORY> WavefunctionFactory<DEVICE_MEMORY>::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,ptree,WALKER_TYPES,bool,Hamiltonian&,int);
+template Wavefunction<DEVICE_MEMORY> WavefunctionFactory<DEVICE_MEMORY>::fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>>,const WavefunctionParameters&,WALKER_TYPES,bool,Hamiltonian&,int);
 
 #endif
 

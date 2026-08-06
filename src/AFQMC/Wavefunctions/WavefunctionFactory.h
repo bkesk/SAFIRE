@@ -20,9 +20,10 @@
 #include <vector>
 #include <map>
 #include <fstream>
-#include <boost/optional.hpp>
 
 #include "AFQMC/config.h"
+#include "IO/banner.hpp"
+#include "AFQMC/parameters.hpp"
 #include "AFQMC/Hamiltonians/Hamiltonian.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
@@ -41,48 +42,10 @@ public:
     // initialize in fromHDF5
   }
 
-  static ptree interpret_inputs(const ptree pt0)
-  {
-    // check required fields exist
-    if(not io::check_exists<std::string>(pt0,"name"))
-      APP_ABORT("Error in WavefunctionFactory: missing required input: name \n");
-    if(not io::check_exists<std::string>(pt0,"filename"))
-      APP_ABORT("Error in WavefunctionFactory: missing required input: filename \n");
-    // read inputs with default options
-    int ndets_to_read = pt0.get<int>("ndets_to_read", -1);
-    std::string name          = pt0.get<std::string>("name");
-    std::string filename      = pt0.get<std::string>("filename");
-//    std::string restart_file  = pt0.get<std::string>("restart_file", "");
-    bool rediag        = pt0.get<bool>("rediag", false);
-    // validate inputs
-    // create verbose internal inputs
-    ptree pt1;
-    pt1.put("name", name);
-    pt1.put("filename", filename);
-//    pt1.put("restart_file", restart_file);
-    pt1.put("rediag", rediag);
-    pt1.put("ndets_to_read", ndets_to_read);
-    // optional parameters 
-    if( auto val = pt0.get_optional<int>("algorithm") )
-      pt1.put("algorithm", *val);
-    // set default later, since it depends on HamiltonianOperations type
-    if( auto val = pt0.get_optional<bool>("dense_trial") )
-      pt1.put("dense_trial", *val);
-    if( auto val = pt0.get_optional<int>("nwalk_block_size") )
-      pt1.put("nwalk_block_size", *val);
-    if( auto val = pt0.get_optional<int>("ndet_block_size") )
-      pt1.put("ndet_block_size", *val);
-    std::unordered_set<std::string> pass_through_keys = {
-      "system"
-    };
-    io::compare_known_keys("Wavefunction Factory",pt1, pt0,pass_through_keys);
-    return pt1;
-  }
-
   bool is_constructed(const std::string& ID)
   {
-    auto xml = wfnBlocks.find(ID);
-    if (xml == wfnBlocks.end())
+    auto block = wfnBlocks.find(ID);
+    if (block == wfnBlocks.end())
     {
       app_log(1,"failed to find {}", ID);
       APP_ABORT(" Error in WavefunctionFactory::is_constructed(string&): Missing wfn block. ");
@@ -102,8 +65,8 @@ public:
                                 Hamiltonian* h,
                                 int targetNW   = 1)
   {
-    auto xml = wfnBlocks.find(ID);
-    if (xml == wfnBlocks.end())
+    auto block = wfnBlocks.find(ID);
+    if (block == wfnBlocks.end())
     {
       app_log(1,"failed to find {}", ID);
       utils::check(false," Error in WavefunctionFactory::getWavefunction(string&): Missing wfn block. ");
@@ -112,7 +75,7 @@ public:
     if (w0 == wavefunctions.end())
     {
       auto neww = wavefunctions.insert(
-          std::make_pair(ID, buildWavefunction(mpi,xml->second, walker_type, finiteT, h, targetNW)));
+          std::make_pair(ID, buildWavefunction(mpi,block->second, walker_type, finiteT, h, targetNW)));
       utils::check(neww.second," Error: Problems building new wavefunction in WavefunctionFactory::getWavefunction(string&). ");
       return (neww.first)->second;
     }
@@ -121,27 +84,15 @@ public:
   }
 
   // Use this routine to check if there is a wfn associated with a given ID
-  ptree get_input(const std::string& ID) const
+  const WavefunctionParameters& get_input(const std::string& ID) const
   {
-    auto xml = wfnBlocks.find(ID);
-    if (xml == wfnBlocks.end())
+    auto block = wfnBlocks.find(ID);
+    if (block == wfnBlocks.end())
     {
       app_log(1,"failed to find {}", ID);
       utils::check(false,"Error: failed to find Wavefunction with above name.");
     }
-    return xml->second;
-  }
-
-  // this routine allows you to modify the input block associated with ID 
-  ptree& get_input(const std::string& ID) 
-  {
-    auto xml = wfnBlocks.find(ID);
-    if (xml == wfnBlocks.end())
-    {
-      app_log(1,"failed to find {}", ID);
-      utils::check(false,"Error: failed to find Wavefunction with above name.");
-    }
-    return xml->second;
+    return block->second;
   }
 
   // returns the per-spin initial-guess matrices associated with ID
@@ -166,7 +117,7 @@ public:
     return mat->second;
   }
 
-    // returns the xmlNodePtr associated with ID
+    // returns the finite-temperature initial guess associated with ID
   auto getInitialGuess_ft(const std::string& ID) 
   {
     auto mat = initial_guess_ft.find(ID);
@@ -178,7 +129,7 @@ public:
     return mat->second();
   }
 
-  // returns the xmlNodePtr associated with ID
+  // returns the finite-temperature initial guess associated with ID
   auto getInitialGuess_ft(const std::string& ID) const
   {
     auto mat = initial_guess_ft.find(ID);
@@ -190,33 +141,31 @@ public:
     return mat->second();
   }
 
-  // adds a xml block from which a Wavefunction can be built
-  void push(const std::string& ID, ptree pt)
+  // adds an input block from which a Wavefunction can be built
+  void push(const std::string& ID, WavefunctionParameters params)
   {
-    auto xml = wfnBlocks.find(ID);
-    if (xml != wfnBlocks.end())
+    auto block = wfnBlocks.find(ID);
+    if (block != wfnBlocks.end())
       APP_ABORT("Error: Repeated Wavefunction block in WavefunctionFactory. Wavefunction names must be unique. ");
-    wfnBlocks.insert(std::make_pair(ID, pt));
+    wfnBlocks.insert(std::make_pair(ID, std::move(params)));
   }
 
 protected:
   // generates a new Wavefunction and returns the pointer to the base class
   Wavefunction<MEM> buildWavefunction(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
-                                 ptree pt,
+                                 const WavefunctionParameters& params,
                                  WALKER_TYPES walker_type,
                                  bool finiteT,
                                  Hamiltonian* h,
                                  int targetNW)
   {
-    app_log(1,"\n****************************************************");
-    app_log(1,"               Initializing Wavefunction ");
-    app_log(1,"\n****************************************************");
+    app_log(1, section(std::format("Initializing Wavefunction \"{}\"", params.name)));
 
-    return fromHDF5(mpi, pt, walker_type, finiteT, *h, targetNW);
+    return fromHDF5(mpi, params, walker_type, finiteT, *h, targetNW);
   }
 
   Wavefunction<MEM> fromHDF5(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi,
-                        ptree pt,
+                        const WavefunctionParameters& params,
                         WALKER_TYPES walker_type,
                         bool finiteT,
                         Hamiltonian& h,
@@ -246,7 +195,7 @@ protected:
 	int ndown, int ndets, nda::array<ComplexType,1>& coeffs, 
         nda::array<int,2>& occs, nda::array<PsiT_Matrix<HOST_MEMORY>,1>& PsiT_MO);
 
-  std::map<std::string, ptree> wfnBlocks;
+  std::map<std::string, WavefunctionParameters> wfnBlocks;
 
   std::map<std::string, Wavefunction<MEM>> wavefunctions;
 
