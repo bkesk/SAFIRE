@@ -199,12 +199,10 @@ public:
 
   }
 
-  ~AFQMCBasePropagator() {}
-
   AFQMCBasePropagator(AFQMCBasePropagator const& other) = delete;
   AFQMCBasePropagator& operator=(AFQMCBasePropagator const& other) = delete;
   AFQMCBasePropagator(AFQMCBasePropagator&& other)                 = default;
-  AFQMCBasePropagator& operator=(AFQMCBasePropagator&& other) = delete;
+  AFQMCBasePropagator& operator=(AFQMCBasePropagator&& other) = default;
 
   template<class WlkSet>
   void Propagate(WlkSet& wset, RealType E1, RealType dt, int nt = 0);

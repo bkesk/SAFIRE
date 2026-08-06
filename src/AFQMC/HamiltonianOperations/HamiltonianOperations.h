@@ -44,12 +44,6 @@ public:
   template<typename HOps>
   HamiltonianOperations(HOps const& other);
 
-  HamiltonianOperations(HamiltonianOperations const& other) = default;
-  HamiltonianOperations(HamiltonianOperations&& other)      = default;
-
-  HamiltonianOperations& operator=(HamiltonianOperations const& other) = default;
-  HamiltonianOperations& operator=(HamiltonianOperations&& other) = default;
-
   void runtime_optimization(nda::MemoryArrayOfRank<2> auto const& G)
   {
     std::visit([&](auto&& a) { a.runtime_optimization(G); }, var);

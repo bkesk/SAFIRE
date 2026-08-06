@@ -79,8 +79,6 @@ public:
     //estim0.display_measurement_intervals();
   }
 
-  ~FTAFQMCDriver() {}
-
   bool run(WalkerSet<MEM>&);
 
   bool checkpoint(WalkerSet<MEM>&, int, int);

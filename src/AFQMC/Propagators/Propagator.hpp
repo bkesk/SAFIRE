@@ -38,12 +38,6 @@ public:
   explicit Propagator(AFQMCBasePropagator<MEM>&& other) : var(std::move(other)) {}
   explicit Propagator(AFQMCBasePropagator<MEM> const& other) : var(other) {} 
 
-  Propagator(Propagator const& other) = default;
-  Propagator(Propagator&& other)      = default;
-
-  Propagator& operator=(Propagator const& other) = default;
-  Propagator& operator=(Propagator&& other) = default;
-
   template<class... Args>
   void Propagate(Args&&... args)
   {

@@ -67,8 +67,6 @@ public:
     data.resize(11); // hardcoded to the current number of working fields
   }
 
-  ~EnergyEstimator() {}
-
   void accumulate_step([[maybe_unused]] double total_time, [[maybe_unused]] WalkerSet<MEM>& wlks,
                        [[maybe_unused]] std::vector<ComplexType>& curData) {}
 

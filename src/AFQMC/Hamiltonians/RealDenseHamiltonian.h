@@ -42,13 +42,6 @@ public:
         max_memory_MB(params.max_memory)
   {}
 
-  ~RealDenseHamiltonian() = default;
-
-  RealDenseHamiltonian(RealDenseHamiltonian const& other) = default;
-  RealDenseHamiltonian(RealDenseHamiltonian&& other)      = default;
-  RealDenseHamiltonian& operator=(RealDenseHamiltonian const& other) = default; 
-  RealDenseHamiltonian& operator=(RealDenseHamiltonian&& other) = default; 
-
   HamiltonianTypes getHamType() const {return RealDenseFactorized; }
 
   template<MEMORY_SPACE MEM>

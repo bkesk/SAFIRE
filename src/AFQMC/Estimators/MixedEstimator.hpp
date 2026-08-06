@@ -62,8 +62,6 @@ public:
     writer = (mpi->comm.rank() == 0);
   }
 
-  ~MixedEstimator() {}
-
   void accumulate_step([[maybe_unused]] double time, 
                        [[maybe_unused]] WalkerSet<MEM>& wset,
                        [[maybe_unused]] std::vector<ComplexType>& curData) {}

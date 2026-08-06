@@ -37,10 +37,6 @@ template<MEMORY_SPACE MEM>
 class WalkerSetFactory
 {
 public:
-  WalkerSetFactory() {}
-
-  ~WalkerSetFactory() {}
-
   bool is_constructed(const std::string& ID)
   {
     auto block = wlkBlocks.find(ID);

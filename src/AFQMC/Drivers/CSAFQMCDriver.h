@@ -128,8 +128,6 @@ public:
     return pt1;
   }
 
-  ~CSAFQMCDriver() {}
-
   bool run(std::vector<std::reference_wrapper<WalkerSet>>&);
 
   bool checkpoint(WalkerSet&, int, int);

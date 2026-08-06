@@ -71,9 +71,6 @@ public:
   using reference = walker<_MEM_,ComplexType>;
   using const_reference = walker<_MEM_,const ComplexType>;
 
-  // A walker set cannot be created empty, because it needs to know about the dimensions it is going to hold.
-  WalkerSetBase() = delete;
-
   /// Constructor: build a set of nWalkers walkers with the given dimensions
   /// {rows, naea, naeb}. The walker type is parsed by the caller and passed in
   /// (see parse_walker_type) so it is resolved exactly once. Walkers are

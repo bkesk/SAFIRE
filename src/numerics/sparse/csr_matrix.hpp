@@ -140,13 +140,6 @@ public:
     }
   }
 
-  ~csr_matrix() = default;
-
-  csr_matrix(csr_matrix const&) = default;
-  csr_matrix(csr_matrix&&) = default;
-  csr_matrix& operator=(csr_matrix const&) = default;
-  csr_matrix& operator=(csr_matrix&&) = default;
-
   template<typename val_t, MEMORY_SPACE mem_t, typename indx_t, typename int_t,
           typename = std::enable_if_t<not (std::is_same_v<value_type,val_t> and
                                            mem_type == mem_t and

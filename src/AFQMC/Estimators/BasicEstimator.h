@@ -75,8 +75,6 @@ public:
     nwalk_max      = 0;
   }
 
-  ~BasicEstimator() {}
-
   void accumulate_block([[maybe_unused]] double time, [[maybe_unused]] WalkerSet<MEM>& wset) {}
 
 

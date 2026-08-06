@@ -50,12 +50,6 @@ public:
   explicit Hamiltonian(KPFactorizedHamiltonian const& other) : var(other) {}
   explicit Hamiltonian(RealDenseHamiltonian const& other) : var(other) {}
 
-  Hamiltonian(Hamiltonian const& other) = default;
-  Hamiltonian(Hamiltonian&& other)      = default;
-
-  Hamiltonian& operator=(Hamiltonian const& other) = default;
-  Hamiltonian& operator=(Hamiltonian&& other) = default;
-
   template<MEMORY_SPACE MEM, class... Args>
   HamiltonianOperations<MEM> getHamiltonianOperations(Args&&... args)
   {

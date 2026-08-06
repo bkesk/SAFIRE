@@ -106,13 +106,6 @@ public:
   
   }
 
-  ~ModelHamOps() {}
-
-  ModelHamOps(const ModelHamOps& other) = default;
-  ModelHamOps& operator=(const ModelHamOps& other) = default;
-  ModelHamOps(ModelHamOps&& other)                 = default;
-  ModelHamOps& operator=(ModelHamOps&& other) = default;
-
   nda::array<ComplexType,3> getOneBodyPropagatorMatrix(double dt,
                                                        nda::MemoryVector auto const& vMF)
   {

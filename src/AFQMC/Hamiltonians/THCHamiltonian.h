@@ -44,13 +44,6 @@ public:
 
   THCHamiltonian(const HamiltonianParameters& params) : fileName(params.filename) {}
 
-  ~THCHamiltonian() {}
-
-  THCHamiltonian(THCHamiltonian const& other) = default;
-  THCHamiltonian(THCHamiltonian&& other)      = default;
-  THCHamiltonian& operator=(THCHamiltonian const& other) = default;
-  THCHamiltonian& operator=(THCHamiltonian&& other) = default;
-
   HamiltonianTypes getHamType() const { return THC; }
 
   template<MEMORY_SPACE MEM>

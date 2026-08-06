@@ -211,8 +211,6 @@ public:
     }
   }
 
-  ~EstimatorHandler() {}
-
   EstimatorHandler(EstimatorHandler const& other) = delete;
   EstimatorHandler& operator=(EstimatorHandler const& other) = delete;
   EstimatorHandler(EstimatorHandler&& other) = default;

@@ -73,13 +73,6 @@ public:
     utils::check(SpVn.extent(0) == h0.extent(0), "");
   }
 
-  ~Discrete_GeneralUJ() {}
-
-  Discrete_GeneralUJ(const Discrete_GeneralUJ<MEM,REAL>& other)            = default;
-  Discrete_GeneralUJ& operator=(const Discrete_GeneralUJ<MEM,REAL>& other) = default;
-  Discrete_GeneralUJ(Discrete_GeneralUJ<MEM,REAL>&& other)                 = default;
-  Discrete_GeneralUJ& operator=(Discrete_GeneralUJ<MEM,REAL>&& other)      = default;
-
   /*
    * n2IJ maps an index in the ordering of the sparse structures to the ordering 
    * of H1 (the generic spin ordering of 1-body operators)

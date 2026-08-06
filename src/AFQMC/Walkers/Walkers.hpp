@@ -58,8 +58,6 @@ public:
     utils::check(a.strides()[0] == 1, "Stride mismatch."); 
   }
 
-  ~walker() {}
-
   // no copy/move assignment
   walker(walker&& other)      = default;
   walker(walker const& other) = default;

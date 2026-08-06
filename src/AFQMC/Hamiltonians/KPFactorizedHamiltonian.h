@@ -41,13 +41,6 @@ public:
       : fileName(params.filename), buffer_size(params.buffer_size)
   {}
 
-  ~KPFactorizedHamiltonian() {}
-
-  KPFactorizedHamiltonian(KPFactorizedHamiltonian const& other) = default;
-  KPFactorizedHamiltonian(KPFactorizedHamiltonian&& other)      = default;
-  KPFactorizedHamiltonian& operator=(KPFactorizedHamiltonian const& other) = default;
-  KPFactorizedHamiltonian& operator=(KPFactorizedHamiltonian&& other) = default;
-
   HamiltonianTypes getHamType() const { return KPFactorized; }
 
   template<MEMORY_SPACE MEM>

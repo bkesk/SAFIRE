@@ -34,13 +34,6 @@ public:
 
   KPTHCHamiltonian(const HamiltonianParameters& params) : fileName(params.filename) {}
 
-  ~KPTHCHamiltonian() {}
-
-  KPTHCHamiltonian(KPTHCHamiltonian const& other) = default;
-  KPTHCHamiltonian(KPTHCHamiltonian&& other)      = default;
-  KPTHCHamiltonian& operator=(KPTHCHamiltonian const& other) = default;
-  KPTHCHamiltonian& operator=(KPTHCHamiltonian&& other) = default;
-
   HamiltonianTypes getHamType() const { return KPTHC; }
 
   template<MEMORY_SPACE MEM>

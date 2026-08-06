@@ -48,8 +48,6 @@ public:
         WfnFac(wfnfac_)
   { }
 
-  ~DriverFactory() {}
-
   bool executeDriver(DriverType type, std::string title, int m_series, const ExecuteParameters& exec);
 
 private:

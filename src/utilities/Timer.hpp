@@ -34,8 +34,7 @@ struct Watch : private std::chrono::steady_clock{
   int ncalls = 0;
   double total_time = 0.0;
   Watch(std::string name_ = "") : name(name_), start_{now()} {}
-  ~Watch() = default;
-  void start() { 
+  void start() {
     in_use = true; /* should abort if in_use=true*/ 
     start_=now();
   }

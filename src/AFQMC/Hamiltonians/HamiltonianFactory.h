@@ -37,15 +37,6 @@ namespace afqmc
 class HamiltonianFactory
 {
 public:
-  HamiltonianFactory() {}
-
-  ~HamiltonianFactory()
-  {
-    // delete Hamiltonian objects
-    //for (auto it = hamiltonians.begin(); it != hamiltonians.end(); ++it)
-    //  delete it->second;
-  }
-
   bool is_constructed(const std::string& ID)
   {
     auto block = hamBlocks.find(ID);

@@ -68,13 +68,6 @@ public:
     utils::check(SpVn.extent(0) == h0.size(), "Size mismatch");
   }
 
-  ~Continuous_GeneralUJ() {}
-
-  Continuous_GeneralUJ(const Continuous_GeneralUJ<MEM>& other)            = default;
-  Continuous_GeneralUJ& operator=(const Continuous_GeneralUJ<MEM>& other) = default;
-  Continuous_GeneralUJ(Continuous_GeneralUJ<MEM>&& other)                 = default;
-  Continuous_GeneralUJ& operator=(Continuous_GeneralUJ<MEM>&& other)      = default;
-
   /*
    * n2IJ maps an index in the ordering of the sparse structures to the ordering 
    * of H1 (the generic spin ordering of 1-body operators)

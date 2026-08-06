@@ -118,8 +118,6 @@ public:
     app_log(1," Measuring at steps (relative to each BP start in units of population control interval): {}",nback_prop_steps);
   }
 
-  ~BPWithTimeEvolvedOperators() {}
-
   void accumulate_step([[maybe_unused]] double time,
                        [[maybe_unused]] WalkerSet<MEM>& wset,
                        [[maybe_unused]] std::vector<ComplexType>& curData) {}

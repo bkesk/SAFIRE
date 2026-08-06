@@ -83,12 +83,10 @@ public:
 
   }
 
-  ~NOMSD_FT() = default; 
-
   NOMSD_FT(NOMSD_FT const& other) = delete;
   NOMSD_FT& operator=(NOMSD_FT const& other) = delete;
   NOMSD_FT(NOMSD_FT&& other)                 = default;
-  NOMSD_FT& operator=(NOMSD_FT&& other) = delete;
+  NOMSD_FT& operator=(NOMSD_FT&& other) = default;
 
   int number_of_cholesky_vectors() const { return HamOp.number_of_cholesky_vectors(); }
 

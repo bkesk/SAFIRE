@@ -34,13 +34,6 @@ public:
       : fileName(params.filename), shift_1body(params.shift_1body)
   {}
 
-  ~ModelHamOpsGenerator() {}
-
-  ModelHamOpsGenerator(ModelHamOpsGenerator const& other) = default;
-  ModelHamOpsGenerator(ModelHamOpsGenerator&& other)      = default;
-  ModelHamOpsGenerator& operator=(ModelHamOpsGenerator const& other) = default;
-  ModelHamOpsGenerator& operator=(ModelHamOpsGenerator&& other) = default;
-
   HamiltonianTypes getHamType() const { return ModelHamiltonian; }
 
   template<MEMORY_SPACE MEM>

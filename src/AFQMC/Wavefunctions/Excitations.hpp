@@ -314,11 +314,6 @@ public:
       sum_of_exct[n][1] = sum_of_exct[n - 1][1];
   }
 
-  ph_excitations(ph_excitations const& other) = default;
-  ph_excitations(ph_excitations && other) = default;
-  ph_excitations& operator=(ph_excitations const& other) = default;
-  ph_excitations& operator=(ph_excitations&& other) = default;
-
   std::array<long, 2> maximum_excitation_number() const { return {unique_alpha.size(), unique_beta.size()}; }
   long number_of_unique_alpha_excitations(int n) const
   {

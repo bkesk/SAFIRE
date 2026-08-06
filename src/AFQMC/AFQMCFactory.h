@@ -96,9 +96,6 @@ public:
     utils::check(execute(params), "Error in AFQMCFactory: Problems executing the input file.");
   }
 
-  ///destructor
-  ~AFQMCFactory() = default;
-
 private:
 
   int m_series;
