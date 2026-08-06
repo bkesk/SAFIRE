@@ -16,8 +16,10 @@
 
 #pragma once
 
+#include <tuple>
 #include <variant>
 #include "AFQMC/config.h"
+#include "AFQMC/Walkers/WalkerSet.hpp"
 
 #include "numerics/shared_array/const_shared_array.hpp"
 #include "AFQMC/Wavefunctions/NOMSD.hpp"
@@ -61,148 +63,55 @@ public:
   /*
    * Returns the memory space.
    */
-  auto get_memory_space() const 
-  {
-    return std::visit([&](auto&& a) { return a.get_memory_space(); }, var);
-  }
+  MEMORY_SPACE get_memory_space() const;
 
-  int number_of_cholesky_vectors() const
-  {
-    return std::visit([&](auto&& a) { return a.number_of_cholesky_vectors(); }, var);
-  }
+  int number_of_cholesky_vectors() const;
 
-  template<class WlkSet>
-  void runtime_optimization(WlkSet& wset)
-  {
-    std::visit([&](auto&& a) { a.runtime_optimization(wset); }, var);
-  }
+  void runtime_optimization(WalkerSet<MEM>& wset);
 
-  WALKER_TYPES getWalkerType() const
-  {
-    return std::visit([&](auto&& a) { return a.getWalkerType(); }, var);
-  }
+  WALKER_TYPES getWalkerType() const;
 
-  bool isFiniteTemperature() const
-  {
-    return std::visit([&](auto&& a) { return a.isFiniteTemperature(); }, var);
-  }
+  bool isFiniteTemperature() const;
 
-  template<class... Args>
-  void vMF(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.vMF(std::forward<Args>(args)...); }, var);
-  }
+  void vMF(memory::array_view<MEM,ComplexType,1> v, double dt);
 
-  auto G_MF()
-  {
-    return std::visit([&](auto&& a) { return a.G_MF(); }, var);
-  }
+  memory::const_shared_array<HOST_MEMORY,ComplexType,3> G_MF();
 
-  template<class... Args>
-  void vbias(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.vbias(std::forward<Args>(args)...); }, var);
-  }
+  // vbias/Energy/Log_Overlap come in two arities: the alternatives disagree on the
+  // default for nt (0 for the zero-T wavefunctions, -1 for NOMSD_FT), so the facade
+  // forwards without supplying one rather than picking a default here.
+  void vbias(WalkerSet<MEM>& wset, memory::array_view<MEM,ComplexType,2> v, double dt);
+  void vbias(WalkerSet<MEM>& wset, memory::array_view<MEM,ComplexType,2> v, double dt, int nt);
 
-  template<class... Args>
-  auto vHS(Args&&... args)
-  {
-    return std::visit([&](auto&& a) { return a.vHS(std::forward<Args>(args)...); }, var);
-  }
+  memory::buffered_array<MEM,ComplexType,4> vHS(memory::array_view<MEM,ComplexType,2> X, double dt);
 
-  template<class... Args>
-  auto vHS_sparse(Args&&... args)
-  {
-    return std::visit([&](auto&& a) { return a.vHS_sparse(std::forward<Args>(args)...); }, var);
-  }
+  nda::array_view<math::sparse::csr_matrix<ComplexType,MEM,int,int>,1>
+      vHS_sparse(memory::array_view<MEM,const ComplexType,2> X, double dt);
 
-  auto vHS_dims() const
-  {
-    return std::visit([&](auto&& a) { return a.vHS_dims(); }, var);
-  }
+  std::tuple<int,int> vHS_dims() const;
 
+  void Energy(WalkerSet<MEM>& wset);
+  void Energy(WalkerSet<MEM>& wset, int nt);
+  void Energy(WalkerSet<MEM> const& wset, memory::array_view<MEM,ComplexType,2> E,
+              memory::array_view<MEM,ComplexType,1> Ov);
+  void Energy(WalkerSet<MEM> const& wset, memory::array_view<MEM,ComplexType,2> E,
+              memory::array_view<MEM,ComplexType,1> Ov, int nt);
 
-  template<class... Args>
-  void Energy(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.Energy(std::forward<Args>(args)...); }, var);
-  }
+  void MixedDensityMatrix(WalkerSet<MEM> const& wset,
+                          memory::array_view<MEM,ComplexType,2> G, bool compact);
 
+  void Log_Overlap(WalkerSet<MEM>& wset);
+  void Log_Overlap(WalkerSet<MEM> const& wset, memory::array_view<MEM,ComplexType,1> Ov);
+
+  // DensityMatrix, updateLogScale and accumulate_estimators keep the forwarding form.
+  // The first two are not reachable through this facade, and the alternatives declare
+  // them with incompatible parameter lists; accumulate_estimators takes pointers whose
+  // type is fixed by the observable handlers, so pinning it here would only move the
+  // instantiation up one level.
   template<class... Args>
   void DensityMatrix(Args&&... args)
   {
     std::visit([&](auto&& a) { a.DensityMatrix(std::forward<Args>(args)...); }, var);
-  }
-
-  
-  template<class... Args>
-  void MixedDensityMatrix(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.MixedDensityMatrix(std::forward<Args>(args)...); }, var);
-  }
-
-  template<class... Args>
-  void Log_Overlap(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.Log_Overlap(std::forward<Args>(args)...); }, var);
-  }
-  
-
-  auto total_number_of_references() const
-  {
-    return std::visit([&](auto&& a) { return a.total_number_of_references(); }, var);
-  }
-
-  int getNMO() const
-  {
-    return std::visit([&](auto&& a) { return a.getNMO(); }, var);
-  }
-
-  template<class... Args>
-  ComplexType getReferenceWeight(Args&&... args)
-  {
-    return std::visit([&](auto&& a) { return a.getReferenceWeight(std::forward<Args>(args)...); }, var);
-  }
-
-  template<class... Args>
-  void getReferences(Args&&... args) 
-  {
-    std::visit([&](auto&& a) { a.getReferences(std::forward<Args>(args)...); }, var);
-  }
-
-  template<class... Args>
-  void accumulate_estimators(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.accumulate_estimators(std::forward<Args>(args)...); }, var);
-  }
-/*
-  template<class... Args>
-  void generalizedFockMatrix(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.generalizedFockMatrix(std::forward<Args>(args)...); }, var);
-  } 
-*/
-
-  HamiltonianTypes getHamType() const
-  {
-    return std::visit([&](auto&& a) { return a.getHamType(); }, var);
-  }
-
-  auto getFieldTypes()
-  {
-    return std::visit([&](auto&& a) { return a.getFieldTypes(); }, var);
-  }
-
-  template<class... Args>
-  void update_potentials(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.update_potentials(std::forward<Args>(args)...); }, var);
-  }
-
-  template<class... Args>
-  auto getOneBodyPropagatorMatrix(Args&&... args)
-  {
-    return std::visit([&](auto&& a) { return a.getOneBodyPropagatorMatrix(std::forward<Args>(args)...); }, var);
   }
 
   template<class... Args>
@@ -212,34 +121,36 @@ public:
   }
 
   template<class... Args>
-  auto getLogScale(Args&&... args)
+  void accumulate_estimators(Args&&... args)
   {
-    return std::visit([&](auto&& a) { return a.getLogScale(std::forward<Args>(args)...); }, var);
-  }
-  
-  void resetLogScale()
-  {
-    std::visit([&](auto&& a) { a.resetLogScale(); }, var);
+    std::visit([&](auto&& a) { a.accumulate_estimators(std::forward<Args>(args)...); }, var);
   }
 
-  template<class... Args>
-  void setLogPT0(Args&&... args)
-  {
-    std::visit([&](auto&& a) { a.setLogPT0(std::forward<Args>(args)...); }, var);
-  }
+  int total_number_of_references() const;
 
-  //auto getLogPT0()
-  //{
-  //  return std::visit([&](auto&& a) -> decltype(auto) { return a.getLogPT0(); }, var);
-  //}
+  int getNMO() const;
 
-  auto getLogPT0()
-  {
-    using R = memory::array<MEM,ComplexType,1>;
-    return std::visit([&](auto&& a) -> R { return a.getLogPT0(); }, var);
-  }
+  ComplexType getReferenceWeight(int i);
 
+  void getReferences(memory::buffered_array<MEM,ComplexType,3>& Refs);
 
+  HamiltonianTypes getHamType() const;
+
+  nda::array<int,1> getFieldTypes();
+
+  void update_potentials(double dt, memory::array_view<HOST_MEMORY,const ComplexType,1> nMF,
+                         memory::array_view<MEM,ComplexType,1> vMF, bool natural_shift);
+
+  nda::array<ComplexType,3> getOneBodyPropagatorMatrix(double dt,
+                         memory::array_view<HOST_MEMORY,const ComplexType,1> vMF);
+
+  ComplexType getLogScale(SpinTypes s);
+
+  void resetLogScale();
+
+  void setLogPT0(memory::array_view<MEM,ComplexType,1> v);
+
+  memory::array<MEM,ComplexType,1> getLogPT0();
 
   private:
 
