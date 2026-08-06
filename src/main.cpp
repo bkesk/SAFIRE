@@ -174,7 +174,9 @@ int main_impl(int argc, char** argv)
     auto afqmc_fac = afqmc::AFQMCFactory<DEVICE_MEMORY>(params, mpi);
   } else
 #endif
+  {
     auto afqmc_fac = afqmc::AFQMCFactory<HOST_MEMORY>(params, mpi);
+  } // keep braces so factory is destructed before next line
 
   mpi->shared_windows.collective_free_unused();
   if(!mpi->shared_windows.isempty()) {
