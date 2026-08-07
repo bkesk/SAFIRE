@@ -96,22 +96,6 @@ public:
         ovlp() = ovlp_d(); 
       }
 
-      nda::array<ComplexType,2> wet(4,nwalk);
-// MAM: disabled 
-      if(truncate) {
-        for(int i=0; i<nwalk; i++) { 
-          wet(0,i) = eloc(i,0) + eloc(i,1) + eloc(i,2);
-          wet(1,i) = eloc(i,0);
-          wet(2,i) = eloc(i,1);
-          wet(3,i) = eloc(i,2);
-        }
-        mpi->all_reduce(wet,std::plus<>());
-//        variance_based_truncation(wet(0,all),3.0);
-//        variance_based_truncation(wet(1,all),3.0);
-//        variance_based_truncation(wet(2,all),3.0);
-//        variance_based_truncation(wet(3,all),3.0);
-      }
-
       nda::array<ComplexType,2> wprop(7,nwalk);
       wset.getProperty(WEIGHT, wprop(0,all));
       wset.getProperty(OVLP, wprop(1,all));
@@ -132,24 +116,14 @@ public:
         {
           dum = wprop(0,i) * std::exp(ovlp(i)) * wprop(2,i);
         }
-        if(truncate) {
-          et = wet(0,i); 
-        } else {
-          et = eloc(i,0) + eloc(i,1) + eloc(i,2);
-        }
+        et = eloc(i,0) + eloc(i,1) + eloc(i,2);
         if ((!std::isfinite(real(dum))) || (!std::isfinite(real(et * dum))))
           continue;
         data(1) += dum;
         data(0) += et * dum;
-        if(truncate) {
-          data(2) += wet(1,i) * dum;
-          data(3) += wet(2,i) * dum;
-          data(4) += wet(3,i) * dum;
-        } else {
-          data(2) += eloc(i,0) * dum;
-          data(3) += eloc(i,1) * dum;
-          data(4) += eloc(i,2) * dum;
-        }
+        data(2) += eloc(i,0) * dum;
+        data(3) += eloc(i,1) * dum;
+        data(4) += eloc(i,2) * dum;
         data(5) += ( dum / std::abs(dum) );  
         data(6) += ( wprop(2,i) );  
         data(7) += ( wprop(3,i) );  
@@ -247,7 +221,6 @@ private:
   bool importanceSampling = true;
   bool energy_components = false;
   bool print_sign = false;
-  bool truncate = false;
 
   TimerManager Timer;
 
