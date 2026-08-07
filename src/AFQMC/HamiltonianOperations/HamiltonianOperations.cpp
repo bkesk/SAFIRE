@@ -24,54 +24,6 @@ namespace sfqmc
 {
 namespace afqmc
 {
-
-  // move constructor
-  template<MEMORY_SPACE M>
-  template<typename HOps>
-  HamiltonianOperations<M>::HamiltonianOperations(HOps&& other) : var(std::move(other)) {}
-
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,true>&&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,false>&&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KPTHCOps<HOST_MEMORY>&&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,true>&&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,false>&&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(Real3IndexFactorization<HOST_MEMORY>&&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KP3IndexFactorization<HOST_MEMORY>&&);
-
-#if defined(ENABLE_DEVICE)
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,true>&&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,false>&&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KPTHCOps<DEVICE_MEMORY>&&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,true>&&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,false>&&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(Real3IndexFactorization<DEVICE_MEMORY>&&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KP3IndexFactorization<DEVICE_MEMORY>&&);
-#endif
-
-  // copy constructor
-  template<MEMORY_SPACE M>
-  template<typename HOps>
-  HamiltonianOperations<M>::HamiltonianOperations(HOps const& other) : var(other) {}
-
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,true>const&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(THCOps<HOST_MEMORY,false>const&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KPTHCOps<HOST_MEMORY>const&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,true>const&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(ModelHamOps<HOST_MEMORY,false>const&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(Real3IndexFactorization<HOST_MEMORY>const&);
-  template HamiltonianOperations<HOST_MEMORY>::HamiltonianOperations(KP3IndexFactorization<HOST_MEMORY>const&);
-
-#if defined(ENABLE_DEVICE)
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,true>const&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(THCOps<DEVICE_MEMORY,false>const&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KPTHCOps<DEVICE_MEMORY>const&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,true>const&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(ModelHamOps<DEVICE_MEMORY,false>const&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(Real3IndexFactorization<DEVICE_MEMORY>const&);
-  template HamiltonianOperations<DEVICE_MEMORY>::HamiltonianOperations(KP3IndexFactorization<DEVICE_MEMORY>const&);
-#endif
-
-
   template<MEMORY_SPACE M>
   void HamiltonianOperations<M>::runtime_optimization(memory::array_view<M,const ComplexType,2> G)
   {

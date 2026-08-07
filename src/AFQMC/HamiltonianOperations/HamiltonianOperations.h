@@ -31,18 +31,18 @@ namespace afqmc
 {
 
 template<MEMORY_SPACE MEM>
-class HamiltonianOperations 
+class HamiltonianOperations
 {
 
 public:
-
-  HamiltonianOperations() = delete;
+  template<typename HOps>
+  HamiltonianOperations(HOps&& other) : var(std::forward<HOps>(other)) {}
 
   template<typename HOps>
-  HamiltonianOperations(HOps&& other);
-
-  template<typename HOps>
-  HamiltonianOperations(HOps const& other);
+  HamiltonianOperations& operator=(HOps&& other) {
+    var = std::forward<HOps>(other);
+    return *this;
+  }
 
   void runtime_optimization(memory::array_view<MEM,const ComplexType,2> G);
 
@@ -101,7 +101,7 @@ public:
 
   std::variant<THCOps<MEM,true>, THCOps<MEM,false>, KPTHCOps<MEM>,
                ModelHamOps<MEM,true>, ModelHamOps<MEM,false>,
-               Real3IndexFactorization<MEM>, KP3IndexFactorization<MEM> > var;
+               Real3IndexFactorization<MEM>, KP3IndexFactorization<MEM>> var;
 };
 
 } // namespace afqmc

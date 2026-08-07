@@ -35,30 +35,14 @@ template<MEMORY_SPACE MEM>
 class Wavefunction 
 {
 public:
-  Wavefunction() = delete;
+  template<typename Wfn>
+  Wavefunction(Wfn&& other) : var(std::forward<Wfn>(other)) {}
 
-  explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<MEM,PsiT_Matrix<MEM>> const& other) : var(other) {} 
-
-  explicit Wavefunction(NOMSD<MEM,memory::const_shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD<MEM,memory::const_shared_array<MEM,ComplexType,2>> const& other) : var(other) {}  
-
-  explicit Wavefunction(PHMSD<MEM>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(PHMSD<MEM> const& other) : var(other) {} 
-  
-  // Add finite-T NOMSD wavefunctions
-  explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD_FT<MEM,PsiT_Matrix<MEM>> const& other) = delete;
-
-  explicit Wavefunction(NOMSD_FT<MEM,memory::const_shared_array<MEM,ComplexType,2>>&& other) : var(std::move(other)) {}
-  explicit Wavefunction(NOMSD_FT<MEM,memory::const_shared_array<MEM,ComplexType,2>> const& other) = delete; 
-
-
-  Wavefunction(Wavefunction const& other) = delete;
-  Wavefunction(Wavefunction&& other)      = default;
-
-  Wavefunction& operator=(Wavefunction const& other) = delete;
-  Wavefunction& operator=(Wavefunction&& other) = default;
+  template<typename Wfn>
+  Wavefunction& operator=(Wfn&& other) {
+    var = std::forward<Wfn>(other);
+    return *this;
+  }
 
   /*
    * Returns the memory space.
