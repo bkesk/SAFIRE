@@ -28,13 +28,6 @@
 #include "utilities/mpi_context.h"
 #include "utilities/freemem.h"
 
-#include "AFQMC/Utilities/Utils.hpp"
-
-// Only the base class is needed here: the handler holds shared_ptr<EstimatorBase<MEM>>
-// and dispatches through it. The concrete estimators, and the wavefunction/propagator/
-// hamiltonian factories used to build them, are only needed by the constructor, which
-// lives in EstimatorHandler.cpp. EstimatorBase.h also provides WalkerSet, parameters
-// and nda/h5.
 #include "AFQMC/Estimators/EstimatorBase.h"
 
 namespace sfqmc

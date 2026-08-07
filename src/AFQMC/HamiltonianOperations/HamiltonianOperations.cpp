@@ -19,18 +19,6 @@
 #include "AFQMC/config.h"
 
 #include "AFQMC/HamiltonianOperations/HamiltonianOperations.h"
-#include "AFQMC/HamiltonianOperations/THCOps.hpp"
-#include "AFQMC/HamiltonianOperations/KPTHCOps.hpp"
-#include "AFQMC/HamiltonianOperations/KP3IndexFactorization.hpp"
-#include "AFQMC/HamiltonianOperations/Real3IndexFactorization.hpp"
-#include "AFQMC/HamiltonianOperations/ModelHamOps.hpp"
-
-
-// The dispatch lives here rather than in the header so that the bodies of the
-// variant alternatives are instantiated once, in this TU, instead of in every
-// TU that calls into HamiltonianOperations. The public signatures take canonical
-// C_stride_layout views so that each member is an ordinary function and a single
-// explicit class instantiation covers all of them.
 
 namespace sfqmc
 {
