@@ -42,7 +42,6 @@
   
 #include "test_utils.hpp"
 #include "AFQMC/Utilities/readWfn.h"
-#include "AFQMC/Utilities/AFQMCTimer.h"
 
 #include "AFQMC/Hamiltonians/HamiltonianFactory.h"
 #include "AFQMC/Wavefunctions/WavefunctionFactory.h"

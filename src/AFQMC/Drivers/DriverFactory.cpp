@@ -116,7 +116,7 @@ template<MEMORY_SPACE MEM>
 bool DriverFactory<MEM>::executeAFQMCDriver(std::string title, int m_series, const ExecuteParameters& exec)
 {
   // reset timers
-  AFQMCTimer.reset_all();
+  timers.reset_all();
   auto [ham_name,wfn_name,wset_name,prop_name] = get_component_ids(exec);
 
   std::string hdf_read_restart;
@@ -258,7 +258,7 @@ template<MEMORY_SPACE MEM>
 bool DriverFactory<MEM>::executeFTAFQMCDriver(std::string title, int m_series, const ExecuteParameters& exec)
 {
   // reset timers
-  AFQMCTimer.reset_all();
+  timers.reset_all();
   auto [ham_name,wfn_name,wset_name,prop_name] = get_component_ids(exec);
 
   std::string hdf_read_restart;

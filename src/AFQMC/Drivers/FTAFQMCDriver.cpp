@@ -60,7 +60,7 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
   app_log(1, "Executing {} sweeps, with Beta = {} ", nSweep, beta);
 
   for(int iSweep = 0; iSweep < nSweep; ++iSweep) {
-    AFQMCTimer.start(block_timer);
+    auto block_time = timers.block.start();
     Eshift = Eshift0; // Eshift set to same value at the beginning of each sweep
     total_time = 0.0;
     for (int iStep = 0; iStep < nStep; ++iStep)
@@ -83,9 +83,9 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
 
       if ((iStep + 1) % nStabilize == 0 && iStep != nStep - 1 )
       {
-        AFQMCTimer.start(ortho_timer);
+        auto ortho_time = timers.ortho.start();
         prop0.Orthogonalize(wset);
-        AFQMCTimer.stop(ortho_timer);
+        ortho_time.stop();
       }
 
       if (total_time < weight_reset_period && !prop0.free_propagation()){
@@ -101,10 +101,10 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
       // KE: should there be a check for population control interval here?
       if ((iStep + 1) % nPopulation == 0 || iStep == 0 || iStep == nStep-1)
       {
-        AFQMCTimer.start(popcont_timer);
+        auto popcontrol_time = timers.popcontrol.start();
         wset.processWalkerData(curData);
         wset.popControl();
-        AFQMCTimer.stop(popcont_timer);
+        popcontrol_time.stop();
         estim0.accumulate_step(total_time,wset,curData);
       }
 
@@ -124,8 +124,8 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
       utils::resize_nda_static_allocator();
     }
 
-    AFQMCTimer.stop(block_timer);
-    
+    block_time.stop();
+
     // accumulate measurements
     // for measurement we need nt = nStep
     //wset.advanceTauStep();
@@ -144,7 +144,7 @@ bool FTAFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
 
 
   // print timers
-  if(mpi->comm.root()) AFQMCTimer.print_all();
+  if(mpi->comm.root()) timers.print_all();
   
   app_log(1, banner("Finished AFQMC calculation"));
 

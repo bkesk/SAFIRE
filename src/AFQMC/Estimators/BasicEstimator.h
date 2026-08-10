@@ -40,7 +40,7 @@ public:
   BasicEstimator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> _mpi,
                  [[maybe_unused]] std::string title, const EstimatorParameters& params,
                  int measure_interval_, bool impsamp_)
-      : mpi(_mpi), nwfacts(params.nhist), importanceSampling(impsamp_), timers(params.timers)
+      : mpi(_mpi), nwfacts(params.nhist), importanceSampling(impsamp_), print_timings(params.timers)
   {
     measure_interval = measure_interval_;
 
@@ -55,8 +55,8 @@ public:
     data2.resize(10);
     data3.resize(2);
 
-    if (timers)
-      AFQMCTimer.reset_all();
+    if (print_timings)
+      timers.reset_all();
 
     enume          = 0.0;
     edeno          = 0.0;
@@ -133,8 +133,8 @@ public:
   void tags_timers(std::ofstream& out)
   {
     if (mpi->comm.root())
-      if (timers)
-        out << "PseudoEnergy_t vHS_t vbias_t G_t Propagate_t Energy_comm_t vHS_comm_t X_t popC_t ortho_t setup_t "
+      if (print_timings)
+        out << "PseudoEnergy_t vHS_t vbias_t G_t Propagate_t X_t popC_t ortho_t setup_t "
                "extra_t Block_t ";
   }
 
@@ -182,18 +182,17 @@ public:
 
     if (mpi->comm.root())
     {
-      if (timers)
-        out << std::setprecision(5) << AFQMCTimer.elapsed(pseudo_energy_timer) << " "
-            << AFQMCTimer.elapsed(vHS_timer) << " " << AFQMCTimer.elapsed(vbias_timer) << " "
-            << AFQMCTimer.elapsed(G_for_vbias_timer) << " " << AFQMCTimer.elapsed(propagate_timer) << " "
-            << AFQMCTimer.elapsed(E_comm_overhead_timer) << " "
-            << AFQMCTimer.elapsed(vHS_comm_overhead_timer) << " " << AFQMCTimer.elapsed(assemble_X_timer)
-            << " " << AFQMCTimer.elapsed(popcont_timer) << " " << AFQMCTimer.elapsed(ortho_timer) << " "
-            << AFQMCTimer.elapsed(setup_timer) << " " << AFQMCTimer.elapsed(extra_timer) << " "
-            << AFQMCTimer.elapsed(block_timer) << " " << std::setprecision(16);
+      if (print_timings)
+        out << std::setprecision(5) << timers.pseudo_energy.total_time << " "
+            << timers.vHS.total_time << " " << timers.vbias.total_time << " "
+            << timers.G_for_vbias.total_time << " " << timers.propagate.total_time << " "
+            << timers.assemble_X.total_time << " " << timers.popcontrol.total_time << " "
+            << timers.ortho.total_time << " " << timers.setup.total_time << " "
+            << timers.extra.total_time << " " << timers.block.total_time << " "
+            << std::setprecision(16);
     }
-    if (timers)
-      AFQMCTimer.reset_all();
+    if (print_timings)
+      timers.reset_all();
   }
 
   double getEloc() { return data[0] / data[1]; }
@@ -223,7 +222,7 @@ private:
   int measure_interval = 1;
 
   // optional
-  bool timers;
+  bool print_timings;
 };
 } // namespace afqmc
 } // namespace sfqmc

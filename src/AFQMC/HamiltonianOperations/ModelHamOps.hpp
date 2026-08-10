@@ -719,7 +719,6 @@ private:
     auto all = range::all;
     int nspin = walker_type == COLLINEAR ? 2 : 1;
     int nwalk = G3d.extent(0);
-    TimerManager Timer;
 
     {
       int nIJ(ET.get_n2IJ().extent(0));
@@ -748,36 +747,33 @@ private:
     // buffer space was allocated previous to calling this routine!!!
     utils::resize_nda_static_allocator();
 
+    double t_sparse(0.0), t_gfull(0.0);
     {
       int nIJ(ET.get_n2IJ().extent(0));
-      {
-        Timer.start("sp");
+      t_sparse = utils::function_timer([&] {
         for(int is=0, n0=0; is<nspin; is++, n0+=nel[0] ) {
           auto Gwaj = G3d(all,range(n0,n0+nel[is]),all);
           auto GIJ = getGIJ_for_energy(0,is,Gwaj);
         }
-        Timer.stop("sp");
-      }
+      });
 
-      Timer.start("gfull");
-      {
+      t_gfull = utils::function_timer([&] {
         // generate full G
         auto ET_n2IJ = ET.get_n2IJ_dev();
         memory::buffered_array<MEM,ComplexType,2> GIJ(nIJ, nwalk);
         for(int is=0, n0=0; is<nspin; is++, n0+=nel[0] ) {
           auto Gwaj = G3d(all,range(n0,n0+nel[is]),all);
           auto Gfull = getGFull_for_energy(0,is,Gwaj);
-          // B[n][:] = A[ I[n] ][:] 
+          // B[n][:] = A[ I[n] ][:]
           nda::copy_select(false, 0, ET_n2IJ, ComplexType(1.0), Gfull, ComplexType(0.0), GIJ);
         }
-      }
-      Timer.stop("gfull");
+      });
     }
 
-    app_log(2,"Runtime optimization of Model Hamiltonian Operations"); 
-    app_log(2,"  - G Full: {}",Timer.elapsed("gfull"));
-    app_log(2,"  - G sparse {}",Timer.elapsed("sp"));
-    sparse_G_eval = (Timer.elapsed("gfull") > Timer.elapsed("sp")); 
+    app_log(2,"Runtime optimization of Model Hamiltonian Operations:");
+    app_log(2,"  - G full: {} s",t_gfull);
+    app_log(2,"  - G sparse: {} s",t_sparse);
+    sparse_G_eval = (t_gfull > t_sparse);
     if(sparse_G_eval)
       app_log(2, "Using sparse algorithm to evaluate GIJ in Model Hamiltonian Operations.");
     else

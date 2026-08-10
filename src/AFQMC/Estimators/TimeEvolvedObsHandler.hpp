@@ -24,7 +24,6 @@
 #include "nda/nda.hpp"
 #include "nda/h5.hpp"
 
-#include "AFQMC/Utilities/AFQMCTimer.h"
 #include "AFQMC/Estimators/FullObsHandler.hpp"
 #include "AFQMC/Wavefunctions/Wavefunction.hpp"
 #include "AFQMC/Propagators/Propagator.hpp"

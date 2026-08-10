@@ -47,7 +47,7 @@ template<MEMORY_SPACE MEM>
 template<class WlkSet>
 void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType dt, int nt)
 {
-  AFQMCTimer.start(setup_timer);
+  auto setup_timer = timers.setup.start();
   auto walker_type = wset.getWalkerType();
   int nwalk        = wset.size();
   int npol  = walker_type == NONCOLLINEAR ? 2 : 1;
@@ -68,7 +68,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   // if timestep changed, recalculate one body propagator and vMF
   if (std::abs(dt - old_dt) > 1e-6)
     generateP1(dt, walker_type);
-  AFQMCTimer.stop(setup_timer);
+  setup_timer.stop();
 
   // store current time-slice for finite-T walkers
   if (ft)
@@ -89,9 +89,9 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
   }
 
   // 2. Assemble X(nwalk, nCV)
-  AFQMCTimer.start(assemble_X_timer);
+  auto assemble_X_time = timers.assemble_X.start();
   assemble_X(sqrtdt, X, MFfactor, hybrid_weight);
-  AFQMCTimer.stop(assemble_X_timer);
+  assemble_X_time.stop();
 
   //std::cout<<" X: " <<nda::sum(nda::to_host(X)) <<std::endl;
 
@@ -102,50 +102,50 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
 
   if(denseP2) {
     // 3. Calculate vHS
-    AFQMCTimer.start(vHS_timer);
+    auto vHS_time = timers.vHS.start();
     auto vHS = wfn->vHS(X, dt);
-    utils::check(vHS.shape() == std::array<long,4>{nspins_in_vHS,nwalk,npol_in_vHS*NMO,NMO}, 
+    utils::check(vHS.shape() == std::array<long,4>{nspins_in_vHS,nwalk,npol_in_vHS*NMO,NMO},
                  "Size mismatch");
-    AFQMCTimer.stop(vHS_timer);
+    vHS_time.stop();
 
     // 4. Propagate walkers
-    AFQMCTimer.start(propagate_timer);
-    apply_propagators<'N'>(wset,vHS); 
-    AFQMCTimer.stop(propagate_timer);
+    auto propagate_time = timers.propagate.start();
+    apply_propagators<'N'>(wset,vHS);
+    propagate_time.stop();
   } else {
     // 3. Calculate vHS
-    AFQMCTimer.start(vHS_timer);
+    auto vHS_time = timers.vHS.start();
     auto vHS = wfn->vHS_sparse(X, dt);
-    utils::check(vHS.extent(0) == nspin, "Size mismatch"); 
+    utils::check(vHS.extent(0) == nspin, "Size mismatch");
     utils::check((vHS(0).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}) and
                  (vHS(nspin-1).shape() == std::array<long,2>{nwalk*npol*NMO,nwalk*npol*NMO}),
-                 "Size mismatch"); 
-    AFQMCTimer.stop(vHS_timer);
+                 "Size mismatch");
+    vHS_time.stop();
 
     // 4. Propagate walkers
-    AFQMCTimer.start(propagate_timer);
+    auto propagate_time = timers.propagate.start();
     apply_propagators<'N'>(wset,vHS);
-    AFQMCTimer.stop(propagate_timer);
+    propagate_time.stop();
   }
 
   // 5. Calculate local energy/overlap
-  AFQMCTimer.start(pseudo_energy_timer);
+  auto pseudo_energy_time = timers.pseudo_energy.start();
   if (hybrid)
     wfn->Log_Overlap(wset, new_overlaps);
   else
     wfn->Energy(wset, new_energies, new_overlaps);
-  AFQMCTimer.stop(pseudo_energy_timer);
+  pseudo_energy_time.stop();
 
 
   // 6. update weights/energy/etc, apply constrains/bounds/etc
-  AFQMCTimer.start(extra_timer);
+  auto extra_time = timers.extra.start();
   if (free_projection)
   {
     free_projection_walker_update(wset, dt, new_overlaps, MFfactor, Eshift, hybrid_weight,debug_verbosity);
   }
   else if (hybrid)
   {
-    if(nt==1) step0 = true; 
+    if(nt==1) step0 = true;
     hybrid_walker_update(wset, dt, apply_constrain, importance_sampling, Eshift, new_overlaps, MFfactor,
                          hybrid_weight, lower_cutoff_scale, upper_cutoff_scale, symmetric_split, step0,
                          debug_verbosity, use_cp_constraint, eloc_bound_stats);
@@ -159,7 +159,7 @@ void AFQMCBasePropagator<MEM>::Propagate(WlkSet& wset, RealType Eshift, RealType
     if(wset.getBPPos() < wset.NumBackProp()) wset.advanceBPPos();
     wset.advanceHistoryPos();
   }
-  AFQMCTimer.stop(extra_timer);
+  extra_time.stop();
 }
 
 /*

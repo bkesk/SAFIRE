@@ -110,10 +110,7 @@ void phmsd_components_ph_excited_energy_real_dense_cholesky() {
     auto Tna_d = memory::to_memory_space<MEM>(Tna);
     auto R_d = memory::to_memory_space<MEM>(R);
     auto wgt_d = memory::to_memory_space<MEM>(wgt);
-    Watch timer;
     ph_excited_2body_energy_dense_cholesky(iexcit_d, refc_d, Tna_d, R_d, wgt_d, EX, EJ, KE);
-    timer.reset();
-    
 
     app_log(1, "{{{:15}, {:15}}}", nda::to_host(EX)[0], nda::to_host(EJ)[0]);
     

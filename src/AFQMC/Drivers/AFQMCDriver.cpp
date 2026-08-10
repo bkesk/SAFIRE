@@ -16,6 +16,7 @@
 
 #include <tuple>
 #include <map>
+#include <optional>
 #include <string>
 #include <iomanip>
 
@@ -54,45 +55,49 @@ bool AFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
   // KE: the concept of a "block" is now implicitly defined by the measure_interval
   iBlock = 0;
 
+  // one timed region per measurement interval, covering every step of the block plus its measurement
+  std::optional<utils::Timer::Handle> block_time;
+
   // KE: need to change the hard-coded 1.0 to an equilibration phase.
-  AFQMCTimer.start(block_timer);
-  for (int iStep = 0; iStep < nStep; ++iStep, ++step_tot)
-  {
+  for (int iStep = 0; iStep < nStep; ++iStep, ++step_tot) {
+    if (iStep % _measure_interval == 0)
+      block_time.emplace(timers.block);
+
     prop0.Propagate(wset, Eshift, dt);
     total_time += dt;
 
     if ((step_tot + 1) % nStabilize == 0)
     {
-      AFQMCTimer.start(ortho_timer);
+      auto ortho_time = timers.ortho.start();
       prop0.Orthogonalize(wset);
-      AFQMCTimer.stop(ortho_timer);
+      ortho_time.stop();
     }
 
     if (total_time < weight_reset_period && !prop0.free_propagation())
       wset.resetWeights();
 
-    if (total_time < 1.0) 
+    if (total_time < 1.0)
     {
       wset.processWalkerData(curData);
       estim0.accumulate_step(total_time, wset, curData);
-    } 
+    }
 
     if ((iStep + 1) % nPopulation == 0 || iStep == 0)
     {
-      AFQMCTimer.start(popcont_timer);
+      auto popcontrol_time = timers.popcontrol.start();
       wset.processWalkerData(curData);
       wset.popControl(); // make this a call to actual pop control
-      AFQMCTimer.stop(popcont_timer);
+      popcontrol_time.stop();
       estim0.accumulate_step(total_time, wset, curData);
     }
-    
+
     if (total_time < 1.0)
     {
       Eshift = estim0.getEloc_step();
     }
     else if ((iStep + 1) % nAccumulate == 0)
       Eshift += dShift * (estim0.getEloc_step() - Eshift);
-  
+
 
     // checkpoint
     if (nCheckpoint > 0 && (iStep + 1) % nCheckpoint == 0)
@@ -102,7 +107,7 @@ bool AFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
         app_error_flush();
         return false;
       }
-    
+
     // write samples
     if (samplePeriod > 0 && (iStep + 1) % samplePeriod == 0)
       if (!writeSamples(wset))
@@ -111,20 +116,25 @@ bool AFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
         app_error_flush();
         return false;
       }
-    
+
+    // resize stack pointers to match maximum buffer use
+    // UPDATE size of dynamic_bucket inside fallback allocator!!!
+    utils::resize_nda_static_allocator();
+
     if ((iStep + 1) % _measure_interval == 0 )
     {
       // quantities that are measured once per block
       estim0.accumulate_block(total_time, wset);
       estim0.print(iBlock + 1, total_time, Eshift, wset);
       iBlock++;
+      block_time->stop();
+      block_time.reset();
     }
-
-    // resize stack pointers to match maximum buffer use
-    // UPDATE size of dynamic_bucket inside fallback allocator!!!
-    utils::resize_nda_static_allocator();
-
-    AFQMCTimer.stop(block_timer);
+  }
+  // steps left over by an nStep that is not a multiple of the interval
+  if(block_time) {
+    block_time->stop();
+    block_time.reset();
   }
 
   if (nCheckpoint > 0)
@@ -132,7 +142,7 @@ bool AFQMCDriver<MEM>::run(WalkerSet<MEM>& wset)
 
   prop0.printBoundStatistics();
   // print timers
-  if(mpi->comm.root()) AFQMCTimer.print_all();
+  if(mpi->comm.root()) timers.print_all();
 
   app_log(1, banner("Finished AFQMC calculation"));
 

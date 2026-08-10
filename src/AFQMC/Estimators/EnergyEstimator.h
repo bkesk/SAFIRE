@@ -73,8 +73,9 @@ public:
   void accumulate_block([[maybe_unused]] double total_time, WalkerSet<MEM>& wset)
   {
     auto all = nda::range::all;
-    AFQMCTimer.start(energy_timer);
-    Timer.start("energy");
+    // the global timer feeds the summary table, the member one the per-estimator output column
+    auto energy_time = timers.energy.start();
+    auto estimator_time = energy_timer.start();
     long nwalk = wset.size();
 
     ComplexType dum, et;
@@ -135,8 +136,8 @@ public:
     }
     // increase counter
     iblock ++;
-    AFQMCTimer.stop(energy_timer);
-    Timer.stop("energy");
+    estimator_time.stop();
+    energy_time.stop();
   }
 
   void tags(std::ofstream& out)
@@ -186,7 +187,7 @@ public:
     {
       int n = wset.get_global_target_population();
       out << data(0).real() / n << " " << data(0).imag() / n << " " << data(1).real() / n << " " << data(1).imag() / n
-          << " " << Timer.elapsed("energy") << " ";
+          << " " << energy_timer.total_time << " ";
       if(print_sign) 
       {
         out <<data(5).real() / n <<" " <<data(5).imag() / n <<" " 
@@ -200,7 +201,7 @@ public:
       {
         out << data(2).real() / n << " " << data(3).real() / n << " " << data(4).real() / n << " ";
       }
-      Timer.reset("energy");
+      energy_timer.reset();
     }
   }
 
@@ -222,7 +223,7 @@ private:
   bool energy_components = false;
   bool print_sign = false;
 
-  TimerManager Timer;
+  utils::Timer energy_timer{"energy"};
 
 };
 } // namespace afqmc

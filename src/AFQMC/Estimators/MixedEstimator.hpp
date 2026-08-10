@@ -77,11 +77,11 @@ public:
       return;
     }
 
-    AFQMCTimer.start(mixed_estimator_timer);
+    auto mixed_estimator_time = timers.mixed_estimator.start();
     observ0.accumulate(wset);
     iblock++;
     accumulated_in_last_block = true;
-    AFQMCTimer.stop(mixed_estimator_timer);
+    mixed_estimator_time.stop();
   }
 
   void tags([[maybe_unused]] std::ofstream& out)

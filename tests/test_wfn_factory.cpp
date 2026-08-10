@@ -166,9 +166,6 @@ void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
   // Overlap
   wfn.Log_Overlap(wset);
 
-  Watch Time;
-  Time.reset();
-
   // optimize HOps evaluation
   wfn.runtime_optimization(wset);
 
@@ -233,7 +230,6 @@ void wfn_factory_sdet(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communic
     wfn.update_potentials(dt, nMF_natural, vMF_natural, true);
   }
 
-  Time.reset();
   memory::array<MEM,ComplexType,2> X(nwalk,wfn.number_of_cholesky_vectors());
   wfn.vbias(wset, X, dt);
   //std::cout<<"X = "<<X()<<std::endl;
