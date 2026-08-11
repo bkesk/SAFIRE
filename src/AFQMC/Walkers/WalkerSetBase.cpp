@@ -80,9 +80,6 @@ void WalkerSetBase<_M_>::parse(const WalkerSetParameters& params)
 template<MEMORY_SPACE _M_>
 void WalkerSetBase<_M_>::setup(std::array<int, 3> dims)
 {
-  LoadBalance_timer = AFQMCTimer.add("WalkerSetBase::loadBalance");
-  Branching_timer = AFQMCTimer.add("WalkerSetBase::branching");
-
   utils::check(walkerType != UNDEFINED_WALKER_TYPE,
                " Error: Undefined walker_type on WalkerSetBase::setup ");
   utils::check(!finite_temperature ||
@@ -293,8 +290,8 @@ void WalkerSetBase<_M_>::processWalkerData(std::vector<ComplexType>& curData)
 template<MEMORY_SPACE _M_>
 void WalkerSetBase<_M_>::popControl()
 {
-  AFQMCTimer.start(Branching_timer);
-  
+  auto branching_time = timers.branching.start();
+
   // matrix to hold walkers beyond targetN_per_rank
   // doing this to avoid resizing SHMBuffer, instead use local memory
   // will be resized later
@@ -320,12 +317,12 @@ void WalkerSetBase<_M_>::popControl()
     utils::check(false," Error: Distributed comb not implemented yet. \n\n");
     //afqmc::DistCombBranching(*this,rng_heads,nwalk_counts_old);
   }
-  AFQMCTimer.stop(Branching_timer);
+  branching_time.stop();
 
-  AFQMCTimer.start(LoadBalance_timer);
   // load balance after population control events
+  auto load_balance_time = timers.load_balance.start();
   loadBalance(Wexcess,nwalk_counts_old,nwalk_counts_new);
-  AFQMCTimer.stop(LoadBalance_timer);
+  load_balance_time.stop();
 
   utils::check(tot_num_walkers==targetN_per_rank," Error: tot_num_walkers != targetN_per_rank");
 }

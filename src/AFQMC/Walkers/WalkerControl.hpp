@@ -573,9 +573,7 @@ void correlatedPopulationControl(std::vector<std::reference_wrapper<WalkerSet>>&
   auto& mpi=wlks[0].get().get_mpi(); 
   auto rng=wlks[0].get().getRNG();
 
-  int LoadBalance_timer = AFQMCTimer.add("WalkerSetBase::loadBalance");
-  int Branching_timer = AFQMCTimer.add("WalkerSetBase::branching");
-  AFQMCTimer.start(Branching_timer);
+  auto branching_time = timers.branching.start();
 
   int n_sys = wlks.size();
   if(curData.extent(0) != n_sys or curData.extent(1) != 7)
@@ -654,24 +652,23 @@ void correlatedPopulationControl(std::vector<std::reference_wrapper<WalkerSet>>&
 
   int walker_size = wlks[0].get().single_walker_size() + wlks[0].get().single_walker_bp_size();
   nda::array<ComplexType,2> Wexcess(n_excess, walker_size);
-  AFQMCTimer.stop(Branching_timer);
+  branching_time.stop();
   for(int s=0; s<n_sys; s++) {
 
-    if (wlks[s].get().single_walker_size() + wlks[s].get().single_walker_bp_size() != walker_size) 
-      APP_ABORT("Error in correlated sampling: Walkers with different size found. FIX"); 
+    if (wlks[s].get().single_walker_size() + wlks[s].get().single_walker_bp_size() != walker_size)
+      APP_ABORT("Error in correlated sampling: Walkers with different size found. FIX");
 
-    AFQMCTimer.start(Branching_timer);
     // perform local branching
     // walkers beyond target go in Wexcess
+    auto branch_time = timers.branching.start();
     auto buff_s = buffer(s,nda::range::all);
     wlks[s].get().branch(std::span(buff_s.data() + target * mpi.comm.rank(), target), Wexcess);
-    AFQMCTimer.stop(Branching_timer);
+    branch_time.stop();
 
-    // load balance
-    AFQMCTimer.start(LoadBalance_timer);
-//     load balance after population control events
+    // load balance after population control events
+    auto load_balance_time = timers.load_balance.start();
     wlks[s].get().loadBalance(Wexcess,nwalk_counts_old,nwalk_counts_new);
-    AFQMCTimer.stop(LoadBalance_timer);  
+    load_balance_time.stop();
   }
 
 /*

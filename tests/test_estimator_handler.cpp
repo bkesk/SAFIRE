@@ -150,10 +150,10 @@ void estimator_handler_measure_schedule(std::shared_ptr<utils::mpi_context_t<boo
 
         if (total_time < 1.0 || (iStep + 1) % nPopulation == 0 || iStep == 0)
         {
-          AFQMCTimer.start(popcont_timer);
+          auto popcontrol_time = timers.popcontrol.start();
           wset.processWalkerData(dummyData);
           wset.popControl(); // make this a call to actual pop control
-          AFQMCTimer.stop(popcont_timer);
+          popcontrol_time.stop();
           estim0.accumulate_step(total_time, wset, dummyData);
         }
 

@@ -178,8 +178,8 @@ void propagator_factory_build(std::shared_ptr<utils::mpi_context_t<boost::mpi3::
       prop.Orthogonalize(wset);
     }
   }
-std::cout<<" setup: " <<AFQMCTimer.elapsed(setup_timer) <<std::endl;
-  if(mpi->comm.root()) AFQMCTimer.print_all();
+  app_log(1," setup: {}",timers.setup.total_time);
+  if(mpi->comm.root()) timers.print_all();
 }
 
 TEST_CASE("propagator_factory: build", "[propagator_factory]")

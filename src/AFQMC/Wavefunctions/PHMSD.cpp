@@ -52,7 +52,7 @@ template<MEMORY_SPACE MEM>
 void PHMSD<MEM>::vbias(WalkerSet<MEM>& wset, memory::array_view<MEM,ComplexType,2> v, double dt, [[maybe_unused]] int nt)
 {
   memory::check_memory_space<MEM>(v);
-  AFQMCTimer.start(G_for_vbias_timer);
+  auto G_time = timers.G_for_vbias.start();
   int nact  = OrbMats(0).extent(0) + (walker_type==COLLINEAR ? OrbMats(OrbMats.extent(0)-1).extent(0) : 0);
   int npol  = (walker_type==NONCOLLINEAR ? 2 : 1);
   int nw = wset.size();
@@ -61,11 +61,12 @@ void PHMSD<MEM>::vbias(WalkerSet<MEM>& wset, memory::array_view<MEM,ComplexType,
   memory::buffered_array<MEM,ComplexType,2> G(nw,nact*npol*NMO);
   memory::buffered_array<MEM,ComplexType,1> ovlp(nw);
   MixedDensityMatrix(wset, G, ovlp);
-  AFQMCTimer.stop(G_for_vbias_timer);
-  AFQMCTimer.start(vbias_timer);
-  v() = ComplexType(0.0);
+  G_time.stop();
+
+  auto vbias_time = timers.vbias.start();
+  v() = 0.0;
   HamOp.vbias(G, v, dt);
-  AFQMCTimer.stop(vbias_timer);
+  vbias_time.stop();
 }
 
 template<MEMORY_SPACE MEM>

@@ -44,7 +44,7 @@ template<MEMORY_SPACE MEM, class devPsiT>
 void NOMSD_FT<MEM,devPsiT>::vbias(WalkerSet<MEM>& wset, memory::array_view<MEM,ComplexType,2> v, double dt, int nt)
 {
   memory::check_memory_space<MEM>(v);
-  AFQMCTimer.start(G_for_vbias_timer);
+  auto G_time = timers.G_for_vbias.start();
   int nspin = walker_type==COLLINEAR ? 2 : 1;
   int npol  = walker_type==NONCOLLINEAR ? 2 : 1;
   int nw = wset.size();
@@ -55,11 +55,12 @@ void NOMSD_FT<MEM,devPsiT>::vbias(WalkerSet<MEM>& wset, memory::array_view<MEM,C
   memory::buffered_array<MEM,ComplexType,2> G(nw,nc);
   memory::buffered_array<MEM,ComplexType,1> ovlp(nw);
   MixedDensityMatrix(wset, G, ovlp, nt);
-  AFQMCTimer.stop(G_for_vbias_timer);
-  AFQMCTimer.start(vbias_timer);
-  v() = ComplexType(0.0);
+  G_time.stop();
+
+  auto vbias_time = timers.vbias.start();
+  v() = 0.0;
   HamOp.vbias(G, v, dt);
-  AFQMCTimer.stop(vbias_timer);
+  vbias_time.stop();
 }
 
 template<MEMORY_SPACE MEM, class devPsiT>

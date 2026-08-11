@@ -155,9 +155,9 @@ public:
       return;
     }
 
-    AFQMCTimer.start(back_propagate_timer);
+    auto back_propagate_time = timers.back_propagate.start();
 
-    // 1. allocate memory. Can loop over walkers if nrefs is too large 
+    // 1. allocate memory. Can loop over walkers if nrefs is too large
     int number_of_references = wfn0->total_number_of_references();
 
     memory::buffered_array<MEM,ComplexType,3> Ref0;
@@ -216,7 +216,7 @@ public:
       iblock++;
       accumulated_in_last_block = true;
     }
-    AFQMCTimer.stop(back_propagate_timer);
+    back_propagate_time.stop();
   }
 
   void tags([[maybe_unused]] std::ofstream& out)
