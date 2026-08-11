@@ -252,7 +252,7 @@ if(ENABLE_CPPTRACE)
   FetchContent_Declare(
     cpptrace
     GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-    GIT_TAG        v0.8.2
+    GIT_TAG        v1.0.4
     SYSTEM
   )
   FetchContent_MakeAvailable(cpptrace)
@@ -275,9 +275,9 @@ endif()
 ######################################################################
 # nlohmann_json
 # ######################################################################
-find_package(nlohmann_json 3.11.0 QUIET)
+find_package(nlohmann_json 3.11.3 QUIET)
 if(NOT nlohmann_json_FOUND)
-  FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.0/json.tar.xz)
+  FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
   FetchContent_MakeAvailable(json)
 endif()
 

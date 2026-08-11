@@ -66,6 +66,17 @@ template <typename T> struct std::formatter<std::complex<T>> {
   }
 };
 
+// C++23 provides a std::formatter for every input_range. nda arrays are input
+// ranges, so that generic specialization would be ambiguous with the one below.
+// Opt nda arrays out of range formatting to give ours precedence. The
+// input_range and same_as constraints mirror those of the standard library's
+// format_kind partial specialization so that ours is more specialized.
+#ifdef __cpp_lib_format_ranges
+template <nda::Array A>
+  requires std::ranges::input_range<A> && std::same_as<A, std::remove_cvref_t<A>>
+constexpr std::range_format std::format_kind<A> = std::range_format::disabled;
+#endif
+
 template <nda::Array A, typename CharT>
 struct std::formatter<A, CharT> : std::formatter<std::string_view, CharT> {
   auto format(A const& a, auto& ctx) const {
