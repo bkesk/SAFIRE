@@ -15,6 +15,7 @@
 
 #include "AFQMC/config.h"
 #include "AFQMC/parameters.hpp"
+#include "utilities/check_shape.hpp"
 #include <utilities/mpi_context.h>
 #include <vector>
 #include <string>
@@ -34,9 +35,9 @@ class pair_correlator
 public:
    pair_correlator(std::shared_ptr<utils::mpi_context_t<boost::mpi3::communicator>> mpi, const PairCorrelatorParameters& params, WALKER_TYPES wlk, int NMO_, int nave_ = 1)
       : mpi{mpi},
-        num_correlators{0},
         walker_type{wlk},
-        NMO{NMO_}
+        NMO{NMO_},
+        correlator_names{params.pair_type}
   {
     app_log(1,"  --  Pair Correlator (PairCorr) estimator. -- ");
     const std::string& filename = params.filename;
@@ -52,19 +53,24 @@ public:
     {
       h5::file input(filename, 'r');
       app_log(1, "reading pair correlators from: {}", filename);
-      h5::group group = h5::group{input}.open_group("PairCorrelator/orbital_map");
+      h5::group group = h5::group{input}.open_group("PairCorrelator").open_group("orbital_map");
 
-      for (const auto& correlator_name : params.pair_type) {
+      for (const auto& correlator_name : correlator_names) {
         memory::host_array<int,2> current_pair_map;
         h5::read(group, correlator_name, current_pair_map);
+        utils::check_shape(current_pair_map, correlator_name, NMO, 1);
 
         pair_map.push_back(current_pair_map);
       }
     }
     mpi->node_comm.barrier();
 
-    int x = walker_type == NONCOLLINEAR ? 2 : 1;
-    int dm_size = x*NMO*(x*NMO-1)/2;
+    num_correlators = int(pair_map.size());
+
+    // NMO*NMO for both walker types: NONCOLLINEAR fills it exactly, while COLLINEAR only
+    // visits i<j and leaves the tail zero. afqmctools reshapes each (alpha,beta) block to
+    // (NMO, NMO), so the extent has to be NMO*NMO regardless.
+    int dm_size = NMO*NMO;
 
     pair_corr_average.resize(nave_, num_correlators, num_correlators, dm_size);
     nda::tensor::set(0, pair_corr_average);
@@ -169,17 +175,31 @@ public:
     mpi->reduce(pair_corr_average, std::plus<>(), 0);
     if (mpi->comm.root()) {
       assert(group);
-      h5::group parent = ( group->has_key("PairCorrelator") ? 
-                           group->open_group("PairCorrelator") : 
-                           group->create_group("PairCorrelator") );
+      h5::group parent = ( group->has_key("PairCorr") ?
+                           group->open_group("PairCorr") :
+                           group->create_group("PairCorr") );
+      if (!parent.has_key("Metadata")) {
+        h5::group metadata = parent.create_group("Metadata");
+        h5::write(metadata, "NCORRELATORS", num_correlators);
+        for (int i = 0; i < num_correlators; ++i) {
+          // as a char array, not a std::string: h5 stores strings as scalar variable-length
+          // datasets, which h5py hands back as bytes, and afqmctools decodes the names with
+          // numpy's .tobytes()
+          std::vector<char> const name(correlator_names[i].begin(), correlator_names[i].end());
+          h5::write(metadata, std::format("CORRELATOR_NAME_{}", i), name);
+        }
+      }
+      std::string padded_iblock = std::format("{:09}",iblock);
       for (int i = 0; i < pair_corr_average.shape(0); ++i) {
         std::string avg_name = std::format("Average_{}", i);
-        h5::group obs_group = ( parent.has_key(avg_name) ? 
+        h5::group obs_group = ( parent.has_key(avg_name) ?
                                 parent.open_group(avg_name) :
-                                parent.create_group(avg_name) ); 
-        
-        std::string padded_iblock = std::format("{:09}",iblock);
-        h5::write(obs_group, "P" + padded_iblock, nda::flatten(pair_corr_average(i, nda::ellipsis{})));
+                                parent.create_group(avg_name) );
+
+        for (int alpha = 0; alpha < num_correlators; ++alpha)
+          for (int beta = 0; beta < num_correlators; ++beta)
+            h5::write(obs_group, std::format("P_{}_{}_ij_{}", alpha, beta, padded_iblock),
+                      pair_corr_average(i, alpha, beta, nda::range::all));
         h5::write(obs_group, "denominator_" + padded_iblock, Wsum(i));
       }
     }
@@ -197,9 +217,10 @@ private:
 
   int NMO{};
 
+  std::vector<std::string> correlator_names;
   std::vector<memory::host_array<int,2>> pair_map;
 
-  // (iave, α, β, npol*NMO*(npol*NMO-1)/2)
+  // (iave, α, β, NMO*NMO)
   memory::host_array<ComplexType,4> pair_corr_average;
 };
 
