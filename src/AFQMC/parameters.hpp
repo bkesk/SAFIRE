@@ -150,12 +150,11 @@ SAFIRE_DEFINE_PARAMETERS(TwoRDMParameters, name, rotation, path);
 
 struct PairCorrelatorParameters {
     std::string name{"pair_correlator"};
-    std::string walker_output{""};
     std::string filename{""};
 
     std::vector<std::string> pair_type{}; // required, at least one entry
 };
-SAFIRE_DEFINE_PARAMETERS(PairCorrelatorParameters, name, walker_output, filename, pair_type);
+SAFIRE_DEFINE_PARAMETERS(PairCorrelatorParameters, name, filename, pair_type);
 
 struct SpinSpinCorrParameters {
   std::string name{};

@@ -209,7 +209,7 @@ private:
 
   int NMO{};
 
-  // dm_average (nave, [XY, Z], x*NMO*(x*NMO-1)/2 ), x=(1:CLOSED/COLLINEAR, 2:NONCOLLINEAR)
+  // dm_average (nave, [XY, Z], NMO*(NMO+1)/2 )
   memory::host_array<ComplexType, 3> dm_average;
 };
 

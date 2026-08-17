@@ -30,6 +30,7 @@
 #include "config.h"
 #include "AFQMC/parameters.hpp"
 #include "utilities/check.hpp"
+#include "utilities/check_shape.hpp"
 #include "test_common.hpp"
 #include "utilities/h5_utils.hpp"
 
@@ -44,6 +45,7 @@
 #include "AFQMC/Estimators/Observables/full2rdm.hpp"
 #include "AFQMC/Estimators/Observables/diagonal2rdm.hpp"
 #include "AFQMC/Estimators/Observables/spinspin.hpp"
+#include "AFQMC/Estimators/Observables/pair_correlators.hpp"
 
 namespace sfqmc
 {
@@ -271,6 +273,109 @@ void observables_reference_full2rdm()
   if (mpi->comm.root())
     std::remove(out_file.c_str());
 }
+// pair_correlator has no old-implementation reference data, so this checks the layout
+// afqmctools.analysis.average.average_pair_correlation expects instead: the PairCorr group,
+// its Metadata, and one NMO*NMO dataset per (alpha,beta) pair. The non-zero check guards
+// against the observable silently measuring nothing.
+void observables_reference_pair_correlator(std::string const& case_group, WALKER_TYPES wt)
+{
+  auto& mpi = utils::make_unit_test_mpi_context();
+
+  const std::string ref_file = reference_file_path();
+  utils::check(utils::file_exists(ref_file), "Reference file not found: {}", ref_file);
+
+  ReferenceInputs ref;
+  {
+    h5::file file(ref_file, 'r');
+    h5::group root(file);
+    ref = read_reference_inputs(root, case_group, wt);
+  }
+
+  // identity and cyclic-shift pairings, i.e. the "s" and "+x" offsets of a 1d chain
+  const std::vector<std::string> pair_type{"s", "+x"};
+  const std::string map_file = "test_pair_correlator_" + case_group + "_map.h5";
+  if (mpi->comm.root())
+  {
+    nda::array<int, 2> identity(ref.NMO, 1), shift(ref.NMO, 1);
+    for (int i = 0; i < ref.NMO; i++)
+    {
+      identity(i, 0) = i;
+      shift(i, 0)    = (i + 1) % ref.NMO;
+    }
+    h5::file file(map_file, 'w');
+    // one level at a time: h5::group::has_key returns the raw htri_t from H5Lexists, which is
+    // negative (i.e. true) when an intermediate component is missing, so create_group on a
+    // nested path tries to unlink a link that does not exist and throws
+    h5::group parent = h5::group(file).create_group("PairCorrelator");
+    h5::group orbital_map = parent.create_group("orbital_map");
+    h5::write(orbital_map, pair_type[0], identity);
+    h5::write(orbital_map, pair_type[1], shift);
+  }
+  mpi->comm.barrier();
+
+  PairCorrelatorParameters params;
+  params.filename  = map_file;
+  params.pair_type = pair_type;
+
+  pair_correlator obs(mpi, params, wt, ref.NMO, ref.nave);
+
+  obs.accumulate(0, ref.G, nda::to_host(ref.G), ref.Xw, true);
+
+  const std::string out_file = "test_pair_correlator_" + case_group + "_output.h5";
+  {
+    h5::file file(out_file, 'w');
+    h5::group root(file);
+    obs.print(0, std::addressof(root), ref.Wsum);
+  }
+
+  const int ncorr   = int(pair_type.size());
+  const int npairs  = ref.NMO * ref.NMO;
+
+  nda::vector<ComplexType> new_pc(ncorr * ncorr * npairs);
+  ComplexType new_denom;
+  int new_ncorr;
+  std::vector<std::string> new_names(ncorr);
+  {
+    h5::file file(out_file, 'r');
+    h5::group root(file);
+    h5::group parent = root.open_group("PairCorr");
+
+    h5::group metadata = parent.open_group("Metadata");
+    h5::read(metadata, "NCORRELATORS", new_ncorr);
+    for (int i = 0; i < ncorr; i++)
+    {
+      // written as a char array so afqmctools can decode it with numpy's .tobytes()
+      std::vector<char> name;
+      h5::read(metadata, "CORRELATOR_NAME_" + std::to_string(i), name);
+      new_names[i].assign(name.begin(), name.end());
+    }
+
+    h5::group avg = parent.open_group("Average_0");
+    for (int alpha = 0; alpha < ncorr; alpha++)
+    {
+      for (int beta = 0; beta < ncorr; beta++)
+      {
+        std::string dset = std::format("P_{}_{}_ij_000000000", alpha, beta);
+        auto info = h5::array_interface::get_dataset_info(avg, dset);
+        utils::check_shape(info, dset, npairs);
+        auto block = new_pc(nda::range((alpha * ncorr + beta) * npairs, (alpha * ncorr + beta + 1) * npairs));
+        utils::h5_read(avg, dset, block);
+      }
+    }
+    h5::read(avg, "denominator_000000000", new_denom);
+  }
+
+  CHECK(new_ncorr == ncorr);
+  CHECK(new_names == pair_type);
+  CHECK_THAT(new_denom, utils::Approx(ref.Wsum(0)));
+  CHECK(nda::max_element(nda::abs(new_pc)) > 1e-12);
+
+  if (mpi->comm.root())
+  {
+    std::remove(out_file.c_str());
+    std::remove(map_file.c_str());
+  }
+}
 } // namespace
 
 TEST_CASE("observables_reference: full2rdm", "[observables_reference][full2rdm]")
@@ -324,6 +429,18 @@ TEST_CASE("observables_reference: spinspin noncollinear",
           "[observables_reference][spinspin]")
 {
   observables_reference_spinspin("noncollinear", NONCOLLINEAR);
+}
+
+TEST_CASE("observables_reference: pair_correlator collinear",
+          "[observables_reference][pair_correlator]")
+{
+  observables_reference_pair_correlator("collinear", COLLINEAR);
+}
+
+TEST_CASE("observables_reference: pair_correlator noncollinear",
+          "[observables_reference][pair_correlator]")
+{
+  observables_reference_pair_correlator("noncollinear", NONCOLLINEAR);
 }
 
 } // namespace sfqmc
