@@ -16,7 +16,7 @@ from pathlib import Path
 import tables # TODO: remove this dependency, replace by h5py
 import numpy as np
 
-from afqmctools.analysis.rdm import get_afqmc_rdm_samples, resample
+from afqmctools.analysis.rdm import get_afqmc_rdm_samples, resample, hermitize_rdm
 from afqmctools.utils.qe_utils import read_orbitals, read_qe_metadata, _rec2realspace
 from afqmctools.utils.aimbes_utils import read_coqui_orbitals
 
@@ -55,7 +55,15 @@ def dm_in_basis(dma, orbs, imag_tol=1e-6):
     # TODO: avoid np.einsum, still slow!
     yma = np.einsum("sij,jr->sir", dma, orbs)
     yma = np.einsum("ri,sir->sr", orbs.conj().T, yma)
-    assert np.allclose(np.abs(yma.imag), 0, atol=imag_tol, rtol=0.001), "imaginary observable"
+    max_imag = np.abs(yma.imag).max()
+    mean_real = np.abs(yma.real).mean()
+    if max_imag > imag_tol * max(mean_real, 1.0):
+        raise ValueError(
+            f"Imaginary part of observable too large: "
+            f"max|Im| = {max_imag:.3e}, mean|Re| = {mean_real:.3e}, "
+            f"tol = {imag_tol}. This usually indicates orbital gauge inconsistency "
+            "between the AFQMC 1-RDM basis and the orbitals used for post-processing."
+        )
     ym = yma.real.mean(axis=0)
     ye = yma.real.std(axis=0, ddof=1)
     return ym, ye
@@ -76,29 +84,97 @@ def calc_nofk(dma, meta, orbs, kcut, **kwargs):
     kcut : float
         cutoff for k-points
 
-    TODO: get k-point weights
+    Currently assumes uniform k-point weights (i.e., the AFQMC calculation uses
+    the full unsymmetrized k-mesh, not the irreducible BZ). If twist-averaged or
+    symmetry-reduced meshes are used, k-point weights from meta must be
+    incorporated. This is not yet implemented.
     """
     nkpts = meta["nkpts"]
-    nbands = meta["nbands"]
-    
-    # Generate k-vectors for the COMMON dense grid with centered indices
-    mesh = meta.get("common_grid_shape", meta["mesh"])  # Use common grid if available
-    gvecs_common = get_centered_gvecs(mesh)  # Centered Miller indices for full grid
-    kvecs = gvecs_common @ meta["recvec"]  # Convert to k-space
-    kmags = np.linalg.norm(kvecs, axis=-1)
-    ksel = kmags < kcut  # Filter once, applies to all k-points
-    
-    warn("Assuming equally weighted k-points for now")
-    nkm, nke = 0.0, 0.0 # just to initialize
-    for k in range(nkpts):
-        dma_k = dma[:, k*nbands:(k+1)*nbands, k*nbands:(k+1)*nbands]
-        weight = 1.0 / nkpts # TODO: get this from metadata
-        # Use SAME filtered orbitals for all k-points
-        _nkm, _nke = dm_in_basis(dma_k, orbs[k][:, ksel], **kwargs)
-        nkm += weight*_nkm
-        nke += weight*_nke
+    nbands_qe = meta["nbands"]
+    if dma.shape[1] % nkpts != 0:
+        raise ValueError(f"1-RDM dimension {dma.shape[1]} not divisible by nkpts={nkpts}")
+    nmo = dma.shape[1] // nkpts
+    if nmo > nbands_qe:
+        raise ValueError(f"Active space ({nmo}) larger than QE bands ({nbands_qe})")
+    if nmo < nbands_qe:
+        print(
+            f"[calc_nofk] Truncating QE orbitals from {nbands_qe} to {nmo} bands "
+            "to match active space"
+        )
+    if "nk" in meta and meta["nkpts"] != int(np.prod(meta["nk"])):
+        warn(
+            f"nkpts ({meta['nkpts']}) != prod(nk) ({np.prod(meta['nk'])}); may be using "
+            "symmetry-reduced mesh. Uniform k-point weights assumed - results may be incorrect."
+        )
+    kpts_cart = meta["kpts_cart"]  # shape (nkpts, 3), Cartesian 1/Bohr
+    print(f"[calc_nofk] kcut = {kcut:.4f} 1/Bohr ({kcut * 0.5292:.4f} 1/Angstrom)")
 
-    return kvecs[ksel], nkm, nke
+    # G-vectors on the common dense grid in Cartesian coordinates
+    mesh = meta.get("common_grid_shape", meta["mesh"])
+    gvecs_common = get_centered_gvecs(mesh)
+    gvecs_cart = gvecs_common @ meta["recvec"]  # shape (num_grid, 3)
+
+    kvecs_list = []
+    nkm_list = []
+    nke_list = []
+
+    for k in range(nkpts):
+        # Physical momenta for this k-point: k_n + G
+        kvecs_k = gvecs_cart + kpts_cart[k]
+        kmags_k = np.linalg.norm(kvecs_k, axis=-1)
+        ksel_k = kmags_k < kcut
+
+        dma_k = dma[:, k*nmo:(k+1)*nmo, k*nmo:(k+1)*nmo]
+        # Suppress stochastic anti-Hermitian noise before projecting observables.
+        dma_k = 0.5 * (dma_k + dma_k.conj().transpose(0, 2, 1))
+        orbs_k = orbs[k][:nmo, ksel_k]
+        _nkm, _nke = dm_in_basis(dma_k, orbs_k, **kwargs)
+
+        kvecs_list.append(kvecs_k[ksel_k])
+        nkm_list.append(_nkm)
+        nke_list.append(_nke)
+
+    return np.concatenate(kvecs_list), np.concatenate(nkm_list), np.concatenate(nke_list)
+
+
+def calc_nk_discrete(dma, meta, band_resolved=False):
+    """
+    Compute discrete-mesh occupation n(k) on the AFQMC k-grid.
+
+    For band_resolved=False, returns Tr rho(k) at each k, summed over bands.
+    For band_resolved=True, returns eigenvalues of rho(k) at each k.
+
+    Currently assumes uniform k-point weights (i.e., the AFQMC calculation uses
+    the full unsymmetrized k-mesh, not the irreducible BZ). If twist-averaged or
+    symmetry-reduced meshes are used, k-point weights from meta must be
+    incorporated. This is not yet implemented.
+    """
+    nkpts = meta["nkpts"]
+    nsamples = dma.shape[0]
+    if dma.shape[1] % nkpts != 0:
+        raise ValueError(f"1-RDM dimension {dma.shape[1]} not divisible by nkpts={nkpts}")
+    nmo = dma.shape[1] // nkpts
+    if "nk" in meta and meta["nkpts"] != int(np.prod(meta["nk"])):
+        warn(
+            f"nkpts ({meta['nkpts']}) != prod(nk) ({np.prod(meta['nk'])}); may be using "
+            "symmetry-reduced mesh. Uniform k-point weights assumed - results may be incorrect."
+        )
+
+    if band_resolved:
+        nk = np.zeros((nsamples, nkpts, nmo))
+    else:
+        nk = np.zeros((nsamples, nkpts))
+
+    for s in range(nsamples):
+        for k in range(nkpts):
+            block = dma[s, k*nmo:(k+1)*nmo, k*nmo:(k+1)*nmo]
+            block = 0.5 * (block + block.conj().T)
+            if band_resolved:
+                nk[s, k, :] = np.sort(np.linalg.eigvalsh(block))[::-1]
+            else:
+                nk[s, k] = np.trace(block).real
+
+    return meta["kpts_cart"], nk.mean(axis=0), nk.std(axis=0, ddof=1)
 
 # TODO: remove after testing new version
 def calc_rhor_old(dma, meta, orbs, rvecs=None, **kwargs):
@@ -187,6 +263,8 @@ def calc_rhor(dma, meta, orbs, pwcut=None, **kwargs):
                     _rhom = np.einsum("s,r,r->sr", dma[:,i,j], orb_ik_dagger, orb_jkprime)
                     _rhoe = _rhom.real.std(axis=0, ddof=1)
                     _rhom = _rhom.real.mean(axis=0)
+
+
                     rhom += _rhom
                     rhoe += _rhoe
     print(f"Integrated electron density per cell = {np.sum(rhom) / nkpts}")
@@ -437,11 +515,18 @@ def charge_density(
     orbital_source = Path(orbital_source)
     rho_outfile = Path(rho_outfile)
 
-    #NOTE: This is spin-traced for now.
     if rdm.shape[0] == 2:
-        warn("Spin-tracing the 1-RDM")
+        warn("Spin-summing the 1-RDM (unrestricted/UHF case)")
         rdm = rdm[0] + rdm[1]
-        error_rdm = error_rdm[0] + error_rdm[1]
+        error_rdm = np.sqrt(error_rdm[0]**2 + error_rdm[1]**2)
+    elif rdm.shape[0] == 1:
+        warn("Restricted/RHF detected: doubling the 1-RDM to get spin-summed total")
+        rdm = 2.0 * rdm[0]
+        error_rdm = 2.0 * error_rdm[0]
+    else:
+        raise ValueError(f"Unexpected spin dimension: rdm.shape[0] = {rdm.shape[0]}")
+
+    rdm, error_rdm = hermitize_rdm(rdm, error_rdm)
 
     rdm_samples = resample(rdm, error_rdm, nsample)
 
@@ -451,6 +536,7 @@ def charge_density(
 
     #TODO: have read_qe_orbitals return the meta data
     orbital_format,prefix = _infer_orbital_format(orbital_source)
+
     if "qe" in orbital_format:
         orbital_meta = read_qe_metadata(
             prefix=prefix,
@@ -512,7 +598,7 @@ def momentum_distribution(
     orbital_source : Path
         The path to the orbitals file.
     kcut : float
-        Cutoff for k-points in momentum space.
+        Cutoff for k-points in momentum space in 1/Bohr.
     nsample : int
         The number of samples to use for resampling.
     verbose : bool
@@ -529,11 +615,18 @@ def momentum_distribution(
     """
     orbital_source = Path(orbital_source)
 
-    # NOTE: This is spin-traced for now.
     if rdm.shape[0] == 2:
-        warn("Spin-tracing the 1-RDM", stacklevel=1)
+        warn("Spin-summing the 1-RDM (unrestricted/UHF case)", stacklevel=1)
         rdm = rdm[0] + rdm[1]
-        error_rdm = error_rdm[0] + error_rdm[1]
+        error_rdm = np.sqrt(error_rdm[0]**2 + error_rdm[1]**2)
+    elif rdm.shape[0] == 1:
+        warn("Restricted/RHF detected: doubling the 1-RDM to get spin-summed total", stacklevel=1)
+        rdm = 2.0 * rdm[0]
+        error_rdm = 2.0 * error_rdm[0]
+    else:
+        raise ValueError(f"Unexpected spin dimension: rdm.shape[0] = {rdm.shape[0]}")
+
+    rdm, error_rdm = hermitize_rdm(rdm, error_rdm)
 
     rdm_samples = resample(rdm, error_rdm, nsample)
 
@@ -569,6 +662,78 @@ def momentum_distribution(
             print(f"{key}: {val}")
 
     return kvecs, nkm, nke
+
+
+def nk_discrete_distribution(
+        rdm,
+        error_rdm,
+        orbital_source: Path,
+        nsample: int = 32,
+        verbose=False,
+        band_resolved=False,
+    ):
+    """Calculate the discrete-mesh occupation n(k) from the 1-RDM.
+
+    Parameters
+    ----------
+    rdm : np.ndarray
+        The 1-RDM. Shape (nspins, norbs, norbs).
+    error_rdm : np.ndarray
+        The error in the 1-RDM. Shape (nspins, norbs, norbs).
+    orbital_source : Path
+        The path to the orbitals file.
+    nsample : int
+        The number of samples to use for resampling.
+    verbose : bool
+        Whether to print additional information.
+    band_resolved : bool
+        Whether to return natural occupations per band instead of Tr rho(k).
+
+    Returns
+    -------
+    kpts_cart : np.ndarray
+        AFQMC k-points in Cartesian coordinates (1/Bohr).
+    nk_mean : np.ndarray
+        Mean n(k), shape (nkpts,) or (nkpts, nmo).
+    nk_error : np.ndarray
+        Error estimate, same shape as nk_mean.
+    """
+    orbital_source = Path(orbital_source)
+
+    if rdm.shape[0] == 2:
+        warn("Spin-summing the 1-RDM (unrestricted/UHF case)", stacklevel=1)
+        rdm = rdm[0] + rdm[1]
+        error_rdm = np.sqrt(error_rdm[0]**2 + error_rdm[1]**2)
+    elif rdm.shape[0] == 1:
+        warn("Restricted/RHF detected: doubling the 1-RDM to get spin-summed total", stacklevel=1)
+        rdm = 2.0 * rdm[0]
+        error_rdm = 2.0 * error_rdm[0]
+    else:
+        raise ValueError(f"Unexpected spin dimension: rdm.shape[0] = {rdm.shape[0]}")
+
+    rdm, error_rdm = hermitize_rdm(rdm, error_rdm)
+
+    rdm_samples = resample(rdm, error_rdm, nsample)
+
+    if verbose:
+        for i in range(nsample):
+            print(f"sample {i} has trace {np.trace(rdm_samples[i])}")
+
+    orbital_format, prefix = _infer_orbital_format(orbital_source)
+    if "qe" in orbital_format:
+        orbital_meta, _, _ = read_orbitals(
+            prefix=prefix,
+            path=(orbital_source / f"{prefix}.xml").parent,
+            realspace=False,
+        )
+    elif "coqui" in orbital_format:
+        orbital_meta, _ = read_coqui_orbitals(orbital_source)
+    else:
+        raise ValueError(f"[For Developers] Unsupported orbital format {orbital_format}")
+
+    kpts_cart, nkm, nke = calc_nk_discrete(rdm_samples, orbital_meta, band_resolved=band_resolved)
+    print(f" [+]  Integrated discrete momentum occupancy = {np.sum(nkm)}")
+    return kpts_cart, nkm, nke
 
 # from qharv.reel.inspect.volumetric
 def write_gaussian_cube(fcub, data, overwrite=False, **kwargs):
@@ -789,7 +954,8 @@ if __name__ == "__main__":
     imag_tol = 1e-2  # !!!! large tolerance for testing
     # !!!! hard-code for Si
     elem_map = {"Si": 14}
-    kcut = 2.11
+    # kcut must be in 1/Bohr; for Na runs, use 1.0-2.0 1/Bohr.
+    kcut = 1.5
 
     # program start
     dm, de = read_dm(fstat) # not this way, use function from rdm module

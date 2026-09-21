@@ -147,6 +147,43 @@ def resample(marr, earr, nsample): #TODO: move to the rdm module
     new_marr = marr[np.newaxis] + noise
     return new_marr
 
+
+def hermitize_rdm(rdm, error_rdm=None):
+    """Hermitize a 1-RDM (and optionally its uncertainty).
+
+    Parameters
+    ----------
+    rdm : np.ndarray
+        Reduced density matrix with shape (..., norb, norb).
+    error_rdm : np.ndarray, optional
+        Element-wise uncertainty with same shape as ``rdm``.
+
+    Returns
+    -------
+    tuple
+        ``(rdm_h, error_h)`` when ``error_rdm`` is provided,
+        otherwise ``(rdm_h, None)``.
+    """
+    rdm = np.asarray(rdm)
+    if rdm.ndim < 2 or rdm.shape[-1] != rdm.shape[-2]:
+        raise ValueError(f"rdm must be square in last two dimensions, got shape {rdm.shape}")
+
+    rdm_h = 0.5 * (rdm + np.swapaxes(rdm.conj(), -1, -2))
+
+    if error_rdm is None:
+        return rdm_h, None
+
+    error_rdm = np.asarray(error_rdm)
+    if error_rdm.shape != rdm.shape:
+        raise ValueError(
+            f"error_rdm shape {error_rdm.shape} does not match rdm shape {rdm.shape}"
+        )
+    # Propagate uncertainty for the mean of mirrored matrix elements.
+    error_h = 0.5 * np.sqrt(
+        np.abs(error_rdm)**2 + np.abs(np.swapaxes(error_rdm, -1, -2))**2
+    )
+    return rdm_h, error_h
+
 def check_1rdm_convergence(dm_means,dm_errors,sigma=2):
     """
     Check the convergence of the 1-rdm.

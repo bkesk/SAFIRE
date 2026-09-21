@@ -122,10 +122,24 @@ def _get_common_xml(pwscf_xml_file):
         positions[i,:] = np.array([ float(a) for a in atom.text.split()])
         elememts.append(atom.attrib['name'])
 
+    # Convention check: A (Bohr) and B (1/Bohr) must satisfy A @ B.T = 2*pi*I
+    B_phys = B * (2*np.pi/a_lattice)
+    overlap = A @ B_phys.T
+    expected = 2 * np.pi * np.eye(NDIMS)
+    if not np.allclose(overlap, expected, atol=1e-6):
+        raise ValueError(
+            f"Convention check failed: A @ B.T = {overlap}, expected {expected}. "
+            "Either A is not in Bohr, or B is not the physical reciprocal lattice in 1/Bohr."
+        )
+
+    print(f"[qe_utils] a_lattice (Bohr) = {a_lattice}")
+    print(f"[qe_utils] |a_i| (Bohr) = {np.linalg.norm(A, axis=1)}")
+    print(f"[qe_utils] |B_i| (1/Bohr) = {np.linalg.norm(B_phys, axis=1)}")
+
     info = {
         'A' : A,
         'a_lattice' : a_lattice,
-        'B' : B * (2*np.pi/a_lattice), 
+        'B' : B_phys,
         'volume' : volume,
         'nkpts' : nkpts,
         'nbands' : nbands,
@@ -469,6 +483,7 @@ def read_orbitals(
 
     miller_inds_k = []
     evc_k = []
+    xk_list = []
 
     # 1.B. Read HDF5
     for k in range(nkpts):
@@ -479,6 +494,8 @@ def read_orbitals(
             evc = f["evc"][...]
             # convert to complex!
             evc = evc[:,::2] + 1j*evc[:,1::2]
+
+            xk_list.append(f.attrs["xk"][...])
 
             miller_inds_k.append(miller_inds)
             evc_k.append(evc)
@@ -524,15 +541,26 @@ def read_orbitals(
         print("Returning orbitals in reciprocal space on common grid")
         # Convert sparse orbitals to dense common grid
         orbitals_dense = _orbitals_to_dense_grid(miller_inds_k, evc_k, M, nkpts, nbands)
+
         meta = read_qe_metadata(prefix, path=path)
         meta["common_grid_shape"] = M
         meta["num_grid_points"] = np.prod(M)
+        a_lattice = common_info['a_lattice']
+        xk_array = np.array(xk_list)
+        meta["kpts_cart"] = xk_array * (2 * np.pi / a_lattice)
+        meta["kpts_alat"] = xk_array
+        print(
+            "[qe_utils] kpts_cart range (1/Bohr): "
+            f"[{meta['kpts_cart'].min():.4f}, {meta['kpts_cart'].max():.4f}]"
+        )
+
         # Keep per-k-point Miller indices for reference/backward compatibility
         for k in range(nkpts):
             meta[f"gvecs_k{k}"] = miller_inds_k[k]
+
         return (
             meta,
-            orbitals_dense,
+            orbitals_dense,  # Now a homogeneous numpy array (nkpts, nbands, num_grid)
             M
         )
 
@@ -566,6 +594,7 @@ def read_qe_metadata(prefix, path=None):
         "recvec": common_info['B'],
         "nkpts": common_info['nkpts'],
         "nbands": common_info['nbands'],
+        "nk": common_info['nk'],
     }
 
     return meta

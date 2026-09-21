@@ -260,17 +260,20 @@ def _extract_2d_slice(kvecs, nk, nk_err, slice_axis='z', slice_value=0.0, tolera
     Parameters
     ----------
     kvecs : np.ndarray
-        K-vectors array with shape (nkpts, 3).
+        K-vectors in Cartesian coordinates (1/Bohr), shape (N, 3), where N is the
+        total number of extended-zone k+G points returned by calc_nofk.
     nk : np.ndarray
-        Momentum distribution values with shape (nkpts,).
+        Momentum distribution values with shape (N,).
     nk_err : np.ndarray or None
-        Error estimates with shape (nkpts,).
+        Error estimates with shape (N,).
     slice_axis : str
         Axis perpendicular to slice plane: 'x', 'y', or 'z'.
     slice_value : float
         Position of slice along slice_axis.
     tolerance : float
-        Thickness of slice (k-points within ±tolerance are included).
+        Half-thickness of the slab in 1/Bohr.  With extended-zone data
+        (k_n + G points), choose tolerance small enough to isolate one
+        G-vector layer, e.g. roughly half the reciprocal lattice spacing.
     
     Returns
     -------
@@ -310,11 +313,12 @@ def _extract_linecut(kvecs, nk, nk_err, start_point, end_point, width=0.1, avera
     Parameters
     ----------
     kvecs : np.ndarray
-        K-vectors array with shape (nkpts, 3).
+        K-vectors in Cartesian coordinates (1/Bohr), shape (N, 3), where N is the
+        total number of extended-zone k+G points returned by calc_nofk.
     nk : np.ndarray
-        Momentum distribution values with shape (nkpts,).
+        Momentum distribution values with shape (N,).
     nk_err : np.ndarray or None
-        Error estimates with shape (nkpts,).
+        Error estimates with shape (N,).
     start_point : array-like
         Start k-point [kx, ky, kz].
     end_point : array-like
@@ -385,9 +389,10 @@ def compute_fermi_level(kvecs, nk, n_electrons=None, method='integrated', **kwar
     Parameters
     ----------
     kvecs : np.ndarray
-        K-vectors array with shape (nkpts, 3).
+        K-vectors in Cartesian coordinates (1/Bohr), shape (N, 3), where N is the
+        total number of extended-zone k+G points returned by calc_nofk.
     nk : np.ndarray
-        Momentum distribution values with shape (nkpts,).
+        Momentum distribution values with shape (N,).
     n_electrons : float or None
         Total number of electrons. If None, uses integral of n(k).
     method : str
@@ -507,11 +512,12 @@ def plot_momentum_distribution_2d_slice(kvecs, nk, nk_err=None, **kwargs):
     Parameters
     ----------
     kvecs : np.ndarray
-        K-vectors array with shape (nkpts, 3).
+        K-vectors in Cartesian coordinates (1/Bohr), shape (N, 3), where N is the
+        total number of extended-zone k+G points returned by calc_nofk.
     nk : np.ndarray
-        Momentum distribution values with shape (nkpts,).
+        Momentum distribution values with shape (N,).
     nk_err : np.ndarray or None
-        Error estimates with shape (nkpts,).
+        Error estimates with shape (N,).
     **kwargs
         slice_axis : str
             Axis perpendicular to slice: 'x', 'y', or 'z' (default: 'z')
@@ -839,11 +845,12 @@ def plot_momentum_distribution_linecuts(kvecs, nk, nk_err=None, linecuts=None, *
     Parameters
     ----------
     kvecs : np.ndarray
-        K-vectors array with shape (nkpts, 3).
+        K-vectors in Cartesian coordinates (1/Bohr), shape (N, 3), where N is the
+        total number of extended-zone k+G points returned by calc_nofk.
     nk : np.ndarray
-        Momentum distribution values with shape (nkpts,).
+        Momentum distribution values with shape (N,).
     nk_err : np.ndarray or None
-        Error estimates with shape (nkpts,).
+        Error estimates with shape (N,).
     linecuts : list of dict or None
         List of line cut definitions. Each dict should have:
         - 'start': [kx, ky, kz] start point
